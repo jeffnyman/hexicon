@@ -1,0 +1,17 @@
+[package]
+name = "hexicon-cli"
+description = "Command-line tools for Hexicon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "hexicon"
+path = "src/main.rs"
+
+[dependencies]
+hexicon-image = { path = "../hexicon-image" }
+
+[lints]
+workspace = true
