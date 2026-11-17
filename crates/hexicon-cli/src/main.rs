@@ -1,50 +1,129 @@
 //! The `hexicon` command-line tool.
 
 use std::fmt::Write as _;
+use std::io::Write as _;
 use std::process::ExitCode;
 
+use hexicon_bytecode::listing::{Names, write_function};
+use hexicon_bytecode::{Extent, discover};
 use hexicon_image::{Image, Pool, Value};
 
 const USAGE: &str = "\
 usage: hexicon <command>
 
 commands:
-  dump <image.t3>    describe the contents of a program image file
+  dump <image.t3>              describe the contents of a program image file
+  disasm <image.t3>            list the byte code of every function found
+  disasm --summary <image.t3>  report how much of the code was accounted for
 ";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args
-        .iter()
-        .map(String::as_str)
-        .collect::<Vec<_>>()
-        .as_slice()
-    {
-        ["dump", path] => match dump(path) {
-            Ok(text) => {
-                print!("{text}");
-                ExitCode::SUCCESS
-            }
-            Err(message) => {
-                eprintln!("hexicon: {path}: {message}");
-                ExitCode::FAILURE
-            }
-        },
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let (path, result) = match args.as_slice() {
+        ["dump", path] => (path, dump(path)),
+        ["disasm", "--summary", path] => (path, disasm(path, true)),
+        ["disasm", path] => (path, disasm(path, false)),
         ["help" | "--help" | "-h"] => {
-            print!("{USAGE}");
-            ExitCode::SUCCESS
+            emit(USAGE);
+            return ExitCode::SUCCESS;
         }
         _ => {
             eprint!("{USAGE}");
-            ExitCode::from(2)
+            return ExitCode::from(2);
+        }
+    };
+    match result {
+        Ok(text) => {
+            emit(&text);
+            ExitCode::SUCCESS
+        }
+        Err(message) => {
+            eprintln!("hexicon: {path}: {message}");
+            ExitCode::FAILURE
         }
     }
 }
 
-fn dump(path: &str) -> Result<String, String> {
+/// Write to standard output. A reader that stops early, such as a pager, is
+/// not an error.
+fn emit(text: &str) {
+    let _ = std::io::stdout().lock().write_all(text.as_bytes());
+}
+
+fn load(path: &str) -> Result<(Image, usize), String> {
     let data = std::fs::read(path).map_err(|e| e.to_string())?;
     let image = Image::parse(&data).map_err(|e| e.to_string())?;
-    Ok(describe(&image, data.len()))
+    Ok((image, data.len()))
+}
+
+fn dump(path: &str) -> Result<String, String> {
+    let (image, file_size) = load(path)?;
+    Ok(describe(&image, file_size))
+}
+
+fn disasm(path: &str, summary_only: bool) -> Result<String, String> {
+    let (image, _) = load(path)?;
+    let found = discover(&image);
+    let mut out = String::new();
+
+    if !summary_only {
+        let names = Names::new(&image);
+        for function in found.functions() {
+            write_function(&mut out, &image, &names, function);
+            out.push('\n');
+        }
+    }
+
+    // How much of the code pool the functions account for: their headers,
+    // code, exception tables, and debug records.
+    let total = image.code_pool.data_len();
+    let mut covered = 0usize;
+    let mut instructions = 0usize;
+    let mut gaps = 0usize;
+    let mut gap_bytes = 0usize;
+    for function in found.functions() {
+        covered += function.size as usize;
+        instructions += function.instructions.len();
+        if let Extent::Gap { len, .. } = function.extent {
+            gaps += 1;
+            gap_bytes += len as usize;
+        }
+    }
+    let errors: Vec<_> = found.errors().collect();
+    let _ = writeln!(
+        out,
+        "functions      {}",
+        found.by_address.len() - errors.len()
+    );
+    let _ = writeln!(out, "instructions   {instructions}");
+    let _ = writeln!(
+        out,
+        "code covered   {covered} of {total} bytes ({:.1}%)",
+        if total == 0 {
+            100.0
+        } else {
+            covered as f64 * 100.0 / total as f64
+        }
+    );
+    let _ = writeln!(out, "gaps           {gaps} ({gap_bytes} bytes not decoded)");
+    let known = image.debug.method_headers.len();
+    if known != 0 {
+        let _ = writeln!(out, "debug list     {known} method headers in the image");
+    }
+    let stray: usize = found.functions().map(|f| f.stray_branches.len()).sum();
+    let _ = writeln!(out, "stray branches {stray}");
+    let _ = writeln!(out, "unreferenced   {}", found.unreferenced.len());
+    let _ = writeln!(
+        out,
+        "dangling       {} references to discarded code",
+        found.dangling.len()
+    );
+    let _ = writeln!(out, "failures       {}", errors.len());
+    for (address, error) in errors.iter().take(20) {
+        let _ = writeln!(out, "  {address:#x}: {error}");
+    }
+    Ok(out)
 }
 
 /// A plain-text description of an image.

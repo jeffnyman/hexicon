@@ -11,6 +11,7 @@ name = "hexicon"
 path = "src/main.rs"
 
 [dependencies]
+hexicon-bytecode = { path = "../hexicon-bytecode" }
 hexicon-image = { path = "../hexicon-image" }
 
 [lints]

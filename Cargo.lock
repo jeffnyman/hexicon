@@ -3,9 +3,17 @@
 version = 4
 
 [[package]]
+name = "hexicon-bytecode"
+version = "0.1.0"
+dependencies = [
+ "hexicon-image",
+]
+
+[[package]]
 name = "hexicon-cli"
 version = "0.1.0"
 dependencies = [
+ "hexicon-bytecode",
  "hexicon-image",
 ]
 

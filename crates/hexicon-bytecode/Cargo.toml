@@ -1,0 +1,13 @@
+[package]
+name = "hexicon-bytecode"
+description = "T3 VM byte-code definitions, decoder, and disassembler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+hexicon-image = { path = "../hexicon-image" }
+
+[lints]
+workspace = true

@@ -149,6 +149,19 @@ Building the reference toolchain natively (`t3make`, `t3run`) is a prerequisite 
 | 6 | WebAssembly | Browser build plays the same games with identical transcripts |
 | 7 | Hardening | Corpus of published games passes transcript diffs; performance comparable to `t3run`; fuzzing the image loader |
 
+### Status
+
+- Milestone 0: done except CI, which waits on a hosted repository.
+- Milestone 1: done (2026-11-17). `hexicon dump` and `hexicon disasm` handle all 138 images in the corpus, and the disassembly accounts for every byte of every code pool. The corpus is the images the reference suite compiles, the release and debug builds of Return to Ditch Day, and the `tads-runner` test games; set `HEXICON_T3_CORPUS` to run the corpus tests.
+
+Findings from milestone 1 that later milestones depend on:
+
+- A method header gives no code length. A function's extent comes from its exception table and debug records when it has them, and otherwise from following its branches and from where the next function starts.
+- Release builds carry debug records too, for any function with local variables. The frame tables in them are what `t3GetStackTrace` and the reflection library read.
+- Pre-initialized images keep references to static initializer code that pre-initialization discarded. The VM must not treat these as errors at load time.
+- The reference compiler emits a `switch` whose default branch points into the middle of an instruction (`rand.t` in the suite). The default is never taken. The VM must not validate branch targets ahead of execution.
+- Ten opcodes in the reference interpreter are missing from the instruction set document: `iternext`, `getsetlcl1`, `getsetlcl1r0`, `dupr0`, and `getlcln0` through `getlcln5`.
+
 ## Open questions
 
 - Is read/write compatibility with existing `.t3v` save files a hard requirement or a nice-to-have?
