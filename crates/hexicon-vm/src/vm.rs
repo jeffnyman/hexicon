@@ -97,8 +97,10 @@ pub(crate) struct Frame {
 
 impl Predef {
     /// The objects the VM knows by name, which are never garbage.
-    pub(crate) fn objects(&self) -> [ObjId; 7] {
+    pub(crate) fn objects(&self) -> [ObjId; 9] {
         [
+            self.gram_alt_info,
+            self.gram_alt_token_info,
             self.runtime_error,
             self.stack_info_class,
             self.const_str_obj,
@@ -182,6 +184,20 @@ pub(crate) struct Predef {
     /// The object and property the VM calls to name a value.
     pub reflection_services: ObjId,
     pub reflection_val_to_symbol: PropId,
+    /// What the grammar parser sets on the match objects it creates,
+    /// and the classes `getGrammarInfo` describes a production with.
+    pub gram_first_token: PropId,
+    pub gram_last_token: PropId,
+    pub gram_token_list: PropId,
+    pub gram_token_match_list: PropId,
+    pub gram_tag: PropId,
+    pub gram_misc_vocab: PropId,
+    pub gram_alt_props: PropId,
+    pub gram_alt_info: ObjId,
+    pub gram_alt_token_info: ObjId,
+    /// The methods of a comparator a program writes for a dictionary.
+    pub calc_hash: PropId,
+    pub match_values: PropId,
     /// The exception class for using a character set the VM lacks.
     pub charset_unknown_exception: ObjId,
     /// Where `specialsToHtml` keeps its state between calls.
@@ -439,6 +455,9 @@ impl Vm {
             Object::StringBuffer(_) => MetaKind::StringBuffer,
             Object::BigNumber(_) => MetaKind::BigNumber,
             Object::ByteArray(_) => MetaKind::ByteArray,
+            Object::StrComp(_) => MetaKind::StringComparator,
+            Object::Dict(_) => MetaKind::Dictionary,
+            Object::GramProd(_) => MetaKind::GrammarProduction,
             Object::CharSet { .. } => MetaKind::CharacterSet,
             Object::Class(_) => MetaKind::IntrinsicClass,
             Object::Opaque { meta_index, .. } => self.meta.get(*meta_index as usize)?.kind,

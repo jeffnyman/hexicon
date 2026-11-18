@@ -187,6 +187,7 @@ impl Vm {
                 | Object::IndexedIter { .. }
                 | Object::LookupIter { .. },
             ) => true,
+            Some(Object::Dict(dictionary)) => dictionary.modified,
             Some(Object::Class(_)) => self.objects.was_changed(id),
             _ => false,
         }
@@ -276,6 +277,40 @@ impl Vm {
                 w.u16(0);
             }
             Object::CharSet { name, .. } => w.counted(name.as_bytes()),
+            Object::StrComp(comparator) => w.bytes(&comparator.to_bytes()),
+            // A production from the image is never saved, so one that is
+            // being saved is one the program made.
+            Object::GramProd(production) => w.bytes(&production.to_bytes()),
+            Object::Dict(dictionary) => {
+                // The comparator, then each word with its entries for
+                // objects that are saved too.
+                w.u32(dictionary.comparator.0);
+                let at = w.out.len();
+                w.u32(0);
+                let mut count = 0;
+                for word in dictionary.words() {
+                    let entries: Vec<_> = word
+                        .entries
+                        .iter()
+                        .filter(|&&(object, _)| {
+                            !self.objects.is_transient(object)
+                                && (self.objects.is_in_root_set(object)
+                                    || self.objects.is_marked(object))
+                        })
+                        .collect();
+                    if entries.is_empty() {
+                        continue;
+                    }
+                    count += 1;
+                    w.counted(&word.text);
+                    w.u16(entries.len());
+                    for &&(object, prop) in &entries {
+                        w.u32(object.0);
+                        w.u16(prop.into());
+                    }
+                }
+                w.patch_u32(at, count);
+            }
             Object::ByteArray(bytes) => {
                 w.u32(bytes.len() as u32);
                 w.bytes(bytes);
@@ -560,6 +595,42 @@ impl Vm {
                 let map = crate::charset::CharMap::load(&name).map(Rc::new);
                 Object::CharSet { name, map }
             }
+            MetaKind::GrammarProduction => {
+                let (mut production, used) =
+                    crate::gram::GramProd::from_bytes(&r.data[r.pos..]).ok_or_else(bad)?;
+                r.bytes(used)?;
+                production.fix_ids(&|id| fixups.id(id));
+                production.modified = true;
+                Object::GramProd(Box::new(production))
+            }
+            MetaKind::StringComparator => {
+                let (comparator, used) =
+                    crate::strcomp::StrComp::from_bytes(&r.data[r.pos..]).ok_or_else(bad)?;
+                r.bytes(used)?;
+                Object::StrComp(Rc::new(comparator))
+            }
+            MetaKind::Dictionary => {
+                // The words go in by their plain hash, and are moved for
+                // the comparator once every object is back.
+                let comparator = fixups.id(ObjId(r.u32()?));
+                let mut dictionary = crate::dict::Dictionary::new(ObjId::INVALID);
+                let plain = |text: &[u8]| text.iter().fold(0u32, |h, &b| h.wrapping_add(b.into()));
+                let count = r.u32()?;
+                for _ in 0..count {
+                    let text = r.counted()?;
+                    let entries = r.u16()?;
+                    for _ in 0..entries {
+                        let object = fixups.id(ObjId(r.u32()?));
+                        let prop = r.u16()? as PropId;
+                        if object.is_valid() {
+                            dictionary.add(plain(text), text, object, prop);
+                        }
+                    }
+                }
+                dictionary.comparator = comparator;
+                dictionary.modified = true;
+                Object::Dict(Box::new(dictionary))
+            }
             MetaKind::ByteArray => {
                 let len = r.u32()? as usize;
                 Object::ByteArray(r.bytes(len)?.to_vec())
@@ -713,6 +784,7 @@ impl Vm {
         }
 
         // The objects.
+        let mut dictionaries = Vec::new();
         let saved = r.u32()?;
         for _ in 0..saved {
             let old = ObjId(r.u32()?);
@@ -739,6 +811,9 @@ impl Vm {
                 None
             };
             let mut object = self.restore_object(kind, meta_index, existing, &mut r, &fixups)?;
+            if matches!(object, Object::Dict(_)) {
+                dictionaries.push(id);
+            }
             if let Object::Class(class) = &mut object {
                 // The class is named by its number in the saved table.
                 let local = classes
@@ -771,7 +846,9 @@ impl Vm {
             }
         }
         self.create_class_objects();
-
+        for id in dictionaries {
+            self.dict_rehash(id)?;
+        }
         self.last_match = Default::default();
         self.collect_garbage(false);
         Ok(())

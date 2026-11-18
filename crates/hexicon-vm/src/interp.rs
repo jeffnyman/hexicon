@@ -1488,11 +1488,17 @@ impl Vm {
             MetaKind::WeakRefLookupTable => self.create_table(argc, true),
             MetaKind::StringBuffer => self.create_strbuf(argc),
             MetaKind::BigNumber => self.create_big(argc),
-            MetaKind::ByteArray | MetaKind::CharacterSet => {
-                let id = if kind == MetaKind::ByteArray {
-                    self.create_bytes(argc)?
-                } else {
-                    self.create_charset(argc)?
+            MetaKind::ByteArray
+            | MetaKind::CharacterSet
+            | MetaKind::StringComparator
+            | MetaKind::GrammarProduction
+            | MetaKind::Dictionary => {
+                let id = match kind {
+                    MetaKind::ByteArray => self.create_bytes(argc)?,
+                    MetaKind::CharacterSet => self.create_charset(argc)?,
+                    MetaKind::StringComparator => self.create_strcomp(argc)?,
+                    MetaKind::GrammarProduction => self.create_gram(argc)?,
+                    _ => self.create_dict(argc)?,
                 };
                 self.discard(argc as usize);
                 Ok(id)

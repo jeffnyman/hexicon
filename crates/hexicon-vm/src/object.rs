@@ -66,6 +66,12 @@ pub enum Object {
         name: String,
         map: Option<std::rc::Rc<crate::charset::CharMap>>,
     },
+    /// A string comparator: rules for matching words.
+    StrComp(std::rc::Rc<crate::strcomp::StrComp>),
+    /// A grammar production: a rule of a parser's grammar.
+    GramProd(Box<crate::gram::GramProd>),
+    /// A dictionary: a parser's vocabulary.
+    Dict(Box<crate::dict::Dictionary>),
     /// A byte array: bytes that can change in place.
     ByteArray(Vec<u8>),
     /// A BigNumber: a decimal floating-point number.
@@ -416,6 +422,10 @@ fn references(object: &Object, out: &mut Vec<Value>) {
             }
         }
         Object::LookupIter { table, .. } => out.push(Value::Obj(*table)),
+        // A dictionary keeps its comparator, but not the objects its
+        // words refer to.
+        Object::Dict(dictionary) => out.push(Value::Obj(dictionary.comparator)),
+        Object::GramProd(production) => production.references(out),
         Object::Pattern { source, .. } => out.push(*source),
         Object::Class(class) => {
             out.push(Value::Obj(class.modifier));
@@ -426,6 +436,7 @@ fn references(object: &Object, out: &mut Vec<Value>) {
         | Object::ByteArray(_)
         | Object::BigNumber(_)
         | Object::StringBuffer(_)
+        | Object::StrComp(_)
         | Object::Opaque { .. } => {}
     }
 }
@@ -668,6 +679,29 @@ impl ObjectTable {
                 }
                 if default_gone {
                     table.default_value = Value::Nil;
+                }
+            }
+        }
+        // Dictionaries drop their entries for objects that are gone.
+        let alive: std::collections::HashSet<u32> = self
+            .slots
+            .iter()
+            .enumerate()
+            .filter(|(_, slot)| slot.object.is_some())
+            .map(|(id, _)| id as u32)
+            .collect();
+        let is_alive = |id: ObjId| alive.contains(&id.0);
+        for slot in &mut self.slots {
+            match &mut slot.object {
+                Some(Object::Dict(dictionary)) => dictionary.remove_dead(&is_alive),
+                Some(Object::GramProd(production)) => production.forget_comparator(&is_alive),
+                _ => {}
+            }
+        }
+        for changes in &mut self.savepoints {
+            for (_, object) in changes.iter_mut() {
+                if let Object::Dict(dictionary) = object {
+                    dictionary.remove_dead(&is_alive);
                 }
             }
         }

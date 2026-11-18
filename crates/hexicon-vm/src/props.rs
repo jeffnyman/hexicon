@@ -130,6 +130,9 @@ impl Vm {
             MetaKind::BigNumber => self.big_method(self_value.obj_id(), index, argc),
             MetaKind::ByteArray => self.bytes_method(self_value.obj_id(), index, argc),
             MetaKind::CharacterSet => self.charset_method(self_value.obj_id(), index, argc),
+            MetaKind::StringComparator => self.strcomp_method(self_value.obj_id(), index, argc),
+            MetaKind::Dictionary => self.dict_method(self_value.obj_id(), index, argc),
+            MetaKind::GrammarProduction => self.gram_method(self_value.obj_id(), index, argc),
             other => Err(VmError::unimplemented(format!(
                 "method {index} of intrinsic class {}",
                 other.name()
@@ -376,6 +379,9 @@ impl Vm {
                             | MetaKind::BigNumber
                             | MetaKind::ByteArray
                             | MetaKind::CharacterSet
+                            | MetaKind::StringComparator
+                            | MetaKind::Dictionary
+                            | MetaKind::GrammarProduction
                     ) =>
             {
                 Err(VmError::unimplemented(format!(

@@ -119,6 +119,15 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             bytes.resize(len, 0);
             Object::ByteArray(bytes)
         }
+        MetaKind::GrammarProduction => Object::GramProd(Box::new(
+            crate::gram::GramProd::from_bytes(data).ok_or_else(bad)?.0,
+        )),
+        MetaKind::StringComparator => Object::StrComp(std::rc::Rc::new(
+            crate::strcomp::StrComp::from_bytes(data).ok_or_else(bad)?.0,
+        )),
+        MetaKind::Dictionary => Object::Dict(Box::new(
+            crate::dict::Dictionary::from_image(data).ok_or_else(bad)?,
+        )),
         MetaKind::CharacterSet => {
             let len = u16_at(0)? as usize;
             let name = String::from_utf8_lossy(data.get(2..2 + len).ok_or_else(bad)?).into_owned();
@@ -240,6 +249,16 @@ impl Vm {
             host,
         };
         vm.link(image)?;
+        // A dictionary's words are stored by its comparator's hash, which
+        // can only be worked out once the comparator is loaded.
+        let dictionaries: Vec<ObjId> = vm
+            .objects
+            .ids()
+            .filter(|&id| matches!(vm.objects.get(id), Some(Object::Dict(d)) if d.comparator.is_valid()))
+            .collect();
+        for id in dictionaries {
+            vm.dict_rehash(id)?;
+        }
         // From here on, a change to an object from the image is a change
         // the program made.
         vm.objects.track_image_state();
@@ -286,6 +305,17 @@ impl Vm {
             reflection_services: object_symbol(image, "reflection.reflectionServices")?,
             reflection_val_to_symbol: prop_symbol(image, "reflection.valToSymbol")?,
             obj_to_string: prop_symbol(image, "objToString")?,
+            calc_hash: prop_symbol(image, "IfcComparator.calcHash")?,
+            gram_first_token: prop_symbol(image, "GrammarProd.firstTokenIndex")?,
+            gram_last_token: prop_symbol(image, "GrammarProd.lastTokenIndex")?,
+            gram_token_list: prop_symbol(image, "GrammarProd.tokenList")?,
+            gram_token_match_list: prop_symbol(image, "GrammarProd.tokenMatchList")?,
+            gram_tag: prop_symbol(image, "GrammarProd.grammarTag")?,
+            gram_misc_vocab: prop_symbol(image, "GrammarProd.miscVocab")?,
+            gram_alt_props: prop_symbol(image, "GrammarProd.altProps")?,
+            gram_alt_info: object_symbol(image, "GrammarProd.GrammarAltInfo")?,
+            gram_alt_token_info: object_symbol(image, "GrammarProd.GrammarAltTokInfo")?,
+            match_values: prop_symbol(image, "IfcComparator.matchValues")?,
             charset_unknown_exception: object_symbol(
                 image,
                 "CharacterSet.UnknownCharSetException",

@@ -1432,3 +1432,136 @@ fn table_keys_hash_as_in_the_reference() {
     assert_eq!(buckets[0], 2, "the second slot holds 70,000");
     assert_eq!(buckets[6], 3, "the third slot holds the string");
 }
+
+// ---- the parser classes ----
+
+use crate::dict::Dictionary;
+use crate::gram::GramProd;
+use crate::strcomp::StrComp;
+
+/// A comparator that ignores case, accepts words cut to four characters,
+/// and takes `ss` for `ß`, built from the image format.
+fn test_comparator() -> StrComp {
+    let mut data = Vec::new();
+    for n in [4u16, 0, 1, 2] {
+        data.extend_from_slice(&n.to_le_bytes());
+    }
+    data.extend_from_slice(&0xdfu16.to_le_bytes());
+    data.push(2);
+    data.extend_from_slice(&0x100u32.to_le_bytes());
+    data.extend_from_slice(&0x200u32.to_le_bytes());
+    for c in *b"ss" {
+        data.extend_from_slice(&u16::from(c).to_le_bytes());
+    }
+    let (comparator, used) = StrComp::from_bytes(&data).expect("well formed");
+    assert_eq!(used, data.len());
+    assert_eq!(comparator.to_bytes(), data, "it writes what it read");
+    comparator
+}
+
+#[test]
+fn comparator_reports_how_words_match() {
+    let c = test_comparator();
+    let m = |value: &str, reference: &str| c.match_strings(value.as_bytes(), reference.as_bytes());
+    assert_eq!(m("apple", "apple"), 1, "exactly");
+    assert_eq!(m("APPLE", "apple"), 3, "ignoring case");
+    assert_eq!(m("appl", "apple"), 5, "truncated");
+    assert_eq!(m("app", "apple"), 0, "too short to be a truncation");
+    assert_eq!(m("apples", "apple"), 0);
+    assert_eq!(m("", ""), 1);
+    // Equal words hash alike, as do a word and its truncation.
+    assert_eq!(c.hash(b"APPLE"), c.hash(b"apple"));
+    assert_eq!(c.hash(b"appl"), c.hash(b"apple"));
+    assert_ne!(c.hash(b"app"), c.hash(b"apple"));
+    assert_eq!(c.hash("stra\u{df}e".as_bytes()), c.hash(b"strasse"));
+}
+
+#[test]
+fn dictionary_keeps_words_in_the_reference_order() {
+    let hash = |text: &[u8]| text.iter().map(|&b| u32::from(b)).sum::<u32>();
+    let mut d = Dictionary::new(ObjId::INVALID);
+    let (noun, adjective) = (10, 11);
+    let add = |d: &mut Dictionary, text: &str, object: u32, prop| {
+        d.add(hash(text.as_bytes()), text.as_bytes(), ObjId(object), prop)
+    };
+    assert!(add(&mut d, "red", 1, adjective));
+    assert!(add(&mut d, "red", 2, noun));
+    assert!(add(&mut d, "red", 3, adjective));
+    assert!(!add(&mut d, "red", 1, adjective), "already there");
+    // An entry goes after the last with the same property, or first.
+    let word = &d.candidates(hash(b"red"))[0];
+    assert_eq!(
+        word.entries,
+        [
+            (ObjId(2), noun),
+            (ObjId(1), adjective),
+            (ObjId(3), adjective)
+        ]
+    );
+    // "der" has the same hash, and the newer word comes first.
+    assert!(add(&mut d, "der", 4, noun));
+    let texts: Vec<&[u8]> = d
+        .candidates(hash(b"red"))
+        .iter()
+        .map(|word| word.text.as_slice())
+        .collect();
+    assert_eq!(texts, [b"der".as_slice(), b"red".as_slice()]);
+
+    assert!(d.remove(hash(b"red"), b"red", ObjId(1), adjective));
+    assert!(!d.remove(hash(b"red"), b"red", ObjId(1), adjective));
+    d.remove_dead(&|id| id != ObjId(4));
+    assert_eq!(d.words().count(), 1, "a word with no objects left is gone");
+}
+
+#[test]
+fn dictionary_corrects_spelling() {
+    let hash = |text: &[u8]| text.iter().map(|&b| u32::from(b)).sum::<u32>();
+    let mut d = Dictionary::new(ObjId::INVALID);
+    for word in ["apple", "apply", "ample", "cat"] {
+        d.add(hash(word.as_bytes()), word.as_bytes(), ObjId(1), 10);
+    }
+    let correct = |d: &mut Dictionary, input: &str, distance| {
+        let input: Vec<char> = input.chars().collect();
+        let mut found = d.correct(&input, distance, None);
+        found.sort();
+        found
+    };
+    // One letter missing: an insertion, with no replacement.
+    assert_eq!(
+        correct(&mut d, "aple", 1),
+        [("ample".to_owned(), 1, 0), ("apple".to_owned(), 1, 0)]
+    );
+    // Two adjacent letters swapped count as one edit.
+    assert_eq!(correct(&mut d, "cta", 1), [("cat".to_owned(), 1, 0)]);
+    // A word spelled right is not a correction of itself.
+    assert_eq!(
+        correct(&mut d, "apple", 1),
+        [("ample".to_owned(), 1, 1), ("apply".to_owned(), 1, 1)]
+    );
+    assert!(correct(&mut d, "xyz", 1).is_empty());
+}
+
+#[test]
+fn production_reads_and_writes_its_alternatives() {
+    // One alternative: a literal, a part of speech, another production,
+    // and the rest.
+    let mut data = Vec::new();
+    data.extend_from_slice(&1u16.to_le_bytes());
+    data.extend_from_slice(&7i16.to_le_bytes());
+    data.extend_from_slice(&0i16.to_le_bytes());
+    data.extend_from_slice(&99u32.to_le_bytes());
+    data.extend_from_slice(&4u16.to_le_bytes());
+    data.extend_from_slice(&[0, 0, 3, 4, 0]);
+    data.extend_from_slice(b"take");
+    data.extend_from_slice(&[20, 0, 2, 10, 0]);
+    data.extend_from_slice(&[21, 0, 1, 5, 0, 0, 0]);
+    data.extend_from_slice(&[0, 0, 5]);
+    let (production, used) = GramProd::from_bytes(&data).expect("well formed");
+    assert_eq!(used, data.len());
+    assert_eq!(production.alts.len(), 1);
+    assert_eq!(production.alts[0].tokens.len(), 4);
+    assert_eq!(production.to_bytes(), data);
+    let mut references = Vec::new();
+    production.references(&mut references);
+    assert_eq!(references, [Value::Obj(ObjId(99)), Value::Obj(ObjId(5))]);
+}

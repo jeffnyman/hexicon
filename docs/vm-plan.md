@@ -191,9 +191,9 @@ Findings from milestone 3:
 - The random number generator is ISAAC, started from a fixed state. A real run seeds it at startup; `hexicon run --norand` leaves it unseeded, which is how the conformance tests get repeatable output.
 - A program's first argument is the image's file name without its directory.
 
-- Milestone 4: in progress (2026-11-18). Done: undo; garbage collection, with finalizers and weak references; and saving, restoring, and restarting. 104 of the suite's 132 runnable programs match the reference. Still to do: Dictionary, GrammarProduction, and StringComparator.
+- Milestone 4: done (2026-11-18), apart from the piece noted here. Undo; garbage collection, with finalizers and weak references; saving, restoring, and restarting; and the parser classes StringComparator, Dictionary, and GrammarProduction. 108 of the suite's 132 runnable programs match the reference. `GrammarProd.addAlt` compiles a grammar rule from text, so it waits for the dynamic compiler, with DynamicFunc. The milestone's test of playing an adv3 game to completion waits for input, which is in milestone 5.
 
-Findings from milestone 4 so far:
+Findings from milestone 4:
 
 - Undo keeps a copy of each object the first time it changes after a savepoint, and puts the copies back. The object table makes the copy when it hands an object out for modification, so every kind of change to every kind of object is undoable with no code at the places that make changes. The reference instead records each changed property or element, in a fixed space of 65,536 records, and drops the oldest savepoints when that fills. Hexicon keeps up to 255 savepoints, as the reference does, and has no other limit, so a program that changes a great deal between savepoints can undo further back here than there.
 - The collector frees IDs lowest first, and a freed ID is the next one handed out, so after a collection new objects take the highest free IDs first. Hexicon follows that, because a program can see IDs: `firstObj` and `nextObj` go through objects in ID order.
@@ -205,6 +205,13 @@ Findings from milestone 4 so far:
 - To restore or restart, the VM needs each image object as it was loaded. The object table keeps a copy the first time one is changed after loading, by the same hook undo uses, instead of keeping the image.
 - A file name a program gives is relative to the folder its image is in, as in the reference, not the working directory. That is the command-line host's choice: the VM hands the host a name and takes back bytes.
 - A saved state carries the image's file name. The reference writes the full path it was run with, and Hexicon the path it was given.
+- A dictionary stores its words as the reference does: 256 buckets by the comparator's hash, the newest word first in each, and within a word each entry after the last one for the same part of speech. The order of `findWord` results, of `forEachWord`, and of spelling corrections all follow from that, and a side-by-side run of about 500 lookups, corrections, and listings under seven comparators gives the same output.
+- With a comparator the program wrote, the reference calls its `calcHash` twice to add a new word and twice to remove a word's last entry. Hexicon makes the same calls, since the program can see them.
+- A StringComparator matching a dictionary character that stands for several input characters keeps comparing against the first input character, so the later ones only ever match through the case-folding comparison, and the result says the match ignored case when it did not. Hexicon does the same.
+- The grammar parser explores alternatives in the reference's order, which fixes the order of the results and of the match objects created for them: a side-by-side run of 50 sentences through a grammar with left recursion, fallback alternatives, and token types agrees on every tree and on the IDs of the objects.
+- For an alternative that is only `*`, the reference reports the last token index from memory it never set. Hexicon reports an empty range, with the first index past the last.
+- The reference writes a malformed saved state if a dictionary word's only objects are transient: the word goes in without its count. It then fails to restore that state. Hexicon leaves such a word out. The reference also crashes restoring a state in which a dictionary from the image had changed, in a test here; Hexicon restores it.
+- A grammar production from the image is never saved, in the reference or here, so alternatives deleted from one come back on a restore.
 - While an intrinsic function or method is in the middle of its work, it can hold objects nothing else refers to yet. The reference keeps those on the VM stack. Hexicon treats every object created since the outermost such call began as reachable for that collection, which keeps a little garbage until the next one.
 
 Findings from milestone 2 that later milestones depend on:
