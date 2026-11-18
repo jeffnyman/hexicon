@@ -34,6 +34,7 @@ mod props;
 mod reflect;
 mod regex;
 mod rng;
+mod save;
 mod specials;
 mod sprintf;
 mod strbuf;

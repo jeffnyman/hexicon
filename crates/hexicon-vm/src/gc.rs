@@ -32,6 +32,14 @@ impl Vm {
                 roots.extend(call.args.iter().copied());
             }
         }
+        roots.extend(self.gc_global_roots());
+        roots
+    }
+
+    /// The values the VM holds outside the stack: what stays reachable
+    /// whatever code is running.
+    pub(crate) fn gc_global_roots(&self) -> Vec<Value> {
+        let mut roots: Vec<Value> = Vec::new();
         roots.push(self.r0);
         roots.push(self.say_function);
         roots.push(self.last_match.subject);

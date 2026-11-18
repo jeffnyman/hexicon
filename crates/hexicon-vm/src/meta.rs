@@ -132,6 +132,12 @@ impl MetaEntry {
         }
     }
 
+    /// The lowest property that selects a method, and how many
+    /// properties the range up to the highest covers.
+    pub fn prop_range(&self) -> (PropId, usize) {
+        (self.min_prop, self.by_prop.len())
+    }
+
     /// The number of the method a property selects, or zero if the
     /// property is not one of the class's methods.
     pub fn method_index(&self, prop: PropId) -> u16 {

@@ -120,6 +120,8 @@ struct Slot {
     finalize: Finalize,
     /// What the collector found in its current pass.
     mark: Mark,
+    /// The object's state as loaded from the image is already kept.
+    pristine: bool,
 }
 
 /// Whether an object's finalizer has run.
@@ -167,6 +169,11 @@ pub struct ObjectTable {
     /// The value of `serial` when the instruction now running at the
     /// outermost level began. See [`ObjectTable::collect`].
     safe_serial: u32,
+    /// Objects from the image that have changed since it was loaded, as
+    /// they were then. Restoring and restarting begin from these.
+    image_state: std::collections::HashMap<u32, Object>,
+    /// Whether changes to image objects are being recorded yet.
+    track_image_state: bool,
 }
 
 impl ObjectTable {
@@ -189,6 +196,7 @@ impl ObjectTable {
                 serial: 0,
                 finalize: Finalize::Done,
                 mark: Mark::Unreachable,
+                pristine: false,
             };
             // ID 0 is the invalid ID and is never on the free list.
             if id != 0 {
@@ -277,6 +285,12 @@ impl ObjectTable {
     /// every kind of object undoable.
     pub fn get_mut(&mut self, id: ObjId) -> Option<&mut Object> {
         let slot = self.slots.get_mut(id.0 as usize)?;
+        if slot.in_root_set && !slot.pristine && self.track_image_state {
+            if let Some(object) = &slot.object {
+                self.image_state.insert(id.0, object.clone());
+                slot.pristine = true;
+            }
+        }
         if slot.in_undo && !slot.saved && !slot.transient {
             if let (Some(changes), Some(object)) = (self.savepoints.back_mut(), &slot.object) {
                 changes.push((id.0, object.clone()));
@@ -323,7 +337,6 @@ impl ObjectTable {
     }
 
     /// Forget every savepoint.
-    #[allow(dead_code)]
     pub fn drop_undo(&mut self) {
         self.savepoints.clear();
     }
@@ -359,7 +372,6 @@ impl ObjectTable {
 
     /// Whether an object came from the image. Such objects are never
     /// garbage.
-    #[allow(dead_code)]
     pub fn is_in_root_set(&self, id: ObjId) -> bool {
         self.slots.get(id.0 as usize).is_some_and(|s| s.in_root_set)
     }
@@ -433,6 +445,55 @@ impl ObjectTable {
         self.allocs_since_gc >= ALLOCS_BETWEEN_GC
     }
 
+    /// Start keeping the loaded state of image objects as they change.
+    /// This is for the end of loading: what loading itself does to an
+    /// object is part of its loaded state.
+    pub fn track_image_state(&mut self) {
+        self.track_image_state = true;
+    }
+
+    /// Whether an object from the image has been taken for modification
+    /// since it was loaded.
+    pub fn was_changed(&self, id: ObjId) -> bool {
+        self.slots.get(id.0 as usize).is_some_and(|s| s.pristine)
+    }
+
+    /// Put every object from the image back as it was loaded, except the
+    /// transient ones, which outlast a restore or a restart. Objects the
+    /// program created stay until the collector finds them unreachable.
+    pub fn reset_to_image(&mut self) {
+        let slots = &mut self.slots;
+        self.image_state.retain(|&id, object| {
+            let slot = &mut slots[id as usize];
+            if slot.transient {
+                return true;
+            }
+            slot.object = Some(object.clone());
+            slot.pristine = false;
+            false
+        });
+    }
+
+    /// Mark what is reachable from the image's objects and the given
+    /// roots without going through a transient object, for saving.
+    pub fn mark_persistent(&mut self, roots: &[Value]) {
+        let mut all_roots: Vec<Value> = roots.to_vec();
+        for (id, slot) in self.slots.iter_mut().enumerate() {
+            slot.mark = Mark::Unreachable;
+            if slot.object.is_some() && slot.in_root_set {
+                all_roots.push(Value::Obj(ObjId(id as u32)));
+            }
+        }
+        self.mark_from_with(&all_roots, Mark::Reachable, false);
+    }
+
+    /// Whether the last marking reached an object.
+    pub fn is_marked(&self, id: ObjId) -> bool {
+        self.slots
+            .get(id.0 as usize)
+            .is_some_and(|s| s.mark == Mark::Reachable)
+    }
+
     /// Leave the next object created out of the count toward the next
     /// collection, as the reference does for the one whose creation set
     /// the collector off.
@@ -441,6 +502,10 @@ impl ObjectTable {
     }
 
     fn mark_from(&mut self, roots: &[Value], mark: Mark) {
+        self.mark_from_with(roots, mark, true);
+    }
+
+    fn mark_from_with(&mut self, roots: &[Value], mark: Mark, through_transient: bool) {
         let mut work: Vec<u32> = Vec::new();
         let mut found: Vec<Value> = Vec::new();
         let visit = |slots: &mut Vec<Slot>, value: Value, work: &mut Vec<u32>| {
@@ -459,7 +524,11 @@ impl ObjectTable {
         }
         while let Some(id) = work.pop() {
             found.clear();
-            if let Some(object) = &self.slots[id as usize].object {
+            let slot = &self.slots[id as usize];
+            if !through_transient && slot.transient {
+                continue;
+            }
+            if let Some(object) = &slot.object {
                 references(object, &mut found);
             }
             for &value in &found {

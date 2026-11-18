@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use hexicon_bytecode::listing::{Names, write_function};
 use hexicon_bytecode::{Extent, discover};
-use hexicon_host::Host;
+use hexicon_host::{FileError, Host};
 use hexicon_image::{Image, Pool, Value};
 use hexicon_vm::Vm;
 
@@ -61,8 +61,12 @@ fn emit(text: &str) {
     let _ = std::io::stdout().lock().write_all(text.as_bytes());
 }
 
-/// A host that writes program output to standard output.
-struct Console;
+/// A host that writes program output to standard output, and keeps the
+/// program's files beside its image, as the reference interpreter does.
+struct Console {
+    /// The folder a file name without one is taken to be in.
+    file_base: std::path::PathBuf,
+}
 
 impl Host for Console {
     fn print(&mut self, text: &str) {
@@ -81,6 +85,23 @@ impl Host for Console {
             chunk.copy_from_slice(&bytes[..chunk.len()]);
         }
     }
+
+    // A file name is a path, relative to the folder the image is in.
+    fn read_file(&mut self, name: &str) -> Result<Vec<u8>, FileError> {
+        std::fs::read(self.file_base.join(name)).map_err(file_error)
+    }
+
+    fn write_file(&mut self, name: &str, data: &[u8]) -> Result<(), FileError> {
+        std::fs::write(self.file_base.join(name), data).map_err(file_error)
+    }
+}
+
+fn file_error(error: std::io::Error) -> FileError {
+    match error.kind() {
+        std::io::ErrorKind::NotFound => FileError::NotFound,
+        std::io::ErrorKind::PermissionDenied => FileError::Denied,
+        _ => FileError::Failed,
+    }
 }
 
 /// Run a program. The program sees its own file name as its first
@@ -94,11 +115,16 @@ fn run(path: &str, program_args: &[&str], seed_random: bool) -> ExitCode {
         Ok((image, _)) => image,
         Err(message) => return fail(message),
     };
-    let mut vm = match Vm::new(&image, Box::new(Console)) {
+    let file_base = std::path::Path::new(path)
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_default();
+    let mut vm = match Vm::new(&image, Box::new(Console { file_base })) {
         Ok(vm) => vm,
         Err(error) => return fail(error.to_string()),
     };
     vm.set_error_trace(std::env::var_os("HEXICON_TRACE_ERRORS").is_some());
+    vm.set_image_name(path);
     if seed_random {
         vm.seed_random();
     }

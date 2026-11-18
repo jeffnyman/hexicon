@@ -227,6 +227,9 @@ impl Vm {
             preinit_mode: false,
             last_match: Default::default(),
             rng: crate::rng::Rng::new(),
+            image_timestamp: image.header.timestamp.as_bytes().to_vec(),
+            image_name: String::new(),
+            exception_message_synthesized: false,
             run_depth: 0,
             in_gc: false,
             big_cache: Default::default(),
@@ -237,17 +240,16 @@ impl Vm {
             host,
         };
         vm.link(image)?;
-        // Tables are hashed once every object they might use as a key
-        // has been loaded.
-        let tables: Vec<ObjId> = vm
-            .objects
-            .ids()
-            .filter(|&id| matches!(vm.objects.get(id), Some(Object::LookupTable(_))))
-            .collect();
-        for id in tables {
-            vm.rehash_table(id);
-        }
+        // From here on, a change to an object from the image is a change
+        // the program made.
+        vm.objects.track_image_state();
         Ok(vm)
+    }
+
+    /// Record the name of the image file, which saved states carry so
+    /// that a saved state can lead back to its program.
+    pub fn set_image_name(&mut self, name: &str) {
+        self.image_name = name.to_owned();
     }
 
     /// Resolve the symbols the VM imports from the image, and create the
@@ -294,19 +296,36 @@ impl Vm {
             iter_next_avail: INVALID_PROP,
         };
 
-        // These are created in the same order as in the reference VM, so
-        // that objects the program creates later get the same IDs.
+        self.create_synthesized_objects()?;
+        self.create_class_objects();
+
+        if let Some(iterator) = self.meta.entry(MetaKind::Iterator) {
+            self.predef.iter_get_next = iterator.method_prop(1);
+            self.predef.iter_next_avail = iterator.method_prop(2);
+        }
+        Ok(())
+    }
+
+    /// Create the objects the VM needs that the image does not supply.
+    /// They are created in the same order as in the reference VM, so
+    /// that objects the program creates later get the same IDs.
+    pub(crate) fn create_synthesized_objects(&mut self) -> VmResult<()> {
         let last_prop = self.predef.last_prop;
         self.predef.last_prop_obj = self
             .objects
             .alloc(Object::Vector(vec![Value::Prop(last_prop)]));
-        if self.predef.exception_message == INVALID_PROP {
+        if self.predef.exception_message == INVALID_PROP || self.exception_message_synthesized {
             self.predef.exception_message = self.alloc_prop_for_vm()?;
+            self.exception_message_synthesized = true;
         }
         self.predef.const_str_obj = self.objects.alloc(Object::String(Rc::from(&[][..])));
         self.predef.const_lst_obj = self.objects.alloc(Object::List(Rc::from(&[][..])));
+        Ok(())
+    }
 
-        // Every intrinsic class needs an object to represent it.
+    /// Give every intrinsic class that has none an object to represent
+    /// it.
+    pub(crate) fn create_class_objects(&mut self) {
         for index in 0..self.meta.len() {
             if self
                 .meta
@@ -323,12 +342,6 @@ impl Vm {
                 }
             }
         }
-
-        if let Some(iterator) = self.meta.entry(MetaKind::Iterator) {
-            self.predef.iter_get_next = iterator.method_prop(1);
-            self.predef.iter_next_avail = iterator.method_prop(2);
-        }
-        Ok(())
     }
 
     fn alloc_prop_for_vm(&mut self) -> VmResult<PropId> {
@@ -377,8 +390,8 @@ impl Vm {
 
     /// Run the initializers of `static` properties. An image that has been
     /// pre-initialized has none left.
-    fn run_static_initializers(&mut self) -> VmResult<()> {
-        let initializers = std::mem::take(&mut self.static_initializers);
+    pub(crate) fn run_static_initializers(&mut self) -> VmResult<()> {
+        let initializers = self.static_initializers.clone();
         for (object, prop) in initializers {
             let result = self.call_prop(Value::Obj(object), prop, 0, None);
             if let Err(error) = result {

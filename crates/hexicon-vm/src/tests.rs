@@ -1305,3 +1305,130 @@ fn collector_empties_weak_tables_of_dead_values() {
         _ => unreachable!(),
     }
 }
+
+// ---- saving, restoring, and restarting ----
+
+/// A VM for an image with one object, which has one property set to 1.
+fn vm_with_one_object() -> Vm {
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.op(Op::RetNil);
+    let image = ImageBuilder::default()
+        .object(
+            1,
+            tads_object_data(&[], false, &[(PROP_GREET, holder(type_code::INT, 1))]),
+        )
+        .build(main, &code, &Consts::default());
+    Vm::new(&image, Box::new(BufferHost::new())).expect("the image loads")
+}
+
+fn prop_of(vm: &Vm, id: u32, prop: u16) -> Option<Value> {
+    vm.objects
+        .tads(ObjId(id))
+        .and_then(|object| object.get(prop))
+}
+
+#[test]
+fn saved_state_restores_objects() {
+    let mut vm = vm_with_one_object();
+    let other_prop = PROP_GREET + 1;
+
+    // Change the image's object, and hang some new objects off it.
+    let text = vm.new_str("kept");
+    let vector = Value::Obj(vm.objects.alloc(Object::Vector(vec![Value::Int(5), text])));
+    vm.set_prop(ObjId(1), PROP_GREET, Value::Int(2))
+        .expect("set");
+    vm.set_prop(ObjId(1), other_prop, vector).expect("set");
+    let state = vm.save_state(Value::Nil).expect("save");
+
+    // Change everything again, then go back.
+    vm.set_prop(ObjId(1), PROP_GREET, Value::Int(3))
+        .expect("set");
+    vm.set_prop(ObjId(1), other_prop, Value::Nil).expect("set");
+    vm.restore_state(&state).expect("restore");
+
+    assert_eq!(prop_of(&vm, 1, PROP_GREET), Some(Value::Int(2)));
+    let Some(Value::Obj(restored)) = prop_of(&vm, 1, other_prop) else {
+        panic!("the vector is back");
+    };
+    match vm.objects.get(restored) {
+        Some(Object::Vector(items)) => {
+            assert_eq!(items[0], Value::Int(5));
+            assert_eq!(&*vm.as_str(items[1]).expect("a string"), b"kept");
+        }
+        other => panic!("not a vector: {other:?}"),
+    }
+}
+
+#[test]
+fn saved_state_is_checked_before_it_is_used() {
+    let mut vm = vm_with_one_object();
+    let state = vm.save_state(Value::Nil).expect("save");
+    let code_of = |error: VmError| match error {
+        VmError::Runtime(error) => error.code,
+        other => panic!("unexpected error: {other:?}"),
+    };
+
+    let error = vm
+        .restore_state(b"not a saved state")
+        .expect_err("rejected");
+    assert_eq!(code_of(error), code::NOT_SAVED_STATE);
+
+    let mut damaged = state.clone();
+    let last = damaged.len() - 1;
+    damaged[last] ^= 0xff;
+    let error = vm.restore_state(&damaged).expect_err("rejected");
+    assert_eq!(code_of(error), code::BAD_SAVED_STATE);
+
+    // A state from another program has another timestamp. Changing it
+    // means recomputing the checksum, as a real one would have.
+    let mut foreign = state.clone();
+    foreign[25] ^= 0x01;
+    let crc = crate::save::checksum(&foreign[25..]);
+    foreign[21..25].copy_from_slice(&crc.to_le_bytes());
+    let error = vm.restore_state(&foreign).expect_err("rejected");
+    assert_eq!(code_of(error), code::WRONG_SAVED_STATE);
+
+    vm.restore_state(&state)
+        .expect("the real one still restores");
+}
+
+#[test]
+fn restart_returns_to_the_loaded_state() {
+    let mut vm = vm_with_one_object();
+    let other_prop = PROP_GREET + 1;
+    vm.set_prop(ObjId(1), PROP_GREET, Value::Int(9))
+        .expect("set");
+    vm.set_prop(ObjId(1), other_prop, Value::True).expect("set");
+    vm.restart_state().expect("restart");
+    assert_eq!(prop_of(&vm, 1, PROP_GREET), Some(Value::Int(1)));
+    assert_eq!(prop_of(&vm, 1, other_prop), None);
+
+    // And it can be done again.
+    vm.set_prop(ObjId(1), PROP_GREET, Value::Int(7))
+        .expect("set");
+    vm.restart_state().expect("restart");
+    assert_eq!(prop_of(&vm, 1, PROP_GREET), Some(Value::Int(1)));
+}
+
+#[test]
+fn table_keys_hash_as_in_the_reference() {
+    // Saved tables depend on this: the two halves of an integer
+    // multiplied, and the characters of a string added up.
+    let mut vm = vm_with_one_object();
+    let mut table = LookupTable::new(16, 8, false);
+    table.insert_for_test(Value::Int(1), Value::True);
+    let table = vm.new_table(table);
+    let abc = vm.new_str("abc");
+    vm.table_set(table, Value::Int(70_000), Value::Int(1))
+        .expect("set");
+    vm.table_set(table, abc, Value::Int(2)).expect("set");
+    let Some(Object::LookupTable(table)) = vm.objects.get(table) else {
+        panic!("a table");
+    };
+    let (buckets, _, _) = table.save_parts();
+    // 70,000 is 1 * 65,536 + 4,464, and 4,464 mod 16 is 0. "abc" adds up
+    // to 294, and 294 mod 16 is 6.
+    assert_eq!(buckets[0], 2, "the second slot holds 70,000");
+    assert_eq!(buckets[6], 3, "the third slot holds the string");
+}

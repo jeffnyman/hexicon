@@ -69,37 +69,89 @@ impl LookupTable {
         self.first_free = start as Link + 1;
     }
 
-    /// Read a table from its image data. The keys are hashed afterward by
-    /// [`Vm::rehash_table`], since the image's bucket chains follow the
-    /// reference VM's hash function.
+    /// Read a table from its image data: the numbers of buckets and
+    /// slots, the first free slot, the first slot of each bucket, the
+    /// slots, and, in newer images, the default value.
     pub fn from_image(data: &[u8], weak: bool) -> Option<Self> {
         let u16_at = |at: usize| Some(u16::from_le_bytes([*data.get(at)?, *data.get(at + 1)?]));
         let bucket_count = u16_at(0)? as usize;
         let slot_count = u16_at(2)? as usize;
-        let first_free = Link::from(u16_at(4)?);
+        let first_free = usize::from(u16_at(4)?);
+        let mut buckets = Vec::with_capacity(bucket_count);
+        for index in 0..bucket_count {
+            buckets.push(usize::from(u16_at(6 + index * 2)?));
+        }
         let mut pos = 6 + bucket_count * 2;
         let mut slots = Vec::with_capacity(slot_count);
         const SLOT_SIZE: usize = Value::HOLDER_SIZE * 2 + 2;
         for _ in 0..slot_count {
             let record = data.get(pos..pos + SLOT_SIZE)?;
-            slots.push(Slot {
-                key: Value::from_holder(&record[..Value::HOLDER_SIZE]),
-                value: Value::from_holder(&record[Value::HOLDER_SIZE..]),
-                next: Link::from(u16_at(pos + Value::HOLDER_SIZE * 2)?),
-            });
+            slots.push((
+                Value::from_holder(&record[..Value::HOLDER_SIZE]),
+                Value::from_holder(&record[Value::HOLDER_SIZE..]),
+                usize::from(u16_at(pos + Value::HOLDER_SIZE * 2)?),
+            ));
             pos += SLOT_SIZE;
         }
         let default_value = match data.get(pos..pos + Value::HOLDER_SIZE) {
             Some(holder) => Value::from_holder(holder),
             None => Value::Nil,
         };
-        Some(Self {
-            buckets: vec![0; bucket_count.max(1)],
+        Some(Self::from_parts(
+            buckets,
             slots,
             first_free,
             default_value,
             weak,
-        })
+        ))
+    }
+
+    /// The table as a saved state holds it: the first slot of each
+    /// bucket, each slot's key, value, and next slot, and the first free
+    /// slot. Slots are numbered from one, and zero means none.
+    pub fn save_parts(&self) -> (Vec<usize>, Vec<(Value, Value, usize)>, usize) {
+        (
+            self.buckets.iter().map(|&link| link as usize).collect(),
+            self.slots
+                .iter()
+                .map(|slot| (slot.key, slot.value, slot.next as usize))
+                .collect(),
+            self.first_free as usize,
+        )
+    }
+
+    /// A table from its parts, as an image or a saved state holds them.
+    /// The chains are kept as they come, since they were built with the
+    /// same hash function. A link that points outside the table, which
+    /// the reference VM can write for the first free slot of a copied
+    /// table, counts as no link.
+    pub fn from_parts(
+        buckets: Vec<usize>,
+        slots: Vec<(Value, Value, usize)>,
+        first_free: usize,
+        default_value: Value,
+        weak: bool,
+    ) -> Self {
+        let count = slots.len();
+        let link = |index: usize| if index > count { 0 } else { index as Link };
+        let mut buckets: Vec<Link> = buckets.into_iter().map(link).collect();
+        if buckets.is_empty() {
+            buckets.push(0);
+        }
+        Self {
+            buckets,
+            slots: slots
+                .into_iter()
+                .map(|(key, value, next)| Slot {
+                    key,
+                    value,
+                    next: link(next),
+                })
+                .collect(),
+            first_free: link(first_free),
+            default_value,
+            weak,
+        }
     }
 
     /// Number of hash buckets.
@@ -231,64 +283,66 @@ const METHODS: &[(&str, NativeDesc)] = &[
 ];
 
 impl Vm {
-    /// A hash for a key. Values that compare equal must hash the same,
-    /// which is why strings hash by content and lists by their elements.
+    /// The hash of a key, which picks its bucket.
+    ///
+    /// This is the reference VM's function exactly, oddities included.
+    /// The chains a table is saved with only work with the function that
+    /// built them, so the two VMs can read each other's saved states only
+    /// if they agree. It also decides which keys a lookup compares the
+    /// one it wants against, and a comparison can create an object.
+    ///
+    /// The oddities: an integer hashes to the product of its two 16-bit
+    /// halves, which is zero for every integer under 65,536, so those all
+    /// share a bucket. And a BigNumber hashes by its digits, so one equal
+    /// to an integer is not found under that integer.
     fn key_hash(&self, key: Value) -> u32 {
-        if let Some(text) = self.as_str(key) {
-            return text.iter().fold(0x811c_9dc5u32, |hash, &byte| {
-                (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
-            });
-        }
+        let fold = |n: u32| (n & 0xffff) ^ (n >> 16);
         if let Some(items) = self.as_list(key) {
             return items
                 .iter()
-                .fold(7u32, |hash, item| hash.wrapping_add(self.key_hash(item)));
+                .fold(0u32, |hash, item| hash.wrapping_add(self.key_hash(item)));
+        }
+        if let Some(text) = self.as_str(key) {
+            return String::from_utf8_lossy(&text)
+                .chars()
+                .fold(0u32, |hash, c| hash.wrapping_add(c.into()));
         }
         match key {
             Value::Nil => 0,
             Value::True => 1,
-            Value::Int(n) => n as u32,
-            Value::Enum(n) => n ^ 0x5555,
-            Value::Prop(prop) => u32::from(prop) ^ 0xaaaa,
-            Value::FuncPtr(address) | Value::CodeOfs(address) => address,
-            Value::BifPtr { set, index } | Value::BifPtrX { set, index } => {
-                u32::from(set) << 16 | u32::from(index)
+            Value::Empty => 2,
+            Value::CodeOfs(address) | Value::FuncPtr(address) => fold(address),
+            Value::ObjX(id) => fold(id.0),
+            Value::Prop(prop) => prop.into(),
+            Value::Int(n) => {
+                let n = n as u32;
+                ((n & 0xffff) * (n >> 16)) & 0xffff
             }
+            Value::BifPtr { set, index } | Value::BifPtrX { set, index } => {
+                (u32::from(set) * u32::from(index)) & 0xffff
+            }
+            Value::Enum(n) => fold(n),
             Value::Obj(id) => match self.objects.get(id) {
-                // A BigNumber equals an integer of the same value.
-                Some(Object::BigNumber(big)) => match big.to_i32() {
-                    (n, false) if big.is_frac_zero() => n as u32,
-                    // Equal numbers can differ in precision, so zeros at
-                    // the end do not count.
-                    _ => {
-                        let significant =
-                            big.digs.iter().rposition(|&d| d != 0).map_or(0, |i| i + 1);
-                        big.digs[..significant]
-                            .iter()
-                            .fold(big.exp as u32, |hash, &d| {
-                                hash.wrapping_mul(31).wrapping_add(u32::from(d))
-                            })
-                    }
-                },
-                // Character sets are equal if their names are, in any case.
-                Some(Object::CharSet { name, .. }) => name.bytes().fold(0u32, |hash, byte| {
-                    hash.wrapping_add(byte.to_ascii_lowercase().into())
-                }),
+                Some(Object::BigNumber(big)) => big
+                    .digs
+                    .iter()
+                    .fold(0u32, |hash, &d| hash.wrapping_add(d.into()))
+                    .wrapping_add(big.exp as u32),
+                Some(Object::CharSet { name, .. }) => name
+                    .bytes()
+                    .fold(0u32, |hash, byte| hash.wrapping_add(byte.into())),
                 Some(Object::ByteArray(bytes)) => bytes
                     .iter()
                     .fold(0u32, |hash, &byte| hash.wrapping_add(byte.into())),
-                // A string buffer equals a string with the same text.
-                Some(Object::StringBuffer(_)) => {
-                    let text = self.strbuf_text(id).unwrap_or_default();
-                    text.iter().fold(0x811c_9dc5u32, |hash, &byte| {
-                        (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
-                    })
-                }
-                // A vector equals a list with the same elements.
+                // The characters as UTF-16.
+                Some(Object::StringBuffer(buffer)) => buffer
+                    .iter()
+                    .fold(0u32, |hash, &c| hash.wrapping_add(u32::from(c) & 0xffff)),
                 Some(Object::Vector(items)) => items
                     .iter()
-                    .fold(7u32, |hash, &item| hash.wrapping_add(self.key_hash(item))),
-                _ => id.0,
+                    .fold(0u32, |hash, &item| hash.wrapping_add(self.key_hash(item))),
+                // Anything else is its own key, and hashes by its ID.
+                _ => fold(id.0),
             },
             _ => 3,
         }
@@ -305,26 +359,6 @@ impl Vm {
         match self.objects.get_mut(id) {
             Some(Object::LookupTable(table)) => Ok(table),
             _ => Err(VmError::new(code::BAD_TYPE_BIF)),
-        }
-    }
-
-    /// Rebuild a table's hash buckets from its slots. Tables from an
-    /// image need this once all objects are loaded.
-    pub(crate) fn rehash_table(&mut self, id: ObjId) {
-        let Ok(table) = self.table(id) else { return };
-        let hashes: Vec<Option<u32>> = (0..table.slot_count())
-            .map(|index| table.slot(index).map(|(key, _)| self.key_hash(key)))
-            .collect();
-        let Ok(table) = self.table_mut(id) else {
-            return;
-        };
-        table.buckets.fill(0);
-        for (index, hash) in hashes.into_iter().enumerate() {
-            if let Some(hash) = hash {
-                let bucket = hash as usize % table.buckets.len();
-                table.slots[index].next = table.buckets[bucket];
-                table.buckets[bucket] = index as Link + 1;
-            }
         }
     }
 

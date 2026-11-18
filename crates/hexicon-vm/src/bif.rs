@@ -450,6 +450,9 @@ impl Vm {
                 Self::check_argc(argc, 0)?;
                 self.r0 = Value::logical(self.objects.undo());
             }
+            15 => self.bif_save(argc)?,
+            16 => self.bif_restore(argc)?,
+            17 => self.bif_restart(argc)?,
             // toInteger(val, radix?)
             7 => {
                 Self::check_argc_range(argc, 1, 2)?;

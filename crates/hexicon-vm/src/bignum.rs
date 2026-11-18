@@ -149,6 +149,26 @@ impl Big {
         })
     }
 
+    /// The number as [`Big::from_bytes`] reads it.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(5 + self.digs.len().div_ceil(2));
+        out.extend_from_slice(&(self.digs.len() as u16).to_le_bytes());
+        out.extend_from_slice(&(self.exp as i16).to_le_bytes());
+        out.push(
+            u8::from(self.neg)
+                | match self.kind {
+                    Kind::Num => 0x00,
+                    Kind::NaN => 0x02,
+                    Kind::Inf => 0x04,
+                }
+                | u8::from(self.zero) << 3,
+        );
+        for pair in self.digs.chunks(2) {
+            out.push(pair[0] << 4 | pair.get(1).copied().unwrap_or(0));
+        }
+        out
+    }
+
     // ---- shifting and rounding ----
 
     fn shift_left(&mut self, shift: usize) {

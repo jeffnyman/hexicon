@@ -191,7 +191,7 @@ Findings from milestone 3:
 - The random number generator is ISAAC, started from a fixed state. A real run seeds it at startup; `hexicon run --norand` leaves it unseeded, which is how the conformance tests get repeatable output.
 - A program's first argument is the image's file name without its directory.
 
-- Milestone 4: in progress (2026-11-18). Done: undo and garbage collection, with finalizers and weak references. 97 of the suite's 132 runnable programs match the reference. Still to do: save and restore, restart, Dictionary, GrammarProduction, and StringComparator.
+- Milestone 4: in progress (2026-11-18). Done: undo; garbage collection, with finalizers and weak references; and saving, restoring, and restarting. 104 of the suite's 132 runnable programs match the reference. Still to do: Dictionary, GrammarProduction, and StringComparator.
 
 Findings from milestone 4 so far:
 
@@ -199,6 +199,12 @@ Findings from milestone 4 so far:
 - The collector frees IDs lowest first, and a freed ID is the next one handed out, so after a collection new objects take the highest free IDs first. Hexicon follows that, because a program can see IDs: `firstObj` and `nextObj` go through objects in ID order.
 - For the same reason, Hexicon creates the same number of objects as the reference for the same operation, including ones that look wasteful. Arithmetic or a comparison between a BigNumber and an integer first makes a BigNumber of the integer. `toString` of a list makes a list of its elements as strings before joining them, while displaying the same list does not. Concatenating a number onto a string converts it without making a string, while `concat` makes one. A probe of about 150 operations creates the same number of objects under both.
 - The reference collects before creating an object once 10,000 have been created since the last collection, or 6 MB allocated. Hexicon collects at the start of the instruction that would create the 10,001st, and does not count bytes. An instruction that creates several objects can therefore collect slightly earlier here, and a program that allocates very large objects quickly collects later.
+- Saved states are in the reference's format, and each VM restores the other's: a program that saves one of every kind of object so far gives the same output from all four pairings of which VM saved and which restored. Three things made that work. A weak-reference table is saved without a default value, because that depends on the version of its own class, not the plain table's. A table's chains are saved as they are, so the two VMs have to hash keys identically. And the reference can write a first-free-slot link that points outside a copied table, which Hexicon reads as no link.
+- So lookup tables use the reference's hash function exactly. It has two oddities a program can see. An integer hashes to the product of its 16-bit halves, which is zero for anything under 65,536. A BigNumber hashes by its digits, so one that equals an integer key is not found under it. And because objects hash by ID and keep their chains across a restore, a table keyed on an object the program created does not find that key after restoring. Hexicon behaves the same in all three.
+- Using the same hash also settled the last differences in how many objects are created: a lookup compares the key it wants only against keys in the same bucket, and comparing a BigNumber with an integer creates an object.
+- To restore or restart, the VM needs each image object as it was loaded. The object table keeps a copy the first time one is changed after loading, by the same hook undo uses, instead of keeping the image.
+- A file name a program gives is relative to the folder its image is in, as in the reference, not the working directory. That is the command-line host's choice: the VM hands the host a name and takes back bytes.
+- A saved state carries the image's file name. The reference writes the full path it was run with, and Hexicon the path it was given.
 - While an intrinsic function or method is in the middle of its work, it can hold objects nothing else refers to yet. The reference keeps those on the VM stack. Hexicon treats every object created since the outermost such call began as reachable for that collection, which keeps a little garbage until the next one.
 
 Findings from milestone 2 that later milestones depend on:
@@ -224,7 +230,7 @@ Findings from milestone 1 that later milestones depend on:
 
 ## Open questions
 
-- Is read/write compatibility with existing `.t3v` save files a hard requirement or a nice-to-have?
+- Is read/write compatibility with existing `.t3v` save files a hard requirement or a nice-to-have? (As of milestone 4 it is met for every class implemented so far.)
 - Should HTML TADS games (banners, images, sound) be supported in the first browser front end, or text only first?
 - Minimum supported Rust version policy (proposal: latest stable minus two releases).
 - License for Hexicon itself (GPLv2-or-later vs. GPLv3).

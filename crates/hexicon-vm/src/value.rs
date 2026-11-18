@@ -218,6 +218,29 @@ impl Value {
         }
     }
 
+    /// Encode a value in the five-byte form images and saved states use.
+    pub fn to_holder(self) -> [u8; Self::HOLDER_SIZE] {
+        let mut b = [0u8; Self::HOLDER_SIZE];
+        b[0] = self.type_code() as u8;
+        let data: u32 = match self {
+            Self::Obj(id) | Self::ObjX(id) => id.0,
+            Self::Int(n) => n as u32,
+            Self::Prop(prop) => prop.into(),
+            Self::SString(at)
+            | Self::DString(at)
+            | Self::List(at)
+            | Self::CodeOfs(at)
+            | Self::FuncPtr(at)
+            | Self::Enum(at) => at,
+            Self::BifPtr { set, index } | Self::BifPtrX { set, index } => {
+                u32::from(index) | u32::from(set) << 16
+            }
+            _ => 0,
+        };
+        b[1..].copy_from_slice(&data.to_le_bytes());
+        b
+    }
+
     /// Decode a value from the five-byte form images use.
     ///
     /// Type codes that cannot appear in an image decode as `nil`.

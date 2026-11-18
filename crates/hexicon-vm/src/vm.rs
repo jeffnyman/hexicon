@@ -319,6 +319,13 @@ pub struct Vm {
     pub(crate) big_cache: crate::bignum_math::Cache,
     /// The random number generator.
     pub(crate) rng: crate::rng::Rng,
+    /// The image's timestamp and file name, which a saved state records
+    /// so that it is only restored into the program that made it.
+    pub(crate) image_timestamp: Vec<u8>,
+    pub(crate) image_name: String,
+    /// The VM chose the property for exception messages itself, because
+    /// the image did not name one.
+    pub(crate) exception_message_synthesized: bool,
     /// How deeply byte code is running inside calls made by the VM
     /// itself: 1 for the program's own code, more inside a callback.
     pub(crate) run_depth: u32,
