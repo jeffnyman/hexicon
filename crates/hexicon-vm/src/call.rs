@@ -700,6 +700,13 @@ impl Vm {
     /// the handlers of the functions this loop is running. One that none
     /// of them catches is returned to the caller.
     pub(crate) fn run_from(&mut self, start_pc: u32) -> VmResult<()> {
+        self.run_depth += 1;
+        let result = self.run_nested(start_pc);
+        self.run_depth -= 1;
+        result
+    }
+
+    fn run_nested(&mut self, start_pc: u32) -> VmResult<()> {
         let saved_pc = self.pc;
         let base_depth = self.frames.len() - 1;
         let mut pc = start_pc;

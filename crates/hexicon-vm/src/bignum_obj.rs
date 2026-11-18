@@ -101,7 +101,18 @@ impl Vm {
 
     /// Arithmetic with a BigNumber as the left operand. The right one
     /// can be a BigNumber or an integer.
+    /// Note an operand of BigNumber arithmetic or comparison. The
+    /// reference VM turns an integer operand into a BigNumber object
+    /// before it uses it, and a program can tell that an object was
+    /// created, so one is created here too.
+    pub(crate) fn big_operand(&mut self, operand: Value) {
+        if let Value::Int(n) = operand {
+            self.new_big(Big::from_int(n.into(), INT_PREC));
+        }
+    }
+
     pub(crate) fn big_arith(&mut self, op: Arith, a: &Big, b: Value) -> VmResult<Value> {
+        self.big_operand(b);
         let Some(b) = self.to_big(b) else {
             return Err(VmError::new(match op {
                 Arith::Sub => code::BAD_TYPE_SUB,

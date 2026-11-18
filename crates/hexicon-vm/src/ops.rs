@@ -55,7 +55,11 @@ impl Vm {
                     None => false,
                 })
             }
-            Some(Object::BigNumber(big)) => Ok(self.big_equals(big, other)),
+            Some(Object::BigNumber(big)) => {
+                let equal = self.big_equals(big, other);
+                self.big_operand(other);
+                Ok(equal)
+            }
             Some(Object::CharSet { .. }) => Ok(self.charset_equals(id, other)),
             // Byte arrays are equal if they hold the same bytes.
             Some(Object::ByteArray(bytes)) => {
@@ -122,8 +126,9 @@ impl Vm {
         match (a, b) {
             (Value::Int(x), Value::Int(y)) => Ok(x.cmp(&y)),
             (Value::Obj(id), _) => self.obj_compare(id, b),
-            (Value::SString(_), _) => match (self.as_str(a), self.as_str(b)) {
-                (Some(x), Some(y)) => Ok(x.cmp(&y)),
+            // A string compares with a string or a string buffer.
+            (Value::SString(_), _) => match (self.as_str(a), self.text_or_buffer(b)) {
+                (Some(x), Some(y)) => Ok((*x).cmp(y.as_slice())),
                 _ => Err(VmError::new(code::INVALID_COMPARISON)),
             },
             (_, Value::Obj(id)) => Ok(self.obj_compare(id, a)?.reverse()),
@@ -133,7 +138,11 @@ impl Vm {
 
     fn obj_compare(&mut self, id: ObjId, other: Value) -> VmResult<Ordering> {
         match self.objects.get(id) {
-            Some(Object::BigNumber(big)) => self.big_compare(big, other),
+            Some(Object::BigNumber(big)) => {
+                let order = self.big_compare(big, other);
+                self.big_operand(other);
+                order
+            }
             Some(Object::String(_) | Object::StringBuffer(_)) => {
                 let text = self.text_or_buffer(Value::Obj(id)).unwrap_or_default();
                 match self.text_or_buffer(other) {
@@ -187,6 +196,7 @@ impl Vm {
             return Err(VmError::new(code::NUM_VAL_REQD));
         }
         let a = crate::bignum::Big::from_int(a.into(), 10);
+        self.new_big(a.clone());
         self.big_arith(op, &a, b)
     }
 
@@ -227,12 +237,12 @@ impl Vm {
     /// Concatenate a string with the text of another value.
     fn concat(&mut self, string: Value, other: Value) -> VmResult<Value> {
         let left = self.require_str(string)?;
-        let (right_value, right) = self.text_of(other)?;
+        let (_, right) = self.text_raw(other)?;
         if right.is_empty() || other.is_nil() {
             return Ok(string);
         }
         if left.is_empty() && self.as_str(other).is_some() {
-            return Ok(right_value);
+            return Ok(other);
         }
         let mut text = Vec::with_capacity(left.len() + right.len());
         text.extend_from_slice(&left);
@@ -466,32 +476,126 @@ impl Vm {
 
     // ---- conversion to text ----
 
-    /// The text of a value, as string concatenation and `toString` use
-    /// it. Returns a string value along with the text; for a value that
-    /// is already a string, the value itself.
+    // ---- conversion to text ----
+    //
+    // There are three conversions, as in the reference VM, and they
+    // differ in which string objects they create along the way. That
+    // matters: a program can see how many objects have been created, in
+    // the IDs of the ones it creates next.
+
+    /// The text of a value, for when only the text is wanted.
+    pub(crate) fn text_bytes(&mut self, value: Value) -> VmResult<std::rc::Rc<[u8]>> {
+        Ok(self.text_raw(value)?.1)
+    }
+
+    /// The text of a value as an explicit conversion gives it, which is
+    /// also how the right side of a string concatenation is converted.
+    /// Along with the text comes the string value that holds it, if there
+    /// is one: a number or a truth value is converted without creating a
+    /// string.
+    pub(crate) fn text_raw(
+        &mut self,
+        value: Value,
+    ) -> VmResult<(Option<Value>, std::rc::Rc<[u8]>)> {
+        let text: &[u8] = match value {
+            Value::Int(n) => return Ok((None, n.to_string().into_bytes().into())),
+            Value::Nil => b"nil",
+            Value::True => b"true",
+            _ => {
+                let (string, text) = self.text_made(value)?;
+                return Ok((Some(string), text));
+            }
+        };
+        Ok((None, text.into()))
+    }
+
+    /// The text of a value, as `toString` returns it: always with a
+    /// string value, created if need be.
     pub(crate) fn text_of(&mut self, value: Value) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
-        let text: String = match value {
+        match self.text_raw(value)? {
+            (Some(string), text) => Ok((string, text)),
+            (None, text) => Ok((self.new_string(text.clone()), text)),
+        }
+    }
+
+    /// The text of a value where a string is simply expected, as when a
+    /// value is displayed or passed to `concat`. A number becomes a new
+    /// string, and `nil` an empty one. A list becomes its elements joined
+    /// with commas, in one new string.
+    pub(crate) fn text_cast(&mut self, value: Value) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
+        match value {
+            Value::Nil => {
+                let text: std::rc::Rc<[u8]> = Vec::new().into();
+                Ok((self.new_string(text.clone()), text))
+            }
+            Value::Int(_) | Value::True => self.text_of(value),
+            _ if self.list_like_len(value)?.is_some() => self.join_text(value, b","),
+            _ => self.text_of(value),
+        }
+    }
+
+    /// The elements of a list as text with a separator between, in one
+    /// new string. Strings, integers, and `nil` go in as they are; any
+    /// other element is first converted as [`Vm::text_cast`] does it.
+    pub(crate) fn join_text(
+        &mut self,
+        list: Value,
+        separator: &[u8],
+    ) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
+        let len = self.list_like_len(list)?.unwrap_or(0);
+        // The reference creates the result before it converts anything.
+        let result = self.new_string(Vec::new());
+        self.push(result);
+        let mut text = Vec::new();
+        let mut failed = None;
+        for index in 1..=len {
+            if index > 1 {
+                text.extend_from_slice(separator);
+            }
+            let piece = match self.list_like_get(list, index) {
+                Ok(Value::Nil) => Ok(Vec::new().into()),
+                Ok(item @ Value::Int(_)) => self.text_bytes(item),
+                Ok(item) if self.as_str(item).is_some() => self.text_bytes(item),
+                Ok(item) => self.text_cast(item).map(|(_, text)| text),
+                Err(error) => Err(error),
+            };
+            match piece {
+                Ok(piece) => text.extend_from_slice(&piece),
+                Err(error) => {
+                    failed = Some(error);
+                    break;
+                }
+            }
+        }
+        self.discard(1);
+        if let Some(error) = failed {
+            return Err(error);
+        }
+        let text: std::rc::Rc<[u8]> = text.into();
+        if let Some(Object::String(stored)) = self.objects.get_mut(result.obj_id()) {
+            *stored = text.clone();
+        }
+        Ok((result, text))
+    }
+
+    /// The text of a value that is not a number or a truth value, with
+    /// the string value that holds it.
+    fn text_made(&mut self, value: Value) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
+        match value {
             Value::SString(_) => {
                 let text = self.require_str(value)?;
-                return Ok((value, text.to_vec().into()));
+                Ok((value, text.to_vec().into()))
             }
-            Value::Obj(id) => return self.obj_to_text(id),
-            Value::Int(n) => n.to_string(),
-            Value::Nil => "nil".to_owned(),
-            Value::True => "true".to_owned(),
-            Value::List(_) => return self.list_to_text(value),
-            Value::Prop(prop) => return self.reflect_to_text(value, format!("property#{prop}")),
-            Value::FuncPtr(func) => {
-                return self.reflect_to_text(value, format!("function#{func:x}"));
-            }
-            Value::Enum(n) => return self.reflect_to_text(value, format!("enum#{}", n as i32)),
+            Value::Obj(id) => self.obj_to_text(id),
+            Value::List(_) => self.list_to_text(value),
+            Value::Prop(prop) => self.reflect_to_text(value, format!("property#{prop}")),
+            Value::FuncPtr(func) => self.reflect_to_text(value, format!("function#{func:x}")),
+            Value::Enum(n) => self.reflect_to_text(value, format!("enum#{}", n as i32)),
             Value::BifPtr { set, index } => {
-                return self.reflect_to_text(value, format!("builtin#{set}.{index}"));
+                self.reflect_to_text(value, format!("builtin#{set}.{index}"))
             }
-            _ => return Err(VmError::new(code::NO_STR_CONV)),
-        };
-        let text: std::rc::Rc<[u8]> = text.into_bytes().into();
-        Ok((self.new_string(text.clone()), text))
+            _ => Err(VmError::new(code::NO_STR_CONV)),
+        }
     }
 
     fn obj_to_text(&mut self, id: ObjId) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
@@ -553,19 +657,43 @@ impl Vm {
         Ok((self.new_string(text.clone()), text))
     }
 
-    /// The text of a list: its elements' text, separated by commas.
+    /// The text of a list as an explicit conversion gives it: each
+    /// element converted as `toString` does it, joined with commas. The
+    /// reference builds a list of the converted elements on the way, and
+    /// so does this.
     fn list_to_text(&mut self, list: Value) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
         let len = self.list_like_len(list)?.unwrap_or(0);
-        let mut text = Vec::new();
+        let converted = self.new_list(Vec::new());
+        self.push(converted);
+        let mut items = Vec::with_capacity(len);
+        let mut failed = None;
         for index in 1..=len {
-            if index > 1 {
-                text.push(b',');
+            let item = match self.list_like_get(list, index) {
+                Ok(item) => self.text_raw(item),
+                Err(error) => Err(error),
+            };
+            match item {
+                // An element that is not already a string object becomes
+                // one.
+                Ok((Some(string @ Value::Obj(_)), _)) => items.push(string),
+                Ok((_, text)) => {
+                    let string = self.new_string(text);
+                    items.push(string);
+                }
+                Err(error) => {
+                    failed = Some(error);
+                    break;
+                }
             }
-            let item = self.list_like_get(list, index)?;
-            let (_, item_text) = self.text_of(item)?;
-            text.extend_from_slice(&item_text);
+            if let Some(Object::List(stored)) = self.objects.get_mut(converted.obj_id()) {
+                *stored = items.clone().into();
+            }
         }
-        let text: std::rc::Rc<[u8]> = text.into();
-        Ok((self.new_string(text.clone()), text))
+        let joined = match failed {
+            Some(error) => Err(error),
+            None => self.join_text(converted, b","),
+        };
+        self.discard(1);
+        joined
     }
 }

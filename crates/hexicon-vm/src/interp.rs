@@ -210,6 +210,12 @@ impl Vm {
             // still part of the same instruction for error reporting.
             if argc_override.is_none() {
                 self.pc = pc as u32;
+                if self.run_depth <= 1 {
+                    self.objects.at_safe_point();
+                }
+                if self.objects.gc_due() {
+                    self.collect_garbage(true);
+                }
             }
             let Some(&byte) = code.get(pc) else {
                 return Err(VmError::new(code::INVALID_OPCODE));

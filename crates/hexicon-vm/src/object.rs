@@ -109,7 +109,45 @@ struct Slot {
     in_root_set: bool,
     /// The object is excluded from saved state and undo.
     transient: bool,
+    /// The object existed when the current savepoint was made, so a
+    /// change to it has to be undoable.
+    in_undo: bool,
+    /// The object's state at the current savepoint is already kept.
+    saved: bool,
+    /// When the object was created, as a count of all objects created.
+    serial: u32,
+    /// Where the object is in the life of its finalizer.
+    finalize: Finalize,
+    /// What the collector found in its current pass.
+    mark: Mark,
 }
+
+/// Whether an object's finalizer has run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Finalize {
+    /// The object has never been found unreachable.
+    NotYet,
+    /// The object is unreachable and has a finalizer waiting to run.
+    Pending,
+    /// The finalizer has run, or there is none. The object can go as
+    /// soon as nothing refers to it.
+    Done,
+}
+
+/// How the collector reached an object.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mark {
+    Unreachable,
+    /// Reachable only from an object waiting to be finalized.
+    FromFinalizable,
+    Reachable,
+}
+
+/// The collector runs after this many objects have been created.
+const ALLOCS_BETWEEN_GC: i32 = 10_000;
+
+/// The most savepoints kept. Making another drops the oldest.
+const MAX_SAVEPOINTS: usize = 255;
 
 /// The object table: every object in the VM, indexed by ID.
 ///
@@ -119,6 +157,16 @@ struct Slot {
 pub struct ObjectTable {
     slots: Vec<Slot>,
     first_free: u32,
+    /// For each savepoint, oldest first, the objects changed since it
+    /// was made, each as it was at that moment.
+    savepoints: std::collections::VecDeque<Vec<(u32, Object)>>,
+    /// How many objects have ever been created.
+    serial: u32,
+    /// How many have been created since the collector last ran.
+    allocs_since_gc: i32,
+    /// The value of `serial` when the instruction now running at the
+    /// outermost level began. See [`ObjectTable::collect`].
+    safe_serial: u32,
 }
 
 impl ObjectTable {
@@ -136,6 +184,11 @@ impl ObjectTable {
                 prev_free: 0,
                 in_root_set: false,
                 transient: false,
+                in_undo: false,
+                saved: false,
+                serial: 0,
+                finalize: Finalize::Done,
+                mark: Mark::Unreachable,
             };
             // ID 0 is the invalid ID and is never on the free list.
             if id != 0 {
@@ -171,10 +224,20 @@ impl ObjectTable {
         }
         let id = self.first_free;
         self.unlink(id);
+        self.serial = self.serial.wrapping_add(1);
+        self.allocs_since_gc += 1;
+        let serial = self.serial;
         let slot = &mut self.slots[id as usize];
+        slot.serial = serial;
+        slot.finalize = Finalize::NotYet;
+        slot.mark = Mark::Unreachable;
         slot.object = Some(object);
         slot.in_root_set = false;
         slot.transient = false;
+        // A new object is not part of the current savepoint: undoing
+        // leaves it as it is, with nothing referring to it.
+        slot.in_undo = false;
+        slot.saved = false;
         ObjId(id)
     }
 
@@ -195,6 +258,11 @@ impl ObjectTable {
         slot.object = Some(object);
         slot.in_root_set = true;
         slot.transient = transient;
+        slot.in_undo = false;
+        slot.saved = false;
+        slot.serial = 0;
+        slot.finalize = Finalize::NotYet;
+        slot.mark = Mark::Unreachable;
         true
     }
 
@@ -203,9 +271,61 @@ impl ObjectTable {
         self.slots.get(id.0 as usize)?.object.as_ref()
     }
 
-    /// The object with an ID, for modification.
+    /// The object with an ID, for modification. The first time an object
+    /// is taken for modification after a savepoint, a copy of it goes
+    /// into the savepoint, which is what makes every kind of change to
+    /// every kind of object undoable.
     pub fn get_mut(&mut self, id: ObjId) -> Option<&mut Object> {
-        self.slots.get_mut(id.0 as usize)?.object.as_mut()
+        let slot = self.slots.get_mut(id.0 as usize)?;
+        if slot.in_undo && !slot.saved && !slot.transient {
+            if let (Some(changes), Some(object)) = (self.savepoints.back_mut(), &slot.object) {
+                changes.push((id.0, object.clone()));
+                slot.saved = true;
+            }
+        }
+        slot.object.as_mut()
+    }
+
+    /// Start tracking changes to every object now in the table.
+    fn track_all(&mut self) {
+        for slot in &mut self.slots {
+            if slot.object.is_some() {
+                slot.in_undo = true;
+                slot.saved = false;
+            }
+        }
+    }
+
+    /// Make a savepoint: a state `undo` can return to.
+    pub fn savepoint(&mut self) {
+        if self.savepoints.len() == MAX_SAVEPOINTS {
+            self.savepoints.pop_front();
+        }
+        self.savepoints.push_back(Vec::new());
+        self.track_all();
+    }
+
+    /// Return every object to its state at the latest savepoint, and
+    /// forget that savepoint. Returns false if there is none.
+    pub fn undo(&mut self) -> bool {
+        let Some(changes) = self.savepoints.pop_back() else {
+            return false;
+        };
+        for (id, object) in changes.into_iter().rev() {
+            if let Some(slot) = self.slots.get_mut(id as usize) {
+                if slot.object.is_some() {
+                    slot.object = Some(object);
+                }
+            }
+        }
+        self.track_all();
+        true
+    }
+
+    /// Forget every savepoint.
+    #[allow(dead_code)]
+    pub fn drop_undo(&mut self) {
+        self.savepoints.clear();
     }
 
     /// The program-defined object (or intrinsic class modifier) with an ID.
@@ -256,5 +376,269 @@ impl ObjectTable {
             .enumerate()
             .filter(|(_, slot)| slot.object.is_some())
             .map(|(id, _)| ObjId(id as u32))
+    }
+}
+
+// ---- garbage collection ----
+
+/// The values an object refers to. A weak-reference table does not count
+/// as referring to its values.
+fn references(object: &Object, out: &mut Vec<Value>) {
+    match object {
+        Object::Tads(tads) | Object::IntClassMod(tads) => {
+            out.extend(tads.superclasses.iter().map(|&id| Value::Obj(id)));
+            out.extend(tads.props().iter().map(|entry| entry.value));
+        }
+        Object::List(items) => out.extend(items.iter().copied()),
+        Object::Vector(items) | Object::AnonFn(items) => out.extend(items.iter().copied()),
+        Object::IndexedIter { collection, .. } => out.push(*collection),
+        Object::LookupTable(table) => {
+            for (key, value) in table.entries() {
+                out.push(key);
+                if !table.weak {
+                    out.push(value);
+                }
+            }
+            if !table.weak {
+                out.push(table.default_value);
+            }
+        }
+        Object::LookupIter { table, .. } => out.push(Value::Obj(*table)),
+        Object::Pattern { source, .. } => out.push(*source),
+        Object::Class(class) => {
+            out.push(Value::Obj(class.modifier));
+            out.push(class.class_state);
+        }
+        Object::String(_)
+        | Object::CharSet { .. }
+        | Object::ByteArray(_)
+        | Object::BigNumber(_)
+        | Object::StringBuffer(_)
+        | Object::Opaque { .. } => {}
+    }
+}
+
+impl ObjectTable {
+    /// Note that an instruction is starting at the outermost level, with
+    /// no intrinsic function or method in the middle of its work.
+    #[inline]
+    pub fn at_safe_point(&mut self) {
+        self.safe_serial = self.serial;
+    }
+
+    /// Whether enough objects have been created that the collector
+    /// should run before the next one.
+    #[inline]
+    pub fn gc_due(&self) -> bool {
+        self.allocs_since_gc >= ALLOCS_BETWEEN_GC
+    }
+
+    /// Leave the next object created out of the count toward the next
+    /// collection, as the reference does for the one whose creation set
+    /// the collector off.
+    pub fn skip_next_alloc_count(&mut self) {
+        self.allocs_since_gc = -1;
+    }
+
+    fn mark_from(&mut self, roots: &[Value], mark: Mark) {
+        let mut work: Vec<u32> = Vec::new();
+        let mut found: Vec<Value> = Vec::new();
+        let visit = |slots: &mut Vec<Slot>, value: Value, work: &mut Vec<u32>| {
+            let (Value::Obj(id) | Value::ObjX(id)) = value else {
+                return;
+            };
+            if let Some(slot) = slots.get_mut(id.0 as usize) {
+                if slot.object.is_some() && slot.mark == Mark::Unreachable {
+                    slot.mark = mark;
+                    work.push(id.0);
+                }
+            }
+        };
+        for &root in roots {
+            visit(&mut self.slots, root, &mut work);
+        }
+        while let Some(id) = work.pop() {
+            found.clear();
+            if let Some(object) = &self.slots[id as usize].object {
+                references(object, &mut found);
+            }
+            for &value in &found {
+                visit(&mut self.slots, value, &mut work);
+            }
+        }
+    }
+
+    /// The first half of a collection: find what is reachable, and return
+    /// the unreachable objects that have never been finalized, for the
+    /// caller to say which have finalizers.
+    ///
+    /// The roots are the values the caller gives, every object from the
+    /// image, and what the savepoints refer to. While an intrinsic
+    /// function or method is in the middle of its work, which is when
+    /// `in_native` is set, it can be holding objects that nothing else
+    /// refers to yet. Those are all newer than the last safe point, so
+    /// everything newer than that counts as a root too.
+    pub fn collect_mark(&mut self, roots: &[Value], in_native: bool) -> Vec<ObjId> {
+        self.allocs_since_gc = 0;
+        let mut all_roots: Vec<Value> = roots.to_vec();
+        let safe_serial = self.safe_serial;
+        for (id, slot) in self.slots.iter_mut().enumerate() {
+            slot.mark = Mark::Unreachable;
+            if slot.object.is_some()
+                && (slot.in_root_set || (in_native && slot.serial > safe_serial))
+            {
+                all_roots.push(Value::Obj(ObjId(id as u32)));
+            }
+        }
+        for changes in &self.savepoints {
+            for (_, object) in changes {
+                references(object, &mut all_roots);
+            }
+        }
+        self.mark_from(&all_roots, Mark::Reachable);
+        self.slots
+            .iter()
+            .enumerate()
+            .filter(|(_, slot)| {
+                slot.object.is_some()
+                    && !slot.in_root_set
+                    && slot.mark == Mark::Unreachable
+                    && slot.finalize == Finalize::NotYet
+            })
+            .map(|(id, _)| ObjId(id as u32))
+            .collect()
+    }
+
+    /// The second half of a collection. `with_finalizers` are the
+    /// candidates from [`ObjectTable::collect_mark`] that have a
+    /// finalizer. Everything unreachable that is not waiting for a
+    /// finalizer, or kept by something that is, goes. Returns the objects
+    /// whose finalizers are to run now, in the order to run them.
+    pub fn collect_sweep(&mut self, candidates: &[ObjId], with_finalizers: &[ObjId]) -> Vec<ObjId> {
+        for &id in candidates {
+            self.slots[id.0 as usize].finalize = Finalize::Done;
+        }
+        for &id in with_finalizers {
+            self.slots[id.0 as usize].finalize = Finalize::Pending;
+        }
+        // What an object waiting to be finalized refers to has to last
+        // until the finalizer has run.
+        let pending: Vec<Value> = self
+            .slots
+            .iter()
+            .enumerate()
+            .filter(|(_, slot)| {
+                slot.object.is_some() && !slot.in_root_set && slot.finalize == Finalize::Pending
+            })
+            .map(|(id, _)| Value::Obj(ObjId(id as u32)))
+            .collect();
+        // Mark from them, without marking them, so that the ones that
+        // only refer to each other can be told from the rest.
+        let mut from_pending = Vec::new();
+        for value in &pending {
+            if let Value::Obj(id) = value {
+                if let Some(object) = &self.slots[id.0 as usize].object {
+                    references(object, &mut from_pending);
+                }
+            }
+        }
+        self.mark_from(&from_pending, Mark::FromFinalizable);
+
+        let mut finalize_queue = Vec::new();
+        for id in 0..self.slots.len() as u32 {
+            let slot = &self.slots[id as usize];
+            if slot.object.is_none() {
+                continue;
+            }
+            if !slot.in_root_set
+                && slot.mark == Mark::Unreachable
+                && slot.finalize == Finalize::Done
+            {
+                self.free(id);
+            } else if slot.finalize == Finalize::Pending {
+                finalize_queue.push(ObjId(id));
+            }
+        }
+        // The reference queues these as it finds them and takes the last
+        // first.
+        finalize_queue.reverse();
+        for &id in &finalize_queue {
+            self.slots[id.0 as usize].finalize = Finalize::Done;
+        }
+
+        // Drop what refers to objects that are gone: values in weak
+        // tables, and saved states of the objects themselves.
+        let live = |slots: &[Slot], value: Value| match value {
+            Value::Obj(id) | Value::ObjX(id) => slots
+                .get(id.0 as usize)
+                .is_some_and(|slot| slot.object.is_some()),
+            _ => true,
+        };
+        let mut stale: Vec<(usize, Vec<usize>, bool)> = Vec::new();
+        for (id, slot) in self.slots.iter().enumerate() {
+            if let Some(Object::LookupTable(table)) = &slot.object {
+                if table.weak {
+                    let entries: Vec<usize> = (0..table.slot_count())
+                        .filter(|&index| {
+                            table
+                                .slot(index)
+                                .is_some_and(|(_, value)| !live(&self.slots, value))
+                        })
+                        .collect();
+                    let default_gone = !live(&self.slots, table.default_value);
+                    if !entries.is_empty() || default_gone {
+                        stale.push((id, entries, default_gone));
+                    }
+                }
+            }
+        }
+        for (id, entries, default_gone) in stale {
+            if let Some(Object::LookupTable(table)) = &mut self.slots[id].object {
+                for index in entries {
+                    table.remove_slot(index);
+                }
+                if default_gone {
+                    table.default_value = Value::Nil;
+                }
+            }
+        }
+        let slots = &self.slots;
+        for changes in &mut self.savepoints {
+            changes.retain(|(id, _)| slots[*id as usize].object.is_some());
+            for (_, object) in changes.iter_mut() {
+                if let Object::LookupTable(table) = object {
+                    if table.weak {
+                        for index in 0..table.slot_count() {
+                            if table
+                                .slot(index)
+                                .is_some_and(|(_, value)| !live(slots, value))
+                            {
+                                table.remove_slot(index);
+                            }
+                        }
+                        if !live(slots, table.default_value) {
+                            table.default_value = Value::Nil;
+                        }
+                    }
+                }
+            }
+        }
+        finalize_queue
+    }
+
+    /// Release an object. Its ID goes to the front of the free list, so
+    /// it is the next one handed out.
+    fn free(&mut self, id: u32) {
+        let first = self.first_free;
+        let slot = &mut self.slots[id as usize];
+        slot.object = None;
+        slot.in_root_set = false;
+        slot.transient = false;
+        slot.next_free = first;
+        slot.prev_free = 0;
+        if first != 0 {
+            self.slots[first as usize].prev_free = id;
+        }
+        self.first_free = id;
     }
 }

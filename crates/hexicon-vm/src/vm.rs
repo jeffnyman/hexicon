@@ -95,6 +95,21 @@ pub(crate) struct Frame {
     pub native: Option<Box<NativeCall>>,
 }
 
+impl Predef {
+    /// The objects the VM knows by name, which are never garbage.
+    pub(crate) fn objects(&self) -> [ObjId; 7] {
+        [
+            self.runtime_error,
+            self.stack_info_class,
+            self.const_str_obj,
+            self.const_lst_obj,
+            self.last_prop_obj,
+            self.reflection_services,
+            self.charset_unknown_exception,
+        ]
+    }
+}
+
 /// The method context a call starts with.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MethodContext {
@@ -304,6 +319,11 @@ pub struct Vm {
     pub(crate) big_cache: crate::bignum_math::Cache,
     /// The random number generator.
     pub(crate) rng: crate::rng::Rng,
+    /// How deeply byte code is running inside calls made by the VM
+    /// itself: 1 for the program's own code, more inside a callback.
+    pub(crate) run_depth: u32,
+    /// The collector is running, and must not start again.
+    pub(crate) in_gc: bool,
     /// The most recent regular expression match.
     pub(crate) last_match: crate::string::LastMatch,
     /// Report each VM error on standard error as it is raised.

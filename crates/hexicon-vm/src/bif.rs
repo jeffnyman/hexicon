@@ -242,9 +242,11 @@ impl Vm {
 
     fn bif_t3vm(&mut self, index: u16, argc: u32) -> VmResult<()> {
         match index {
-            // t3RunGC(): garbage collection is not implemented yet, and
-            // running without it changes nothing a program can see.
-            0 => Self::check_argc(argc, 0)?,
+            // t3RunGC()
+            0 => {
+                Self::check_argc(argc, 0)?;
+                self.collect_garbage(false);
+            }
             1 => self.t3_set_say(argc)?,
             2 => {
                 Self::check_argc(argc, 0)?;
@@ -438,6 +440,16 @@ impl Vm {
                     other => self.const_to_object(other),
                 };
             }
+            // savepoint()
+            13 => {
+                Self::check_argc(argc, 0)?;
+                self.objects.savepoint();
+            }
+            // undo(): true if there was a savepoint to return to.
+            14 => {
+                Self::check_argc(argc, 0)?;
+                self.r0 = Value::logical(self.objects.undo());
+            }
             // toInteger(val, radix?)
             7 => {
                 Self::check_argc_range(argc, 1, 2)?;
@@ -542,7 +554,7 @@ impl Vm {
             27 => {
                 let mut text = Vec::new();
                 for index in 0..argc as usize {
-                    let piece = self.cast_to_text(self.arg(index))?;
+                    let (_, piece) = self.text_cast(self.arg(index))?;
                     text.extend_from_slice(&piece);
                 }
                 self.r0 = self.new_string(text);
@@ -837,7 +849,7 @@ impl Vm {
         match value {
             Value::Nil => Ok(Vec::new().into()),
             Value::SString(_) | Value::Obj(_) | Value::Int(_) | Value::True | Value::List(_) => {
-                Ok(self.text_of(value)?.1)
+                Ok(self.text_bytes(value)?)
             }
             _ => Err(VmError::new(code::NO_STR_CONV)),
         }
@@ -853,8 +865,12 @@ impl Vm {
                     let value = self.arg(index);
                     match value {
                         Value::Nil => {}
-                        Value::SString(_) | Value::Obj(_) | Value::List(_) | Value::Int(_) => {
-                            let text = self.text_of(value)?.1;
+                        Value::Int(_) => {
+                            let text = self.text_bytes(value)?;
+                            self.print(&text);
+                        }
+                        Value::SString(_) | Value::Obj(_) | Value::List(_) => {
+                            let (_, text) = self.text_cast(value)?;
                             self.print(&text);
                         }
                         _ => return Err(VmError::new(code::BAD_TYPE_BIF)),

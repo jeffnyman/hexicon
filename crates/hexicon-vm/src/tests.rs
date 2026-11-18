@@ -1185,3 +1185,123 @@ fn character_sets_convert_text_and_bytes() {
     assert_eq!(utf8.decode(&[0x41, 0xc3, 0xa9, 0xc3]), "A\u{e9}");
     assert_eq!(utf8.decode(&[0x41, 0xff, 0x42]), "A?B");
 }
+
+// ---- undo and garbage collection ----
+
+fn vector_of(table: &ObjectTable, id: ObjId) -> Vec<Value> {
+    match table.get(id) {
+        Some(Object::Vector(items)) => items.clone(),
+        other => panic!("not a vector: {other:?}"),
+    }
+}
+
+fn push_to(table: &mut ObjectTable, id: ObjId, value: Value) {
+    match table.get_mut(id) {
+        Some(Object::Vector(items)) => items.push(value),
+        other => panic!("not a vector: {other:?}"),
+    }
+}
+
+#[test]
+fn undo_returns_objects_to_the_savepoint() {
+    let mut table = ObjectTable::new();
+    let old = table.alloc(Object::Vector(vec![Value::Int(1)]));
+    assert!(!table.undo(), "nothing to undo without a savepoint");
+
+    table.savepoint();
+    push_to(&mut table, old, Value::Int(2));
+    table.savepoint();
+    push_to(&mut table, old, Value::Int(3));
+    push_to(&mut table, old, Value::Int(4));
+    // An object made after a savepoint is not part of it.
+    let new = table.alloc(Object::Vector(Vec::new()));
+    push_to(&mut table, new, Value::Int(9));
+
+    assert!(table.undo());
+    assert_eq!(vector_of(&table, old), [Value::Int(1), Value::Int(2)]);
+    assert_eq!(vector_of(&table, new), [Value::Int(9)]);
+    assert!(table.undo());
+    assert_eq!(vector_of(&table, old), [Value::Int(1)]);
+    assert!(!table.undo());
+}
+
+#[test]
+fn collector_frees_what_nothing_refers_to() {
+    let mut table = ObjectTable::new();
+    let kept = table.alloc(Object::Vector(Vec::new()));
+    let inner = table.alloc(Object::String(b"inner".as_slice().into()));
+    push_to(&mut table, kept, Value::Obj(inner));
+    let garbage_a = table.alloc(Object::String(b"a".as_slice().into()));
+    let garbage_b = table.alloc(Object::String(b"b".as_slice().into()));
+
+    let candidates = table.collect_mark(&[Value::Obj(kept)], false);
+    assert_eq!(candidates, [garbage_b, garbage_a]);
+    let finalizers = table.collect_sweep(&candidates, &[]);
+    assert!(finalizers.is_empty());
+    assert!(table.get(kept).is_some() && table.get(inner).is_some());
+    assert!(table.get(garbage_a).is_none() && table.get(garbage_b).is_none());
+
+    // Freed IDs are handed out again, the highest first.
+    assert_eq!(table.alloc(Object::Vector(Vec::new())), garbage_a);
+    assert_eq!(table.alloc(Object::Vector(Vec::new())), garbage_b);
+}
+
+#[test]
+fn collector_keeps_an_object_until_its_finalizer_has_run() {
+    let mut table = ObjectTable::new();
+    let dying = table.alloc(Object::Vector(Vec::new()));
+    let held = table.alloc(Object::String(b"held".as_slice().into()));
+    push_to(&mut table, dying, Value::Obj(held));
+
+    // Unreachable, with a finalizer: it and what it refers to stay for
+    // the finalizer to use.
+    let candidates = table.collect_mark(&[], false);
+    let queue = table.collect_sweep(&candidates, &[dying]);
+    assert_eq!(queue, [dying]);
+    assert!(table.get(dying).is_some() && table.get(held).is_some());
+
+    // The next collection takes both.
+    let candidates = table.collect_mark(&[], false);
+    assert!(candidates.is_empty(), "nothing is finalized twice");
+    assert!(table.collect_sweep(&candidates, &[]).is_empty());
+    assert!(table.get(dying).is_none() && table.get(held).is_none());
+}
+
+#[test]
+fn collector_spares_what_a_savepoint_can_bring_back() {
+    let mut table = ObjectTable::new();
+    let holder = table.alloc(Object::Vector(Vec::new()));
+    let item = table.alloc(Object::String(b"item".as_slice().into()));
+    push_to(&mut table, holder, Value::Obj(item));
+    table.savepoint();
+    match table.get_mut(holder) {
+        Some(Object::Vector(items)) => items.clear(),
+        _ => unreachable!(),
+    }
+
+    let candidates = table.collect_mark(&[Value::Obj(holder)], false);
+    table.collect_sweep(&candidates, &[]);
+    assert!(table.get(item).is_some());
+    assert!(table.undo());
+    assert_eq!(vector_of(&table, holder), [Value::Obj(item)]);
+}
+
+#[test]
+fn collector_empties_weak_tables_of_dead_values() {
+    let mut table = ObjectTable::new();
+    let mut weak = LookupTable::new(8, 8, true);
+    let value = table.alloc(Object::String(b"value".as_slice().into()));
+    weak.insert_for_test(Value::Int(1), Value::Obj(value));
+    weak.insert_for_test(Value::Int(2), Value::Int(7));
+    let weak = table.alloc(Object::LookupTable(Box::new(weak)));
+
+    let candidates = table.collect_mark(&[Value::Obj(weak)], false);
+    table.collect_sweep(&candidates, &[]);
+    assert!(table.get(value).is_none());
+    match table.get(weak) {
+        Some(Object::LookupTable(weak)) => {
+            assert_eq!(weak.entries(), [(Value::Int(2), Value::Int(7))]);
+        }
+        _ => unreachable!(),
+    }
+}

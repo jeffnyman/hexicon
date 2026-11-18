@@ -227,6 +227,8 @@ impl Vm {
             preinit_mode: false,
             last_match: Default::default(),
             rng: crate::rng::Rng::new(),
+            run_depth: 0,
+            in_gc: false,
             big_cache: Default::default(),
             symbol_table: None,
             macro_table: None,

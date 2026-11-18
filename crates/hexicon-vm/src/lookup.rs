@@ -149,6 +149,31 @@ impl LookupTable {
         self.buckets[bucket] = index as Link + 1;
     }
 
+    /// Add an entry with an integer key, hashed as the VM hashes it.
+    #[cfg(test)]
+    pub fn insert_for_test(&mut self, key: Value, value: Value) {
+        let Value::Int(n) = key else {
+            panic!("integer keys only");
+        };
+        self.insert(n as u32, key, value);
+    }
+
+    /// Remove the entry in a slot without knowing its key's hash, by
+    /// looking for the bucket that holds it.
+    pub fn remove_slot(&mut self, index: usize) {
+        let link = index as Link + 1;
+        for bucket in 0..self.buckets.len() {
+            let mut at = self.buckets[bucket];
+            while at != 0 {
+                if at == link {
+                    self.remove(bucket as u32, index);
+                    return;
+                }
+                at = self.slots[at as usize - 1].next;
+            }
+        }
+    }
+
     /// Remove the entry in a slot, given its key's hash.
     fn remove(&mut self, hash: u32, index: usize) {
         let bucket = hash as usize % self.buckets.len();

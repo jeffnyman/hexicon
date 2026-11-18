@@ -18,6 +18,7 @@ mod charset;
 mod console;
 mod entities;
 mod error;
+mod gc;
 mod hash;
 pub mod identity;
 mod interp;
