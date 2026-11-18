@@ -1,6 +1,6 @@
 # Hexicon VM Plan
 
-Status: draft, 2026-11-17
+Status: draft, 2026-11-18
 
 ## Goal
 
@@ -71,12 +71,14 @@ hexicon/
   Cargo.toml              workspace
   crates/
     hexicon-image/        .t3 image parsing and validation; no VM dependency
+    hexicon-bytecode/     the instruction set, decoder, and disassembler
     hexicon-vm/           values, object table, interpreter, metaclasses, GC, undo, save/restore
     hexicon-host/         the host interface trait and shared host types
-    hexicon-cli/          native terminal runner: `hexicon run`, `hexicon dump`
-    hexicon-wasm/         wasm-bindgen bindings for browsers
+    hexicon-cli/          native terminal runner: `hexicon run`, `hexicon dump`, `hexicon disasm`
+    hexicon-wasm/         wasm-bindgen bindings for browsers (not started)
   tools/
-    conformance/          runs the TADS 3 test suite and transcript diffs
+    reference/            builds the reference toolchain and runs its test suite
+    conformance/          runs the suite's programs under Hexicon and the reference, and compares
   web/                    minimal browser front end used for testing the WASM build
   docs/
 ```
@@ -130,7 +132,7 @@ The host provides randomness and time. Under test, both are fixed, so transcript
 
 1. **Unit tests** in each crate.
 2. **Image corpus.** The parser and disassembler must load every `.t3` we can find (compiled tests, adv3 samples, IFDB games) without error.
-3. **Conformance suite.** Compile the reference test programs with the reference `t3make` once, then run them under Hexicon and compare byte for byte with the reference logs. The pass count is the main progress metric.
+3. **Conformance suite.** Compile the reference test programs with the reference `t3make` once, then run each image under both Hexicon and the reference interpreter and compare the output byte for byte. The pass count is the main progress metric. `tools/conformance/run.sh` does this; it needs the work directory `tools/reference/run-suite.sh` leaves behind. Both interpreters write UTF-8, so the comparison does not depend on a character set mapping.
 4. **Transcript diffs.** Play real games under both `t3run` and Hexicon with the same input script and seed, and diff the output. This covers adv3, adv3Lite, and a growing list of published games.
 5. **WASM parity.** Run the same conformance and transcript tests against the WASM build in CI (Node or a headless browser).
 
@@ -154,6 +156,22 @@ Building the reference toolchain natively (`t3make`, `t3run`) is a prerequisite 
 - Milestone 0: done except CI, which waits on a hosted repository.
 - Milestone 1: done (2026-11-17). `hexicon dump` and `hexicon disasm` handle all 138 images in the corpus, and the disassembly accounts for every byte of every code pool. The corpus is the images the reference suite compiles, the release and debug builds of Return to Ditch Day, and the `tads-runner` test games; set `HEXICON_T3_CORPUS` to run the corpus tests.
 
+- Milestone 2: done (2026-11-18). The interpreter runs the full instruction set, with program-defined objects, multiple inheritance, `inherited` and `delegated`, operator overloading, exceptions, named arguments, anonymous functions, `foreach`, and the `t3vm` function set. 41 of the suite's 132 runnable programs produce output identical to the reference interpreter's; the other 91 stop at something a later milestone provides, and say what. Three things in this milestone's scope are deferred because they need intrinsic classes from milestone 3: promoting an overflowing integer to BigNumber, `t3GetGlobalSymbols` for images with debug symbols, and local variables and frame references in stack traces.
+- Part of milestone 5 was done early, because without it even the simplest test program does not match: the console formatter (space and newline collapsing, tabs, capitalization, line wrapping, and the HTML subset a text console understands). Still to do there: input, log files, the status line, banners, and paging.
+
+Findings from milestone 2 that later milestones depend on:
+
+- The stack limit is observable. The reference VM allows 4,096 slots and spends 11 on every call; Hexicon keeps frames elsewhere but counts the same way, and a runaway recursion stops at the same depth under both (checked at 336 and 252 levels for two different functions).
+- A constructor returns `self`. The `new` instructions rely on that to deliver the object; the VM only supplies it when a class has no constructor.
+- An exception table's ranges are tested against a caller's return address, not the address of its call. The compiler makes each range run past the call.
+- Catching an exception does not trim the stack. Whatever the function had pushed stays until it returns.
+- A return to an address holding `getr0` performs the `getr0` as part of the return.
+- The `inc` instruction does not check for overflow, though `dec` and the others do.
+- When the VM creates a `RuntimeError`, it reads each message parameter's type from the slot before it, so the constructor only receives a parameter intact if it has the same type as its predecessor.
+- Object IDs for new objects come off a free list that starts at the top of the newest 4,096-entry page. Hexicon reproduces the order, but not yet the exact sequence of temporary objects the reference VM allocates, so IDs can still differ. Where that turns out to be visible (the order of a LookupTable keyed by objects, for one), garbage collection timing will matter too.
+- Intrinsic class methods are found through the property lists in the image's metaclass table, and an intrinsic class inherits the methods of the one it derives from (a list has `createIterator` from Collection).
+- The console drops newlines that follow a newline, and anything that would start the output with a blank line. Blank lines have to be asked for.
+
 Findings from milestone 1 that later milestones depend on:
 
 - A method header gives no code length. A function's extent comes from its exception table and debug records when it has them, and otherwise from following its branches and from where the next function starts.
@@ -168,3 +186,4 @@ Findings from milestone 1 that later milestones depend on:
 - Should HTML TADS games (banners, images, sound) be supported in the first browser front end, or text only first?
 - Minimum supported Rust version policy (proposal: latest stable minus two releases).
 - License for Hexicon itself (GPLv2-or-later vs. GPLv3).
+- What should `t3GetVMID`, `t3GetVMBanner`, and `t3GetVMVsn` report? They currently give the reference VM's answers (`mjr-T3`, version 3.1.3), which keeps test output identical. Games may check the version number, so that should stay compatible; the ID and banner could name Hexicon.

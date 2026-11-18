@@ -12,7 +12,9 @@ path = "src/main.rs"
 
 [dependencies]
 hexicon-bytecode = { path = "../hexicon-bytecode" }
+hexicon-host = { path = "../hexicon-host" }
 hexicon-image = { path = "../hexicon-image" }
+hexicon-vm = { path = "../hexicon-vm" }
 
 [lints]
 workspace = true

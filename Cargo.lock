@@ -14,9 +14,24 @@ name = "hexicon-cli"
 version = "0.1.0"
 dependencies = [
  "hexicon-bytecode",
+ "hexicon-host",
  "hexicon-image",
+ "hexicon-vm",
 ]
+
+[[package]]
+name = "hexicon-host"
+version = "0.1.0"
 
 [[package]]
 name = "hexicon-image"
 version = "0.1.0"
+
+[[package]]
+name = "hexicon-vm"
+version = "0.1.0"
+dependencies = [
+ "hexicon-bytecode",
+ "hexicon-host",
+ "hexicon-image",
+]

@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/hexicon-image", "crates/hexicon-bytecode", "crates/hexicon-cli"]
+members = [
+    "crates/hexicon-image",
+    "crates/hexicon-bytecode",
+    "crates/hexicon-host",
+    "crates/hexicon-vm",
+    "crates/hexicon-cli",
+]
 
 [workspace.package]
 version = "0.1.0"

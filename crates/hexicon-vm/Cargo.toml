@@ -1,0 +1,15 @@
+[package]
+name = "hexicon-vm"
+description = "The Hexicon virtual machine: runs T3 program images"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+hexicon-bytecode = { path = "../hexicon-bytecode" }
+hexicon-host = { path = "../hexicon-host" }
+hexicon-image = { path = "../hexicon-image" }
+
+[lints]
+workspace = true

@@ -1,0 +1,12 @@
+[package]
+name = "hexicon-host"
+description = "The interface between the Hexicon VM and the system it runs on"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
