@@ -107,6 +107,7 @@ impl Vm {
             method_index,
             args: (0..argc as usize).map(|i| self.arg(i)).collect(),
             caller_pc: self.pc,
+            arg_top: self.stack.len(),
         }
     }
 

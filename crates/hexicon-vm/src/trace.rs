@@ -4,6 +4,7 @@
 use hexicon_bytecode::{Opcode, decode};
 
 use crate::error::{ErrParam, VmError, VmResult, code};
+use crate::lookup::LookupTable;
 use crate::value::Value;
 use crate::vm::{NativeCall, Return, Vm};
 
@@ -200,23 +201,20 @@ impl Vm {
                 .collect();
         }
         let has_details = level.offset != 0 || level.native.is_some();
-        let wants_frame_data = level.native.is_none()
-            && ((flags & GST_LOCALS != 0 && want_locals) || (flags & GST_FREFS != 0 && want_frefs));
-        if has_details && wants_frame_data {
+        // Frame references come with dynamic compilation, which is not
+        // here yet. Nothing else can use one.
+        if level.offset != 0 && level.native.is_none() && flags & GST_FREFS != 0 && want_frefs {
             return Err(VmError::unimplemented(
-                "t3GetStackTrace with local variables or frame references",
+                "t3GetStackTrace with frame references",
             ));
         }
+        let wants_locals =
+            level.offset != 0 && level.native.is_none() && flags & GST_LOCALS != 0 && want_locals;
         let named_args = if want_named_args && flags & GST_LOCALS != 0 {
             self.named_args_of_frame(level.frame)
         } else {
             None
         };
-        if named_args.is_some() {
-            return Err(VmError::unimplemented(
-                "t3GetStackTrace with named arguments",
-            ));
-        }
 
         let mut pushed = 0;
         if has_details {
@@ -231,17 +229,46 @@ impl Vm {
         // Constructor arguments, last first: func, obj, prop, self, args,
         // source location, then the optional locals, named arguments, and
         // frame reference.
+        let info_locals = if wants_locals {
+            let locals = self.stack_locals(level)?;
+            self.push(locals);
+            pushed += 1;
+            locals
+        } else {
+            Value::Nil
+        };
+        let info_named_args = match named_args {
+            Some(args) => {
+                // A table of each name and its value.
+                let buckets = match args.len() {
+                    0..=8 => 8,
+                    9..=32 => 32,
+                    _ => 64,
+                };
+                let table = self.new_table(LookupTable::new(buckets, args.len(), false));
+                self.push(Value::Obj(table));
+                pushed += 1;
+                for (name, slot) in args.into_iter().rev() {
+                    let key = self.new_string(name);
+                    let value = self.stack[slot];
+                    self.table_set(table, key, value)?;
+                }
+                Value::Obj(table)
+            }
+            None => Value::Nil,
+        };
+
         let mut info_argc = 6;
         if want_frefs {
             self.push(Value::Nil);
             info_argc += 1;
         }
         if want_named_args {
-            self.push(Value::Nil);
+            self.push(info_named_args);
             info_argc += 1;
         }
         if want_locals {
-            self.push(Value::Nil);
+            self.push(info_locals);
             info_argc += 1;
         }
         self.push(info_source);
@@ -255,6 +282,129 @@ impl Vm {
         let entry = self.r0;
         self.discard(pushed);
         Ok(entry)
+    }
+
+    /// The local variables in scope at a level of the stack, as a table
+    /// of each name and its value. Only a program compiled for debugging
+    /// records the names; for any other, the table is empty.
+    fn stack_locals(&mut self, level: &Level) -> VmResult<Value> {
+        let table = self.new_table(LookupTable::new(32, 64, false));
+        let result = Value::Obj(table);
+        self.push(result);
+        let filled = self.fill_stack_locals(table, level);
+        self.discard(1);
+        filled.map(|()| result)
+    }
+
+    fn fill_stack_locals(&mut self, table: crate::value::ObjId, level: &Level) -> VmResult<()> {
+        let Ok(header) = self.function_header(level.func) else {
+            return Ok(());
+        };
+        if header.debug_records == 0 {
+            return Ok(());
+        }
+        let debug = (level.func + header.debug_records) as usize;
+        let u16_at = |code: &[u8], at: usize| -> usize {
+            code.get(at..at + 2)
+                .map_or(0, |b| usize::from(u16::from_le_bytes([b[0], b[1]])))
+        };
+        // The frames follow the line records. Each is a scope: a block
+        // of code with the variables declared in it, inside another.
+        let layout = self.layout;
+        let table_header = layout.debug_table_header as usize;
+        let line_count = u16_at(&self.code, debug + table_header);
+        let frames = debug + table_header + 2 + line_count * layout.debug_line_entry as usize + 2;
+        let frame_count = u16_at(&self.code, frames);
+        let frame_at = |code: &[u8], index: usize| -> usize {
+            let entry = frames + 2 + 2 * (index - 1);
+            entry + u16_at(code, entry)
+        };
+        let frame_header = layout.debug_frame_header as usize;
+
+        // Find the innermost scope that covers the code position.
+        let offset = level.offset as usize;
+        let mut best = 0;
+        for index in 1..=frame_count {
+            let frame = frame_at(&self.code, index);
+            let (start, end) = if frame_header >= 8 {
+                (u16_at(&self.code, frame + 4), u16_at(&self.code, frame + 6))
+            } else {
+                (0, 0)
+            };
+            if offset < start || offset > end {
+                continue;
+            }
+            let mut nested = best == 0;
+            let mut parent = u16_at(&self.code, frame);
+            let mut steps = 0;
+            while !nested && parent != 0 && steps <= frame_count {
+                nested = parent == best;
+                parent = u16_at(&self.code, frame_at(&self.code, parent));
+                steps += 1;
+            }
+            if nested {
+                best = index;
+            }
+        }
+
+        // Take the variables of that scope and each one around it. An
+        // inner variable hides an outer one of the same name.
+        let base = self.frames[level.frame].base as usize;
+        let mut steps = 0;
+        while best != 0 && steps <= frame_count {
+            let frame = frame_at(&self.code, best);
+            let symbol_count = u16_at(&self.code, frame + 2);
+            let mut at = frame + frame_header;
+            for _ in 0..symbol_count {
+                let number = u16_at(&self.code, at);
+                let flags = u16_at(&self.code, at + 2);
+                let context_index = u16_at(&self.code, at + 4);
+                let name_at = at + layout.debug_local_header as usize;
+                let inline = flags & 4 == 0;
+                let name = if inline {
+                    let len = u16_at(&self.code, name_at);
+                    let text = self
+                        .code
+                        .get(name_at + 2..name_at + 2 + len)
+                        .unwrap_or(&[])
+                        .to_vec();
+                    at = name_at + 2 + len;
+                    self.new_string(text)
+                } else {
+                    let pointer = self
+                        .code
+                        .get(name_at..name_at + 4)
+                        .map_or(0, |b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+                    at = name_at + 4;
+                    Value::SString(pointer)
+                };
+                if self.table_get(table, name)?.is_some() {
+                    continue;
+                }
+                let in_context = flags & 2 != 0;
+                let is_param = flags & 1 != 0 && !in_context;
+                let slot = if is_param {
+                    base.checked_sub(1 + number)
+                } else {
+                    Some(base + number)
+                };
+                let stored = slot
+                    .and_then(|slot| self.stack.get(slot))
+                    .copied()
+                    .unwrap_or(Value::Nil);
+                // A variable shared with an anonymous function lives in
+                // a context object, which the local refers to.
+                let value = if in_context {
+                    self.list_like_get(stored, context_index)?
+                } else {
+                    stored
+                };
+                self.table_set(table, name, value)?;
+            }
+            best = u16_at(&self.code, frame);
+            steps += 1;
+        }
+        Ok(())
     }
 
     /// The source file and line for an offset within a function, as a
@@ -326,15 +476,29 @@ impl Vm {
     /// table of the names.
     fn named_args_of_frame(&self, index: usize) -> Option<Vec<(Vec<u8>, usize)>> {
         let frame = &self.frames[index];
-        if frame.ret == Return::Native || index == 0 {
+        // A frame called from native code, such as a callback, sees the
+        // named arguments of the call to that native code.
+        let (return_pc, arg_top, argc) = if frame.ret == Return::Native {
+            let call = frame.native.as_ref()?;
+            if call.caller_pc == 0 || call.arg_top == 0 {
+                return None;
+            }
+            (
+                self.instruction_end(call.caller_pc),
+                call.arg_top,
+                call.args.len(),
+            )
+        } else if index == 0 {
             return None;
-        }
+        } else {
+            (frame.return_pc, frame.base as usize, frame.argc as usize)
+        };
         let code = &self.code;
         let u16_at = |at: usize| -> Option<usize> {
             let b = code.get(at..at + 2)?;
             Some(usize::from(u16::from_le_bytes([b[0], b[1]])))
         };
-        let mut at = frame.return_pc as usize;
+        let mut at = return_pc as usize;
         if code.get(at) == Some(&(Opcode::NamedArgPtr as u8)) {
             // The table is elsewhere in the function; follow the pointer.
             at += 2 + u16_at(at + 2)?;
@@ -346,9 +510,7 @@ impl Vm {
         let table = at + 3;
         let count = u16_at(table)?;
         let names = table + 2;
-        let first_value = (frame.base as usize)
-            .checked_sub(frame.argc as usize)?
-            .checked_sub(count)?;
+        let first_value = arg_top.checked_sub(argc)?.checked_sub(count)?;
         let mut args = Vec::with_capacity(count);
         for n in 0..count {
             let start = names + u16_at(names + n * 2)?;

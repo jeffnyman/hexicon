@@ -56,6 +56,7 @@ impl Vm {
                 })
             }
             Some(Object::BigNumber(big)) => Ok(self.big_equals(big, other)),
+            Some(Object::CharSet { .. }) => Ok(self.charset_equals(id, other)),
             // Byte arrays are equal if they hold the same bytes.
             Some(Object::ByteArray(bytes)) => {
                 Ok(other == Value::Obj(id)

@@ -71,26 +71,17 @@ impl Vm {
         }
     }
 
-    /// A character set argument. Only the default, a byte for each
-    /// character code up to 255, is here so far.
-    fn default_charset(&self, value: Value) -> VmResult<()> {
-        if value == Value::Nil {
-            Ok(())
-        } else {
-            Err(VmError::unimplemented(
-                "mapping between text and bytes with a character set",
-            ))
-        }
-    }
-
-    /// The bytes of a string in the default mapping: its character codes,
-    /// none of which can be over 255.
+    /// The bytes of a string. With no character set, a character is the
+    /// byte with its code, and none can be over 255.
     pub(crate) fn text_to_bytes(&mut self, text: &[u8], charset: Value) -> VmResult<Vec<u8>> {
-        self.default_charset(charset)?;
-        String::from_utf8_lossy(text)
-            .chars()
-            .map(|c| u8::try_from(u32::from(c)).map_err(|_| VmError::new(code::NUM_OVERFLOW)))
-            .collect()
+        let text = String::from_utf8_lossy(text);
+        match self.charset_arg(charset)? {
+            Some(map) => Ok(map.encode(&text)),
+            None => text
+                .chars()
+                .map(|c| u8::try_from(u32::from(c)).map_err(|_| VmError::new(code::NUM_OVERFLOW)))
+                .collect(),
+        }
     }
 
     /// Construct a byte array: `new ByteArray(length)`,
@@ -250,9 +241,11 @@ impl Vm {
             }
             // mapToString(charset?, start?, length?)
             5 => {
-                if argc >= 1 {
-                    self.default_charset(self.arg(0))?;
-                }
+                let charset = if argc >= 1 {
+                    self.charset_arg(self.arg(0))?
+                } else {
+                    None
+                };
                 let start = if argc >= 2 {
                     start_index(self.int_arg(self.arg(1))?, len)
                 } else {
@@ -264,7 +257,11 @@ impl Vm {
                     -1
                 };
                 let count = span(start, count, len);
-                let text = latin1_text(&self.bytes(id)[start - 1..start - 1 + count]);
+                let part = &self.bytes(id)[start - 1..start - 1 + count];
+                let text = match charset {
+                    Some(map) => map.decode(part),
+                    None => latin1_text(part),
+                };
                 self.new_str(&text)
             }
             // readInt(index, format)

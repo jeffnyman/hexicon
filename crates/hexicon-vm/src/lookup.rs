@@ -245,6 +245,10 @@ impl Vm {
                             })
                     }
                 },
+                // Character sets are equal if their names are, in any case.
+                Some(Object::CharSet { name, .. }) => name.bytes().fold(0u32, |hash, byte| {
+                    hash.wrapping_add(byte.to_ascii_lowercase().into())
+                }),
                 Some(Object::ByteArray(bytes)) => bytes
                     .iter()
                     .fold(0u32, |hash, &byte| hash.wrapping_add(byte.into())),

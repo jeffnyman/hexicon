@@ -119,6 +119,12 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             bytes.resize(len, 0);
             Object::ByteArray(bytes)
         }
+        MetaKind::CharacterSet => {
+            let len = u16_at(0)? as usize;
+            let name = String::from_utf8_lossy(data.get(2..2 + len).ok_or_else(bad)?).into_owned();
+            let map = crate::charset::CharMap::load(&name).map(std::rc::Rc::new);
+            Object::CharSet { name, map }
+        }
         MetaKind::RexPattern => Object::Pattern {
             source: Value::from_holder(data.get(..Value::HOLDER_SIZE).ok_or_else(bad)?),
             compiled: None,
@@ -196,6 +202,8 @@ impl Vm {
                 exception_entry: entry.exception_entry_size.into(),
                 debug_line_entry: entry.debug_line_entry_size.into(),
                 debug_table_header: entry.debug_table_header_size.into(),
+                debug_local_header: entry.debug_local_header_size.into(),
+                debug_frame_header: entry.debug_frame_header_size.into(),
             },
             objects,
             meta,
@@ -218,7 +226,7 @@ impl Vm {
             debug: image.debug.clone(),
             preinit_mode: false,
             last_match: Default::default(),
-            rng: crate::rng::Isaac::new(),
+            rng: crate::rng::Rng::new(),
             big_cache: Default::default(),
             symbol_table: None,
             macro_table: None,
@@ -274,6 +282,12 @@ impl Vm {
             reflection_services: object_symbol(image, "reflection.reflectionServices")?,
             reflection_val_to_symbol: prop_symbol(image, "reflection.valToSymbol")?,
             obj_to_string: prop_symbol(image, "objToString")?,
+            charset_unknown_exception: object_symbol(
+                image,
+                "CharacterSet.UnknownCharSetException",
+            )?,
+            string_sth_flags: prop_symbol(image, "String.specialsToHtml.flags")?,
+            string_sth_tag: prop_symbol(image, "String.specialsToHtml.tag")?,
             iter_get_next: INVALID_PROP,
             iter_next_avail: INVALID_PROP,
         };

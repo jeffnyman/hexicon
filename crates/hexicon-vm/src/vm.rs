@@ -46,6 +46,10 @@ pub(crate) struct NativeCall {
     pub args: Vec<Value>,
     /// Address of the instruction that invoked the native code, or zero.
     pub caller_pc: u32,
+    /// How much was on the stack when the native code was called, with
+    /// its arguments on top, or zero if that was not recorded. Named
+    /// arguments lie under the positional ones.
+    pub arg_top: usize,
 }
 
 impl NativeCall {
@@ -58,6 +62,7 @@ impl NativeCall {
             method_index: 0,
             args: Vec::new(),
             caller_pc: 0,
+            arg_top: 0,
         }
     }
 }
@@ -162,6 +167,11 @@ pub(crate) struct Predef {
     /// The object and property the VM calls to name a value.
     pub reflection_services: ObjId,
     pub reflection_val_to_symbol: PropId,
+    /// The exception class for using a character set the VM lacks.
+    pub charset_unknown_exception: ObjId,
+    /// Where `specialsToHtml` keeps its state between calls.
+    pub string_sth_flags: PropId,
+    pub string_sth_tag: PropId,
     /// Property for converting an object to a string.
     pub obj_to_string: PropId,
     /// The iterator methods `for..in` loops call.
@@ -238,6 +248,10 @@ pub(crate) struct Layout {
     pub exception_entry: u32,
     pub debug_line_entry: u32,
     pub debug_table_header: u32,
+    /// Size of the header of a local symbol record in a debug table.
+    pub debug_local_header: u32,
+    /// Size of the header of a frame in a debug table.
+    pub debug_frame_header: u32,
 }
 
 /// Stack slots available to a program, as in the reference VM's default
@@ -289,7 +303,7 @@ pub struct Vm {
     /// Mathematical constants BigNumber has computed so far.
     pub(crate) big_cache: crate::bignum_math::Cache,
     /// The random number generator.
-    pub(crate) rng: crate::rng::Isaac,
+    pub(crate) rng: crate::rng::Rng,
     /// The most recent regular expression match.
     pub(crate) last_match: crate::string::LastMatch,
     /// Report each VM error on standard error as it is raised.
@@ -398,6 +412,7 @@ impl Vm {
             Object::StringBuffer(_) => MetaKind::StringBuffer,
             Object::BigNumber(_) => MetaKind::BigNumber,
             Object::ByteArray(_) => MetaKind::ByteArray,
+            Object::CharSet { .. } => MetaKind::CharacterSet,
             Object::Class(_) => MetaKind::IntrinsicClass,
             Object::Opaque { meta_index, .. } => self.meta.get(*meta_index as usize)?.kind,
         })

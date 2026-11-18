@@ -129,6 +129,7 @@ impl Vm {
             MetaKind::StringBuffer => self.strbuf_method(self_value.obj_id(), index, argc),
             MetaKind::BigNumber => self.big_method(self_value.obj_id(), index, argc),
             MetaKind::ByteArray => self.bytes_method(self_value.obj_id(), index, argc),
+            MetaKind::CharacterSet => self.charset_method(self_value.obj_id(), index, argc),
             other => Err(VmError::unimplemented(format!(
                 "method {index} of intrinsic class {}",
                 other.name()
@@ -374,6 +375,7 @@ impl Vm {
                             | MetaKind::StringBuffer
                             | MetaKind::BigNumber
                             | MetaKind::ByteArray
+                            | MetaKind::CharacterSet
                     ) =>
             {
                 Err(VmError::unimplemented(format!(

@@ -60,6 +60,12 @@ pub enum Object {
         /// before the first.
         slot: u32,
     },
+    /// A character set: a name, and the mapping between text and bytes
+    /// if the VM knows a set by that name.
+    CharSet {
+        name: String,
+        map: Option<std::rc::Rc<crate::charset::CharMap>>,
+    },
     /// A byte array: bytes that can change in place.
     ByteArray(Vec<u8>),
     /// A BigNumber: a decimal floating-point number.

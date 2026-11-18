@@ -605,6 +605,8 @@ impl Vm {
                     }
                 }
             }
+            // specialsToHtml(state?) and specialsToText(state?)
+            14 | 15 => self.specials_to(&text, argc, index == 14)?,
             // mapToByteArray(charset?)
             10 => {
                 let charset = if argc >= 1 { self.arg(0) } else { Value::Nil };
@@ -879,6 +881,7 @@ impl Vm {
             native.function = self.function_set_index("tads-gen").map(|set| (set, 12));
             native.args = (0..argc).map(|i| self.arg(i)).collect();
             native.caller_pc = self.pc;
+            native.arg_top = self.stack.len();
             native
         } else {
             self.native_call("String.findReplace", subject, 11, argc as u32)

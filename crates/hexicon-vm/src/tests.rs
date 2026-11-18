@@ -1141,3 +1141,47 @@ fn bignumber_converts_to_and_from_binary() {
     assert_eq!((ber, overflow), (vec![0x82, 0x2c], false));
     assert_eq!(Big::from_ber(&[2, 0x2c]).to_text(), "300");
 }
+
+// ---- character sets ----
+
+use crate::charset::CharMap;
+
+#[test]
+fn character_sets_go_by_many_names() {
+    for name in ["latin-2", "ISO-8859-2", "iso2", "iso_8859_2"] {
+        assert!(CharMap::load(name).is_some(), "{name}");
+    }
+    for name in ["cp1252", "windows-1252", "win1252", "1252"] {
+        assert!(CharMap::load(name).is_some(), "{name}");
+    }
+    for name in ["utf-8", "UTF8", "utf-16le", "unicodeb", "ascii", "us", "l1"] {
+        assert!(CharMap::load(name).is_some(), "{name}");
+    }
+    // `l2` looks like `l1`, but only that one is a name the reference knows.
+    for name in ["", "nonesuch", "utf-16", "latin-0", "cp99999", "l2"] {
+        assert!(CharMap::load(name).is_none(), "{name}");
+    }
+}
+
+#[test]
+fn character_sets_convert_text_and_bytes() {
+    let latin2 = CharMap::load("latin-2").expect("latin-2");
+    assert_eq!(latin2.encode("A\u{15e}\u{164}"), [0x41, 0xaa, 0xab]);
+    assert_eq!(latin2.decode(&[0x41, 0xaa, 0xab]), "A\u{15e}\u{164}");
+
+    // A set stands in for some characters it lacks, and writes a
+    // question mark for the rest.
+    let ascii = CharMap::load("us-ascii").expect("us-ascii");
+    assert_eq!(ascii.encode("d\u{e9}j\u{e0} \u{4e2d}"), b"deja ?");
+    assert_eq!(ascii.decode(&[0x41, 0xe9]), "A\u{fffd}");
+
+    let utf16 = CharMap::load("utf-16be").expect("utf-16be");
+    assert_eq!(utf16.encode("A\u{20ac}"), [0x00, 0x41, 0x20, 0xac]);
+    assert_eq!(utf16.decode(&[0x00, 0x41, 0x20, 0xac, 0x00]), "A\u{20ac}");
+
+    // UTF-8 that is cut short loses the unfinished character, and
+    // anything else that is not UTF-8 becomes a question mark.
+    let utf8 = CharMap::load("utf-8").expect("utf-8");
+    assert_eq!(utf8.decode(&[0x41, 0xc3, 0xa9, 0xc3]), "A\u{e9}");
+    assert_eq!(utf8.decode(&[0x41, 0xff, 0x42]), "A?B");
+}
