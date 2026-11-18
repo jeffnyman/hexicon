@@ -8,6 +8,7 @@
 use std::cmp::Ordering;
 
 use crate::error::{ErrParam, VmError, VmResult, code};
+use crate::identity;
 use crate::object::Object;
 use crate::value::{INVALID_PROP, NativeDesc, ObjId, Value};
 use crate::vm::Vm;
@@ -247,15 +248,15 @@ impl Vm {
             1 => self.t3_set_say(argc)?,
             2 => {
                 Self::check_argc(argc, 0)?;
-                self.r0 = Value::Int(0x0003_0103);
+                self.r0 = Value::Int(identity::version_number());
             }
             3 => {
                 Self::check_argc(argc, 0)?;
-                self.r0 = self.new_str("mjr-T3");
+                self.r0 = self.new_str(identity::ID);
             }
             4 => {
                 Self::check_argc(argc, 0)?;
-                self.r0 = self.new_str("T3 VM 3.1.3 - Copyright 1999, 2012 Michael J. Roberts");
+                self.r0 = self.new_str(&identity::banner());
             }
             5 => {
                 Self::check_argc(argc, 0)?;

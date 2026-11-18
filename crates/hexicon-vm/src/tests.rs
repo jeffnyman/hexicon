@@ -653,6 +653,34 @@ fn unknown_metaclass_fails_to_load() {
     ));
 }
 
+#[test]
+fn identifies_itself_as_hexicon() {
+    let consts = Consts::default();
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    // tadsSay(t3GetVMID()); tadsSay(t3GetVMVsn()); tadsSay(t3GetVMBanner());
+    for function in [3u8, 2, 4] {
+        code.op(Op::BuiltinA).u8(0).u8(function).op(Op::GetR0).say();
+        code.op(Op::PushInt8).u8(b' ').op(Op::Disc);
+    }
+    code.op(Op::RetNil);
+
+    let image = ImageBuilder::default().build(main, &code, &consts);
+    let version = crate::identity::version_number();
+    assert_eq!(
+        run(&image).0,
+        format!("hexicon{version}Hexicon VM {}", crate::identity::VERSION)
+    );
+    // Libraries display the version by taking the number apart.
+    let dotted = format!(
+        "{}.{}.{}",
+        version >> 16,
+        (version >> 8) & 0xff,
+        version & 0xff
+    );
+    assert_eq!(dotted, crate::identity::VERSION);
+}
+
 // ---- objects ----
 
 #[test]

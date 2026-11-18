@@ -120,6 +120,10 @@ T3 has its own regex dialect (`<alpha>`, `<nocase>`, `%1` groups, and so on). We
 
 BigNumber is a port of the reference decimal implementation (`vmbignum.cpp`, `vmbignumlib.cpp`), not a general-purpose crate, so rounding and formatting match exactly.
 
+### Identity
+
+Hexicon identifies itself as Hexicon. `t3GetVMID` returns `hexicon`, `t3GetVMBanner` returns `Hexicon VM` and the version, and `t3GetVMVsn` returns Hexicon's own version number, not the reference VM's `mjr-T3` and 3.1.3. The number keeps the T3 layout (major in the high 16 bits, then minor and patch in 8 bits each) because libraries take it apart to display it. Neither adv3 nor the system library compares the number against anything; adv3 only shows it for the VERSION command. A transcript that includes VERSION output therefore differs from the reference on that line, by design.
+
 ### Save files
 
 Goal: read and write save files compatible with the reference interpreter for the same game image. Fixing the in-memory model early keeps this achievable. If exact compatibility proves too costly, we fall back to a Hexicon save format and document it.
@@ -186,4 +190,3 @@ Findings from milestone 1 that later milestones depend on:
 - Should HTML TADS games (banners, images, sound) be supported in the first browser front end, or text only first?
 - Minimum supported Rust version policy (proposal: latest stable minus two releases).
 - License for Hexicon itself (GPLv2-or-later vs. GPLv3).
-- What should `t3GetVMID`, `t3GetVMBanner`, and `t3GetVMVsn` report? They currently give the reference VM's answers (`mjr-T3`, version 3.1.3), which keeps test output identical. Games may check the version number, so that should stay compatible; the ID and banner could name Hexicon.

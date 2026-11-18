@@ -12,6 +12,7 @@ mod call;
 mod console;
 mod entities;
 mod error;
+pub mod identity;
 mod interp;
 mod load;
 mod meta;
