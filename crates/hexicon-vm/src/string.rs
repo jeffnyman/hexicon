@@ -374,6 +374,10 @@ impl Vm {
                                 out.extend(rest.to_lowercase());
                             }
                         }
+                        23 => match crate::casefold::fold(c) {
+                            Some(folded) => out.push_str(folded),
+                            None => out.push(c),
+                        },
                         _ => out.extend(c.to_lowercase()),
                     }
                 }

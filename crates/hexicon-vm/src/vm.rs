@@ -286,6 +286,8 @@ pub struct Vm {
     /// The tables `t3GetGlobalSymbols` returns, once built.
     pub(crate) symbol_table: Option<ObjId>,
     pub(crate) macro_table: Option<ObjId>,
+    /// Mathematical constants BigNumber has computed so far.
+    pub(crate) big_cache: crate::bignum_math::Cache,
     /// The random number generator.
     pub(crate) rng: crate::rng::Isaac,
     /// The most recent regular expression match.
@@ -394,6 +396,7 @@ impl Vm {
             Object::LookupIter { .. } => MetaKind::LookupTableIterator,
             Object::Pattern { .. } => MetaKind::RexPattern,
             Object::StringBuffer(_) => MetaKind::StringBuffer,
+            Object::BigNumber(_) => MetaKind::BigNumber,
             Object::Class(_) => MetaKind::IntrinsicClass,
             Object::Opaque { meta_index, .. } => self.meta.get(*meta_index as usize)?.kind,
         })

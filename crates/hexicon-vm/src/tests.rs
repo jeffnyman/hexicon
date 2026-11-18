@@ -1038,3 +1038,62 @@ fn random_numbers_repeat_until_seeded() {
     let third: Vec<u32> = (0..600).map(|_| seeded.next()).collect();
     assert_ne!(first, third);
 }
+
+// ---- BigNumber ----
+
+use crate::bignum::Big;
+use crate::bignum_math::{self, Cache};
+
+fn big(text: &str) -> Big {
+    Big::parse(text, Big::precision_from_str(text))
+}
+
+#[test]
+fn bignumber_arithmetic_keeps_the_larger_precision() {
+    assert_eq!(Big::add(&big("1.5"), &big("2.25")).to_text(), "3.75");
+    assert_eq!(Big::sub(&big("1.5"), &big("2.25")).to_text(), "-.75");
+    assert_eq!(Big::mul(&big("1.5"), &big("2.25")).to_text(), "3.38");
+    let third = Big::div(&big("1.0000"), &big("3")).expect("not dividing by zero");
+    assert_eq!(third.to_text(), ".33333");
+    assert!(Big::div(&big("1"), &big("0")).is_none());
+}
+
+#[test]
+fn bignumber_holds_what_an_integer_cannot() {
+    let limit = Big::from_int(i32::MAX.into(), 10);
+    let one = Big::from_int(1, 10);
+    let past = Big::add(&limit, &one);
+    assert_eq!(past.to_text(), "2147483648");
+    assert!(past.to_i32().1, "conversion to an integer overflows");
+    assert_eq!(limit.to_i32(), (i32::MAX, false));
+}
+
+#[test]
+fn bignumber_reads_other_radixes() {
+    assert_eq!(Big::parse_radix("ff", 16).to_text(), "255");
+    assert_eq!(
+        Big::parse_radix("ffffffffffffffff", 16).to_text(),
+        "18446744073709551615"
+    );
+    assert_eq!(Big::parse_radix(" -101", 2).to_text(), "-5");
+    assert_eq!(Big::parse_radix("ff", 16).to_radix_text(2), "11111111");
+}
+
+#[test]
+fn bignumber_computes_constants_and_roots() {
+    let mut cache = Cache::default();
+    let pi = cache.pi(10).expect("pi").with_prec(10, true);
+    assert_eq!(pi.to_text(), "3.141592654");
+    let e = cache.e(10).expect("e").with_prec(10, true);
+    assert_eq!(e.to_text(), "2.718281828");
+    let root = bignum_math::sqrt_into(10, &big("2.000000000")).expect("root");
+    assert_eq!(root.to_text(), "1.414213562");
+    assert!(bignum_math::sqrt_into(10, &big("-2")).is_err());
+}
+
+#[test]
+fn case_folding_expands_characters() {
+    assert_eq!(crate::casefold::fold('A'), Some("a"));
+    assert_eq!(crate::casefold::fold('ß'), Some("ss"));
+    assert_eq!(crate::casefold::fold('a'), None);
+}

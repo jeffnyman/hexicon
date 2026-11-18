@@ -8,7 +8,11 @@
 //! the outside world comes through a [`hexicon_host::Host`].
 
 mod bif;
+mod bignum;
+mod bignum_math;
+mod bignum_obj;
 mod call;
+mod casefold;
 mod console;
 mod entities;
 mod error;
@@ -25,6 +29,7 @@ mod props;
 mod reflect;
 mod regex;
 mod rng;
+mod sprintf;
 mod strbuf;
 mod string;
 mod tads;

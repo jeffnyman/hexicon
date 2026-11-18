@@ -230,6 +230,21 @@ impl Vm {
                 u32::from(set) << 16 | u32::from(index)
             }
             Value::Obj(id) => match self.objects.get(id) {
+                // A BigNumber equals an integer of the same value.
+                Some(Object::BigNumber(big)) => match big.to_i32() {
+                    (n, false) if big.is_frac_zero() => n as u32,
+                    // Equal numbers can differ in precision, so zeros at
+                    // the end do not count.
+                    _ => {
+                        let significant =
+                            big.digs.iter().rposition(|&d| d != 0).map_or(0, |i| i + 1);
+                        big.digs[..significant]
+                            .iter()
+                            .fold(big.exp as u32, |hash, &d| {
+                                hash.wrapping_mul(31).wrapping_add(u32::from(d))
+                            })
+                    }
+                },
                 // A string buffer equals a string with the same text.
                 Some(Object::StringBuffer(_)) => {
                     let text = self.strbuf_text(id).unwrap_or_default();

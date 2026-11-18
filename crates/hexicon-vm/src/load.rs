@@ -108,6 +108,9 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
         MetaKind::LookupTable | MetaKind::WeakRefLookupTable => Object::LookupTable(Box::new(
             LookupTable::from_image(data, kind == MetaKind::WeakRefLookupTable).ok_or_else(bad)?,
         )),
+        MetaKind::BigNumber => Object::BigNumber(Box::new(
+            crate::bignum::Big::from_bytes(data).ok_or_else(bad)?,
+        )),
         MetaKind::RexPattern => Object::Pattern {
             source: Value::from_holder(data.get(..Value::HOLDER_SIZE).ok_or_else(bad)?),
             compiled: None,
@@ -208,6 +211,7 @@ impl Vm {
             preinit_mode: false,
             last_match: Default::default(),
             rng: crate::rng::Isaac::new(),
+            big_cache: Default::default(),
             symbol_table: None,
             macro_table: None,
             trace_errors: false,

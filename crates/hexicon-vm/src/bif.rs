@@ -431,14 +431,7 @@ impl Vm {
                 } else {
                     radix == 10
                 };
-                let (string, _) = match value {
-                    Value::Int(n) if radix != 10 || !signed => {
-                        let text = int_to_radix(n, radix as u32, signed);
-                        let text: std::rc::Rc<[u8]> = text.into_bytes().into();
-                        (self.new_string(text.clone()), text)
-                    }
-                    _ => self.text_of(value)?,
-                };
+                let (string, _) = self.radix_text(value, radix as u32, signed)?;
                 self.r0 = match string {
                     Value::Obj(_) => string,
                     // The result is always a string object.
@@ -448,7 +441,14 @@ impl Vm {
             // toInteger(val, radix?)
             7 => {
                 Self::check_argc_range(argc, 1, 2)?;
-                self.r0 = self.parse_integer(argc)?;
+                self.r0 = self.parse_integer(argc, true)?;
+            }
+            // sprintf(format, ...)
+            23 => self.r0 = self.sprintf(argc)?,
+            // toNumber(val, radix?)
+            22 => {
+                Self::check_argc_range(argc, 1, 2)?;
+                self.r0 = self.parse_integer(argc, false)?;
             }
             // rexMatch(pat, str, index?)
             9 => {
@@ -514,7 +514,15 @@ impl Vm {
                 Self::check_argc(argc, 1)?;
                 self.r0 = match self.arg(0) {
                     Value::Int(n) => Value::Int(n.wrapping_abs()),
-                    _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
+                    other => match self.as_big(other).cloned() {
+                        Some(big) if big.neg && big.kind != crate::bignum::Kind::NaN => {
+                            let mut positive = big;
+                            positive.neg = false;
+                            self.new_big(positive)
+                        }
+                        Some(_) => other,
+                        None => return Err(VmError::new(code::BAD_TYPE_BIF)),
+                    },
                 };
             }
             // sgn(val)
@@ -522,7 +530,12 @@ impl Vm {
                 Self::check_argc(argc, 1)?;
                 self.r0 = match self.arg(0) {
                     Value::Int(n) => Value::Int(n.signum()),
-                    _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
+                    other => match self.as_big(other) {
+                        Some(big) if big.zero => Value::Int(0),
+                        Some(big) if big.neg => Value::Int(-1),
+                        Some(_) => Value::Int(1),
+                        None => return Err(VmError::new(code::BAD_TYPE_BIF)),
+                    },
                 };
             }
             // concat(...)
@@ -635,9 +648,54 @@ impl Vm {
         Ok(self.new_string(unit.repeat(repeat as usize)))
     }
 
+    /// Convert a value to text, showing numbers in a radix. That reaches
+    /// into lists, whose elements are converted the same way.
+    fn radix_text(
+        &mut self,
+        value: Value,
+        radix: u32,
+        signed: bool,
+    ) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
+        if radix == 10 && signed {
+            return self.text_of(value);
+        }
+        let text: Vec<u8> = match value {
+            Value::Int(n) => int_to_radix(n, radix, signed).into_bytes(),
+            _ => {
+                if let Some(big) = self.as_big(value) {
+                    if radix == 10 || !big.is_frac_zero() {
+                        return self.text_of(value);
+                    }
+                    big.to_radix_text(radix).into_bytes()
+                } else if let Some(len) = self.list_like_len(value)? {
+                    let mut joined = Vec::new();
+                    for index in 1..=len {
+                        let element = self.list_like_get(value, index)?;
+                        if index != 1 {
+                            joined.push(b',');
+                        }
+                        joined.extend_from_slice(&self.radix_text(element, radix, signed)?.1);
+                    }
+                    joined
+                } else {
+                    return self.text_of(value);
+                }
+            }
+        };
+        let text: std::rc::Rc<[u8]> = text.into();
+        Ok((self.new_string(text.clone()), text))
+    }
+
     /// `toInteger(val, radix?)`.
-    fn parse_integer(&mut self, argc: u32) -> VmResult<Value> {
+    fn parse_integer(&mut self, argc: u32, int_only: bool) -> VmResult<Value> {
         let value = self.arg(0);
+        if let Some(big) = self.as_big(value) {
+            return if int_only {
+                Self::big_to_int(big).map(Value::Int)
+            } else {
+                Ok(value)
+            };
+        }
         match value {
             Value::Int(_) => return Ok(value),
             Value::True => return Ok(Value::Int(1)),
@@ -662,7 +720,86 @@ impl Vm {
         if trimmed.len() == 4 && trimmed.starts_with(b"tru") {
             return Ok(Value::Int(1));
         }
-        parse_int(&text, radix).map(Value::Int)
+        self.parse_number(&text, radix, int_only)
+    }
+
+    /// Parse text as a number in a radix. Unless only an integer will
+    /// do, a decimal number with a fraction or an exponent, or one too
+    /// large for an integer, is a BigNumber.
+    pub(crate) fn parse_number(
+        &mut self,
+        text: &[u8],
+        radix: u32,
+        int_only: bool,
+    ) -> VmResult<Value> {
+        let big = |vm: &mut Vm| {
+            let source = String::from_utf8_lossy(text).into_owned();
+            if radix != 10 {
+                return vm.new_big(crate::bignum::Big::parse_radix(&source, radix));
+            }
+            let prec = crate::bignum::Big::precision_from_str(&source);
+            vm.new_big(crate::bignum::Big::parse(&source, prec))
+        };
+        if !int_only && radix == 10 {
+            let source = String::from_utf8_lossy(text);
+            let digits = source
+                .trim_start()
+                .trim_start_matches(['-', '+'])
+                .trim_start();
+            let body_end = digits
+                .find(|c: char| !c.is_ascii_digit())
+                .unwrap_or(digits.len());
+            let rest = &digits[body_end..];
+            let has_exponent = rest
+                .strip_prefix(['e', 'E'])
+                .map(|r| r.trim_start_matches(['+', '-']))
+                .is_some_and(|r| r.starts_with(|c: char| c.is_ascii_digit()));
+            if rest.starts_with('.') || has_exponent {
+                return Ok(big(self));
+            }
+        }
+        match parse_int(text, radix) {
+            Ok(n) => Ok(Value::Int(n)),
+            Err(_) if !int_only => Ok(big(self)),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Convert a value to a number, as an explicit cast does: an integer
+    /// or a BigNumber stays as it is, true and nil are 1 and 0, and text
+    /// is parsed.
+    pub(crate) fn cast_to_num(&mut self, value: Value) -> VmResult<Value> {
+        match value {
+            Value::Int(_) => Ok(value),
+            Value::True => Ok(Value::Int(1)),
+            Value::Nil => Ok(Value::Int(0)),
+            _ if self.as_big(value).is_some() => Ok(value),
+            _ => match self.as_str(value) {
+                Some(text) => {
+                    let text = text.to_vec();
+                    self.parse_number(&text, 10, false)
+                }
+                None => Err(VmError::new(code::NO_NUM_CONV)),
+            },
+        }
+    }
+
+    /// Convert a value to an integer, as an explicit cast does.
+    pub(crate) fn cast_to_int(&mut self, value: Value) -> VmResult<i32> {
+        match value {
+            Value::Int(n) => Ok(n),
+            Value::True => Ok(1),
+            Value::Nil => Ok(0),
+            _ => {
+                if let Some(big) = self.as_big(value) {
+                    return Self::big_to_int(big);
+                }
+                match self.as_str(value) {
+                    Some(text) => parse_int(&text, 10),
+                    None => Err(VmError::new(code::NO_INT_CONV)),
+                }
+            }
+        }
     }
 
     /// `max(...)` or `min(...)`: the extreme of the arguments, or of the
@@ -734,7 +871,7 @@ impl Vm {
 
 /// Format an integer in a radix from 2 to 36, with capital letters for
 /// the digits past 9.
-fn int_to_radix(value: i32, radix: u32, signed: bool) -> String {
+pub(crate) fn int_to_radix(value: i32, radix: u32, signed: bool) -> String {
     let (negative, mut magnitude) = if value >= 0 || !signed {
         (false, value as u32)
     } else {

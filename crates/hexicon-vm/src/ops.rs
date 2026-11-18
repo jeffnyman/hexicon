@@ -3,6 +3,7 @@
 
 use std::cmp::Ordering;
 
+use crate::bignum_obj::Arith;
 use crate::error::{VmError, VmResult, code};
 use crate::object::Object;
 use crate::value::{INVALID_PROP, ObjId, Value};
@@ -54,6 +55,7 @@ impl Vm {
                     None => false,
                 })
             }
+            Some(Object::BigNumber(big)) => Ok(self.big_equals(big, other)),
             // A string buffer compares by its text, and only with text.
             Some(Object::StringBuffer(_)) => {
                 let text = self.strbuf_text(id).unwrap_or_default();
@@ -125,6 +127,7 @@ impl Vm {
 
     fn obj_compare(&mut self, id: ObjId, other: Value) -> VmResult<Ordering> {
         match self.objects.get(id) {
+            Some(Object::BigNumber(big)) => self.big_compare(big, other),
             Some(Object::String(_) | Object::StringBuffer(_)) => {
                 let text = self.text_or_buffer(Value::Obj(id)).unwrap_or_default();
                 match self.text_or_buffer(other) {
@@ -146,6 +149,10 @@ impl Vm {
             Value::SString(_) => self.concat(a, b).map(Some),
             Value::List(_) => self.list_append(a, b).map(Some),
             Value::Obj(id) => match self.objects.get(id) {
+                Some(Object::BigNumber(big)) => {
+                    let big = big.clone();
+                    self.big_arith(Arith::Add, &big, b).map(Some)
+                }
                 Some(Object::String(_)) => self.concat(a, b).map(Some),
                 Some(Object::List(_)) => self.list_append(a, b).map(Some),
                 Some(Object::Vector(items)) => {
@@ -162,9 +169,19 @@ impl Vm {
                 }
                 _ => Ok(None),
             },
-            Value::Int(_) => Err(VmError::new(code::NUM_VAL_REQD)),
+            Value::Int(n) => self.int_with_big(Arith::Add, n, b).map(Some),
             _ => Ok(None),
         }
+    }
+
+    /// Arithmetic with an integer on the left and something other than
+    /// an integer on the right, which has to be a BigNumber.
+    fn int_with_big(&mut self, op: Arith, a: i32, b: Value) -> VmResult<Value> {
+        if self.as_big(b).is_none() {
+            return Err(VmError::new(code::NUM_VAL_REQD));
+        }
+        let a = crate::bignum::Big::from_int(a.into(), 10);
+        self.big_arith(op, &a, b)
     }
 
     /// Subtract, under the same terms as [`Vm::add`].
@@ -172,6 +189,10 @@ impl Vm {
         match a {
             Value::List(_) => self.list_remove(a, b).map(Some),
             Value::Obj(id) => match self.objects.get(id) {
+                Some(Object::BigNumber(big)) => {
+                    let big = big.clone();
+                    self.big_arith(Arith::Sub, &big, b).map(Some)
+                }
                 Some(Object::List(_)) => self.list_remove(a, b).map(Some),
                 Some(Object::Vector(items)) => {
                     let items = items.clone();
@@ -180,17 +201,20 @@ impl Vm {
                 }
                 _ => Ok(None),
             },
-            Value::Int(_) => Err(VmError::new(code::NUM_VAL_REQD)),
+            Value::Int(n) => self.int_with_big(Arith::Sub, n, b).map(Some),
             _ => Ok(None),
         }
     }
 
     /// Multiply or divide values that are not both integers. Nothing but
     /// numbers has built-in multiplication or division.
-    pub(crate) fn mul_div(&mut self, a: Value) -> VmResult<Option<Value>> {
+    pub(crate) fn mul_div(&mut self, op: Arith, a: Value, b: Value) -> VmResult<Option<Value>> {
         match a {
-            Value::Int(_) => Err(VmError::new(code::NUM_VAL_REQD)),
-            _ => Ok(None),
+            Value::Int(n) => self.int_with_big(op, n, b).map(Some),
+            _ => match self.as_big(a).cloned() {
+                Some(big) => self.big_arith(op, &big, b).map(Some),
+                None => Ok(None),
+            },
         }
     }
 
@@ -272,7 +296,10 @@ impl Vm {
     fn index_arg(&self, index: Value) -> VmResult<i32> {
         match index {
             Value::Int(n) => Ok(n),
-            _ => Err(VmError::new(code::NUM_VAL_REQD)),
+            other => match self.as_big(other) {
+                Some(big) => Self::big_to_int(big),
+                None => Err(VmError::new(code::NUM_VAL_REQD)),
+            },
         }
     }
 
@@ -456,6 +483,10 @@ impl Vm {
         match self.objects.get(id) {
             Some(Object::String(text)) => return Ok((value, text.clone())),
             Some(Object::List(_) | Object::Vector(_)) => return self.list_to_text(value),
+            Some(Object::BigNumber(big)) => {
+                let text: std::rc::Rc<[u8]> = big.to_text().into_bytes().into();
+                return Ok((self.new_string(text.clone()), text));
+            }
             Some(Object::StringBuffer(_)) => {
                 let text: std::rc::Rc<[u8]> = self.strbuf_text(id).unwrap_or_default().into();
                 return Ok((self.new_string(text.clone()), text));

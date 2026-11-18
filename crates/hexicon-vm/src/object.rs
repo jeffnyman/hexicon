@@ -2,6 +2,7 @@
 
 use std::rc::Rc;
 
+use crate::bignum::Big;
 use crate::lookup::LookupTable;
 use crate::regex::Pattern;
 use crate::tads::TadsObject;
@@ -59,6 +60,8 @@ pub enum Object {
         /// before the first.
         slot: u32,
     },
+    /// A BigNumber: a decimal floating-point number.
+    BigNumber(Box<Big>),
     /// A string buffer: text that can change in place.
     StringBuffer(Vec<char>),
     /// A compiled regular expression.

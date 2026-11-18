@@ -7,6 +7,7 @@ use std::cmp::Ordering;
 
 use hexicon_bytecode::Opcode;
 
+use crate::bignum_obj::Arith;
 use crate::error::{ErrParam, VmError, VmResult, code};
 use crate::meta::MetaKind;
 use crate::object::Object;
@@ -182,7 +183,7 @@ impl Vm {
                 let operand: Value = $operand;
                 match (local!(index), operand) {
                     (Value::Int(a), Value::Int(b)) => {
-                        local!(index) = Value::Int(Self::$int_op(a, b)?);
+                        local!(index) = self.$int_op(a, b)?;
                     }
                     (current, _) => match self.$op(current, operand)? {
                         Some(result) => local!(index) = result,
@@ -289,7 +290,11 @@ impl Vm {
 
                 // ---- arithmetic ----
                 Opcode::Neg => match self.top(0) {
-                    Value::Int(n) => *self.top_mut(0) = Value::Int(Self::int_neg(n)?),
+                    Value::Int(n) => *self.top_mut(0) = self.int_neg(n)?,
+                    operand if self.as_big(operand).is_some() => {
+                        let big = self.as_big(operand).cloned().expect("checked above");
+                        *self.top_mut(0) = self.big_neg(operand.obj_id(), &big);
+                    }
                     operand => {
                         self.pop();
                         let next = self.op_overload(
@@ -323,7 +328,7 @@ impl Vm {
                 Opcode::Add => match (self.top(1), self.top(0)) {
                     (Value::Int(a), Value::Int(b)) => {
                         self.discard(1);
-                        *self.top_mut(0) = Value::Int(Self::int_add(a, b)?);
+                        *self.top_mut(0) = self.int_add(a, b)?;
                     }
                     (a, b) => match self.add(a, b)? {
                         Some(result) => {
@@ -336,7 +341,7 @@ impl Vm {
                 Opcode::Sub => match (self.top(1), self.top(0)) {
                     (Value::Int(a), Value::Int(b)) => {
                         self.discard(1);
-                        *self.top_mut(0) = Value::Int(Self::int_sub(a, b)?);
+                        *self.top_mut(0) = self.int_sub(a, b)?;
                     }
                     (a, b) => match self.sub(a, b)? {
                         Some(result) => {
@@ -349,9 +354,9 @@ impl Vm {
                 Opcode::Mul => match (self.top(1), self.top(0)) {
                     (Value::Int(a), Value::Int(b)) => {
                         self.discard(1);
-                        *self.top_mut(0) = Value::Int(Self::int_mul(a, b)?);
+                        *self.top_mut(0) = self.int_mul(a, b)?;
                     }
-                    (a, _) => match self.mul_div(a)? {
+                    (a, b) => match self.mul_div(Arith::Mul, a, b)? {
                         Some(result) => {
                             self.discard(1);
                             *self.top_mut(0) = result;
@@ -361,11 +366,11 @@ impl Vm {
                 },
                 Opcode::Div => match (self.top(1), self.top(0)) {
                     (Value::Int(a), Value::Int(b)) => {
-                        let result = Self::int_div(a, b)?;
+                        let result = self.int_div(a, b)?;
                         self.discard(1);
-                        *self.top_mut(0) = Value::Int(result);
+                        *self.top_mut(0) = result;
                     }
-                    (a, _) => match self.mul_div(a)? {
+                    (a, b) => match self.mul_div(Arith::Div, a, b)? {
                         Some(result) => {
                             self.discard(1);
                             *self.top_mut(0) = result;
@@ -474,7 +479,7 @@ impl Vm {
                     },
                 },
                 Opcode::Dec => match self.top(0) {
-                    Value::Int(n) => *self.top_mut(0) = Value::Int(Self::int_sub(n, 1)?),
+                    Value::Int(n) => *self.top_mut(0) = self.int_sub(n, 1)?,
                     operand => match self.sub(operand, Value::Int(1))? {
                         Some(result) => *self.top_mut(0) = result,
                         None => {
@@ -1282,36 +1287,45 @@ impl Vm {
         Ok(order)
     }
 
-    // Integer arithmetic. The reference VM promotes a result that does
-    // not fit in 32 bits to a BigNumber.
+    // Integer arithmetic. A result that does not fit in 32 bits becomes
+    // a BigNumber.
 
-    fn overflow<T>() -> VmResult<T> {
-        Err(VmError::unimplemented(
-            "BigNumber (an integer calculation overflowed)",
-        ))
+    pub(crate) fn int_add(&mut self, a: i32, b: i32) -> VmResult<Value> {
+        match a.checked_add(b) {
+            Some(sum) => Ok(Value::Int(sum)),
+            None => self.promote_int_arith(Arith::Add, a, b),
+        }
     }
 
-    pub(crate) fn int_add(a: i32, b: i32) -> VmResult<i32> {
-        a.checked_add(b).map_or_else(Self::overflow, Ok)
+    pub(crate) fn int_sub(&mut self, a: i32, b: i32) -> VmResult<Value> {
+        match a.checked_sub(b) {
+            Some(difference) => Ok(Value::Int(difference)),
+            None => self.promote_int_arith(Arith::Sub, a, b),
+        }
     }
 
-    pub(crate) fn int_sub(a: i32, b: i32) -> VmResult<i32> {
-        a.checked_sub(b).map_or_else(Self::overflow, Ok)
+    pub(crate) fn int_mul(&mut self, a: i32, b: i32) -> VmResult<Value> {
+        match a.checked_mul(b) {
+            Some(product) => Ok(Value::Int(product)),
+            None => self.promote_int_arith(Arith::Mul, a, b),
+        }
     }
 
-    pub(crate) fn int_mul(a: i32, b: i32) -> VmResult<i32> {
-        a.checked_mul(b).map_or_else(Self::overflow, Ok)
-    }
-
-    pub(crate) fn int_div(a: i32, b: i32) -> VmResult<i32> {
+    pub(crate) fn int_div(&mut self, a: i32, b: i32) -> VmResult<Value> {
         if b == 0 {
             return Err(VmError::new(code::DIVIDE_BY_ZERO));
         }
-        a.checked_div(b).map_or_else(Self::overflow, Ok)
+        match a.checked_div(b) {
+            Some(quotient) => Ok(Value::Int(quotient)),
+            None => self.promote_int_arith(Arith::Div, a, b),
+        }
     }
 
-    pub(crate) fn int_neg(a: i32) -> VmResult<i32> {
-        a.checked_neg().map_or_else(Self::overflow, Ok)
+    pub(crate) fn int_neg(&mut self, a: i32) -> VmResult<Value> {
+        match a.checked_neg() {
+            Some(negated) => Ok(Value::Int(negated)),
+            None => self.promote_int_arith(Arith::Sub, 0, a),
+        }
     }
 
     /// Turn a list on the stack into individual arguments, for a call
@@ -1467,6 +1481,7 @@ impl Vm {
             MetaKind::LookupTable => self.create_table(argc, false),
             MetaKind::WeakRefLookupTable => self.create_table(argc, true),
             MetaKind::StringBuffer => self.create_strbuf(argc),
+            MetaKind::BigNumber => self.create_big(argc),
             MetaKind::RexPattern => {
                 if argc != 1 {
                     return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
