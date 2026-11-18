@@ -1348,6 +1348,7 @@ impl Vm {
         };
         match self.objects.get(id) {
             Some(Object::IndexedIter { .. }) => return self.indexed_iter_next(id),
+            Some(Object::LookupIter { .. }) => return self.table_iter_next(id),
             Some(Object::Opaque { .. }) => {
                 return Err(self.unimplemented_object(id, "iteration"));
             }
@@ -1456,6 +1457,23 @@ impl Vm {
                 }
                 self.discard(argc as usize);
                 Ok(self.objects.alloc(Object::Vector(items)))
+            }
+            MetaKind::List => {
+                // The elements, in order.
+                let items: Vec<Value> = (0..argc as usize).map(|i| self.arg(i)).collect();
+                self.discard(argc as usize);
+                Ok(self.objects.alloc(Object::List(items.into())))
+            }
+            MetaKind::LookupTable => self.create_table(argc, false),
+            MetaKind::WeakRefLookupTable => self.create_table(argc, true),
+            MetaKind::StringBuffer => self.create_strbuf(argc),
+            MetaKind::RexPattern => {
+                if argc != 1 {
+                    return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
+                }
+                let id = self.new_pattern(self.arg(0))?;
+                self.discard(1);
+                Ok(id)
             }
             MetaKind::IntrinsicClass => Err(VmError::new(code::ILLEGAL_NEW)),
             other => Err(VmError::unimplemented(format!(

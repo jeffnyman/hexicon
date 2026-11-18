@@ -893,3 +893,148 @@ fn console_aligns_tabs() {
     let right = format(&["<tab align=right>end\n"]);
     assert_eq!(right, format!("{}end\n", " ".repeat(76)));
 }
+
+// ---- regular expressions ----
+
+use crate::lookup::LookupTable;
+use crate::regex::{GROUP_COUNT, Pattern};
+
+/// Match a pattern at the start of text. Returns the matched length.
+fn rex_match(pattern: &str, text: &str) -> Option<usize> {
+    let mut groups = [None; GROUP_COUNT];
+    Pattern::compile(pattern.as_bytes()).match_at(text.as_bytes(), 0, text.len(), true, &mut groups)
+}
+
+/// Search text for a pattern. Returns the matched text.
+fn rex_search<'a>(pattern: &str, text: &'a str) -> Option<&'a str> {
+    let mut groups = [None; GROUP_COUNT];
+    Pattern::compile(pattern.as_bytes())
+        .search(text.as_bytes(), 0, true, &mut groups)
+        .map(|(start, len)| &text[start..start + len])
+}
+
+#[test]
+fn regex_matches_literals_and_closures() {
+    assert_eq!(rex_match("abc", "abcdef"), Some(3));
+    assert_eq!(rex_match("abc", "abd"), None);
+    assert_eq!(rex_match("a*b", "aaab"), Some(4));
+    assert_eq!(rex_match("a*", "bbb"), Some(0));
+    assert_eq!(rex_match("a+", "bbb"), None);
+    assert_eq!(rex_match("ab?c", "ac"), Some(2));
+    assert_eq!(rex_match("x.z", "xyz"), Some(3));
+    // The longest alternative wins, not the first.
+    assert_eq!(rex_match("a|ab|abc", "abcd"), Some(3));
+    // An empty pattern matches nothing, successfully.
+    assert_eq!(rex_match("", "abc"), Some(0));
+}
+
+#[test]
+fn regex_understands_classes_and_ranges() {
+    assert_eq!(rex_match("<alpha>+", "hello world"), Some(5));
+    assert_eq!(rex_match("%d+", "12345x"), Some(5));
+    assert_eq!(rex_match("<alpha|digit>+", "abc123!"), Some(6));
+    assert_eq!(rex_match("<^space>+", "two words"), Some(3));
+    assert_eq!(rex_match("[a-c]+", "abcabd"), Some(5));
+    assert_eq!(rex_match("[^a-c]+", "xyzabc"), Some(3));
+    assert_eq!(rex_match("<lparen>x<rparen>", "(x)"), Some(3));
+    assert_eq!(rex_match("%w+", "caf\u{e9} au lait"), Some(5));
+    assert_eq!(rex_match("%.", "."), Some(1));
+    assert_eq!(rex_match("%.", "x"), None);
+}
+
+#[test]
+fn regex_honors_flags_and_intervals() {
+    assert_eq!(rex_match("<nocase>hello", "HeLLo"), Some(5));
+    assert_eq!(rex_match("hello", "HeLLo"), None);
+    assert_eq!(rex_match("a{2,3}", "aaaa"), Some(3));
+    assert_eq!(rex_match("a{2}", "a"), None);
+    assert_eq!(rex_match("a{2,}", "aaaaa"), Some(5));
+    // A shortest-match closure gives way to what follows it.
+    assert_eq!(rex_match("a.*?c", "abcabc"), Some(3));
+    assert_eq!(rex_match("a.*c", "abcabc"), Some(6));
+    assert_eq!(rex_match("<min>a.*c", "abcabc"), Some(3));
+}
+
+#[test]
+fn regex_records_groups() {
+    let text = "key=value";
+    let mut groups = [None; GROUP_COUNT];
+    let pattern = Pattern::compile(b"(<alpha>+)=(<alpha>+)");
+    assert_eq!(pattern.group_count, 2);
+    assert_eq!(
+        pattern.match_at(text.as_bytes(), 0, text.len(), true, &mut groups),
+        Some(9)
+    );
+    assert_eq!(groups[0], Some((0, 3)));
+    assert_eq!(groups[1], Some((4, 9)));
+    // A group can be matched again later in the pattern.
+    assert_eq!(rex_match("(a+)-%1", "aa-aa"), Some(5));
+    assert_eq!(rex_match("(a+)-%1", "aa-a"), None);
+    // A group that is not captured.
+    assert_eq!(Pattern::compile(b"(?:ab)+(c)").group_count, 1);
+}
+
+#[test]
+fn regex_anchors_and_assertions() {
+    assert_eq!(rex_search("^abc", "abcabc"), Some("abc"));
+    assert_eq!(rex_search("abc$", "abcab"), None);
+    assert_eq!(rex_search("%<the%>", "other the end"), Some("the"));
+    assert_eq!(rex_search("a(?=b)", "ac ab"), Some("a"));
+    assert_eq!(rex_search("a(?!b).", "ab ac"), Some("ac"));
+    assert_eq!(rex_search("(?<=x)a", "ya xa"), Some("a"));
+    // A dollar sign in the middle is just a dollar sign.
+    assert_eq!(rex_search("a$b", "xa$b"), Some("a$b"));
+}
+
+#[test]
+fn regex_searches_forward_and_backward() {
+    assert_eq!(rex_search("%d+", "abc 123 def 4567"), Some("123"));
+    assert_eq!(rex_search("z", "abc"), None);
+    let text = "abc 123 def 4567 ghi";
+    let mut groups = [None; GROUP_COUNT];
+    let pattern = Pattern::compile(b"%d+");
+    assert_eq!(
+        pattern.search_back(text.as_bytes(), text.len(), true, &mut groups),
+        Some((12, 4))
+    );
+    // A backward search cannot use text past its starting point.
+    assert_eq!(
+        pattern.search_back(text.as_bytes(), 14, true, &mut groups),
+        Some((12, 2))
+    );
+}
+
+#[test]
+fn regex_survives_empty_loops() {
+    // Patterns that could loop forever without consuming anything.
+    assert_eq!(rex_match("(a*)*b", "aab"), Some(3));
+    assert_eq!(rex_match("(a*)+", "b"), Some(0));
+    assert_eq!(rex_match("(|a)*", "aaa"), Some(3));
+}
+
+// ---- lookup tables ----
+
+#[test]
+fn new_lookup_table_is_empty() {
+    let table = LookupTable::new(8, 4, false);
+    assert_eq!(table.bucket_count(), 8);
+    assert_eq!(table.slot_count(), 4);
+    assert!(table.entries().is_empty());
+    assert_eq!(table.slot(0), None);
+}
+
+// ---- random numbers ----
+
+#[test]
+fn random_numbers_repeat_until_seeded() {
+    let mut a = crate::rng::Isaac::new();
+    let mut b = crate::rng::Isaac::new();
+    let first: Vec<u32> = (0..600).map(|_| a.next()).collect();
+    let second: Vec<u32> = (0..600).map(|_| b.next()).collect();
+    assert_eq!(first, second);
+    // The values are not all the same, and a seed changes them.
+    assert!(first.iter().any(|&value| value != first[0]));
+    let mut seeded = crate::rng::Isaac::seeded(&[1, 2, 3, 4]);
+    let third: Vec<u32> = (0..600).map(|_| seeded.next()).collect();
+    assert_ne!(first, third);
+}

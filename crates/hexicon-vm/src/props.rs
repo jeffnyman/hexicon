@@ -120,7 +120,13 @@ impl Vm {
             MetaKind::Iterator => self.iterator_method(self_value.obj_id(), index, argc),
             // These add no methods of their own to the classes they
             // derive from.
-            MetaKind::AnonFuncPtr | MetaKind::IndexedIterator => Ok(None),
+            MetaKind::AnonFuncPtr
+            | MetaKind::IndexedIterator
+            | MetaKind::LookupTableIterator
+            | MetaKind::WeakRefLookupTable => Ok(None),
+            MetaKind::LookupTable => self.table_method(self_value.obj_id(), index, argc),
+            MetaKind::RexPattern => self.pattern_method(self_value.obj_id(), index, argc),
+            MetaKind::StringBuffer => self.strbuf_method(self_value.obj_id(), index, argc),
             other => Err(VmError::unimplemented(format!(
                 "method {index} of intrinsic class {}",
                 other.name()
@@ -326,6 +332,8 @@ impl Vm {
                         .map(Value::Obj)
                 })
                 .map(Some),
+            (MetaKind::List, index) if index != 0 => self.list_static_method(index, argc),
+            (MetaKind::Vector, index) if index != 0 => self.vector_static_method(index, argc),
             // IntrinsicClass.isIntrinsicClass(val)
             (MetaKind::IntrinsicClass, 1) => self
                 .native_method(argc, NativeDesc::fixed(1), |vm, _| {
@@ -354,6 +362,11 @@ impl Vm {
                             | MetaKind::Iterator
                             | MetaKind::IndexedIterator
                             | MetaKind::AnonFuncPtr
+                            | MetaKind::LookupTable
+                            | MetaKind::WeakRefLookupTable
+                            | MetaKind::LookupTableIterator
+                            | MetaKind::RexPattern
+                            | MetaKind::StringBuffer
                     ) =>
             {
                 Err(VmError::unimplemented(format!(

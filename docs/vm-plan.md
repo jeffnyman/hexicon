@@ -163,6 +163,19 @@ Building the reference toolchain natively (`t3make`, `t3run`) is a prerequisite 
 - Milestone 2: done (2026-11-18). The interpreter runs the full instruction set, with program-defined objects, multiple inheritance, `inherited` and `delegated`, operator overloading, exceptions, named arguments, anonymous functions, `foreach`, and the `t3vm` function set. 41 of the suite's 132 runnable programs produce output identical to the reference interpreter's; the other 91 stop at something a later milestone provides, and say what. Three things in this milestone's scope are deferred because they need intrinsic classes from milestone 3: promoting an overflowing integer to BigNumber, `t3GetGlobalSymbols` for images with debug symbols, and local variables and frame references in stack traces.
 - Part of milestone 5 was done early, because without it even the simplest test program does not match: the console formatter (space and newline collapsing, tabs, capitalization, line wrapping, and the HTML subset a text console understands). Still to do there: input, log files, the status line, banners, and paging.
 
+- Milestone 3: in progress (2026-11-18). Done: the complete String, List, Vector, LookupTable, and StringBuffer classes; iterators over all of them; the regular expression engine with RexPattern and the `rex` functions; `t3GetGlobalSymbols`; and `rand` on the default generator. 79 of the suite's 132 runnable programs now match the reference. Still to do in this milestone: BigNumber (and with it integer overflow and `sprintf`), ByteArray and the byte-packing methods, the hashing and `specialsTo...` string methods, `rand` string templates and the alternative generators, and local variables and frame references in stack traces.
+
+Findings from milestone 3 so far:
+
+- A lookup table's entries come back in the order of its storage slots, not in hash order. Slots are handed out in sequence and a freed slot is the first reused. Hexicon reproduces that and uses its own hash function, so the order does not depend on object IDs after all.
+- `List.sort` and `Vector.sort` are not stable, and the order of equal elements depends on the exact steps of the reference quicksort, which Hexicon follows.
+- The regular expression matcher tries both sides of every choice and keeps the longer match (or the shorter, where the pattern asks). It is a backtracking design with no memoization, as in the reference, so a pathological pattern is slow under both.
+- Character classification and case folding use the Rust standard library's Unicode tables, with simple one-to-one case folding. The reference VM has its own tables and full case folding (where `ß` matches `ss`). The two agree on everything the suite checks; a difference would show up only with unusual characters.
+- An anonymous function is stored like a vector but is not list-like. Code that treats "anything list-like" as a list must not unpack one.
+- `String.match` returns a length in bytes, not characters, when it succeeds. `rexMatch` returns characters.
+- The random number generator is ISAAC, started from a fixed state. A real run seeds it at startup; `hexicon run --norand` leaves it unseeded, which is how the conformance tests get repeatable output.
+- A program's first argument is the image's file name without its directory.
+
 Findings from milestone 2 that later milestones depend on:
 
 - The stack limit is observable. The reference VM allows 4,096 slots and spends 11 on every call; Hexicon keeps frames elsewhere but counts the same way, and a runaway recursion stops at the same depth under both (checked at 336 and 252 levels for two different functions).
@@ -172,7 +185,7 @@ Findings from milestone 2 that later milestones depend on:
 - A return to an address holding `getr0` performs the `getr0` as part of the return.
 - The `inc` instruction does not check for overflow, though `dec` and the others do.
 - When the VM creates a `RuntimeError`, it reads each message parameter's type from the slot before it, so the constructor only receives a parameter intact if it has the same type as its predecessor.
-- Object IDs for new objects come off a free list that starts at the top of the newest 4,096-entry page. Hexicon reproduces the order, but not yet the exact sequence of temporary objects the reference VM allocates, so IDs can still differ. Where that turns out to be visible (the order of a LookupTable keyed by objects, for one), garbage collection timing will matter too.
+- Object IDs for new objects come off a free list that starts at the top of the newest 4,096-entry page. Hexicon reproduces the order, but not the exact sequence of temporary objects the reference VM allocates, so IDs can still differ. Nothing found so far makes that visible to a program other than the test-only `t3test` functions.
 - Intrinsic class methods are found through the property lists in the image's metaclass table, and an intrinsic class inherits the methods of the one it derives from (a list has `createIterator` from Collection).
 - The console drops newlines that follow a newline, and anything that would start the output with a blank line. Blank lines have to be asked for.
 

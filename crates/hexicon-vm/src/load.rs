@@ -7,6 +7,7 @@ use hexicon_image::{Image, Pool, Value as ImageValue};
 
 use crate::bif::FunctionSet;
 use crate::error::{ErrParam, VmError, VmResult, code};
+use crate::lookup::LookupTable;
 use crate::meta::{MetaKind, MetaTable};
 use crate::object::{IntrinsicClass, Object, ObjectTable};
 use crate::tads::TadsObject;
@@ -104,6 +105,13 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
                 Object::AnonFn(items)
             }
         }
+        MetaKind::LookupTable | MetaKind::WeakRefLookupTable => Object::LookupTable(Box::new(
+            LookupTable::from_image(data, kind == MetaKind::WeakRefLookupTable).ok_or_else(bad)?,
+        )),
+        MetaKind::RexPattern => Object::Pattern {
+            source: Value::from_holder(data.get(..Value::HOLDER_SIZE).ok_or_else(bad)?),
+            compiled: None,
+        },
         MetaKind::IntrinsicClass => {
             // A length, the index of the class in the dependency list,
             // the modifier object, and optionally the class state.
@@ -198,11 +206,25 @@ impl Vm {
                 .collect(),
             debug: image.debug.clone(),
             preinit_mode: false,
+            last_match: Default::default(),
+            rng: crate::rng::Isaac::new(),
+            symbol_table: None,
+            macro_table: None,
             trace_errors: false,
             console: crate::console::Formatter::new(CONSOLE_WIDTH),
             host,
         };
         vm.link(image)?;
+        // Tables are hashed once every object they might use as a key
+        // has been loaded.
+        let tables: Vec<ObjId> = vm
+            .objects
+            .ids()
+            .filter(|&id| matches!(vm.objects.get(id), Some(Object::LookupTable(_))))
+            .collect();
+        for id in tables {
+            vm.rehash_table(id);
+        }
         Ok(vm)
     }
 
@@ -300,6 +322,7 @@ impl Vm {
     /// Run the program: its static initializers, if it still has any, and
     /// then its entry point, with `args` as the program's arguments.
     pub fn run(&mut self, args: &[String]) -> VmResult<()> {
+        self.build_symbol_tables();
         self.run_static_initializers()?;
 
         let mut items = Vec::with_capacity(args.len());

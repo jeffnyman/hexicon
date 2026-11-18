@@ -11,6 +11,13 @@ use std::rc::Rc;
 pub trait Host {
     /// Display text on the main console.
     fn print(&mut self, text: &str);
+
+    /// Fill a buffer with unpredictable bytes, for seeding the random
+    /// number generator. A host that leaves the buffer alone gives every
+    /// run the same seed, which is what tests want.
+    fn random_bytes(&mut self, buffer: &mut [u8]) {
+        let _ = buffer;
+    }
 }
 
 /// A host that collects console output in memory.

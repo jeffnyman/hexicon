@@ -270,16 +270,21 @@ impl Vm {
                 self.int_arg(self.arg(0))?;
                 self.r0 = Value::Nil;
             }
-            // t3GetGlobalSymbols(which?): the tables are built from debug
-            // records, which need LookupTable.
+            // t3GetGlobalSymbols(which?): the table of global symbols, or
+            // of macros. Only a program compiled for debugging has them.
             7 => {
                 Self::check_argc_range(argc, 0, 1)?;
-                if !self.debug.global_symbols.is_empty() {
-                    return Err(VmError::unimplemented(
-                        "t3GetGlobalSymbols for an image with debug symbols",
-                    ));
-                }
-                self.r0 = Value::Nil;
+                let which = if argc >= 1 {
+                    self.int_arg(self.arg(0))?
+                } else {
+                    1
+                };
+                let table = match which {
+                    1 => self.symbol_table,
+                    2 => self.macro_table,
+                    _ => None,
+                };
+                self.r0 = table.map_or(Value::Nil, Value::Obj);
             }
             8 => {
                 Self::check_argc(argc, 0)?;
@@ -401,6 +406,8 @@ impl Vm {
                 let previous = self.obj_arg(self.arg(0))?;
                 self.enum_objects(argc - 1, 1, previous.0 + 1)?;
             }
+            4 => self.bif_randomize(argc)?,
+            5 => self.bif_rand(argc)?,
             // toString(val, radix?, isSigned?)
             6 => {
                 Self::check_argc_range(argc, 1, 3)?;
@@ -413,12 +420,25 @@ impl Vm {
                     return Err(VmError::new(code::BAD_VAL_BIF));
                 }
                 let value = self.arg(0);
-                if radix != 10 && matches!(value, Value::Int(_)) {
-                    return Err(VmError::unimplemented(
-                        "toString with a radix other than 10",
-                    ));
-                }
-                let (string, _) = self.text_of(value)?;
+                // In any radix but 10, a number is shown unsigned unless
+                // the caller asks otherwise.
+                let signed = if argc >= 3 {
+                    match self.arg(2) {
+                        Value::True => true,
+                        Value::Nil => false,
+                        _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
+                    }
+                } else {
+                    radix == 10
+                };
+                let (string, _) = match value {
+                    Value::Int(n) if radix != 10 || !signed => {
+                        let text = int_to_radix(n, radix as u32, signed);
+                        let text: std::rc::Rc<[u8]> = text.into_bytes().into();
+                        (self.new_string(text.clone()), text)
+                    }
+                    _ => self.text_of(value)?,
+                };
                 self.r0 = match string {
                     Value::Obj(_) => string,
                     // The result is always a string object.
@@ -429,6 +449,31 @@ impl Vm {
             7 => {
                 Self::check_argc_range(argc, 1, 2)?;
                 self.r0 = self.parse_integer(argc)?;
+            }
+            // rexMatch(pat, str, index?)
+            9 => {
+                Self::check_argc_range(argc, 2, 3)?;
+                self.r0 = self.rex_match(argc)?;
+            }
+            // rexSearch(pat, str, index?) and rexSearchLast(pat, str, index?)
+            10 | 28 => {
+                Self::check_argc_range(argc, 2, 3)?;
+                self.r0 = self.rex_search(argc, index == 10)?;
+            }
+            // rexGroup(n)
+            11 => {
+                Self::check_argc(argc, 1)?;
+                self.r0 = self.rex_group()?;
+            }
+            // rexReplace(pat, str, replacement, flags?, index?, limit?)
+            12 => {
+                Self::check_argc_range(argc, 3, 6)?;
+                self.r0 = self.find_replace(self.arg(1), argc, true)?;
+            }
+            // makeString(val, repeatCount?)
+            20 => {
+                Self::check_argc_range(argc, 1, 2)?;
+                self.r0 = self.make_string(argc)?;
             }
             // max(...) and min(...)
             18 | 19 => {
@@ -546,6 +591,50 @@ impl Vm {
         Ok(())
     }
 
+    /// The index of a function set in the image's dependency list.
+    pub(crate) fn function_set_index(&self, name: &str) -> Option<u16> {
+        let wanted = FunctionSet::from_image_name(name).ok()?;
+        self.function_sets
+            .iter()
+            .position(|&set| set == wanted)
+            .map(|index| index as u16)
+    }
+
+    /// `makeString(val, repeatCount?)`: a string from a string, a
+    /// character code, or a list of character codes, repeated.
+    fn make_string(&mut self, argc: u32) -> VmResult<Value> {
+        let value = self.arg(0);
+        let repeat = if argc >= 2 {
+            self.int_arg(self.arg(1))?
+        } else {
+            1
+        };
+        if repeat < 0 {
+            return Err(VmError::new(code::BAD_VAL_BIF));
+        }
+        let code_point = |n: i32| char::from_u32(n as u32).unwrap_or('\u{fffd}');
+        let unit: Vec<u8> = if let Some(text) = self.as_str(value) {
+            text.to_vec()
+        } else if let Value::Int(n) = value {
+            code_point(n).to_string().into_bytes()
+        } else if let Some(len) = self.list_like_len(value)? {
+            let mut text = String::new();
+            for index in 1..=len {
+                match self.list_like_get(value, index)? {
+                    Value::Int(n) => text.push(code_point(n)),
+                    _ => return Err(VmError::new(code::INT_VAL_REQD)),
+                }
+            }
+            text.into_bytes()
+        } else {
+            return Err(VmError::new(code::BAD_TYPE_BIF));
+        };
+        if unit.len() * repeat as usize > 0xffff - 2 {
+            return Err(VmError::new(code::BAD_VAL_BIF));
+        }
+        Ok(self.new_string(unit.repeat(repeat as usize)))
+    }
+
     /// `toInteger(val, radix?)`.
     fn parse_integer(&mut self, argc: u32) -> VmResult<Value> {
         let value = self.arg(0);
@@ -641,6 +730,29 @@ impl Vm {
         }
         Ok(())
     }
+}
+
+/// Format an integer in a radix from 2 to 36, with capital letters for
+/// the digits past 9.
+fn int_to_radix(value: i32, radix: u32, signed: bool) -> String {
+    let (negative, mut magnitude) = if value >= 0 || !signed {
+        (false, value as u32)
+    } else {
+        (true, value.unsigned_abs())
+    };
+    let mut digits = Vec::new();
+    loop {
+        let digit = char::from_digit(magnitude % radix, radix).unwrap_or('0');
+        digits.push(digit.to_ascii_uppercase());
+        magnitude /= radix;
+        if magnitude == 0 {
+            break;
+        }
+    }
+    if negative {
+        digits.push('-');
+    }
+    digits.iter().rev().collect()
 }
 
 /// Parse an integer the way `toInteger` does: optional spaces, an optional

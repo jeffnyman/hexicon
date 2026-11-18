@@ -62,7 +62,7 @@ check() { # test-name script-or-empty image args...
   if [ -n "$script" ]; then ref=(-I "$script"); fi
   timeout 120 "$BIN/test_exec.exe" -sd "$ROOT" "${ref[@]}" -cs utf8 -norand \
     "$OUT\\$image.t3" "$@" < /dev/null 2>&1 | norm > "$R/$name.expected"
-  timeout 60 "$HEXICON" run "${hex[@]}" "$OUT\\$image.t3" "$@" < /dev/null 2>&1 \
+  timeout 60 "$HEXICON" run --norand "${hex[@]}" "$OUT\\$image.t3" "$@" < /dev/null 2>&1 \
     | norm > "$R/$name.actual"
   if diff "$R/$name.actual" "$R/$name.expected" > "$R/$name.dif" 2>&1; then
     echo "PASS $name" >> "$R/results.txt"; pass=$((pass+1)); rm -f "$R/$name.dif"

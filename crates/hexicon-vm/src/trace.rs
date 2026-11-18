@@ -16,7 +16,7 @@ const GST_FREFS: i32 = 0x0002;
 struct Level {
     /// Index of the frame this level belongs to.
     frame: usize,
-    /// The function running at this level, or zero below the first frame.
+    /// The function running at this level.
     func: u32,
     /// Offset of the current instruction within the function. Zero means
     /// this level is native code that called into byte code.
@@ -68,7 +68,7 @@ impl Vm {
                 offset,
                 native: native.clone(),
             });
-            if offset == 0 && func != 0 {
+            if offset == 0 {
                 // A native level: next comes the byte code that invoked
                 // the native code, in the same frame.
                 offset = match native.take() {
@@ -277,9 +277,6 @@ impl Vm {
     /// Find the line record covering an offset within a function. Returns
     /// the source file index and line number.
     fn source_line(&self, func: u32, offset: u32) -> Option<(u16, u32)> {
-        if func == 0 {
-            return None;
-        }
         let header = self.function_header(func).ok()?;
         if header.debug_records == 0 {
             return None;

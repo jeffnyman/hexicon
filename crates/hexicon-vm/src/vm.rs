@@ -283,6 +283,13 @@ pub struct Vm {
     pub(crate) debug: DebugInfo,
     /// Whether the program is running under pre-initialization.
     pub(crate) preinit_mode: bool,
+    /// The tables `t3GetGlobalSymbols` returns, once built.
+    pub(crate) symbol_table: Option<ObjId>,
+    pub(crate) macro_table: Option<ObjId>,
+    /// The random number generator.
+    pub(crate) rng: crate::rng::Isaac,
+    /// The most recent regular expression match.
+    pub(crate) last_match: crate::string::LastMatch,
     /// Report each VM error on standard error as it is raised.
     pub(crate) trace_errors: bool,
     /// Formats what the program displays into lines for the host.
@@ -382,6 +389,11 @@ impl Vm {
             Object::Vector(_) => MetaKind::Vector,
             Object::AnonFn(_) => MetaKind::AnonFuncPtr,
             Object::IndexedIter { .. } => MetaKind::IndexedIterator,
+            Object::LookupTable(table) if table.weak => MetaKind::WeakRefLookupTable,
+            Object::LookupTable(_) => MetaKind::LookupTable,
+            Object::LookupIter { .. } => MetaKind::LookupTableIterator,
+            Object::Pattern { .. } => MetaKind::RexPattern,
+            Object::StringBuffer(_) => MetaKind::StringBuffer,
             Object::Class(_) => MetaKind::IntrinsicClass,
             Object::Opaque { meta_index, .. } => self.meta.get(*meta_index as usize)?.kind,
         })

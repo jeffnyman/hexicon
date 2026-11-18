@@ -14,7 +14,9 @@ const USAGE: &str = "\
 usage: hexicon <command>
 
 commands:
-  run <image.t3> [args...]     run a program
+  run [--norand] <image.t3> [args...]
+                               run a program; with --norand, random
+                               choices are the same on every run
   dump <image.t3>              describe the contents of a program image file
   disasm <image.t3>            list the byte code of every function found
   disasm --summary <image.t3>  report how much of the code was accounted for
@@ -23,8 +25,10 @@ commands:
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    if let ["run", path, program_args @ ..] = args.as_slice() {
-        return run(path, program_args);
+    match args.as_slice() {
+        ["run", "--norand", path, program_args @ ..] => return run(path, program_args, false),
+        ["run", path, program_args @ ..] => return run(path, program_args, true),
+        _ => {}
     }
     let (path, result) = match args.as_slice() {
         ["dump", path] => (path, dump(path)),
@@ -64,11 +68,24 @@ impl Host for Console {
     fn print(&mut self, text: &str) {
         emit(text);
     }
+
+    fn random_bytes(&mut self, buffer: &mut [u8]) {
+        // The standard library seeds each hasher state from the system's
+        // entropy source, which is the only access to it without another
+        // dependency.
+        use std::hash::{BuildHasher, Hasher};
+        for chunk in buffer.chunks_mut(8) {
+            let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+            hasher.write_u64(0);
+            let bytes = hasher.finish().to_le_bytes();
+            chunk.copy_from_slice(&bytes[..chunk.len()]);
+        }
+    }
 }
 
 /// Run a program. The program sees its own file name as its first
 /// argument, followed by the ones given on the command line.
-fn run(path: &str, program_args: &[&str]) -> ExitCode {
+fn run(path: &str, program_args: &[&str], seed_random: bool) -> ExitCode {
     let fail = |message: String| {
         eprintln!("hexicon: {path}: {message}");
         ExitCode::FAILURE
@@ -82,7 +99,16 @@ fn run(path: &str, program_args: &[&str]) -> ExitCode {
         Err(error) => return fail(error.to_string()),
     };
     vm.set_error_trace(std::env::var_os("HEXICON_TRACE_ERRORS").is_some());
-    let mut args = vec![path.to_owned()];
+    if seed_random {
+        vm.seed_random();
+    }
+    // As under the reference interpreter, the program sees the image's
+    // file name without its directory.
+    let name = std::path::Path::new(path).file_name().map_or_else(
+        || path.to_owned(),
+        |name| name.to_string_lossy().into_owned(),
+    );
+    let mut args = vec![name];
     args.extend(program_args.iter().map(|arg| (*arg).to_owned()));
     let result = vm.run(&args);
     let code = match result {

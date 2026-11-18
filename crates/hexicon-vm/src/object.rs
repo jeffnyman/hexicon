@@ -2,6 +2,8 @@
 
 use std::rc::Rc;
 
+use crate::lookup::LookupTable;
+use crate::regex::Pattern;
 use crate::tads::TadsObject;
 use crate::value::{ObjId, Value};
 
@@ -46,6 +48,26 @@ pub enum Object {
         first: i32,
         /// Index of the last element.
         last: i32,
+    },
+    /// A lookup table.
+    LookupTable(Box<LookupTable>),
+    /// An iterator over a lookup table.
+    LookupIter {
+        /// The table being iterated.
+        table: ObjId,
+        /// The slot of the entry last returned, counting from 1; zero
+        /// before the first.
+        slot: u32,
+    },
+    /// A string buffer: text that can change in place.
+    StringBuffer(Vec<char>),
+    /// A compiled regular expression.
+    Pattern {
+        /// The pattern as the program wrote it: a string value.
+        source: Value,
+        /// The compiled pattern. A pattern from an image is compiled
+        /// when it is first used.
+        compiled: Option<Rc<Pattern>>,
     },
     /// An intrinsic class object.
     Class(IntrinsicClass),

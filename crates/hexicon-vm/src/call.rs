@@ -219,6 +219,27 @@ impl Vm {
 
     // ---- calls made by the VM itself ----
 
+    /// Call a function value from native code and return its result.
+    pub(crate) fn call_value(
+        &mut self,
+        function: Value,
+        args: &[Value],
+        native: NativeCall,
+    ) -> VmResult<Value> {
+        self.check_stack(args.len())?;
+        for &arg in args.iter().rev() {
+            self.push(arg);
+        }
+        self.call_func_ptr(
+            function,
+            args.len() as u32,
+            Return::Native,
+            0,
+            Some(Box::new(native)),
+        )?;
+        Ok(self.r0)
+    }
+
     /// Evaluate a property from native code and return its value. The
     /// arguments, if any, are already on the stack.
     pub(crate) fn call_prop(

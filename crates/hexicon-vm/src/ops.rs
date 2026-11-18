@@ -34,13 +34,55 @@ impl Vm {
         })
     }
 
+    /// The text of a string or a string buffer.
+    fn text_or_buffer(&self, value: Value) -> Option<Vec<u8>> {
+        if let Some(text) = self.as_str(value) {
+            return Some(text.to_vec());
+        }
+        match value {
+            Value::Obj(id) => self.strbuf_text(id),
+            _ => None,
+        }
+    }
+
     fn obj_equals(&mut self, id: ObjId, other: Value) -> VmResult<bool> {
         match self.objects.get(id) {
             Some(Object::String(text)) => {
                 let text = text.clone();
-                Ok(self.as_str(other).is_some_and(|other| *other == *text))
+                Ok(match self.text_or_buffer(other) {
+                    Some(other) => *other == *text,
+                    None => false,
+                })
+            }
+            // A string buffer compares by its text, and only with text.
+            Some(Object::StringBuffer(_)) => {
+                let text = self.strbuf_text(id).unwrap_or_default();
+                match self.text_or_buffer(other) {
+                    Some(other) => Ok(other == text),
+                    None => Err(VmError::new(code::INVALID_COMPARISON)),
+                }
             }
             Some(Object::List(_)) => self.list_equals(Value::Obj(id), other),
+            // A vector equals any list-like value with equal elements.
+            Some(Object::Vector(items)) => {
+                if other == Value::Obj(id) {
+                    return Ok(true);
+                }
+                let items = items.clone();
+                let Some(len) = self.list_like_len(other)? else {
+                    return Ok(false);
+                };
+                if len != items.len() {
+                    return Ok(false);
+                }
+                for (index, &item) in items.iter().enumerate() {
+                    let theirs = self.list_like_get(other, index + 1)?;
+                    if !self.equals(item, theirs)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
             // Everything else is equal only to itself.
             _ => Ok(other == Value::Obj(id)),
         }
@@ -83,10 +125,10 @@ impl Vm {
 
     fn obj_compare(&mut self, id: ObjId, other: Value) -> VmResult<Ordering> {
         match self.objects.get(id) {
-            Some(Object::String(text)) => {
-                let text = text.clone();
-                match self.as_str(other) {
-                    Some(other) => Ok((*text).cmp(&*other)),
+            Some(Object::String(_) | Object::StringBuffer(_)) => {
+                let text = self.text_or_buffer(Value::Obj(id)).unwrap_or_default();
+                match self.text_or_buffer(other) {
+                    Some(other) => Ok(text.cmp(&other)),
                     None => Err(VmError::new(code::INVALID_COMPARISON)),
                 }
             }
@@ -255,6 +297,8 @@ impl Vm {
                 }
                 Ok(Some(items[n as usize - 1]))
             }
+            Some(Object::LookupTable(_)) => self.table_index(id, index).map(Some),
+            Some(Object::StringBuffer(_)) => self.strbuf_index(id, index).map(Some),
             Some(Object::Opaque { .. }) => Err(self.unimplemented_object(id, "indexing")),
             _ => Ok(None),
         }
@@ -297,6 +341,14 @@ impl Vm {
                 items[n as usize - 1] = value;
                 Ok(Some(container))
             }
+            Some(Object::LookupTable(_)) => {
+                self.table_set(id, index, value)?;
+                Ok(Some(container))
+            }
+            Some(Object::StringBuffer(_)) => {
+                self.strbuf_set_index(id, index, value)?;
+                Ok(Some(container))
+            }
             Some(Object::Opaque { .. }) => Err(self.unimplemented_object(id, "indexing")),
             _ => Ok(None),
         }
@@ -322,7 +374,8 @@ impl Vm {
             return Ok(None);
         };
         match self.objects.get(id) {
-            Some(Object::Vector(items) | Object::AnonFn(items)) => return Ok(Some(items.len())),
+            // An anonymous function is stored like a vector but is not a list.
+            Some(Object::Vector(items)) => return Ok(Some(items.len())),
             Some(Object::Tads(_)) => {}
             _ => return Ok(None),
         }
@@ -402,7 +455,16 @@ impl Vm {
         let value = Value::Obj(id);
         match self.objects.get(id) {
             Some(Object::String(text)) => return Ok((value, text.clone())),
-            Some(Object::List(_)) => return self.list_to_text(value),
+            Some(Object::List(_) | Object::Vector(_)) => return self.list_to_text(value),
+            Some(Object::StringBuffer(_)) => {
+                let text: std::rc::Rc<[u8]> = self.strbuf_text(id).unwrap_or_default().into();
+                return Ok((self.new_string(text.clone()), text));
+            }
+            // A pattern converts to the text it was compiled from.
+            Some(Object::Pattern { source, .. }) => {
+                let source = *source;
+                return self.text_of(source);
+            }
             Some(Object::Opaque { .. }) => {
                 return Err(self.unimplemented_object(id, "conversion to text"));
             }
