@@ -1482,6 +1482,7 @@ impl Vm {
             MetaKind::WeakRefLookupTable => self.create_table(argc, true),
             MetaKind::StringBuffer => self.create_strbuf(argc),
             MetaKind::BigNumber => self.create_big(argc),
+            MetaKind::ByteArray => self.create_bytes(argc),
             MetaKind::RexPattern => {
                 if argc != 1 {
                     return Err(VmError::new(code::WRONG_NUM_OF_ARGS));

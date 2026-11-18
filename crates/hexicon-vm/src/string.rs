@@ -327,6 +327,23 @@ impl Vm {
         .map(Some)
     }
 
+    /// `String.packBytes(format, ...)`, called on the class: the packed
+    /// bytes as a string, a character for each byte.
+    pub(crate) fn string_static_method(
+        &mut self,
+        index: u16,
+        argc: Option<&mut u32>,
+    ) -> VmResult<Option<Value>> {
+        if index != 20 {
+            return Ok(None);
+        }
+        self.native_method(argc, NativeDesc::variable(1), |vm, argc| {
+            let packed = vm.pack(0, argc as usize, crate::pack::Stream::growable())?;
+            Ok(vm.new_str(&crate::bytearray::latin1_text(&packed.data)))
+        })
+        .map(Some)
+    }
+
     fn string_call(&mut self, self_value: Value, index: u16, argc: u32) -> VmResult<Value> {
         let text: StrRef = self.require_str(self_value)?;
         Ok(match index {
@@ -587,6 +604,20 @@ impl Vm {
                         }
                     }
                 }
+            }
+            // mapToByteArray(charset?)
+            10 => {
+                let charset = if argc >= 1 { self.arg(0) } else { Value::Nil };
+                let bytes = self.text_to_bytes(&text, charset)?;
+                self.new_bytes(bytes)
+            }
+            // sha256() and digestMD5(): of the text as UTF-8.
+            18 => self.new_str(&crate::hash::hex(&crate::hash::sha256(&text))),
+            19 => self.new_str(&crate::hash::hex(&crate::hash::md5(&text))),
+            // unpackBytes(format): the characters are taken as bytes.
+            21 => {
+                let stream = crate::pack::Stream::from_text(&text);
+                self.unpack(self.arg(0), stream)?
             }
             _ => {
                 return Err(VmError::unimplemented(format!(

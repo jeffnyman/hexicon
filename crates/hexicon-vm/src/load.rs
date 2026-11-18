@@ -111,6 +111,14 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
         MetaKind::BigNumber => Object::BigNumber(Box::new(
             crate::bignum::Big::from_bytes(data).ok_or_else(bad)?,
         )),
+        MetaKind::ByteArray => {
+            // A length, then the bytes. Any the image leaves out are zero.
+            let len = data.get(..4).ok_or_else(bad)?;
+            let len = u32::from_le_bytes([len[0], len[1], len[2], len[3]]) as usize;
+            let mut bytes = data[4..].to_vec();
+            bytes.resize(len, 0);
+            Object::ByteArray(bytes)
+        }
         MetaKind::RexPattern => Object::Pattern {
             source: Value::from_holder(data.get(..Value::HOLDER_SIZE).ok_or_else(bad)?),
             compiled: None,

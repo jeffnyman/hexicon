@@ -60,6 +60,8 @@ pub enum Object {
         /// before the first.
         slot: u32,
     },
+    /// A byte array: bytes that can change in place.
+    ByteArray(Vec<u8>),
     /// A BigNumber: a decimal floating-point number.
     BigNumber(Box<Big>),
     /// A string buffer: text that can change in place.

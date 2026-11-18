@@ -1396,3 +1396,115 @@ impl Big {
         digits.iter().rev().collect()
     }
 }
+
+// ---- binary forms ----
+
+/// Negate a 64-bit integer stored low byte first.
+fn twos_complement(bytes: &mut [u8; 8]) {
+    let mut carry = true;
+    for byte in bytes.iter_mut() {
+        *byte = (!*byte).wrapping_add(u8::from(carry));
+        carry &= *byte == 0;
+    }
+}
+
+impl Big {
+    /// The value as an unsigned 32-bit integer, rounded. The flag reports
+    /// overflow, which includes any negative number.
+    pub fn to_u32(&self) -> (u32, bool) {
+        let mut overflow = self.neg;
+        let magnitude = self.to_u32_magnitude(&mut overflow);
+        (magnitude, overflow)
+    }
+
+    /// An unsigned integer as a BigNumber.
+    pub fn from_u64(value: u64, prec: usize) -> Self {
+        let mut n = Self::zero(prec);
+        n.set_uint(value);
+        n
+    }
+
+    /// The whole part as a 64-bit integer, low byte first: two's
+    /// complement if `signed`, and otherwise unsigned. The flag reports
+    /// a value that does not fit.
+    pub fn to_p8(&self, signed: bool) -> ([u8; 8], bool) {
+        let mut overflow = self.exp > 30;
+        let rounded = self.with_prec(20, true);
+        let mut magnitude: u128 = 0;
+        if !rounded.zero {
+            for idx in 0..rounded.exp.clamp(0, 60) {
+                magnitude = magnitude
+                    .wrapping_mul(10)
+                    .wrapping_add(rounded.dig(idx) as u128);
+            }
+        }
+        overflow |= magnitude >> 64 != 0;
+        let mut bytes = (magnitude as u64).to_le_bytes();
+        if signed {
+            if self.neg {
+                twos_complement(&mut bytes);
+                overflow |= bytes[7] & 0x80 == 0;
+            } else {
+                overflow |= bytes[7] & 0x80 != 0;
+            }
+        } else if self.neg {
+            overflow = true;
+            twos_complement(&mut bytes);
+        }
+        (bytes, overflow)
+    }
+
+    /// A 64-bit integer, stored low byte first, as a BigNumber.
+    pub fn from_p8(mut bytes: [u8; 8], signed: bool) -> Self {
+        let neg = signed && bytes[7] & 0x80 != 0;
+        if neg {
+            twos_complement(&mut bytes);
+        }
+        let mut n = Self::from_u64(u64::from_le_bytes(bytes), 20);
+        n.neg = neg;
+        n
+    }
+
+    /// The whole part in the BER compressed integer format: seven bits
+    /// to a byte, most significant first, with the high bit set on every
+    /// byte but the last. The flag reports a negative number or one too
+    /// long for the 256 bytes allowed.
+    pub fn to_ber(&self) -> (Vec<u8>, bool) {
+        let mut overflow = self.neg;
+        let mut rest = self.clone();
+        let mut out = Vec::new();
+        while !rest.zero && out.len() < 256 {
+            out.push(rest.div_by_long_rem(128) as u8);
+        }
+        overflow |= !rest.zero;
+        if out.is_empty() {
+            out.push(0);
+        }
+        out.reverse();
+        let last = out.len() - 1;
+        for byte in &mut out[..last] {
+            *byte |= 0x80;
+        }
+        (out, overflow)
+    }
+
+    /// A BER compressed integer, given as its seven-bit groups, as a
+    /// BigNumber.
+    pub fn from_ber(groups: &[u8]) -> Self {
+        // The precision comes from the number of bits, with the same
+        // rounded logarithm of 2 the reference uses.
+        #[allow(clippy::approx_constant)]
+        let prec = ((groups.len() * 7) as f64 * 0.30103 + 0.5) as usize;
+        let mut total = Self::zero(prec.max(1));
+        for &group in groups {
+            if !total.zero {
+                total.mul_by_long(128);
+            }
+            let digit = Self::from_u64(u64::from(group & 0x7f), 3);
+            let mut sum = Self::zero(prec.max(1));
+            sum.sum_into(&total, &digit);
+            total = sum;
+        }
+        total
+    }
+}

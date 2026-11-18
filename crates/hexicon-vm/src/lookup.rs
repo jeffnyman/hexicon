@@ -245,6 +245,9 @@ impl Vm {
                             })
                     }
                 },
+                Some(Object::ByteArray(bytes)) => bytes
+                    .iter()
+                    .fold(0u32, |hash, &byte| hash.wrapping_add(byte.into())),
                 // A string buffer equals a string with the same text.
                 Some(Object::StringBuffer(_)) => {
                     let text = self.strbuf_text(id).unwrap_or_default();

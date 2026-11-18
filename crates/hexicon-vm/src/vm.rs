@@ -397,6 +397,7 @@ impl Vm {
             Object::Pattern { .. } => MetaKind::RexPattern,
             Object::StringBuffer(_) => MetaKind::StringBuffer,
             Object::BigNumber(_) => MetaKind::BigNumber,
+            Object::ByteArray(_) => MetaKind::ByteArray,
             Object::Class(_) => MetaKind::IntrinsicClass,
             Object::Opaque { meta_index, .. } => self.meta.get(*meta_index as usize)?.kind,
         })

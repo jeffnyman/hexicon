@@ -1097,3 +1097,47 @@ fn case_folding_expands_characters() {
     assert_eq!(crate::casefold::fold('ß'), Some("ss"));
     assert_eq!(crate::casefold::fold('a'), None);
 }
+
+// ---- hashes and byte packing ----
+
+#[test]
+fn hashes_match_the_standard_answers() {
+    use crate::hash::{hex, md5, sha256};
+    assert_eq!(hex(&md5(b"")), "D41D8CD98F00B204E9800998ECF8427E");
+    assert_eq!(hex(&md5(b"abc")), "900150983CD24FB0D6963F7D28E17F72");
+    assert_eq!(
+        hex(&sha256(b"abc")),
+        "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD"
+    );
+    // A message long enough to need a second block.
+    let long = [b'a'; 100];
+    assert_eq!(hex(&md5(&long)), "36A92CC94A9E0FA21F625F8BFB007ADF");
+    assert_eq!(
+        hex(&sha256(&long)),
+        "2816597888E4A0D3A36B82B83316AB32680EB8F00F8CD3B904D681246D285A0E"
+    );
+}
+
+#[test]
+fn bignumber_converts_to_and_from_binary() {
+    let mut cache = Cache::default();
+    let (bytes, overflow) = bignum_math::to_ieee754(&big("1.5"), 64, &mut cache).expect("double");
+    assert!(!overflow);
+    assert_eq!(bytes, 1.5f64.to_le_bytes());
+    let (bytes, _) = bignum_math::to_ieee754(&big("-0.15625"), 32, &mut cache).expect("float");
+    assert_eq!(bytes, (-0.15625f32).to_le_bytes());
+    let back = bignum_math::from_ieee754(&2.5f64.to_le_bytes(), &mut cache).expect("double");
+    assert_eq!(back.to_text(), "2.5");
+
+    let (bytes, overflow) = big("-2").to_p8(true);
+    assert_eq!((bytes, overflow), ((-2i64).to_le_bytes(), false));
+    assert_eq!(
+        Big::from_p8(u64::MAX.to_le_bytes(), false).to_text(),
+        "18446744073709551615"
+    );
+    assert_eq!(Big::from_p8(u64::MAX.to_le_bytes(), true).to_text(), "-1");
+
+    let (ber, overflow) = big("300").to_ber();
+    assert_eq!((ber, overflow), (vec![0x82, 0x2c], false));
+    assert_eq!(Big::from_ber(&[2, 0x2c]).to_text(), "300");
+}

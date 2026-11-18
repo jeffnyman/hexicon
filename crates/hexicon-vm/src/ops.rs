@@ -56,6 +56,11 @@ impl Vm {
                 })
             }
             Some(Object::BigNumber(big)) => Ok(self.big_equals(big, other)),
+            // Byte arrays are equal if they hold the same bytes.
+            Some(Object::ByteArray(bytes)) => {
+                Ok(other == Value::Obj(id)
+                    || self.as_bytes(other).is_some_and(|other| other == bytes))
+            }
             // A string buffer compares by its text, and only with text.
             Some(Object::StringBuffer(_)) => {
                 let text = self.strbuf_text(id).unwrap_or_default();
@@ -326,6 +331,10 @@ impl Vm {
             }
             Some(Object::LookupTable(_)) => self.table_index(id, index).map(Some),
             Some(Object::StringBuffer(_)) => self.strbuf_index(id, index).map(Some),
+            Some(Object::ByteArray(_)) => {
+                let n = self.index_arg(index)?;
+                self.bytes_index(id, n).map(Some)
+            }
             Some(Object::Opaque { .. }) => Err(self.unimplemented_object(id, "indexing")),
             _ => Ok(None),
         }
@@ -374,6 +383,12 @@ impl Vm {
             }
             Some(Object::StringBuffer(_)) => {
                 self.strbuf_set_index(id, index, value)?;
+                Ok(Some(container))
+            }
+            Some(Object::ByteArray(_)) => {
+                let n = self.index_arg(index)?;
+                let byte = self.index_arg(value)?;
+                self.bytes_set_index(id, n, byte)?;
                 Ok(Some(container))
             }
             Some(Object::Opaque { .. }) => Err(self.unimplemented_object(id, "indexing")),
@@ -485,6 +500,12 @@ impl Vm {
             Some(Object::List(_) | Object::Vector(_)) => return self.list_to_text(value),
             Some(Object::BigNumber(big)) => {
                 let text: std::rc::Rc<[u8]> = big.to_text().into_bytes().into();
+                return Ok((self.new_string(text.clone()), text));
+            }
+            // A byte array converts a byte to the character with its code.
+            Some(Object::ByteArray(bytes)) => {
+                let text: std::rc::Rc<[u8]> =
+                    crate::bytearray::latin1_text(bytes).into_bytes().into();
                 return Ok((self.new_string(text.clone()), text));
             }
             Some(Object::StringBuffer(_)) => {

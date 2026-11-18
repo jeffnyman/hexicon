@@ -128,6 +128,7 @@ impl Vm {
             MetaKind::RexPattern => self.pattern_method(self_value.obj_id(), index, argc),
             MetaKind::StringBuffer => self.strbuf_method(self_value.obj_id(), index, argc),
             MetaKind::BigNumber => self.big_method(self_value.obj_id(), index, argc),
+            MetaKind::ByteArray => self.bytes_method(self_value.obj_id(), index, argc),
             other => Err(VmError::unimplemented(format!(
                 "method {index} of intrinsic class {}",
                 other.name()
@@ -336,6 +337,8 @@ impl Vm {
             (MetaKind::List, index) if index != 0 => self.list_static_method(index, argc),
             (MetaKind::Vector, index) if index != 0 => self.vector_static_method(index, argc),
             (MetaKind::BigNumber, index) if index != 0 => self.big_static_method(index, argc),
+            (MetaKind::ByteArray, index) if index != 0 => self.bytes_static_method(index, argc),
+            (MetaKind::String, index) if index != 0 => self.string_static_method(index, argc),
             // IntrinsicClass.isIntrinsicClass(val)
             (MetaKind::IntrinsicClass, 1) => self
                 .native_method(argc, NativeDesc::fixed(1), |vm, _| {
@@ -369,6 +372,8 @@ impl Vm {
                             | MetaKind::LookupTableIterator
                             | MetaKind::RexPattern
                             | MetaKind::StringBuffer
+                            | MetaKind::BigNumber
+                            | MetaKind::ByteArray
                     ) =>
             {
                 Err(VmError::unimplemented(format!(
