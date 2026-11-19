@@ -111,6 +111,9 @@ dependencies = [
 [[package]]
 name = "hexicon-compiler"
 version = "0.1.0"
+dependencies = [
+ "hexicon-bytecode",
+]
 
 [[package]]
 name = "hexicon-host"

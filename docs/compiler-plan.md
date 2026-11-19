@@ -66,6 +66,7 @@ crates/
     src/pp.rs             the preprocessor
     src/lex.rs            the scanner that finds the next token on a line
     src/tok.rs            the tokenizer: the stream of tokens the parser reads
+    src/codegen.rs        the code stream and the instruction writer, with its peephole rules
     src/ppexpr.rs         constant expressions for #if, until the parser takes them over
   hexicon-cli/            `hexicon preprocess` and `hexicon tokens`, and later `hexicon build`
 tools/
@@ -81,7 +82,7 @@ The compiler reads files through a small interface the caller supplies, as the V
 - Milestone 1: the preprocessor is written and matches the reference (2026-11-19). `hexicon preprocess` writes a file's preprocessed text in the form the reference's preprocess-only mode does. Over 579 source files, about three million lines of output, it is identical to the reference's, messages included: the suite's 12 preprocessor tests and 381 test programs, every file of adv3 and its extensions, Return to Ditch Day, every file of adv3Lite, and Airport. Still to do in this milestone: the compiler's own predefined macros; and `#if` expressions through the real expression parser, which waits for the parser.
 
 - Milestone 2: done (2026-11-19). `hexicon tokens` lists a file's tokens as the compiler proper reads them: after preprocessing, with keywords recognized and strings translated. Over the same 579 files, it lists the same tokens as the reference, with the same messages.
-- Milestone 3: not started. The way to check it is settled; see the findings.
+- Milestone 3: started (2026-11-19). The instruction writer, with the reference's peephole rules, is written and tested (`src/codegen.rs`). What an image and a compiled function have to look like, byte for byte, has been worked out from the reference and is recorded in the findings. Nothing is compiled yet: the parser, the code generators for expressions and statements, and the image writer are next.
 
 ## Findings
 
@@ -108,6 +109,17 @@ From milestone 2, so far:
 
 - The compiler knows ASCII, UTF-8, UTF-16, and Latin-1 itself, and asks whoever is using it for any other character set a source file names. The command-line program answers from the VM's tables, which are the reference's, so a source file can be in any of the sets a program can use. This closed a gap that was hidden at first: the reference's test programs could not find their character set tables, so files in `cp1252` and `win1251` were being compared as files whose character set failed to load. The reference build now puts the tables where the test programs look (`bin/charmap`), and those files are compared decoded.
 - How the parser can be checked, which decides the order of the work from here. The reference has no way to show a syntax tree. Its expression test program (`test_prs`, now part of the reference build) shows what an expression folds to and the code it compiles to, but it has not kept up with the compiler: it crashes on an expression that uses a local variable, so it is only good for constants. What does work is `test_prs_top -u`, which compiles a whole single-file program, writes a runnable image, and lists the code. So the check on the parser is the code that comes out the far end: the same program compiled by both, with the byte code compared function by function and the two images run. The parser and the code generator are therefore built together, a part of the language at a time, and not one after the other.
+
+From milestone 3, so far:
+
+- The check is `t3make -nodef -nopre` on a single file against Hexicon's image, compared block by block. Three things in the reference's image cannot be reproduced and are left out of the comparison: the time stamp, the four bytes of the build configuration in the header, and two bytes of padding after each exported symbol's value in the `SYMD` block, which the reference never sets.
+- The order of an image's blocks: `ENTP`, `SYMD`, `FNSD`, `MCLD`, the code pool (`CPDF` and its `CPPG` pages), the constant pool, the objects, `SINI`, and `EOF`. Even a program of two functions has nine metaclasses in `MCLD` and 21 exported symbols in `SYMD` (`LastProp`, `Constructor`, `Destructor`, the three grammar properties, and one for each operator that can be overloaded).
+- A pool's page size is the smallest power of two, from 2,048 up, that holds the pool's largest item. Items are laid out in the order they were generated, and one that does not fit in what is left of a page starts the next. Code has two streams, main and static; the static stream starts on a new page. It is never empty: the compiler always generates a function there for registering multi-methods, which is a bare `retnil` when there are none. The constant pool's pages are stored XORed with a mask (0xDF from `t3make`).
+- A compiled function is a 10-byte header (parameter count, with the top bit for variable arguments; optional parameter count; number of locals; stack slots needed, locals included; offset of the exception table; offset of the debug table), the code, the exception table if any, and the debug table. The stack figure comes from counting pushes and pops as the code is generated, not from analyzing it afterward.
+- A function has a debug table even when the program is not compiled for debugging, if it has any local variables or parameters: the table then has no line records, only the frames of local names. A name of one or two characters is stored in the table; a longer one is stored in the constant pool, once per name for the whole program, and the table has its address. The locals of a frame are written in the order the reference's hash table gives them, which is by the sum of the name's bytes modulo the table size, and within one sum, the most recently defined first. Hexicon has to order them the same way.
+- The peephole rules look at the last instruction written, or the last two, and rewrite in place. They are ported one for one. Two discards become a `disc1 2`, but a third is not added to it: three in a row are a `disc1 2` and a `disc`. A label resets what the rules remember, since a jump can arrive there.
+- At the end of a function, a `retnil` is added unless the last instruction cannot be fallen out of (a return, a throw, or a jump). Then jumps to jumps are shortened.
+- The reference's driver for testing expressions alone is no use (see above), and its whole-program test driver compiles for debugging, which `t3make` by default does not. `t3make` is the one to compare with.
 
 Open after milestone 1:
 
