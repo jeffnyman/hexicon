@@ -446,6 +446,199 @@ f(p0)
 _main(args) { return f(1); }
 """
 
+# Every kind of constant as a case, cases that repeat, and labels among
+# the cases.
+programs["switch1"] = """
+f(x)
+{
+    switch (x)
+    {
+    case 0: case 1: case 126: case 127: case 128: case -1: case 65536: case 2147483647:
+        return 1;
+    case 'a': case 'a': case '': case 'a string that is too long to be shared with another like it':
+        return 2;
+    case nil: case true:
+        return 3;
+    case []: case [1]: case [1, 'a', [nil, true]]:
+        return 4;
+    case f: case _main:
+        return 5;
+    case 1: case 2 * 3 + 1: case 'a' + 'b': case [1] + 2: case 1 == 1: case [1] == [1]:
+        return 6;
+    case (1, 2):
+    here:
+    case 9:
+    default:
+    there:
+        return 7;
+    }
+}
+_main(args) { return f(args); }
+"""
+
+# Where the end of a switch can and cannot be reached.
+programs["switch2"] = """
+a(x) { switch (x) { case 1: return 1; default: return 2; } }
+b(x) { switch (x) { case 1: return 1; default: break; } return 3; }
+c(x) { switch (x) { case 1: x = 2; default: x = 3; } return x; }
+d(x) { switch (x) { default: while (true) { if (x) break; } } return x; }
+e(x) { for (;;) { switch (x) { case 1: continue; default: return 2; } } }
+g(x) { out: switch (x) { case 1: break out; default: return 2; } return 3; }
+h(x) { switch (x) { case 1: throw x; default: goto done; } done: return 3; }
+i(x) { switch (x) { case 1: break; break; case 2: return 1; x = 1; x = 2; default: return 2; } return x; }
+j(x) { switch (x) { case 1: if (true) return 1; else break; default: return 2; } }
+k(x) { switch (x) { case 1: if (nil) return 1; else break; default: return 2; } return 3; }
+_main(args) { return a(1) + b(1) + c(1) + d(1) + e(1) + g(1) + h(1) + i(1) + j(1) + k(1); }
+"""
+
+programs["goto1"] = """
+f(x)
+{
+    goto a;
+    {
+    a:
+        x = 1;
+        {
+            goto b;
+        }
+    }
+b:
+    if (x) goto c; else goto a;
+c:
+d:
+e:
+    goto d;
+    goto e;
+}
+g(x)
+{
+    while (x)
+    {
+    top:
+        x--;
+        if (x == 5) goto top;
+        if (x == 6) goto out;
+        if (x == 7) break;
+        if (x == 8) continue;
+    }
+out:
+    do { goto top; } while (x);
+last: ;
+    goto last;
+}
+_main(args) { return f(1) + g(2); }
+"""
+
+# break and continue with labels, through every kind of statement.
+programs["label1"] = """
+f(x)
+{
+a:  for (;;) {
+b:      while (x) {
+c:          do {
+d:              switch (x) {
+                case 1: break a;
+                case 2: break b;
+                case 3: break c;
+                case 4: break d;
+                case 5: continue a;
+                case 6: continue b;
+                case 7: continue c;
+                case 8: break;
+                case 9: continue;
+                }
+            } while (x);
+        }
+    }
+e:  x = 1;
+g:  { x = 2; if (x) break g; x = 3; }
+h:  if (x) break h; else { break h; }
+i: j: k: while (x) { if (x == 1) continue i; if (x == 2) continue j; if (x == 3) break k; continue k; }
+    return x;
+}
+_main(args) { return f(1); }
+"""
+
+# The locals a finally block needs, and the one a return through it
+# needs, come after the function's own.
+programs["finally1"] = """
+a(x) { local l1 = 1; try { return l1 + x; } finally { local l2 = 2; x = l2; } }
+b(x) { try { try { return x; } finally { x = 1; } } finally { x = 2; } }
+c(x) { try { return; } finally { x = 1; } }
+d(x) { try { return nil; } finally { x = 1; } }
+e(x) { try { return true; } finally { x = 1; } }
+g(x) { try { return x; } finally { return 2; } }
+h(x) { try { x = 1; } finally { throw x; } }
+i(x) { try { throw x; } finally { } }
+j(x) { try { } finally { } return x; }
+k(x) { try ; finally ; return x; }
+l(x) { try x = 1; finally x = 2; return x; }
+m(x) { try { return a(x); } finally { x = 1; } }
+n(x) { try { "text"; return "more"; } finally { x = 1; } }
+o(x) { try { return x; } finally { try { return x + 1; } finally { x = 3; } } }
+q(x) { while (x) { try { if (x == 1) break; if (x == 2) continue; if (x == 3) return 3; } finally { x--; } } return x; }
+r(x) { try { local t1 = x; try { local t2 = t1; return t2; } finally { local t3 = 3; x = t3; } } finally { local t4 = 4; x = t4; } }
+_main(args)
+{
+    return a(1) + b(1) + c(1) + d(1) + e(1) + g(1) + h(1) + i(1) + j(1) + k(1) + l(1) + m(1)
+        + n(1) + o(1) + q(1) + r(1);
+}
+"""
+
+# goto out of, within, and between protected blocks.
+programs["finally2"] = """
+a(x)
+{
+    try { if (x) goto out; x = 1; inside: x = 2; goto inside; } finally { x = 3; }
+out:
+    return x;
+}
+b(x)
+{
+    try { try { goto out; } finally { x = 1; } } finally { x = 2; }
+out:
+    try { goto out; } finally { x = 3; }
+}
+c(x)
+{
+    try { x = 1; } finally { here: x = 2; if (x) goto here; }
+    goto in;
+    try { in: x = 4; } finally { x = 5; }
+    return x;
+}
+d(x)
+{
+lbl:
+    while (x)
+    {
+        try { try { if (x == 1) break lbl; if (x == 2) continue lbl; if (x == 3) goto lbl; }
+              finally { x = 1; } }
+        finally { x = 2; }
+    }
+    return x;
+}
+e(x)
+{
+    switch (x)
+    {
+    case 1:
+        try { break; } finally { x = 2; }
+    case 2:
+        try { return x; } finally { x = 3; }
+    }
+    return x;
+}
+_main(args) { return a(1) + b(1) + c(1) + d(1) + e(1); }
+"""
+
+programs["throw1"] = """
+f(x) { throw x; }
+g(x) { throw 'text'; x = 1; }
+h(x) { if (x) throw [1, 2]; else throw x + 1; }
+i(x) { throw "text"; }
+_main(args) { return f(1) + g(1) + h(1) + i(1); }
+"""
+
 # Mistakes, and code that draws a warning. Each is a program of its own,
 # since what a compiler does after an error depends on how it recovers.
 mistakes = {
@@ -556,6 +749,77 @@ mistakes = {
     "e_list8": "_main(args) { return [1, 2] < [3]; }",
     "e_list9": "_main(args) { return [1, 2] * 2 + 1 + [2]; }",
     "e_list10": "_main(args) { return [1, 2",
+    "e_sw1": "_main(args) { switch args) { case 1: ; } }",
+    "e_sw2": "_main(args) { switch (args { case 1: ; } }",
+    "e_sw3": "_main(args) { switch (args) case 1: ; } }",
+    "e_sw4": "_main(args) { switch (args) { args = 1; args = 2; case 1: ; } }",
+    "e_sw5": "_main(args) { switch (args) { args = 1;",
+    "e_sw6": "_main(args) { switch (args) {",
+    "e_sw7": "_main(args) { local q; switch (args) { case args: ; case 1 + args: ; } return nosuch; }",
+    "e_sw8": "_main(args) { switch (args) { case 1 ; default ; } }",
+    "e_sw9": "_main(args) { switch (args) { default: ; default: ; default: ; } }",
+    "e_sw10": "_main(args) { case 1: ; default: ; case 2 }",
+    "e_sw11": "_main(args) { switch (args) { case 1: { case 2: ; default: ; } } }",
+    "e_sw12": "_main(args) { switch (args) { case 1: if (args) case 2: ; } }",
+    "e_sw13": "_main(args) { switch (args) { lbl: case 1: ; other: default: ; case 2: ; } }",
+    "e_sw14": "_main(args) { switch (args) { case",
+    "e_sw15": "_main(args) { switch (args) { case 1: } }",
+    "e_sw16": "_main(args) { switch (args) { case 1: continue; } }",
+    "e_sw17": "_main(args) { switch (;) { } }",
+    "e_sw18": "_main(args) { switch (args) { case 1: case : ; } }",
+    "e_sw19": "_main(args) { switch (args) { case 1: while (args) { case 2: ; } } }",
+    "e_sw20": "_main(args) { switch (args) { lbl: args = 1; case 1: goto lbl; } }",
+    "e_lbl1": "_main(args) { a: args = 1; a: args = 2; a: ; goto a; }",
+    # (A `goto` with no label after it is not here: the reference crashes
+    # writing its message.)
+    "e_lbl2": "_main(args) { goto nosuch; goto a b; }",
+    "e_lbl3": "_main(args) { a: while (args) { break b; continue b; } }",
+    "e_lbl4": "_main(args) { a: { continue a; } b: if (args) continue b; c: args = 1; }",
+    "e_lbl5": "_main(args) { a: ; a: { break nosuch; } goto a; }",
+    "e_lbl6": "_main(args) { a: ; a: while (args) { continue nosuch; } goto a; }",
+    "e_lbl7": "_main(args) { try { args = 1; } finally { in: args = 2; } goto in; }",
+    "e_lbl8": "_main(args) { try { goto in; } finally { try { in: ; } finally { } } }",
+    "e_lbl9": "_main(args) { a: }",
+    "e_lbl10": "f() { a: ; goto a; } _main(args) { goto a; }",
+    "e_lbl11": "_main(args) { a: b: break a; c: d: break d; e: g: continue e; }",
+    "e_lbl12": "_main(args) { a: break; b: continue; }",
+    "e_lbl13": "_main(args) { local a; a: a = 1; goto a; }",
+    "e_lbl14": "_main(args) { args: args = 1; goto args; return args:; }",
+    "e_try1": "_main(args) { try { args = 1; } return 1; }",
+    "e_try2": "_main(args) { catch (a b) { } finally { } catch { } catch (a) }",
+    "e_try3": "_main(args) { try { } catch (NoSuch e) { return e; } }",
+    "e_try4": "f() { } _main(args) { try { } catch (f e) { } catch (_main e) { } }",
+    "e_try5": "_main(args) { try { } catch NoSuch e) { } }",
+    "e_try6": "_main(args) { try { } catch (1 e) { } catch (A 2) { } catch (A) { } catch () { } }",
+    "e_try7": "_main(args) { try { } catch (A e { } }",
+    "e_try8": "_main(args) { try { } finally { } finally { } }",
+    "e_try9": "_main(args) { try { } catch (A e) { } finally { } catch (A e) { } }",
+    "e_try10": "_main(args) { try",
+    "e_try11": "_main(args) { try { } finally",
+    "e_try12": "_main(args) { try { } catch (A e) { local e; local f; return f; } }",
+    "e_try13": "_main(args) { try { } catch (A e) x: { goto x; } finally { goto x; } }",
+    "e_throw1": "_main(args) { throw; }",
+    "e_throw2": "_main(args) { throw 1 }",
+    "e_throw3": "_main(args) { throw",
+    "e_foldstop": "_main(args) { local q; return [1, 2][3] + nosuch; }",
+    "w_lbl1": "_main(args) { a: args = 1; bb: cc: args = 2; { d: ; } }",
+    "w_lbl2": "_main(args) { return 1; goto a; a: return 2; }",
+    "w_lbl3": "_main(args) { return 1; args = 2; a: return 2; args = 3; b: ; goto b; }",
+    "w_lbl4": "_main(args) { if (nil) goto a; a: if (true) return 1; else goto b; b: ; }",
+    "w_lbl5": "_main(args) { a: while (args) { break a; } b: while (true) { continue b; } return 1; }",
+    "w_lbl6": "_main(args) { while (nil) a: args = 1; for (; nil; ) b: args = 2; for (; nil; ) { c: ; } }",
+    "w_lbl7": "f(x) { switch (x) { case 1: goto a; } } _main(args) { a: return f(args); }",
+    "w_lbl8": "f(x) { try { } finally { break a; } } g(x) { a: ; b: ; } _main(args) { a: b: return f(args); }",
+    "w_lbl9": "f(x) { switch (x) { case 1: continue b; } } _main(args) { a: b: return f(args); }",
+    "w_lbl10": "_main(args) { switch (args) { case 1: goto a; } return 1; a: ; } f(x) { a: ; }",
+    "w_sw1": "_main(args) { switch (args) { case 1: return 1; args = 1; default: return 2; } args = 3; }",
+    "w_sw2": "_main(args) { switch (args) { case 1: return 1; } }",
+    "w_sw3": "_main(args) { switch (args) { case 1: return 1; default: return; } }",
+    "w_try1": "_main(args) { try { return 1; } finally { args = 1; } args = 2; }",
+    "w_try2": "_main(args) { try { args = 1; } finally { return; } args = 2; }",
+    "w_try3": "_main(args) { try { return 1; } finally { return; } }",
+    "w_throw1": "_main(args) { throw args; args = 1; }",
+    "w_throw2": "_main(args) { if (args) throw args; else return 1; }",
     "w_argnoval": "f() { } g(a) { } _main(args) { g(f()); }",
 }
 

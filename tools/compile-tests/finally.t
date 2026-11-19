@@ -1,0 +1,166 @@
+// try and finally, throw, and the ways of leaving a protected block.
+intrinsic 'tads-io/030007'
+{
+    tadsSay(val, ...);
+}
+
+plain(x)
+{
+    try
+    {
+        x = 1;
+    }
+    finally
+    {
+        x = 2;
+    }
+    return x;
+}
+
+returns(x)
+{
+    try
+    {
+        if (x == 1)
+            return 'one';
+        if (x == 2)
+            return;
+        if (x == 3)
+            return nil;
+        if (x == 4)
+            return true;
+        return x + 1;
+    }
+    finally
+    {
+        tadsSay('leaving');
+    }
+}
+
+nested(x)
+{
+    local n = 0;
+    try
+    {
+        try
+        {
+            if (x)
+                return n;
+            n = 1;
+        }
+        finally
+        {
+            n += 10;
+        }
+        return n + x;
+    }
+    finally
+    {
+        n += 100;
+    }
+}
+
+loops(x)
+{
+    local n = 0;
+    for (local i = 0 ; i < x ; ++i)
+    {
+        try
+        {
+            if (i == 1)
+                continue;
+            if (i == 2)
+                break;
+            n += i;
+        }
+        finally
+        {
+            ++n;
+        }
+    }
+outer:
+    while (n < 100)
+    {
+        try
+        {
+            while (true)
+            {
+                try
+                {
+                    ++n;
+                    if (n > 50)
+                        break outer;
+                    if (n > 40)
+                        continue outer;
+                    if (n > 30)
+                        goto out;
+                }
+                finally
+                {
+                    n += 2;
+                }
+            }
+        }
+        finally
+        {
+            n += 3;
+        }
+    }
+out:
+    return n;
+}
+
+thrower(x)
+{
+    try
+    {
+        throw x;
+    }
+    finally
+    {
+        x = 1;
+    }
+}
+
+// A finally block that does not finish.
+stuck(x)
+{
+    try
+    {
+        x = 1;
+    }
+    finally
+    {
+        return 5;
+    }
+}
+
+inside(x)
+{
+    try
+    {
+        x = 1;
+    }
+    finally
+    {
+        try
+        {
+            x = 2;
+            if (x)
+                goto skip;
+            x = 4;
+        skip:
+            x = 5;
+        }
+        finally
+        {
+            x = 3;
+        }
+    }
+    throw 'done';
+}
+
+_main(args)
+{
+    return plain(1) + returns(2) + nested(3) + loops(4) + thrower(5) + stuck(6) + inside(7);
+}

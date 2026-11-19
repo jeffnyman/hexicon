@@ -9,8 +9,10 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    Arg, AsiOp, BinOp, CodeBody, Expr, LocalId, Stmt, StmtKind, TabId, UnOp, Value, flow,
+    Arg, AsiOp, BinOp, Catch, CodeBody, Enclosure, Expr, Finally, LabelSym, LocalId, Stmt,
+    StmtKind, TabId, UnOp, Value, flow,
 };
+use crate::flow::Flow;
 use crate::fold::{self, Folded};
 use crate::lex::Tok;
 use crate::pp::{Preprocessor, Severity, show_name};
@@ -178,6 +180,21 @@ pub(crate) struct Parser<'p, 'a> {
     /// Where the statement being read starts.
     cur_file: usize,
     cur_line: u32,
+    /// The labels of the function being read.
+    labels: Vec<LabelSym>,
+    /// The loops, `switch` statements, labeled statements, and `try`
+    /// and `finally` blocks being read, outermost first.
+    enclosing: Vec<Enclosure>,
+    next_enclosure_id: usize,
+    /// The `switch` statements being read, outermost first.
+    switches: Vec<SwitchInfo>,
+}
+
+/// What a `switch` learns from its body as the body is read.
+#[derive(Default)]
+struct SwitchInfo {
+    case_cnt: usize,
+    has_default: bool,
 }
 
 type Parsed<T> = Result<T, Stop>;
@@ -209,6 +226,10 @@ impl<'p, 'a> Parser<'p, 'a> {
             max_local_cnt: 0,
             cur_file: 0,
             cur_line: 0,
+            labels: Vec::new(),
+            enclosing: Vec::new(),
+            next_enclosure_id: 0,
+            switches: Vec::new(),
         }
     }
 
@@ -643,6 +664,9 @@ impl<'p, 'a> Parser<'p, 'a> {
         self.enclosing_local_symtab = None;
         self.local_cnt = 0;
         self.max_local_cnt = 0;
+        self.labels.clear();
+        self.enclosing.clear();
+        self.switches.clear();
 
         let mut formals = Formals::default();
         if self.cur() == Tok::LPar {
@@ -661,9 +685,20 @@ impl<'p, 'a> Parser<'p, 'a> {
                 return Ok(Some((self.finish_code_body(formals, stm), false)));
             }
         }
-        let stm = self.parse_compound(true, true, true)?;
+        let stm = self.parse_compound(true, true, false, true)?;
 
-        let flags = self.control_flow(&stm, true);
+        let mut flow = Flow {
+            warn: true,
+            syntax_only: self.syntax_only,
+            labels: &self.labels,
+            mark: &self.labels,
+            warnings: Vec::new(),
+        };
+        let flags = flow.control_flow(&stm);
+        for (file, line, message) in flow.warnings {
+            self.tok
+                .log_at(file, line, Severity::Warning, message.to_owned());
+        }
         if !self.syntax_only {
             let warning = if flags & flow::RET_VAL != 0 && flags & flow::RET_VOID != 0 {
                 Some("code has \"return\" statements both with and without values")
@@ -692,6 +727,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             varargs_list_local: formals.varargs_list_local,
             local_cnt: self.max_local_cnt,
             replaced: false,
+            labels: std::rc::Rc::new(std::mem::take(&mut self.labels)),
             end_file,
             end_line,
         }
@@ -895,6 +931,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         &mut self,
         skip_lbrace: bool,
         need_rbrace: bool,
+        in_switch: bool,
         use_enclosing_scope: bool,
     ) -> Parsed<Stmt> {
         let (file, line) = self.tok.last_pos();
@@ -917,7 +954,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     break;
                 }
                 _ => {
-                    if let Some(stmt) = self.parse_stm(false)? {
+                    if let Some(stmt) = self.parse_stm(in_switch, false)? {
                         stmts.push(stmt);
                     }
                 }
@@ -944,9 +981,16 @@ impl<'p, 'a> Parser<'p, 'a> {
     }
 
     /// Read a statement. Some statements leave nothing behind: an empty
-    /// one, or a `local` with no initial values.
-    fn parse_stm(&mut self, compound_use_enclosing_scope: bool) -> Parsed<Option<Stmt>> {
+    /// one, or a `local` with no initial values. `in_switch` says that
+    /// the statement is directly in the body of a `switch`, where `case`
+    /// and `default` can go.
+    fn parse_stm(
+        &mut self,
+        in_switch: bool,
+        compound_use_enclosing_scope: bool,
+    ) -> Parsed<Option<Stmt>> {
         (self.cur_file, self.cur_line) = self.tok.last_pos();
+        let (file, line) = (self.cur_file, self.cur_line);
         loop {
             return match self.cur() {
                 Tok::Eof => {
@@ -967,7 +1011,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.parse_local()
                 }
                 Tok::LBrace => self
-                    .parse_compound(true, true, compound_use_enclosing_scope)
+                    .parse_compound(true, true, false, compound_use_enclosing_scope)
                     .map(Some),
                 Tok::If => self.parse_if(),
                 Tok::Return => self.parse_return(),
@@ -981,25 +1025,64 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.next();
                     Ok(None)
                 }
-                Tok::Foreach
-                | Tok::Switch
-                | Tok::Goto
-                | Tok::Try
-                | Tok::Throw
-                | Tok::Catch
-                | Tok::Finally
-                | Tok::Case
-                | Tok::Default => {
-                    let shown = self.tok.cur_token_shown();
-                    self.unsupported(&format!("a \"{shown}\" statement"));
+                Tok::Foreach => {
+                    self.unsupported("a \"foreach\" statement");
                     self.next();
                     Ok(None)
                 }
-                Tok::Sym => {
-                    if self.next() == Tok::Colon {
-                        self.unsupported("a statement label");
+                Tok::Switch => self.parse_switch(),
+                Tok::Goto => self.parse_goto(),
+                Tok::Try => self.parse_try(),
+                Tok::Throw => self.parse_throw(),
+                Tok::Catch => {
+                    self.error("misplaced \"catch\" clause - must be associated with \"try\"");
+                    // Skip `(Class name)` if that is what follows.
+                    if self.next() == Tok::LPar
+                        && self.next() == Tok::Sym
+                        && self.next() == Tok::Sym
+                        && self.next() == Tok::RPar
+                    {
                         self.next();
-                        continue;
+                    }
+                    Ok(None)
+                }
+                Tok::Finally => {
+                    self.error("misplaced \"finally\" clause - must be associated with \"try\"");
+                    self.next();
+                    Ok(None)
+                }
+                Tok::Case if in_switch => self.parse_case(),
+                Tok::Case => {
+                    self.error("misplaced \"case\" keyword - not in a \"switch\" statement");
+                    self.next();
+                    self.parse_expr();
+                    if self.cur() == Tok::Colon {
+                        self.next();
+                    }
+                    Ok(None)
+                }
+                Tok::Default if in_switch => self.parse_default(),
+                Tok::Default => {
+                    self.error("misplaced \"default\" keyword - not in a \"switch\" statement");
+                    if self.next() == Tok::Colon {
+                        self.next();
+                    }
+                    Ok(None)
+                }
+                Tok::Sym => {
+                    let name = self.cur_text();
+                    if self.next() == Tok::Colon {
+                        let id = self.enclose(false);
+                        let label = self.add_code_label(&name, file, line);
+                        self.next();
+                        let stm = self.parse_stm(in_switch, false);
+                        self.enclosing.pop();
+                        let stm = stm?.map(Box::new);
+                        return Ok(Some(Stmt {
+                            kind: StmtKind::Label { label, stm, id },
+                            file,
+                            line,
+                        }));
                     }
                     self.tok.unget_token();
                     self.parse_expr_stm()
@@ -1150,10 +1233,10 @@ impl<'p, 'a> Parser<'p, 'a> {
         } else {
             self.error_curtok("expected ')' after the \"if\" condition, but found \"%\"");
         }
-        let then_part = self.parse_stm(false)?.map(Box::new);
+        let then_part = self.parse_stm(false, false)?.map(Box::new);
         let else_part = if self.cur() == Tok::Else {
             self.next();
-            self.parse_stm(false)?.map(Box::new)
+            self.parse_stm(false, false)?.map(Box::new)
         } else {
             None
         };
@@ -1302,7 +1385,10 @@ impl<'p, 'a> Parser<'p, 'a> {
             self.next();
         }
         let symtab = self.local_symtab;
-        let body = self.parse_stm(false)?.map(Box::new);
+        let id = self.enclose(false);
+        let body = self.parse_stm(false, false);
+        self.enclosing.pop();
+        let body = body?.map(Box::new);
         self.leave_scope(scope);
         Ok(Some(Stmt {
             kind: StmtKind::For {
@@ -1311,6 +1397,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 reinit,
                 body,
                 symtab,
+                id,
             },
             file,
             line,
@@ -1334,9 +1421,12 @@ impl<'p, 'a> Parser<'p, 'a> {
         } else {
             self.error_curtok("missing ')' after \"while\" expression - found \"%\"");
         }
-        let body = self.parse_stm(false)?.map(Box::new);
+        let id = self.enclose(false);
+        let body = self.parse_stm(false, false);
+        self.enclosing.pop();
+        let body = body?.map(Box::new);
         Ok(Some(Stmt {
-            kind: StmtKind::While { cond, body },
+            kind: StmtKind::While { cond, body, id },
             file,
             line,
         }))
@@ -1345,7 +1435,10 @@ impl<'p, 'a> Parser<'p, 'a> {
     fn parse_do_while(&mut self) -> Parsed<Option<Stmt>> {
         let (file, line) = (self.cur_file, self.cur_line);
         self.next();
-        let body = self.parse_stm(false)?.map(Box::new);
+        let id = self.enclose(false);
+        let body = self.parse_stm(false, false);
+        self.enclosing.pop();
+        let body = body?.map(Box::new);
         if self.cur() == Tok::While {
             self.next();
         } else {
@@ -1366,10 +1459,282 @@ impl<'p, 'a> Parser<'p, 'a> {
         }
         self.parse_req_sem()?;
         Ok(Some(Stmt {
-            kind: StmtKind::DoWhile { body, cond },
+            kind: StmtKind::DoWhile { body, cond, id },
             file,
             line,
         }))
+    }
+
+    /// Give the function being read a label. Nothing comes back if it
+    /// has one of that name already.
+    fn add_code_label(&mut self, name: &[u8], file: usize, line: u32) -> Option<usize> {
+        if self.labels.iter().any(|label| label.name == name) {
+            self.error(format!(
+                "code label \"{}\" already defined in this function or method",
+                Self::name(name)
+            ));
+            return None;
+        }
+        self.labels.push(LabelSym {
+            name: name.to_vec(),
+            flags: std::cell::Cell::new(0),
+            file,
+            line,
+            within: self.enclosing.clone(),
+        });
+        Some(self.labels.len() - 1)
+    }
+
+    fn parse_switch(&mut self) -> Parsed<Option<Stmt>> {
+        let (file, line) = (self.cur_file, self.cur_line);
+        if self.next() == Tok::LPar {
+            self.next();
+        } else {
+            self.error_curtok("missing '(' after \"switch\" - found \"%\"");
+        }
+        let Some(expr) = self.parse_expr() else {
+            return Err(Stop);
+        };
+        if self.cur() == Tok::RPar {
+            self.next();
+        } else {
+            self.error_curtok("missing ')' after \"switch\" expression - found \"%\"");
+        }
+        if self.cur() == Tok::LBrace {
+            self.next();
+        } else {
+            self.error_curtok("missing '{' after \"switch\" expression - found \"%\"");
+        }
+        self.switches.push(SwitchInfo::default());
+        // Nothing before the first `case` or `default` could be reached.
+        // Such statements are read and dropped.
+        let mut unreachable_shown = false;
+        loop {
+            match self.cur() {
+                Tok::Case | Tok::Default | Tok::RBrace => break,
+                Tok::Eof => {
+                    self.error("end of file in \"switch\" body");
+                    return Err(Stop);
+                }
+                _ => {
+                    if !unreachable_shown && !self.syntax_only {
+                        self.error(
+                            "code before first \"case\" or \"default\" label in \"switch\" is not allowed",
+                        );
+                        unreachable_shown = true;
+                    }
+                    self.parse_stm(true, false)?;
+                }
+            }
+        }
+        let id = self.enclose(false);
+        let body = self.parse_compound(false, true, true, false);
+        self.enclosing.pop();
+        let body = Box::new(body?);
+        let info = self.switches.pop().expect("the switch being read");
+        Ok(Some(Stmt {
+            kind: StmtKind::Switch {
+                expr,
+                body,
+                case_cnt: info.case_cnt,
+                has_default: info.has_default,
+                id,
+            },
+            file,
+            line,
+        }))
+    }
+
+    fn parse_case(&mut self) -> Parsed<Option<Stmt>> {
+        let (file, line) = (self.cur_file, self.cur_line);
+        self.next();
+        let Some(expr) = self.parse_expr() else {
+            return Err(Stop);
+        };
+        if self.cur() == Tok::Colon {
+            self.next();
+        } else {
+            self.error_curtok("missing ':' after \"case\" expression - found \"%\"");
+        }
+        // What follows is still directly in the switch: another `case`
+        // can come straight after.
+        let stm = self.parse_stm(true, false)?.map(Box::new);
+        if let Some(info) = self.switches.last_mut() {
+            info.case_cnt += 1;
+        }
+        Ok(Some(Stmt {
+            kind: StmtKind::Case { expr, stm },
+            file,
+            line,
+        }))
+    }
+
+    fn parse_default(&mut self) -> Parsed<Option<Stmt>> {
+        let (file, line) = (self.cur_file, self.cur_line);
+        if self.switches.last().is_some_and(|info| info.has_default) {
+            self.error("this \"switch\" already has a \"default:\" label");
+        }
+        if let Some(info) = self.switches.last_mut() {
+            info.has_default = true;
+        }
+        if self.next() == Tok::Colon {
+            self.next();
+        } else {
+            self.error_curtok("missing ':' after \"default\" - found \"%\"");
+        }
+        let stm = self.parse_stm(true, false)?.map(Box::new);
+        Ok(Some(Stmt {
+            kind: StmtKind::Default(stm),
+            file,
+            line,
+        }))
+    }
+
+    fn parse_goto(&mut self) -> Parsed<Option<Stmt>> {
+        let stmt = if self.next() == Tok::Sym {
+            let stmt = self.stmt(StmtKind::Goto(self.cur_text()));
+            self.next();
+            Some(stmt)
+        } else {
+            self.error_curtok("label name expected after \"goto\", but found \"%\"");
+            None
+        };
+        self.parse_req_sem()?;
+        Ok(stmt)
+    }
+
+    /// Start reading the inside of a statement that jumps have to know
+    /// about. The caller pops it from `enclosing` when the inside has
+    /// been read.
+    fn enclose(&mut self, is_finally: bool) -> usize {
+        self.next_enclosure_id += 1;
+        self.enclosing.push(Enclosure {
+            id: self.next_enclosure_id,
+            is_finally,
+        });
+        self.next_enclosure_id
+    }
+
+    fn parse_try(&mut self) -> Parsed<Option<Stmt>> {
+        let (file, line) = (self.cur_file, self.cur_line);
+        let id = self.enclose(false);
+        self.next();
+        let body = self.parse_stm(false, false);
+        self.enclosing.pop();
+        let body = body?.map(Box::new);
+
+        let mut catches = Vec::new();
+        while self.cur() == Tok::Catch {
+            // The clause has a scope of its own, for its variable.
+            let scope = self.enter_scope();
+            self.create_scope_local_symtab();
+            let (catch_file, catch_line) = self.tok.last_pos();
+            let mut class = None;
+            let mut var = None;
+            if self.next() == Tok::LPar {
+                self.next();
+            } else {
+                self.error_curtok("missing '(' after \"catch\" - found \"%\"");
+            }
+            if self.cur() == Tok::Sym {
+                class = Some(self.cur_text());
+                self.next();
+            } else {
+                self.error_curtok("expected class name in \"catch\" clause - found \"%\"");
+                if self.cur() != Tok::RPar {
+                    self.next();
+                }
+            }
+            if self.cur() == Tok::Sym {
+                // Entering the clause gives the variable its value, and
+                // nobody minds if it is never looked at.
+                let name = self.cur_text();
+                var = self.add_local(&name);
+                if let Some(id) = var {
+                    self.prog.locals[id].val_assigned = true;
+                    self.prog.locals[id].val_used = true;
+                }
+                self.next();
+            } else {
+                self.error_curtok("expected variable name in \"catch\" clause - found \"%\"");
+                if self.cur() != Tok::RPar {
+                    self.next();
+                }
+            }
+            if self.cur() == Tok::RPar {
+                self.next();
+            } else {
+                self.error_curtok("missing ')' after \"catch\" variable name - found \"%\"");
+            }
+            // A block here uses the clause's scope instead of starting
+            // one.
+            let catch_body = self.parse_stm(false, true);
+            self.leave_scope(scope);
+            let catch_body = catch_body?.map(Box::new);
+            if let (Some(class), Some(var)) = (class, var) {
+                catches.push(Catch {
+                    class,
+                    var,
+                    body: catch_body,
+                    // The reference notes the scope after leaving the
+                    // clause's own, so this is the one around it.
+                    symtab: self.local_symtab,
+                    file: catch_file,
+                    line: catch_line,
+                });
+            }
+        }
+
+        let mut finally = None;
+        if self.cur() == Tok::Finally {
+            let scope = self.enter_scope();
+            // Two locals: one for where to go back to, and one for an
+            // exception that is passing through.
+            let jsr_local = self.alloc_local();
+            let exc_local = self.alloc_local();
+            let (fin_file, fin_line) = self.tok.last_pos();
+            self.next();
+            let fin_id = self.enclose(true);
+            let fin_body = self.parse_stm(false, false);
+            self.enclosing.pop();
+            self.leave_scope(scope);
+            finally = Some(Box::new(Finally {
+                id: fin_id,
+                body: fin_body?.map(Box::new),
+                exc_local,
+                jsr_local,
+                file: fin_file,
+                line: fin_line,
+            }));
+        }
+        if catches.is_empty() && finally.is_none() {
+            self.tok.log_at(
+                file,
+                line,
+                Severity::Error,
+                "\"try\" statement has no \"catch\" or \"finally\" clauses".to_owned(),
+            );
+        }
+        Ok(Some(Stmt {
+            kind: StmtKind::Try {
+                id,
+                body,
+                catches,
+                finally,
+            },
+            file,
+            line,
+        }))
+    }
+
+    fn parse_throw(&mut self) -> Parsed<Option<Stmt>> {
+        self.next();
+        let Some(expr) = self.parse_expr() else {
+            return Err(Stop);
+        };
+        let stmt = self.stmt(StmtKind::Throw(expr));
+        self.parse_req_sem()?;
+        Ok(Some(stmt))
     }
 
     fn parse_break_or_continue(&mut self, is_break: bool) -> Parsed<Option<Stmt>> {
@@ -1395,175 +1760,6 @@ impl<'p, 'a> Parser<'p, 'a> {
             StmtKind::Continue(label)
         };
         Ok(Some(Stmt { kind, file, line }))
-    }
-
-    // ---- how statements can be left ----
-
-    /// The ways a statement can be left, warning about code that cannot
-    /// be reached.
-    fn control_flow(&mut self, stmt: &Stmt, warn: bool) -> u32 {
-        match &stmt.kind {
-            StmtKind::Comp { stmts, .. } => {
-                let mut flags = flow::NEXT;
-                let mut index = 0;
-                while index < stmts.len() {
-                    let flags1 = self.control_flow(&stmts[index], warn);
-                    flags |= flags1
-                        & (flow::THROW
-                            | flow::RET_VOID
-                            | flow::RET_VAL
-                            | flow::GOTO
-                            | flow::BREAK
-                            | flow::CONT);
-                    if flags1 & flow::NEXT == 0 {
-                        // Nothing after this can be reached. (A label
-                        // could make it reachable again, when there are
-                        // labels.)
-                        flags &= !flow::NEXT;
-                        if let Some(next) = stmts.get(index + 1) {
-                            if warn && !self.syntax_only {
-                                self.tok.log_at(
-                                    next.file,
-                                    next.line,
-                                    Severity::Warning,
-                                    "unreachable statement".to_owned(),
-                                );
-                            }
-                        }
-                        break;
-                    }
-                    index += 1;
-                }
-                flags
-            }
-            StmtKind::If {
-                cond,
-                then_part,
-                else_part,
-            } => {
-                if let Some(value) = cond.as_const() {
-                    let part = if value.is_true() {
-                        then_part
-                    } else {
-                        else_part
-                    };
-                    return match part {
-                        Some(part) => self.control_flow(part, warn),
-                        None => flow::NEXT,
-                    };
-                }
-                let flags1 = match then_part {
-                    Some(part) => self.control_flow(part, warn),
-                    None => flow::NEXT,
-                };
-                let flags2 = match else_part {
-                    Some(part) => self.control_flow(part, warn),
-                    None => flow::NEXT,
-                };
-                flags1 | flags2
-            }
-            StmtKind::Return(expr) => {
-                if expr.is_some() {
-                    flow::RET_VAL
-                } else {
-                    flow::RET_VOID
-                }
-            }
-            StmtKind::For {
-                cond, reinit, body, ..
-            } => {
-                let cond_const = cond.as_ref().and_then(Expr::as_const);
-                if let Some(value) = cond_const {
-                    if !value.is_true() && body.is_some() && !self.syntax_only {
-                        let _ = reinit;
-                        if warn && !value.ctc {
-                            self.tok.log_at(
-                                stmt.file,
-                                stmt.line,
-                                Severity::Warning,
-                                "\"for\" condition is always false - body and reinitializer are unreachable"
-                                    .to_owned(),
-                            );
-                        }
-                        return flow::NEXT;
-                    }
-                }
-                let mut flags = match body {
-                    Some(body) => self.control_flow(body, warn),
-                    None => 0,
-                };
-                flags &= !flow::NEXT;
-                if flags & flow::BREAK != 0 {
-                    flags |= flow::NEXT;
-                }
-                if cond.is_some() && cond_const.is_none_or(|value| !value.is_true()) {
-                    flags |= flow::NEXT;
-                }
-                flags & !(flow::BREAK | flow::CONT)
-            }
-            StmtKind::While { cond, body } => {
-                let cond_const = cond.as_const();
-                if let Some(value) = cond_const {
-                    // The reference only takes this way out when it is
-                    // reading for symbols, so that is when it warns.
-                    if !value.is_true() && body.is_some() && self.syntax_only {
-                        if warn && !value.ctc {
-                            self.tok.log_at(
-                                stmt.file,
-                                stmt.line,
-                                Severity::Warning,
-                                "\"while\" condition is always false - loop body is unreachable"
-                                    .to_owned(),
-                            );
-                        }
-                        return flow::NEXT;
-                    }
-                }
-                let mut flags = match body {
-                    Some(body) => self.control_flow(body, warn),
-                    None => 0,
-                };
-                flags &= !flow::NEXT;
-                if flags & flow::BREAK != 0 {
-                    flags |= flow::NEXT;
-                }
-                if cond_const.is_none_or(|value| !value.is_true()) {
-                    flags |= flow::NEXT;
-                }
-                flags & !(flow::BREAK | flow::CONT)
-            }
-            StmtKind::DoWhile { body, cond } => {
-                let mut flags = match body {
-                    Some(body) => self.control_flow(body, warn),
-                    None => 0,
-                };
-                if flags & flow::NEXT != 0 {
-                    flags &= !flow::NEXT;
-                    if cond.as_const().is_none_or(|value| !value.is_true()) {
-                        flags |= flow::NEXT;
-                    }
-                }
-                if flags & flow::BREAK != 0 {
-                    flags |= flow::NEXT;
-                }
-                flags & !(flow::BREAK | flow::CONT)
-            }
-            StmtKind::Break(label) => {
-                if label.is_none() {
-                    flow::BREAK
-                } else {
-                    flow::GOTO
-                }
-            }
-            StmtKind::Continue(label) => {
-                if label.is_none() {
-                    flow::CONT
-                } else {
-                    flow::GOTO
-                }
-            }
-            StmtKind::Null | StmtKind::Expr(_) => flow::NEXT,
-        }
     }
 
     // ---- expressions ----

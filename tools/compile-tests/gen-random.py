@@ -4,7 +4,8 @@
 usage: gen-random.py <folder> <count> [seed]
 
 Each program is made of the parts of the language Hexicon compiles so
-far: functions, locals, the statements that need no objects, and
+far: functions, locals, the statements that need no objects (labels,
+`goto`, `switch`, `try` with `finally`, and `throw` among them), and
 expressions over numbers, strings, lists, locals, and calls to functions
 and to built-in functions. The programs are
 valid but mean nothing; they are for tools/compile-compare.sh, to find
@@ -64,6 +65,11 @@ class Program:
         self.funcs = [("_main", 1, False)]
         for index in range(rng.randint(1, 5)):
             self.funcs.append((f"fn{index}", rng.randint(0, 5), rng.random() < 0.2))
+        # The labels of the function being written, and those on the
+        # statements around the one being written, each with whether it
+        # is on a loop.
+        self.labels = []
+        self.around = []
 
     def constant(self):
         rng = self.rng
@@ -170,16 +176,26 @@ class Program:
         if kind < 0.7:
             return [f"{pad}{self.expr(scope, 3)};"]
         if kind < 0.8 and in_loop:
-            return [pad + rng.choice(["break;", "continue;"])]
-        if kind < 0.9:
+            return [pad + rng.choice(["break;", "continue;"] if in_loop == 2 else ["break;"])]
+        if kind < 0.83:
+            # A label for this is chosen once the whole function is
+            # written, so that the jump can go forward.
+            return [pad + "goto @LABEL@;"]
+        if kind < 0.86 and self.around:
+            name, on_loop = rng.choice(self.around)
+            word = "continue" if on_loop and rng.random() < 0.5 else "break"
+            return [f"{pad}{word} {name};"]
+        if kind < 0.87:
+            return [f"{pad}throw {self.expr(scope, 2)};"]
+        if kind < 0.93:
             return [f"{pad}return {self.expr(scope, 3)};"]
         return [pad + "return;"]
 
-    def statement(self, scope, declared, depth, indent, in_loop):
+    def statement(self, scope, declared, depth, indent, in_loop, force=None):
         rng = self.rng
         pad = "    " * indent
-        kind = rng.random()
-        if depth <= 0 or kind < 0.35:
+        kind = rng.random() if force is None else force
+        if (depth <= 0 and (force is None or force < 0.35)) or kind < 0.35:
             return self.simple(scope, indent, in_loop)
         if kind < 0.5:
             name = rng.choice(NAMES)
@@ -200,11 +216,11 @@ class Program:
             return lines
         if kind < 0.78:
             return ([f"{pad}while ({self.expr(scope, 3)})"]
-                    + self.body(scope, depth, indent, True))
-        if kind < 0.85:
-            return ([pad + "do"] + self.body(scope, depth, indent, True)
+                    + self.body(scope, depth, indent, 2))
+        if kind < 0.84:
+            return ([pad + "do"] + self.body(scope, depth, indent, 2)
                     + [f"{pad}while ({self.expr(scope, 3)});"])
-        if kind < 0.95:
+        if kind < 0.90:
             inner = list(scope)
             init = ""
             if rng.random() < 0.6:
@@ -216,7 +232,34 @@ class Program:
             cond = self.expr(inner, 2) if rng.random() < 0.8 else ""
             step = self.expr(inner, 2) if rng.random() < 0.8 else ""
             return ([f"{pad}for ({init} ; {cond} ; {step})"]
-                    + self.body(inner, depth, indent, True))
+                    + self.body(inner, depth, indent, 2))
+        if kind < 0.93:
+            lines = [f"{pad}switch ({self.expr(scope, 2)})", pad + "{"]
+            default_at = rng.randint(0, 5)
+            for index in range(rng.randint(0, 4)):
+                if index == default_at:
+                    lines.append(pad + "default:")
+                else:
+                    lines.append(f"{pad}case {self.constant()}:")
+                    if rng.random() < 0.2:
+                        lines.append(f"{pad}case {self.constant()}:")
+                inner = self.block(scope, depth - 1, indent + 1, max(in_loop, 1))
+                lines += inner or [pad + "    ;"]
+                if rng.random() < 0.7:
+                    lines.append(pad + "    break;")
+            return lines + [pad + "}"]
+        if kind < 0.96:
+            return ([pad + "try"] + self.body(scope, depth, indent, in_loop)
+                    + [pad + "finally"] + self.body(scope, depth, indent, in_loop))
+        if kind < 0.98:
+            name = f"L{len(self.labels)}"
+            self.labels.append(name)
+            on_loop = rng.random() < 0.6
+            self.around.append((name, on_loop))
+            force = rng.uniform(0.69, 0.89) if on_loop else rng.uniform(0.0, 0.34)
+            inner = self.statement(scope, declared, depth - 1, indent, in_loop, force)
+            self.around.pop()
+            return [f"{pad[4:]}{name}:"] + inner
         inner = self.block(scope, depth - 1, indent + 1, in_loop)
         return [pad + "{"] + inner + [pad + "}"]
 
@@ -230,8 +273,17 @@ class Program:
                 params.append("[rest]")
                 scope.append("rest")
         lines = [f"{name}({', '.join(params)})", "{"]
-        lines += self.block(scope, 3, 1, False)
+        self.labels = []
+        self.around = []
+        lines += self.block(scope, 3, 1, 0)
         lines.append("}")
+        # Now that the function's labels are known, give each `goto` one.
+        for index, line in enumerate(lines):
+            if "@LABEL@" in line:
+                if self.labels:
+                    lines[index] = line.replace("@LABEL@", self.rng.choice(self.labels))
+                else:
+                    lines[index] = line.replace("goto @LABEL@;", ";")
         return lines
 
     def text(self):

@@ -298,17 +298,115 @@ pub(crate) enum StmtKind {
         reinit: Option<Expr>,
         body: Option<Box<Stmt>>,
         symtab: Option<TabId>,
+        id: usize,
     },
     While {
         cond: Expr,
         body: Option<Box<Stmt>>,
+        id: usize,
     },
     DoWhile {
         body: Option<Box<Stmt>>,
         cond: Expr,
+        id: usize,
     },
     Break(Option<Vec<u8>>),
     Continue(Option<Vec<u8>>),
+    Switch {
+        expr: Expr,
+        body: Box<Stmt>,
+        /// How many `case` labels the parser counted in the body.
+        case_cnt: usize,
+        has_default: bool,
+        id: usize,
+    },
+    Case {
+        expr: Expr,
+        stm: Option<Box<Stmt>>,
+    },
+    Default(Option<Box<Stmt>>),
+    /// A statement with a label on it.
+    Label {
+        /// The label, as an index into [`CodeBody::labels`]. There is
+        /// none when the name was already taken by another statement.
+        label: Option<usize>,
+        stm: Option<Box<Stmt>>,
+        id: usize,
+    },
+    Goto(Vec<u8>),
+    Try {
+        id: usize,
+        body: Option<Box<Stmt>>,
+        catches: Vec<Catch>,
+        finally: Option<Box<Finally>>,
+    },
+    Throw(Expr),
+}
+
+/// A statement that has other statements inside it and that matters to
+/// a jump out of them or into them: a loop, a `switch`, a labeled
+/// statement, a `try`, or a `finally` block. Each has a number of its
+/// own within the program.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Enclosure {
+    pub id: usize,
+    pub is_finally: bool,
+}
+
+/// A `catch` clause of a `try`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Catch {
+    /// The name of the class of exception it catches.
+    pub class: Vec<u8>,
+    /// The local the exception is put in.
+    pub var: LocalId,
+    pub body: Option<Box<Stmt>>,
+    pub symtab: Option<TabId>,
+    pub file: usize,
+    pub line: u32,
+}
+
+/// The `finally` clause of a `try`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Finally {
+    pub id: usize,
+    pub body: Option<Box<Stmt>>,
+    /// The locals that hold an exception while the block runs, and the
+    /// place to go back to when it is done.
+    pub exc_local: usize,
+    pub jsr_local: usize,
+    pub file: usize,
+    pub line: u32,
+}
+
+/// A label in a function, for `goto`, `break`, and `continue`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LabelSym {
+    pub name: Vec<u8>,
+    /// How the label is used: the `GOTO`, `BREAK`, and `CONT` bits of
+    /// [`flow`], set as the uses are found.
+    pub flags: std::cell::Cell<u32>,
+    /// Where the labeled statement is.
+    pub file: usize,
+    pub line: u32,
+    /// The statements the labeled statement is inside, as the parser
+    /// saw it, outermost first and ending with the labeled statement
+    /// itself. (The parser takes a `catch` block to be outside its
+    /// `try`; the code generator takes it to be inside.)
+    pub within: Vec<Enclosure>,
+}
+
+impl Stmt {
+    /// Whether the statement starts with a label, a `case`, or a
+    /// `default`, so that it can be reached from somewhere other than
+    /// the statement before it.
+    pub(crate) fn has_code_label(&self) -> bool {
+        match &self.kind {
+            StmtKind::Label { .. } | StmtKind::Case { .. } | StmtKind::Default(_) => true,
+            StmtKind::Comp { stmts, .. } => stmts.first().is_some_and(Stmt::has_code_label),
+            _ => false,
+        }
+    }
 }
 
 /// The body of a function.
@@ -328,6 +426,8 @@ pub(crate) struct CodeBody {
     /// Another definition has replaced this one, and no code is
     /// generated for it.
     pub replaced: bool,
+    /// The labels on statements in the body.
+    pub labels: std::rc::Rc<Vec<LabelSym>>,
     /// Where the closing brace is.
     pub end_file: usize,
     pub end_line: u32,

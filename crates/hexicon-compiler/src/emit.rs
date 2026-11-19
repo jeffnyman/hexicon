@@ -6,13 +6,16 @@
 //! all depend on exactly what is written and in what order.
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use hexicon_bytecode::{Layout, Opcode as Op};
 
 use crate::ast::{
-    Arg, AsiOp, BinOp, CodeBody, ConstVal, Expr, LocalId, Stmt, StmtKind, TabId, UnOp, Value,
+    Arg, AsiOp, BinOp, Catch, CodeBody, ConstVal, Expr, Finally, LabelSym, LocalId, Stmt, StmtKind,
+    TabId, UnOp, Value, flow,
 };
 use crate::codegen::{CodeGen, Label};
+use crate::flow::Flow;
 use crate::fold::{self, Folded};
 use crate::parse::{BifSym, Global, Program, enum_order};
 use crate::pp::{Severity, show_name};
@@ -94,13 +97,74 @@ pub(crate) struct Generated {
     pub diagnostics: Vec<GenDiagnostic>,
 }
 
+/// How many chains the reference's table of a function's labels has.
+const LABEL_HASH_SIZE: usize = 512;
+
 /// Strings shorter than this are stored once however often they occur.
 const INTERN_THRESHOLD: usize = 40;
 
-/// A loop that `break` and `continue` can apply to.
-struct Enclosing {
-    break_lbl: Label,
-    cont_lbl: Label,
+/// A statement around the one being generated that a jump out of it
+/// has to know about.
+#[derive(Clone, Copy)]
+enum Enclosing {
+    /// A loop: where `break` and `continue` go.
+    Loop {
+        id: usize,
+        break_lbl: Label,
+        cont_lbl: Label,
+    },
+    /// A `switch`: where `break` goes, if anything after the switch can
+    /// be reached.
+    Switch { id: usize, break_lbl: Option<Label> },
+    /// A labeled statement.
+    Label {
+        id: usize,
+        /// The label, unless its name was already taken.
+        label: Option<usize>,
+        /// Where a `break` that names the label goes, once there has
+        /// been one.
+        break_lbl: Option<Label>,
+        /// The statement labeled is a loop, so `continue` can name the
+        /// label.
+        labels_loop: bool,
+    },
+    /// The protected part of a `try`, or one of its `catch` blocks. The
+    /// way out is through the `finally` block, if there is one.
+    Try {
+        id: usize,
+        finally_lbl: Option<Label>,
+    },
+    /// A `finally` block.
+    Finally { id: usize },
+}
+
+impl Enclosing {
+    fn id(&self) -> usize {
+        match self {
+            Enclosing::Loop { id, .. }
+            | Enclosing::Switch { id, .. }
+            | Enclosing::Label { id, .. }
+            | Enclosing::Try { id, .. }
+            | Enclosing::Finally { id } => *id,
+        }
+    }
+}
+
+/// The table of a `switch` being generated: where the next `case` and
+/// the `default` write where they are.
+struct SwitchSlots {
+    next_case: usize,
+    default_slot: usize,
+}
+
+/// One entry of a function's table of exception handlers. The offsets
+/// are from the start of the function.
+struct ExcEntry {
+    start_ofs: usize,
+    end_ofs: usize,
+    /// The class of exception caught; zero for all of them.
+    class: u32,
+    handler_ofs: usize,
 }
 
 struct Gen<'p> {
@@ -114,6 +178,20 @@ struct Gen<'p> {
     cur_frame: Option<TabId>,
     frames: Vec<TabId>,
     enclosing: Vec<Enclosing>,
+    switches: Vec<SwitchSlots>,
+    /// The labels of the function being generated, and where each one
+    /// is, once something has asked.
+    labels: Rc<Vec<LabelSym>>,
+    /// The labels of the last function in the source.
+    last_labels: Rc<Vec<LabelSym>>,
+    goto_labels: Vec<Option<Label>>,
+    exc_table: Vec<ExcEntry>,
+    /// How many locals the function has. Generating its code can add to
+    /// what the parser counted.
+    local_cnt: usize,
+    /// The local that holds a value being returned while `finally`
+    /// blocks run.
+    fin_ret_lcl: Option<usize>,
     /// Where the statement being generated is, for messages.
     cur_file: usize,
     cur_line: u32,
@@ -136,6 +214,13 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         cur_frame: None,
         frames: Vec::new(),
         enclosing: Vec::new(),
+        switches: Vec::new(),
+        labels: Rc::default(),
+        last_labels: Rc::default(),
+        goto_labels: Vec::new(),
+        exc_table: Vec::new(),
+        local_cnt: 0,
+        fin_ret_lcl: None,
         cur_file: 0,
         cur_line: 0,
         interned: HashMap::new(),
@@ -143,10 +228,19 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         errors: 0,
     };
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
+    if let Some((body, _)) = bodies.last() {
+        generator.last_labels = Rc::clone(&body.labels);
+    }
     // Names are looked up, and what has become constant is worked out,
     // for the whole program before any code is generated.
     for (body, _) in &mut bodies {
         generator.fold_stmt(&mut body.stm);
+    }
+    // The reference stops here if that found anything wrong.
+    if generator.errors != 0 {
+        let out = generator.out;
+        prog.bodies = bodies;
+        return out;
     }
     let mut scopes = Vec::new();
     for (body, func) in &bodies {
@@ -227,7 +321,44 @@ impl Gen<'_> {
     fn fold_stmt(&mut self, stmt: &mut Stmt) {
         self.set_line(stmt);
         match &mut stmt.kind {
-            StmtKind::Null | StmtKind::Break(_) | StmtKind::Continue(_) => {}
+            StmtKind::Null | StmtKind::Break(_) | StmtKind::Continue(_) | StmtKind::Goto(_) => {}
+            StmtKind::Switch { expr, body, .. } => {
+                self.fold_in_place(expr);
+                self.fold_stmt(body);
+            }
+            StmtKind::Case { expr, stm } => {
+                self.fold_in_place(expr);
+                if !expr.is_const() {
+                    self.error("\"case\" expression has a non-constant value");
+                }
+                if let Some(stm) = stm {
+                    self.fold_stmt(stm);
+                }
+            }
+            StmtKind::Default(stm) | StmtKind::Label { stm, .. } => {
+                if let Some(stm) = stm {
+                    self.fold_stmt(stm);
+                }
+            }
+            StmtKind::Try {
+                body,
+                catches,
+                finally,
+                ..
+            } => {
+                if let Some(body) = body {
+                    self.fold_stmt(body);
+                }
+                for catch in catches {
+                    if let Some(body) = &mut catch.body {
+                        self.fold_stmt(body);
+                    }
+                }
+                if let Some(body) = finally.as_mut().and_then(|finally| finally.body.as_mut()) {
+                    self.fold_stmt(body);
+                }
+            }
+            StmtKind::Throw(expr) => self.fold_in_place(expr),
             StmtKind::Comp { stmts, .. } => {
                 for stmt in stmts {
                     self.fold_stmt(stmt);
@@ -266,7 +397,7 @@ impl Gen<'_> {
                     self.fold_stmt(body);
                 }
             }
-            StmtKind::While { cond, body } | StmtKind::DoWhile { body, cond } => {
+            StmtKind::While { cond, body, .. } | StmtKind::DoWhile { body, cond, .. } => {
                 self.fold_in_place(cond);
                 if let Some(body) = body {
                     self.fold_stmt(body);
@@ -433,6 +564,12 @@ impl Gen<'_> {
         self.cg.start_method();
         self.frames.clear();
         self.enclosing.clear();
+        self.switches.clear();
+        self.labels = Rc::clone(&body.labels);
+        self.goto_labels = vec![None; body.labels.len()];
+        self.exc_table.clear();
+        self.local_cnt = body.local_cnt;
+        self.fin_ret_lcl = None;
         self.method_ofs = self.cg.ofs();
         let method_ofs = self.method_ofs;
         self.out
@@ -473,8 +610,8 @@ impl Gen<'_> {
         if self.errors == 0 {
             self.remove_jumps_to_jumps(code_start);
         }
-        self.cg.write2_at(method_ofs + 2, body.local_cnt as u16);
-        let stack = self.cg.max_sp_depth() as usize + body.local_cnt;
+        self.cg.write2_at(method_ofs + 2, self.local_cnt as u16);
+        let stack = self.cg.max_sp_depth() as usize + self.local_cnt;
         self.cg.write2_at(method_ofs + 4, stack as u16);
         let end = self.rel_ofs();
         let mut tab = body.lcltab;
@@ -483,7 +620,43 @@ impl Gen<'_> {
             tab = self.prog.tabs[id].parent;
         }
 
+        // The table of exception handlers, if the function has any.
+        if !self.exc_table.is_empty() {
+            self.cg.write2_at(method_ofs + 6, end as u16);
+            self.cg.write2(self.exc_table.len() as u16);
+            for entry in std::mem::take(&mut self.exc_table) {
+                self.cg.write2(entry.start_ofs as u16);
+                self.cg.write2(entry.end_ofs as u16);
+                self.cg.write4(entry.class);
+                self.cg.write2(entry.handler_ofs as u16);
+            }
+        }
+
         self.build_debug_table(method_ofs);
+
+        // Labels nothing jumps to. The reference goes through them in
+        // the order of its table, as it does with locals; but the table
+        // of labels is made the size of the table of global names.
+        let bucket = |label: &&LabelSym| {
+            label
+                .name
+                .iter()
+                .map(|&byte| usize::from(byte))
+                .sum::<usize>()
+                % LABEL_HASH_SIZE
+        };
+        let mut labels: Vec<&LabelSym> = body.labels.iter().rev().collect();
+        labels.sort_by_key(bucket);
+        for label in labels {
+            if label.flags.get() & (flow::GOTO | flow::BREAK | flow::CONT) == 0 {
+                self.out.diagnostics.push(GenDiagnostic {
+                    file: label.file,
+                    line: label.line,
+                    severity: Severity::Warning,
+                    message: format!("label \"{}\" is not referenced", show_name(&label.name)),
+                });
+            }
+        }
         let len = self.cg.ofs() - method_ofs;
         self.out.max_bytecode_len = self.out.max_bytecode_len.max(len);
     }
@@ -787,9 +960,29 @@ impl Gen<'_> {
     // ---- statements ----
 
     fn gen_substm(&mut self, sub: &Stmt, outer: &Stmt) {
+        self.gen_substm_at(sub, outer.file, outer.line);
+    }
+
+    /// Generate a statement that is part of another, which is at the
+    /// given place in the source.
+    fn gen_substm_at(&mut self, sub: &Stmt, file: usize, line: u32) {
         self.set_line(sub);
         self.gen_stmt(sub);
-        self.set_line(outer);
+        self.cur_file = file;
+        self.cur_line = line;
+    }
+
+    /// How control can leave a statement, as far as can be told now
+    /// that constants are known.
+    fn flow_of(&self, stmt: &Stmt) -> u32 {
+        Flow {
+            warn: false,
+            syntax_only: false,
+            labels: &self.labels,
+            mark: &self.last_labels,
+            warnings: Vec::new(),
+        }
+        .control_flow(stmt)
     }
 
     fn gen_stmt(&mut self, stmt: &Stmt) {
@@ -819,6 +1012,7 @@ impl Gen<'_> {
                 reinit,
                 body,
                 symtab,
+                id,
             } => {
                 let old_frame = self.set_local_frame(*symtab);
                 if let Some(init) = init {
@@ -827,7 +1021,8 @@ impl Gen<'_> {
                 let top_lbl = self.cg.new_label_here();
                 let cont_lbl = self.cg.new_label();
                 let end_lbl = self.cg.new_label();
-                self.enclosing.push(Enclosing {
+                self.enclosing.push(Enclosing::Loop {
+                    id: *id,
                     break_lbl: end_lbl,
                     cont_lbl,
                 });
@@ -846,10 +1041,11 @@ impl Gen<'_> {
                 self.enclosing.pop();
                 self.set_local_frame(old_frame);
             }
-            StmtKind::While { cond, body } => {
+            StmtKind::While { cond, body, id } => {
                 let top_lbl = self.cg.new_label_here();
                 let end_lbl = self.cg.new_label();
-                self.enclosing.push(Enclosing {
+                self.enclosing.push(Enclosing::Loop {
+                    id: *id,
                     break_lbl: end_lbl,
                     cont_lbl: top_lbl,
                 });
@@ -861,11 +1057,12 @@ impl Gen<'_> {
                 self.cg.def_label(end_lbl);
                 self.enclosing.pop();
             }
-            StmtKind::DoWhile { body, cond } => {
+            StmtKind::DoWhile { body, cond, id } => {
                 let top_lbl = self.cg.new_label_here();
                 let end_lbl = self.cg.new_label();
                 let cont_lbl = self.cg.new_label();
-                self.enclosing.push(Enclosing {
+                self.enclosing.push(Enclosing::Loop {
+                    id: *id,
                     break_lbl: end_lbl,
                     cont_lbl,
                 });
@@ -879,22 +1076,125 @@ impl Gen<'_> {
             }
             StmtKind::Break(label) => self.gen_break_or_continue(label.as_deref(), true),
             StmtKind::Continue(label) => self.gen_break_or_continue(label.as_deref(), false),
+            StmtKind::Switch {
+                expr,
+                body,
+                case_cnt,
+                has_default,
+                id,
+            } => self.gen_switch(stmt, expr, body, *case_cnt, *has_default, *id),
+            StmtKind::Case { expr, stm } => {
+                let Some(slots) = self.switches.last_mut() else {
+                    self.error("case/default without switch or non-constant case expression");
+                    return;
+                };
+                let slot = slots.next_case;
+                slots.next_case += 7;
+                if let Some(value) = expr.as_const() {
+                    self.write_const_at(slot, value);
+                }
+                // The jump is measured from where it is written.
+                let jump = self.cg.ofs() - (slot + 5);
+                self.cg.write2_at(slot + 5, jump as u16);
+                self.cg.clear_peephole();
+                if let Some(stm) = stm {
+                    self.gen_substm(stm, stmt);
+                }
+            }
+            StmtKind::Default(stm) => {
+                let Some(slots) = self.switches.last() else {
+                    self.error("case/default without switch or non-constant case expression");
+                    return;
+                };
+                let slot = slots.default_slot;
+                let jump = self.cg.ofs() - slot;
+                self.cg.write2_at(slot, jump as u16);
+                self.cg.clear_peephole();
+                if let Some(stm) = stm {
+                    self.gen_substm(stm, stmt);
+                }
+            }
+            StmtKind::Label { label, stm, id } => {
+                // `continue` can name the label if what it is on is a
+                // loop, possibly under more labels.
+                let mut inner = stm.as_deref();
+                while let Some(Stmt {
+                    kind: StmtKind::Label { stm, .. },
+                    ..
+                }) = inner
+                {
+                    inner = stm.as_deref();
+                }
+                let labels_loop = matches!(
+                    inner.map(|stmt| &stmt.kind),
+                    Some(StmtKind::For { .. } | StmtKind::While { .. } | StmtKind::DoWhile { .. })
+                );
+                self.enclosing.push(Enclosing::Label {
+                    id: *id,
+                    label: *label,
+                    break_lbl: None,
+                    labels_loop,
+                });
+                // A label whose name was taken still gets a place, which
+                // nothing can jump to.
+                let goto_lbl = match label {
+                    Some(label) => self.goto_label(*label),
+                    None => self.cg.new_label(),
+                };
+                self.cg.def_label(goto_lbl);
+                if let Some(stm) = stm {
+                    self.gen_substm(stm, stmt);
+                }
+                if let Some(Enclosing::Label {
+                    break_lbl: Some(break_lbl),
+                    ..
+                }) = self.enclosing.pop()
+                {
+                    self.cg.def_label(break_lbl);
+                }
+            }
+            StmtKind::Goto(name) => self.gen_goto(name),
+            StmtKind::Try {
+                id,
+                body,
+                catches,
+                finally,
+            } => self.gen_try(stmt, *id, body.as_deref(), catches, finally.as_deref()),
+            StmtKind::Throw(expr) => {
+                self.gen_expr(expr, false, false);
+                self.cg.write_op(Op::Throw);
+                self.cg.note_pop();
+            }
+        }
+    }
+
+    fn find_label(&self, name: &[u8]) -> Option<usize> {
+        self.labels.iter().position(|label| label.name == name)
+    }
+
+    /// Where a label is, for jumping to.
+    fn goto_label(&mut self, label: usize) -> Label {
+        if let Some(found) = self.goto_labels[label] {
+            return found;
+        }
+        let made = self.cg.new_label();
+        self.goto_labels[label] = Some(made);
+        made
+    }
+
+    /// Call a `finally` block, as a jump to it that it comes back from.
+    fn gen_jsr_finally(&mut self, finally_lbl: Option<Label>) {
+        if let Some(label) = finally_lbl {
+            self.cg.write_jump(Op::LJsr, label);
+            // The jump pushes where to come back to, and the block pops
+            // it.
+            self.cg.note_push();
+            self.cg.note_pop();
         }
     }
 
     fn gen_break_or_continue(&mut self, label: Option<&[u8]>, is_break: bool) {
-        // With a label, the jump is to a labeled statement around this
-        // one, and there are none yet.
-        let target = match (label, self.enclosing.last()) {
-            (None, Some(enclosing)) => Some(if is_break {
-                enclosing.break_lbl
-            } else {
-                enclosing.cont_lbl
-            }),
-            _ => None,
-        };
-        if let Some(target) = target {
-            self.cg.write_jump(Op::Jmp, target);
+        if self.gen_jump_out(label, is_break) {
             return;
         }
         let message = match (label, is_break) {
@@ -910,6 +1210,299 @@ impl Gen<'_> {
             ),
         };
         self.error(message);
+    }
+
+    /// Generate a `break` or a `continue`: each statement around it,
+    /// from the nearest outward, either does the jump or does what
+    /// leaving it takes and passes the job on. Nothing may take it.
+    fn gen_jump_out(&mut self, label: Option<&[u8]>, is_break: bool) -> bool {
+        // The label named, and whether the function has it.
+        let named = label.map(|name| self.find_label(name));
+        for index in (0..self.enclosing.len()).rev() {
+            match self.enclosing[index] {
+                Enclosing::Loop {
+                    break_lbl,
+                    cont_lbl,
+                    ..
+                } => {
+                    if label.is_none() {
+                        let target = if is_break { break_lbl } else { cont_lbl };
+                        self.cg.write_jump(Op::Jmp, target);
+                        return true;
+                    }
+                }
+                Enclosing::Switch { break_lbl, .. } => {
+                    if is_break && label.is_none() {
+                        // With nowhere to go, the `break` cannot be
+                        // reached, and there is nothing to do.
+                        if let Some(target) = break_lbl {
+                            self.cg.write_jump(Op::Jmp, target);
+                        }
+                        return true;
+                    }
+                }
+                Enclosing::Label {
+                    id,
+                    label: own,
+                    break_lbl,
+                    labels_loop,
+                } => {
+                    // A statement whose label name was taken answers to
+                    // any name the function does not have.
+                    if named != Some(own) || self.labels.is_empty() {
+                        continue;
+                    }
+                    if is_break {
+                        let target = break_lbl.unwrap_or_else(|| self.cg.new_label());
+                        self.enclosing[index] = Enclosing::Label {
+                            id,
+                            label: own,
+                            break_lbl: Some(target),
+                            labels_loop,
+                        };
+                        self.cg.write_jump(Op::Jmp, target);
+                        return true;
+                    }
+                    // `continue` goes to the loop the label is on.
+                    if !labels_loop {
+                        return false;
+                    }
+                    let cont_lbl = self.enclosing[index..].iter().find_map(|enclosing| {
+                        if let Enclosing::Loop { cont_lbl, .. } = enclosing {
+                            Some(*cont_lbl)
+                        } else {
+                            None
+                        }
+                    });
+                    let Some(target) = cont_lbl else {
+                        return false;
+                    };
+                    self.cg.write_jump(Op::Jmp, target);
+                    return true;
+                }
+                Enclosing::Try { finally_lbl, .. } => self.gen_jsr_finally(finally_lbl),
+                Enclosing::Finally { .. } => {}
+            }
+        }
+        false
+    }
+
+    fn gen_switch(
+        &mut self,
+        stmt: &Stmt,
+        expr: &Expr,
+        body: &Stmt,
+        case_cnt: usize,
+        has_default: bool,
+        id: usize,
+    ) {
+        self.gen_expr(expr, false, false);
+        // If nothing after the switch can be reached, there is no end
+        // to jump to.
+        let end_lbl = (self.flow_of(stmt) & flow::NEXT != 0).then(|| self.cg.new_label());
+        self.enclosing.push(Enclosing::Switch {
+            id,
+            break_lbl: end_lbl,
+        });
+        self.cg.write_op(Op::Switch);
+        self.cg.note_pop();
+        // The table: for each case a value and a jump, filled in as the
+        // cases are come to, and then the jump for no match.
+        self.cg.write2(case_cnt as u16);
+        let next_case = self.cg.ofs();
+        for _ in 0..case_cnt * 7 {
+            self.cg.write(0);
+        }
+        let default_slot = self.cg.ofs();
+        match end_lbl {
+            Some(end_lbl) if !has_default => self.cg.write_label_ofs(end_lbl),
+            _ => self.cg.write2(0),
+        }
+        self.switches.push(SwitchSlots {
+            next_case,
+            default_slot,
+        });
+        self.gen_substm(body, stmt);
+        if let Some(end_lbl) = end_lbl {
+            self.cg.def_label(end_lbl);
+        }
+        self.switches.pop();
+        self.enclosing.pop();
+    }
+
+    /// Write a constant into the code as a kind and four bytes, at a
+    /// place already there.
+    fn write_const_at(&mut self, ofs: usize, value: &ConstVal) {
+        let (kind, bytes) = match &value.value {
+            Value::Nil => (datatype::NIL, 0),
+            Value::True => (datatype::TRUE, 0),
+            Value::Int(int) => (datatype::INT, *int as u32),
+            Value::SStr(text) => {
+                self.add_const_str(text, false, ofs + 1);
+                (datatype::SSTRING, 0)
+            }
+            Value::List(elements) => {
+                self.add_const_list(elements, false, ofs + 1);
+                (datatype::LIST, 0)
+            }
+            Value::FuncPtr(func) => {
+                self.add_fixup(false, ofs + 1, Target::Func(*func));
+                (datatype::FUNCPTR, 0)
+            }
+        };
+        if matches!(value.value, Value::Nil | Value::True) {
+            // The reference writes the kind and leaves the rest as its
+            // memory had it.
+            self.out.unspecified.push(ofs + 1);
+            self.out.unspecified.push(ofs + 3);
+        }
+        self.cg.code[ofs] = kind;
+        self.cg.write4_at(ofs + 1, bytes);
+    }
+
+    fn gen_goto(&mut self, name: &[u8]) {
+        let Some(label) = self.find_label(name) else {
+            self.error(format!(
+                "invalid \"goto\" - label \"{}\" is not defined in this function or method",
+                show_name(name)
+            ));
+            return;
+        };
+        // Leave each statement around the `goto`, from the nearest
+        // outward, until one that the label is inside as well.
+        let within = self.labels[label].within.clone();
+        let mut shared = None;
+        for index in (0..self.enclosing.len()).rev() {
+            let id = self.enclosing[index].id();
+            if let Some(found) = within.iter().position(|enclosure| enclosure.id == id) {
+                shared = Some(found);
+                break;
+            }
+            if let Enclosing::Try { finally_lbl, .. } = self.enclosing[index] {
+                self.gen_jsr_finally(finally_lbl);
+            }
+        }
+        // The jump goes into everything around the label from there
+        // inward, and a `finally` block has no way to be left after
+        // being entered like that.
+        let entered = match shared {
+            Some(found) => &within[found + 1..],
+            None => &within[..],
+        };
+        if entered.iter().any(|enclosure| enclosure.is_finally) {
+            self.error("'goto' cannot transfer control into a 'finally' block");
+        }
+        let target = self.goto_label(label);
+        self.cg.write_jump(Op::Jmp, target);
+    }
+
+    fn gen_try(
+        &mut self,
+        stmt: &Stmt,
+        id: usize,
+        body: Option<&Stmt>,
+        catches: &[Catch],
+        finally: Option<&Finally>,
+    ) {
+        let finally_lbl = finally.map(|_| self.cg.new_label());
+        self.enclosing.push(Enclosing::Try { id, finally_lbl });
+        let start_ofs = self.rel_ofs();
+        if let Some(body) = body {
+            self.gen_substm(body, stmt);
+        }
+        // If the `finally` block never finishes, nothing that calls it
+        // gets control back.
+        let finally_never_returns = finally.is_some_and(|finally| {
+            finally
+                .body
+                .as_deref()
+                .is_some_and(|body| self.flow_of(body) & flow::NEXT == 0)
+        });
+        self.gen_jsr_finally(finally_lbl);
+        let mut end_lbl = None;
+        if !finally_never_returns {
+            end_lbl = self.gen_jump_ahead(Op::Jmp);
+        }
+        // The protected code is everything up to the byte before here.
+        let end_ofs = self.rel_ofs() - 1;
+        for (index, catch) in catches.iter().enumerate() {
+            self.gen_catch(stmt, catch, start_ofs, end_ofs);
+            self.gen_jsr_finally(finally_lbl);
+            if !finally_never_returns && (finally.is_some() || index + 1 < catches.len()) {
+                match end_lbl {
+                    None => end_lbl = self.gen_jump_ahead(Op::Jmp),
+                    Some(end_lbl) => self.cg.write_jump(Op::Jmp, end_lbl),
+                }
+            }
+        }
+        // The `finally` block is not inside the `try` it belongs to: it
+        // is not called again as it is left.
+        self.enclosing.pop();
+        if let (Some(finally), Some(finally_lbl)) = (finally, finally_lbl) {
+            let end_ofs = self.rel_ofs() - 1;
+            self.enclosing.push(Enclosing::Finally { id: finally.id });
+            // First, what happens when an exception arrives: keep it,
+            // run the block, and throw it again.
+            self.exc_table.push(ExcEntry {
+                start_ofs,
+                end_ofs,
+                class: 0,
+                handler_ofs: self.rel_ofs(),
+            });
+            self.cg.clear_peephole();
+            self.cg.note_push();
+            self.gen_setlcl_stk(finally.exc_local, false);
+            self.gen_jsr_finally(Some(finally_lbl));
+            self.gen_getlcl(finally.exc_local, false);
+            self.cg.write_op(Op::Throw);
+            self.cg.note_pop();
+            // Then the block itself. It is entered with where to go
+            // back to on the stack.
+            self.cg.def_label(finally_lbl);
+            self.cg.note_push();
+            self.gen_setlcl_stk(finally.jsr_local, false);
+            if let Some(body) = &finally.body {
+                self.gen_substm_at(body, finally.file, finally.line);
+            }
+            self.cg.write_op(Op::LRet);
+            self.cg.write2(finally.jsr_local as u16);
+            self.enclosing.pop();
+        }
+        self.def_label_pos(end_lbl);
+    }
+
+    fn gen_catch(&mut self, stmt: &Stmt, catch: &Catch, start_ofs: usize, end_ofs: usize) {
+        let old_frame = self.set_local_frame(catch.symtab);
+        // The class of exception caught has to be an object, and there
+        // are no objects yet.
+        if self.prog.globals.contains_key(&catch.class) {
+            self.out.diagnostics.push(GenDiagnostic {
+                file: catch.file,
+                line: catch.line,
+                severity: Severity::Error,
+                message: format!(
+                    "exception class symbol \"{}\" in \"catch\" clause is not an object",
+                    show_name(&catch.class)
+                ),
+            });
+            self.errors += 1;
+        } else {
+            self.undefined(&catch.class);
+        }
+        self.exc_table.push(ExcEntry {
+            start_ofs,
+            end_ofs,
+            class: 0,
+            handler_ofs: self.rel_ofs(),
+        });
+        self.cg.clear_peephole();
+        // The exception is on the stack on arrival.
+        self.cg.note_push();
+        self.gen_setlcl_stk(self.prog.locals[catch.var].var_num, false);
+        if let Some(body) = &catch.body {
+            self.gen_substm(body, stmt);
+        }
+        self.set_local_frame(old_frame);
     }
 
     fn gen_if(
@@ -968,25 +1561,56 @@ impl Gen<'_> {
     }
 
     fn gen_return(&mut self, expr: Option<&Expr>) {
-        let Some(expr) = expr else {
-            self.cg.write_op(Op::RetNil);
-            return;
-        };
-        // Returning nil or true has an instruction of its own.
-        match expr.as_const().map(|value| &value.value) {
+        // Returning nil or true has an instruction of its own; any
+        // other value is worked out first.
+        let constant = expr.and_then(|expr| expr.as_const().map(|value| &value.value));
+        let need_gen = expr.is_some() && !matches!(constant, Some(Value::Nil | Value::True));
+        let mut val_on_stack = false;
+        if let (true, Some(expr)) = (need_gen, expr) {
+            let depth = self.cg.sp_depth();
+            self.gen_expr(expr, false, false);
+            val_on_stack = self.cg.sp_depth() > depth;
+        }
+
+        // Then the `finally` blocks around the statement run, with the
+        // value put aside in a local meanwhile.
+        if !self.enclosing.is_empty() {
+            let finally_lbls: Vec<Label> = self
+                .enclosing
+                .iter()
+                .rev()
+                .filter_map(|enclosing| match enclosing {
+                    Enclosing::Try { finally_lbl, .. } => *finally_lbl,
+                    _ => None,
+                })
+                .collect();
+            let saved = (val_on_stack && !finally_lbls.is_empty()).then(|| {
+                *self.fin_ret_lcl.get_or_insert_with(|| {
+                    self.local_cnt += 1;
+                    self.local_cnt - 1
+                })
+            });
+            if let Some(local) = saved {
+                self.gen_setlcl_stk(local, false);
+            }
+            for label in finally_lbls {
+                self.gen_jsr_finally(Some(label));
+            }
+            if let Some(local) = saved {
+                self.gen_getlcl(local, false);
+            }
+        }
+
+        match constant {
+            _ if expr.is_none() => self.cg.write_op(Op::RetNil),
             Some(Value::Nil) => self.cg.write_op(Op::RetNil),
             Some(Value::True) => self.cg.write_op(Op::RetTrue),
-            _ => {
-                let depth = self.cg.sp_depth();
-                self.gen_expr(expr, false, false);
-                if self.cg.sp_depth() > depth {
-                    self.cg.write_op(Op::RetVal);
-                    self.cg.note_pop();
-                } else {
-                    // The expression left nothing to return.
-                    self.cg.write_op(Op::RetNil);
-                }
+            _ if val_on_stack => {
+                self.cg.write_op(Op::RetVal);
+                self.cg.note_pop();
             }
+            // The expression left nothing to return.
+            _ => self.cg.write_op(Op::RetNil),
         }
     }
 

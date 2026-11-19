@@ -13,6 +13,7 @@ mod ast;
 mod codegen;
 mod compile;
 mod emit;
+mod flow;
 mod fold;
 mod image;
 mod lex;

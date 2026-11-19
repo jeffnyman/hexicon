@@ -686,3 +686,116 @@ fn source_files_are_utf8_unless_they_say_otherwise() {
     let image = compiled.image.expect("an image");
     assert_eq!(constants(&image)[..7], *"\u{5}\0caf\u{e9}".as_bytes());
 }
+
+#[test]
+fn a_switch_is_a_table_of_values_and_jumps() {
+    let compiled = compile_text(
+        "_main(args) { switch (args) { case 1: return 1; case 'a': return 2; } return 3; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    assert_eq!(
+        code(&image)[10..38],
+        [
+            0x7c, // the argument
+            0x90, 2, 0, // switch, two cases
+            7, 1, 0, 0, 0, 11, 0, // the integer 1: eleven bytes on
+            8, 0, 0, 0, 0, 6, 0, // a string: six bytes on
+            7, 0, // no match: past the end
+            0x02, 0x50, // return 1
+            0x03, 2, 0x50, // return 2
+            0x03, 3, 0x50, // return 3
+        ]
+    );
+}
+
+#[test]
+fn a_case_has_to_be_a_constant_and_nothing_is_generated_if_one_is_not() {
+    // The local that is never used would get a warning if the compiler
+    // went on to generate code.
+    assert_eq!(
+        compile_messages("_main(args) { local q; switch (args) { case args: ; } }\n"),
+        ["1: error: \"case\" expression has a non-constant value"]
+    );
+    assert_eq!(
+        compile_messages("_main(args) { case 1: ; default: ; }\n"),
+        [
+            "1: error: misplaced \"case\" keyword - not in a \"switch\" statement",
+            "1: error: misplaced \"default\" keyword - not in a \"switch\" statement",
+        ]
+    );
+}
+
+#[test]
+fn a_finally_block_is_called_from_every_way_out() {
+    let compiled = compile_text(
+        "_main(args) { top: while (args) { try { continue top; } finally { --args; } } }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // Two locals, though the source declares none: where the block goes
+    // back to, and the exception it holds while it runs.
+    assert_eq!(code[2..4], [2, 0]);
+    assert_eq!(
+        code[10..46],
+        [
+            0x7c, 0x93, 0x21, 0, // the loop's test
+            0x9c, 0x12, 0, // continue: call the block,
+            0x91, 0xf8, 0xff, // and go to the top
+            0x9c, 0x0c, 0, // the end of the protected code: call the block,
+            0x91, 0xf2, 0xff, // and go round again
+            0xe0, 1, // an exception arrives: keep it,
+            0x9c, 0x04, 0, // call the block,
+            0xab, 0xb8, // and throw it again
+            0xe0, 0, // the block: keep where to go back to
+            0x7c, 0x2f, 0xe2, 0, // --args
+            0x9d, 0, 0, // go back
+            0x91, 0xdf, 0xff, // the end of the loop's body
+            0x51,
+        ]
+    );
+    // The table of handlers: one, for everything in the protected code,
+    // whatever is thrown.
+    let table = usize::from(u16::from_le_bytes([code[6], code[7]]));
+    assert_eq!(
+        code[table..table + 12],
+        [1, 0, 14, 0, 25, 0, 0, 0, 0, 0, 26, 0]
+    );
+}
+
+#[test]
+fn labels_and_the_jumps_that_name_them() {
+    assert_eq!(
+        compile_messages(
+            "_main(args)\n{\na: args = 1;\na: args = 2;\nb: ;\n\
+             goto c;\nbreak d;\nwhile (args) continue e;\n}\n"
+        ),
+        ["4: error: code label \"a\" already defined in this function or method"]
+    );
+    assert_eq!(
+        compile_messages(
+            "_main(args)\n{\nused: args = 1;\nunused: args = 2;\n\
+             if (args) goto nowhere;\nif (args) break used;\n\
+             while (args) continue used;\ngoto used;\n}\n"
+        ),
+        [
+            "5: error: invalid \"goto\" - label \"nowhere\" is not defined in this function or method",
+            "6: error: invalid \"break\" - no label \"used\" on any enclosing statement",
+            "7: error: invalid \"continue\" - no label \"used\" on any enclosing loop",
+            "4: warning: label \"unused\" is not referenced",
+        ]
+    );
+    assert_eq!(
+        compile_messages("_main(args) { try { args = 1; } finally { in: args = 2; } goto in; }\n"),
+        ["1: error: 'goto' cannot transfer control into a 'finally' block"]
+    );
+}
