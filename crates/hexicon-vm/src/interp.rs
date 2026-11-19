@@ -210,6 +210,7 @@ impl Vm {
             // still part of the same instruction for error reporting.
             if argc_override.is_none() {
                 self.pc = pc as u32;
+                self.io.varargc = None;
                 if self.run_depth <= 1 {
                     self.objects.at_safe_point();
                 }
@@ -591,6 +592,7 @@ impl Vm {
                         return Err(VmError::new(code::INT_VAL_REQD));
                     };
                     argc_override = Some(count as u32);
+                    self.io.varargc = Some(count);
                     continue;
                 }
 

@@ -75,11 +75,16 @@ hexicon/
     hexicon-vm/           values, object table, interpreter, metaclasses, GC, undo, save/restore
     hexicon-host/         the host interface trait and shared host types
     hexicon-cli/          native terminal runner: `hexicon run`, `hexicon dump`, `hexicon disasm`
-    hexicon-wasm/         wasm-bindgen bindings for browsers (not started)
+    hexicon-wasm/         the VM as a WebAssembly module that a page's JavaScript runs
   tools/
     reference/            builds the reference toolchain and runs its test suite
     conformance/          runs the suite's programs under Hexicon and the reference, and compares
-  web/                    minimal browser front end used for testing the WASM build
+    build-web.sh          builds the WebAssembly module and its JavaScript into web/pkg
+    build-web.ps1         the same, for PowerShell
+    web-serve.js          serves the repository on this machine, for opening the page
+    web-play.js           plays a game through the WebAssembly module under Node
+    web-check.js          plays a game on the page in a browser with no window
+  web/                    a page that plays a game: index.html, main.js, style.css
   docs/
 ```
 
@@ -194,6 +199,18 @@ Findings from milestone 3:
 - Milestone 4: done (2026-11-18), apart from the piece noted here. Undo; garbage collection, with finalizers and weak references; saving, restoring, and restarting; and the parser classes StringComparator, Dictionary, and GrammarProduction. 108 of the suite's 132 runnable programs match the reference. `GrammarProd.addAlt` compiles a grammar rule from text, so it waits for the dynamic compiler, with DynamicFunc. The milestone's test of playing an adv3 game to completion waits for input, which is in milestone 5.
 
 - Milestone 5: done (2026-11-19), apart from banners and paging. Console input; the File, FileName, and TemporaryFile classes; and the Date and TimeZone classes. Lines, keys, and events come from the host or from an input script; transcripts, command logs, event logs, and log consoles are written; the status line and the screen-clearing, pausing, and delay functions go to the host; and `getTime` reads the host's clock. Files are read and written as text, as tagged data, and as raw bytes; file names are taken apart, combined, and used to list, create, rename, and delete files and directories; and the file safety levels confine all of it to a sandbox folder. Dates are parsed from text in about fifty formats, written by format strings, compared, and added to, in any time zone of the zoneinfo database or one described by an offset or a POSIX-style string. 122 of the suite's 132 runnable programs match the reference; the ten that do not all need the dynamic compiler. The adv3 sample game plays through a script of about a hundred commands with the same output as under the reference, including undo, saving, restoring, restarting, and a transcript, and each VM restores the other's saved game. There are no banner windows, which a program learns from `bannerCreate`, and long output is not paused a screenful at a time.
+
+- Milestone 6: in progress (2026-11-19). Done: the interpreter stops and resumes around input, the VM builds as a WebAssembly module, and a page plays a game with it. The sample game gives the same 688 lines through the WebAssembly module as through the command-line program, for a session with saving, restoring, undo, and restarting; and the page, driven in Chrome with no window, plays the game, takes commands, and keeps a saved game in the browser's storage. Still to do: try the page by hand and in other browsers, show the status line and paging properly, and decide where the page and its build are published.
+
+Findings from milestone 6 so far:
+
+- Input in milestone 5 was written to block, which a browser cannot do, so it was reworked to the plan's design. The host answers a read with text, the end of input, or "not yet". On "not yet" the VM leaves the instruction that asked unfinished and returns to the host with its frames in place; `Vm::resume` runs the same instruction again. `Vm::run` remains for a host that can wait. A pause works the same way: the host says the time has not passed, and wakes the VM when it has.
+- Running an instruction again is only right if everything it did before asking does nothing the second time. Flushing output and finishing off an input script are like that already. A prompt is not, so a dialog, a file prompt, and the More prompt each remember that the question has been asked. An argument count from a `varargc` prefix, and a function pointer that a call took off the stack, are put back.
+- A program can only stop between its own instructions. Input asked for from inside a call the VM is making on the program's behalf, such as a sort's comparison function, is refused on a host that cannot wait. The adv3 library never does that in the sample game: a run with a stop and a resume at every read gives the same output as one that blocks. `HEXICON_TEST_SUSPEND=1` makes the command-line program run that way.
+- One case is cut short on a host that cannot wait: when an event script supplies a file name that needs the player's confirmation, the script is stopped instead of the player being asked.
+- The browser's files are kept in memory by the module and stored by the page in the browser's local storage, under the game's file name. There are no folders. The page passes the browser's time zone name to the module, and the clock is the browser's.
+- The module is built with `wasm-bindgen`, whose crate and command-line tool have to be the same version, so the crate's version is pinned. Its generated bindings are unsafe code, so `hexicon-wasm` is the one crate that does not forbid it; it has none of its own.
+- The page shows the game's text as the console formats it: plain text in lines of at most 80 columns. A narrow window scrolls sideways. Making the width the page's own is part of the display work that banners and the status line also wait for.
 
 Findings from milestone 5:
 

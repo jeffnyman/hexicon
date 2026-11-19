@@ -12,7 +12,7 @@ use crate::meta::{MetaKind, MetaTable};
 use crate::object::{IntrinsicClass, Object, ObjectTable};
 use crate::tads::TadsObject;
 use crate::value::{INVALID_PROP, ObjId, PropId, Value};
-use crate::vm::{Layout, MethodContext, NativeCall, Predef, Return, STACK_LIMIT, Vm};
+use crate::vm::{Layout, MethodContext, NativeCall, Predef, Return, RunState, STACK_LIMIT, Vm};
 
 /// Width of the console in columns. The reference VM's plain console is
 /// 80 columns wide.
@@ -468,9 +468,23 @@ impl Vm {
         }
     }
 
-    /// Run the program: its static initializers, if it still has any, and
-    /// then its entry point, with `args` as the program's arguments.
+    /// Run the program to its end. The program sees `args` as the
+    /// arguments of its main function.
+    ///
+    /// This is for a host that can wait for the player. With one that
+    /// cannot, use [`Vm::start`] and [`Vm::resume`].
     pub fn run(&mut self, args: &[String]) -> VmResult<()> {
+        let mut state = self.start(args)?;
+        while state == RunState::Suspended {
+            state = self.resume()?;
+        }
+        Ok(())
+    }
+
+    /// Start the program, and run it until it ends or has to wait for
+    /// the host. The program sees `args` as the arguments of its main
+    /// function.
+    pub fn start(&mut self, args: &[String]) -> VmResult<RunState> {
         self.build_symbol_tables();
         self.run_static_initializers()?;
 
@@ -493,7 +507,28 @@ impl Vm {
             0,
             Some(Box::new(NativeCall::named("Main entrypoint"))),
         )?;
-        self.run_from(pc)
+        let base_depth = self.frames.len() - 1;
+        self.io.resumable = true;
+        self.drive(pc, base_depth)
+    }
+
+    /// Carry on with a program that stopped to wait for the host, until
+    /// it ends or has to wait again.
+    pub fn resume(&mut self) -> VmResult<RunState> {
+        match self.io.suspended.take() {
+            Some((pc, base_depth)) => self.drive(pc, base_depth),
+            None => Ok(RunState::Finished),
+        }
+    }
+
+    fn drive(&mut self, pc: u32, base_depth: usize) -> VmResult<RunState> {
+        match self.run_at(pc, base_depth) {
+            Err(VmError::Suspend) => Ok(RunState::Suspended),
+            result => {
+                self.io.resumable = false;
+                result.map(|()| RunState::Finished)
+            }
+        }
     }
 
     /// Run the initializers of `static` properties. An image that has been
@@ -541,6 +576,7 @@ impl Vm {
                 None => "unhandled exception".to_owned(),
             },
             VmError::Runtime(error) => format!("VM Error: {error}"),
+            VmError::Suspend => "the program is waiting for input".to_owned(),
             VmError::Unimplemented(what) => format!("not implemented in Hexicon: {what}"),
         }
     }

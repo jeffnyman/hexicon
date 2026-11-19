@@ -6,6 +6,7 @@ members = [
     "crates/hexicon-host",
     "crates/hexicon-vm",
     "crates/hexicon-cli",
+    "crates/hexicon-wasm",
 ]
 
 [workspace.package]

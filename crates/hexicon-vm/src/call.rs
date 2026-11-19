@@ -210,7 +210,13 @@ impl Vm {
             },
             Value::FuncPtr(func) => self.invoke_code(func, argc, context, ret, return_pc, native),
             Value::BifPtr { set, index } => {
-                self.call_bif(set, index, argc)?;
+                let result = self.call_bif(set, index, argc);
+                // An instruction that is to run again needs the function
+                // pointer it took off the stack.
+                if matches!(result, Err(VmError::Suspend)) {
+                    self.push(function);
+                }
+                result?;
                 Ok(return_pc)
             }
             _ => Err(VmError::new(code::FUNCPTR_VAL_REQD)),
@@ -700,15 +706,21 @@ impl Vm {
     /// the handlers of the functions this loop is running. One that none
     /// of them catches is returned to the caller.
     pub(crate) fn run_from(&mut self, start_pc: u32) -> VmResult<()> {
+        let base_depth = self.frames.len() - 1;
+        self.run_at(start_pc, base_depth)
+    }
+
+    /// Run from an address until the function `base_depth` frames up
+    /// returns.
+    pub(crate) fn run_at(&mut self, start_pc: u32, base_depth: usize) -> VmResult<()> {
         self.run_depth += 1;
-        let result = self.run_nested(start_pc);
+        let result = self.run_nested(start_pc, base_depth);
         self.run_depth -= 1;
         result
     }
 
-    fn run_nested(&mut self, start_pc: u32) -> VmResult<()> {
+    fn run_nested(&mut self, start_pc: u32, base_depth: usize) -> VmResult<()> {
         let saved_pc = self.pc;
-        let base_depth = self.frames.len() - 1;
         let mut pc = start_pc;
         let result = loop {
             let error = match self.execute(pc) {
@@ -721,6 +733,16 @@ impl Vm {
                     Ok(exception) => exception,
                     Err(error) => break Err(error),
                 },
+                VmError::Suspend => {
+                    // The program stops here, with its frames in place,
+                    // to run the same instruction again when it resumes.
+                    if let Some(count) = self.io.varargc.take() {
+                        self.push(Value::Int(count));
+                    }
+                    self.io.suspended = Some((self.pc, base_depth));
+                    self.pc = saved_pc;
+                    return Err(VmError::Suspend);
+                }
                 fatal => break Err(fatal),
             };
             match self.unwind(exception) {

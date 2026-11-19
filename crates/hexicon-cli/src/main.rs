@@ -9,7 +9,7 @@ use std::process::ExitCode;
 
 use hexicon_bytecode::listing::{Names, write_function};
 use hexicon_bytecode::{Extent, discover};
-use hexicon_host::{FileError, FileInfo, Host, Sandbox, file_attr, file_type};
+use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, file_attr, file_type};
 use hexicon_image::{Image, Pool, Value};
 use hexicon_vm::Vm;
 
@@ -138,6 +138,9 @@ struct Console {
     sandbox: PathBuf,
     /// How many temporary file names have been handed out.
     temp_count: u32,
+    /// Make the program stop and resume at every read, to test that.
+    stall: bool,
+    stalled: bool,
 }
 
 impl Console {
@@ -378,27 +381,37 @@ impl Host for Console {
             .map_err(file_error)
     }
 
-    fn read_line(&mut self) -> Option<String> {
+    fn read_line(&mut self) -> Input {
+        // For testing the VM's ability to stop and resume: have nothing
+        // ready the first time each line is asked for.
+        if self.stall {
+            self.stalled = !self.stalled;
+            if self.stalled {
+                return Input::Pending;
+            }
+        }
         let _ = std::io::stdout().flush();
         let mut line = String::new();
         match std::io::stdin().read_line(&mut line) {
-            Ok(0) | Err(_) => None,
+            Ok(0) | Err(_) => Input::End,
             Ok(_) => {
                 let len = line.trim_end_matches(['\r', '\n']).len();
                 line.truncate(len);
-                Some(line)
+                Input::Text(line)
             }
         }
     }
 
     // Standard input delivers whole lines, so a key is the first character
     // of a line, and an empty line is the Enter key.
-    fn read_key(&mut self) -> Option<String> {
-        let line = self.read_line()?;
-        Some(match line.chars().next() {
-            Some(key) => key.to_string(),
-            None => "\n".to_owned(),
-        })
+    fn read_key(&mut self) -> Input {
+        match self.read_line() {
+            Input::Text(line) => Input::Text(match line.chars().next() {
+                Some(key) => key.to_string(),
+                None => "\n".to_owned(),
+            }),
+            other => other,
+        }
     }
 
     // A form feed, which is all a stream of text can do, and what the
@@ -455,9 +468,10 @@ impl Host for Console {
         }
     }
 
-    fn sleep(&mut self, milliseconds: u32) {
+    fn sleep(&mut self, milliseconds: u32) -> bool {
         let _ = std::io::stdout().flush();
         std::thread::sleep(std::time::Duration::from_millis(milliseconds.into()));
+        true
     }
 }
 
@@ -494,6 +508,8 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
             .map_or_else(|| file_base.clone(), PathBuf::from),
         file_base,
         temp_count: 0,
+        stall: std::env::var_os("HEXICON_TEST_SUSPEND").is_some(),
+        stalled: false,
     };
     let mut vm = match Vm::new(&image, Box::new(console)) {
         Ok(vm) => vm,

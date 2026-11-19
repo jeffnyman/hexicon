@@ -320,6 +320,17 @@ pub(crate) const STACK_RESERVE: usize = 64;
 /// Hexicon keeps elsewhere. They still count against the limit.
 pub(crate) const FRAME_OVERHEAD: usize = 11;
 
+/// Where a program stands after it has run for a while.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunState {
+    /// The program has ended.
+    Finished,
+    /// The program is waiting for something the host did not have yet:
+    /// a line of input, a key, or the end of a pause. The host calls
+    /// [`Vm::resume`] when it has it.
+    Suspended,
+}
+
 /// A T3 virtual machine with a program loaded.
 pub struct Vm {
     /// The code pool, as one contiguous array.

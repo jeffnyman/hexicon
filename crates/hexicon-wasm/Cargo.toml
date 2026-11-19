@@ -1,0 +1,28 @@
+[package]
+name = "hexicon-wasm"
+description = "Hexicon for web browsers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+hexicon-host = { path = "../hexicon-host" }
+hexicon-image = { path = "../hexicon-image" }
+hexicon-vm = { path = "../hexicon-vm" }
+js-sys = "=0.3.104"
+# The version has to be the same as the wasm-bindgen command-line tool that
+# tools/build-web.sh runs.
+wasm-bindgen = "=0.2.127"
+
+# The workspace forbids unsafe code. The bindings that `wasm-bindgen`
+# generates for the boundary with JavaScript are unsafe by nature, so this
+# one crate only warns about it, and has none of its own.
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

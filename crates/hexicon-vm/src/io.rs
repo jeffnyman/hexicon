@@ -5,6 +5,8 @@
 //!
 //! The functions here are the `tads-io` function set apart from `tadsSay`.
 
+use hexicon_host::Input;
+
 use crate::console::{Formatter, Newline};
 use crate::error::{VmError, VmResult, code};
 use crate::file::Access;
@@ -292,6 +294,18 @@ pub(crate) struct IoState {
     pub(crate) zones: crate::tz::ZoneCache,
     /// The day and time a state being saved is taken to be saved at.
     pub(crate) save_time: (i32, i32),
+    /// The program can stop to wait for input and be resumed: it is
+    /// running from its entry point, not from a call the VM made.
+    pub(crate) resumable: bool,
+    /// Where a program that stopped to wait is to resume: the address of
+    /// the instruction to run again, and how many frames lie under it.
+    pub(crate) suspended: Option<(u32, usize)>,
+    /// The argument count that a prefix supplied to the instruction now
+    /// running, which has to be put back if the instruction runs again.
+    pub(crate) varargc: Option<i32>,
+    /// A prompt has been shown for input that has not arrived yet, so it
+    /// is not to be shown again when the read is tried again.
+    prompt_shown: bool,
 }
 
 impl Default for IoState {
@@ -314,6 +328,10 @@ impl Default for IoState {
             resources: crate::file::Resources::new(),
             zones: crate::tz::ZoneCache::default(),
             save_time: (0, 0),
+            resumable: false,
+            suspended: None,
+            varargc: None,
+            prompt_shown: false,
         }
     }
 }
@@ -516,7 +534,11 @@ impl Vm {
     /// Read a line of input: the kind of event that ended the read, and
     /// the text. The host cannot interrupt a read, so one with a timeout
     /// reports that timeouts are not available.
-    fn read_line_timeout(&mut self, timeout: Option<i32>, bypass_script: bool) -> (i32, Vec<u8>) {
+    fn read_line_timeout(
+        &mut self,
+        timeout: Option<i32>,
+        bypass_script: bool,
+    ) -> VmResult<(i32, Vec<u8>)> {
         let mut event = 0;
         let mut from_script = false;
         let mut echo = false;
@@ -548,28 +570,35 @@ impl Vm {
                 }
                 self.note_input_line();
                 self.log_event(event_tag(EVT_END_QUIET_SCRIPT).as_bytes(), None);
-                return (EVT_END_QUIET_SCRIPT, Vec::new());
+                return Ok((EVT_END_QUIET_SCRIPT, Vec::new()));
             }
             if enclosing.is_none() {
                 break;
             }
         }
-        self.io.read_in_progress = true;
         if !from_script {
             if timeout.is_some() {
                 event = EVT_NOTIMEOUT;
-            } else if let Some(line) = self.host.read_line() {
-                self.io.read_buf = line.into_bytes();
-                event = EVT_LINE;
-                self.note_input_line();
             } else {
-                event = EVT_EOF;
+                // Everything up to here does nothing more if it is done
+                // again, so the read can be tried again from the top
+                // when the host has no input yet.
+                match self.host.read_line() {
+                    Input::Text(line) => {
+                        self.io.read_buf = line.into_bytes();
+                        event = EVT_LINE;
+                        self.note_input_line();
+                    }
+                    Input::End => event = EVT_EOF,
+                    Input::Pending => return Err(self.suspend()),
+                }
             }
         }
+        self.io.read_in_progress = true;
         if event == EVT_EOF {
             self.read_line_done();
             self.log_event(event_tag(event).as_bytes(), None);
-            return (event, Vec::new());
+            return Ok((event, Vec::new()));
         }
         let mut line = self.io.read_buf.clone();
         truncate(&mut line, LINE_MAX - 1);
@@ -582,19 +611,32 @@ impl Vm {
         }
         let logged = self.io.read_buf.clone();
         self.log_event(event_tag(event).as_bytes(), Some(&logged));
-        (event, line)
+        Ok((event, line))
+    }
+
+    /// The error that stops the program until the host has input. A
+    /// program can only stop between its own instructions, so not in the
+    /// middle of a call the VM is making on its behalf.
+    fn suspend(&self) -> VmError {
+        if self.io.resumable && self.run_depth <= 1 {
+            VmError::Suspend
+        } else {
+            VmError::unimplemented(
+                "waiting for input inside a callback, on a host that cannot wait",
+            )
+        }
     }
 
     /// Read a line of input, or `None` at the end of input. With
     /// `bypass_script`, the player is asked even if a script is being
     /// read.
-    fn read_line(&mut self, bypass_script: bool) -> Option<Vec<u8>> {
+    fn read_line(&mut self, bypass_script: bool) -> VmResult<Option<Vec<u8>>> {
         self.read_line_done();
         loop {
-            match self.read_line_timeout(None, bypass_script) {
-                (EVT_LINE, line) => return Some(line),
+            match self.read_line_timeout(None, bypass_script)? {
+                (EVT_LINE, line) => return Ok(Some(line)),
                 (EVT_END_QUIET_SCRIPT, _) => {}
-                _ => return None,
+                _ => return Ok(None),
             }
         }
     }
@@ -629,11 +671,14 @@ impl Vm {
     }
 
     /// Read a key from the player, as its T3 name.
-    fn read_key(&mut self) -> Option<Vec<u8>> {
-        let key = self.host.read_key()?;
-        Some(match key.as_str() {
-            "\r" | "\r\n" => b"\n".to_vec(),
-            _ => key.into_bytes(),
+    fn read_key(&mut self) -> VmResult<Option<Vec<u8>>> {
+        Ok(match self.host.read_key() {
+            Input::Text(key) => Some(match key.as_str() {
+                "\r" | "\r\n" => b"\n".to_vec(),
+                _ => key.into_bytes(),
+            }),
+            Input::End => None,
+            Input::Pending => return Err(self.suspend()),
         })
     }
 
@@ -658,9 +703,14 @@ impl Vm {
     /// text: the number of the button chosen, counting from one, or zero
     /// at the end of input. The answer is a line of input, which a script
     /// can supply.
-    fn text_dialog(&mut self, prompt: &str, buttons: &[String], bypass_script: bool) -> i32 {
+    fn text_dialog(
+        &mut self,
+        prompt: &str,
+        buttons: &[String],
+        bypass_script: bool,
+    ) -> VmResult<i32> {
         if buttons.is_empty() {
-            return 0;
+            return Ok(0);
         }
         // In a label, `&` marks the letter that chooses the button.
         let shortcut = |label: &str| {
@@ -684,11 +734,17 @@ impl Vm {
                 }
             }
             text.push_str("<font face='TADS-Input'> >");
-            self.print(text.as_bytes());
-            let line = self.read_line(bypass_script);
+            // The question is asked once, however many times the answer
+            // is waited for.
+            if !self.io.prompt_shown {
+                self.print(text.as_bytes());
+                self.io.prompt_shown = true;
+            }
+            let line = self.read_line(bypass_script)?;
+            self.io.prompt_shown = false;
             self.print(b"</font>");
             let Some(line) = line else {
-                return 0;
+                return Ok(0);
             };
             let line = String::from_utf8_lossy(&line).into_owned();
             let response = line.trim_start();
@@ -698,7 +754,7 @@ impl Vm {
                     .iter()
                     .position(|label| shortcut(label).is_some_and(|key| same(key, letter)));
                 if let Some(index) = chosen {
-                    return index as i32 + 1;
+                    return Ok(index as i32 + 1);
                 }
             }
             // Otherwise the response has to be the start of one label.
@@ -711,7 +767,7 @@ impl Vm {
                 })
                 .collect();
             if let [index] = matches.as_slice() {
-                return *index as i32 + 1;
+                return Ok(*index as i32 + 1);
             }
         }
     }
@@ -828,19 +884,23 @@ impl Vm {
                 Self::check_argc(argc, 0)?;
                 if self.io.scripts.is_empty() {
                     self.flush_console(Newline::None);
-                    self.host.print("[More]");
-                    while let Some(key) = self.read_key() {
+                    if !self.io.prompt_shown {
+                        self.host.print("[More]");
+                        self.io.prompt_shown = true;
+                    }
+                    while let Some(key) = self.read_key()? {
                         if matches!(key.as_slice(), b" " | b"\n") {
                             break;
                         }
                     }
+                    self.io.prompt_shown = false;
                     self.host.print("\r      \r");
                 }
             }
             // inputLine()
             4 => {
                 Self::check_argc(argc, 0)?;
-                self.r0 = match self.read_line(false) {
+                self.r0 = match self.read_line(false)? {
                     Some(line) => self.new_string(line),
                     None => Value::Nil,
                 };
@@ -852,7 +912,7 @@ impl Vm {
                     Some((_, key, _)) => key,
                     None => {
                         self.flush_console(Newline::Input);
-                        self.read_key().unwrap_or_else(|| b"[eof]".to_vec())
+                        self.read_key()?.unwrap_or_else(|| b"[eof]".to_vec())
                     }
                 };
                 self.r0 = self.new_string(key.clone());
@@ -877,7 +937,7 @@ impl Vm {
                         if timeout.is_some() {
                             (EVT_NOTIMEOUT, Vec::new())
                         } else {
-                            match self.read_key() {
+                            match self.read_key()? {
                                 Some(key) => (EVT_KEY, key),
                                 None => (EVT_EOF, Vec::new()),
                             }
@@ -922,7 +982,7 @@ impl Vm {
                     }
                     None => {
                         self.flush_console(Newline::Input);
-                        let response = self.text_dialog(&prompt, &buttons, false);
+                        let response = self.text_dialog(&prompt, &buttons, false)?;
                         self.log_event(b"dialog", Some(response.to_string().as_bytes()));
                         response
                     }
@@ -944,7 +1004,9 @@ impl Vm {
                 Self::check_argc(argc, 1)?;
                 let delay = self.cast_to_int(self.arg(0))?;
                 self.flush_console(Newline::None);
-                self.host.sleep(delay.max(0) as u32);
+                if !self.host.sleep(delay.max(0) as u32) {
+                    return Err(self.suspend());
+                }
             }
             // systemInfo(which, ...)
             10 => {
@@ -1055,7 +1117,7 @@ impl Vm {
             17 => {
                 Self::check_argc_range(argc, 0, 1)?;
                 let timeout = self.timeout_arg(argc)?;
-                let (event, line) = self.read_line_timeout(timeout, false);
+                let (event, line) = self.read_line_timeout(timeout, false)?;
                 let has_text = matches!(event, EVT_LINE | EVT_TIMEOUT);
                 let list = self.event_list(event, if has_text { 2 } else { 1 });
                 if has_text {
@@ -1238,10 +1300,25 @@ impl Vm {
                 let buttons = ["&Yes", "&No", "&Cancel"].map(str::to_owned);
                 loop {
                     self.flush_console(Newline::Input);
-                    match self.text_dialog(&question, &buttons, true) {
+                    // A host that cannot wait for an answer here gets
+                    // the cautious one: the script stops.
+                    let answer = match self.text_dialog(&question, &buttons, true) {
+                        Ok(answer) => answer,
+                        Err(_) => {
+                            self.io.prompt_shown = false;
+                            3
+                        }
+                    };
+                    match answer {
                         1 => break,
                         2 => {
-                            let (asked, chosen) = self.ask_file(prompt, true);
+                            let (asked, chosen) = match self.ask_file(prompt, true) {
+                                Ok(found) => found,
+                                Err(_) => {
+                                    self.io.prompt_shown = false;
+                                    (FAILURE, String::new())
+                                }
+                            };
                             if asked == CANCEL {
                                 continue;
                             }
@@ -1264,7 +1341,7 @@ impl Vm {
                 }
             }
         } else {
-            (result, name) = self.ask_file(prompt, false);
+            (result, name) = self.ask_file(prompt, false)?;
             from_ui = true;
         }
         let list = self.event_list(result, if result == SUCCESS { 4 } else { 1 });
@@ -1294,14 +1371,19 @@ impl Vm {
     /// Ask for a file name on a console that has only text: a result
     /// code and the name. The answer is a line of input, so a command
     /// script supplies it like any other line. An empty answer cancels.
-    fn ask_file(&mut self, prompt: &str, bypass_script: bool) -> (i32, String) {
-        self.print(prompt.as_bytes());
-        self.print(b" >");
-        match self.read_line(bypass_script) {
+    fn ask_file(&mut self, prompt: &str, bypass_script: bool) -> VmResult<(i32, String)> {
+        if !self.io.prompt_shown {
+            self.print(prompt.as_bytes());
+            self.print(b" >");
+            self.io.prompt_shown = true;
+        }
+        let line = self.read_line(bypass_script)?;
+        self.io.prompt_shown = false;
+        Ok(match line {
             None => (1, String::new()),
             Some(line) if line.is_empty() => (2, String::new()),
             Some(line) => (0, String::from_utf8_lossy(&line).into_owned()),
-        }
+        })
     }
 
     /// The optional timeout argument of an input function: none given, or

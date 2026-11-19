@@ -2134,3 +2134,56 @@ fn dates_do_arithmetic() {
     );
     assert!(vm.compare(date, Value::Int(1)).is_err());
 }
+
+// ---- stopping to wait for the host ----
+
+#[test]
+fn input_that_is_not_ready_stops_the_program() {
+    let (mut vm, host) = vm_with_host();
+    host.set_interactive(true);
+    vm.print(b"> ");
+    // A read made by the VM itself, not by a running program, has no
+    // instruction to come back to, so it cannot wait.
+    let error = vm.bif_io(INPUT_LINE, 0).expect_err("nothing to read yet");
+    assert!(matches!(error, VmError::Unimplemented(_)));
+
+    // A running program stops, and is asked again when it resumes.
+    vm.io.resumable = true;
+    vm.run_depth = 1;
+    let error = vm.bif_io(INPUT_LINE, 0).expect_err("nothing to read yet");
+    assert_eq!(error, VmError::Suspend);
+    assert_eq!(host.output(), "> ", "the prompt is shown while it waits");
+    host.push_input("north");
+    assert!(vm.bif_io(INPUT_LINE, 0).expect("reads"));
+    assert_eq!(text_of(&vm, vm.r0), "north");
+    assert_eq!(host.output(), "> ", "and is not shown again");
+}
+
+#[test]
+fn a_dialog_asks_its_question_once_however_long_the_answer_takes() {
+    const INPUT_DIALOG: u16 = 7;
+    let (mut vm, host) = vm_with_host();
+    host.set_interactive(true);
+    vm.io.resumable = true;
+    vm.run_depth = 1;
+    let prompt = vm.new_str("Proceed?");
+    // inputDialog(icon, prompt, buttons, default, cancel), with the
+    // standard Yes and No buttons.
+    let args = [Value::Int(0), prompt, Value::Int(3), Value::Nil, Value::Nil];
+    let ask = |vm: &mut Vm| {
+        for &arg in args.iter().rev() {
+            vm.push(arg);
+        }
+        let result = vm.bif_io(INPUT_DIALOG, args.len() as u32);
+        for _ in &args {
+            vm.pop();
+        }
+        result
+    };
+    assert_eq!(ask(&mut vm).expect_err("no answer yet"), VmError::Suspend);
+    assert_eq!(ask(&mut vm).expect_err("no answer yet"), VmError::Suspend);
+    host.push_input("n");
+    assert!(ask(&mut vm).expect("answered"));
+    assert_eq!(vm.r0, Value::Int(2));
+    assert_eq!(host.output().matches("Proceed?").count(), 1);
+}

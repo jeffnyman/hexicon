@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hexicon</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Hexicon</h1>
+      <label class="choose">
+        Open a game
+        <input id="file" type="file" accept=".t3" />
+      </label>
+      <span id="game-name"></span>
+    </header>
+
+    <div id="status" hidden>
+      <span id="status-left"></span>
+      <span id="status-right"></span>
+    </div>
+
+    <main id="screen" aria-live="polite">
+      <p id="welcome">
+        Choose a TADS 3 game file (<code>.t3</code>) to play it here. The game runs in this
+        page; nothing is sent anywhere. Saved games are kept in this browser.
+      </p>
+      <div id="transcript"></div>
+      <form id="entry" hidden autocomplete="off">
+        <input id="command" type="text" aria-label="Command" spellcheck="false" autocapitalize="off" />
+      </form>
+      <p id="notice" hidden></p>
+    </main>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

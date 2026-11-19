@@ -54,7 +54,7 @@ mod vm;
 
 pub use error::{ErrParam, RuntimeError, VmError, VmResult, code};
 pub use value::{ObjId, PropId, Value};
-pub use vm::Vm;
+pub use vm::{RunState, Vm};
 
 #[cfg(test)]
 mod tests;

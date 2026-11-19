@@ -85,6 +85,20 @@ pub enum Sandbox {
     Outside,
 }
 
+/// What a host has when it is asked for input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Input {
+    /// A line the player entered, or a key.
+    Text(String),
+    /// There is no more input and never will be.
+    End,
+    /// There is none yet. The VM stops where it is and hands control
+    /// back, and asks again when it is resumed. A host that cannot wait
+    /// for the player without freezing, as in a browser, answers this
+    /// way; one that can wait never needs to.
+    Pending,
+}
+
 /// The time on the host's clock.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Time {
@@ -206,25 +220,27 @@ pub trait Host {
     }
 
     /// Read a line of input from the player, without the line ending.
-    /// `None` means there is no more input.
-    fn read_line(&mut self) -> Option<String> {
-        None
+    fn read_line(&mut self) -> Input {
+        Input::End
     }
 
     /// Read one keystroke. A key that types a character is that character;
     /// Enter is a newline; any other key goes by its T3 name in square
-    /// brackets, such as `[up]` or `[f1]`. `None` means there is no more
-    /// input.
-    fn read_key(&mut self) -> Option<String> {
-        None
+    /// brackets, such as `[up]` or `[f1]`.
+    fn read_key(&mut self) -> Input {
+        Input::End
     }
 
     /// Clear the main console.
     fn clear_screen(&mut self) {}
 
-    /// Pause for a number of milliseconds.
-    fn sleep(&mut self, milliseconds: u32) {
+    /// Pause for a number of milliseconds. A host that can wait does,
+    /// and returns true. One that cannot returns false, which stops the
+    /// VM where it is; when the time has passed, the host resumes the VM,
+    /// which asks again, and this time the answer is true.
+    fn sleep(&mut self, milliseconds: u32) -> bool {
         let _ = milliseconds;
+        true
     }
 
     /// Show text in the status line: the left part, which is usually the
@@ -267,6 +283,7 @@ pub struct BufferHost {
     files: Rc<RefCell<HashMap<String, Vec<u8>>>>,
     input: Rc<RefCell<VecDeque<String>>>,
     temp_counter: Rc<RefCell<u32>>,
+    interactive: Rc<RefCell<bool>>,
 }
 
 impl BufferHost {
@@ -284,6 +301,20 @@ impl BufferHost {
     /// whole line too, as the name of the key.
     pub fn push_input(&self, line: &str) {
         self.input.borrow_mut().push_back(line.to_owned());
+    }
+
+    /// Say that more input may be queued later, so that running out is
+    /// not the end of input: the program is to stop and wait.
+    pub fn set_interactive(&self, interactive: bool) {
+        *self.interactive.borrow_mut() = interactive;
+    }
+
+    fn next_input(&self) -> Input {
+        match self.input.borrow_mut().pop_front() {
+            Some(line) => Input::Text(line),
+            None if *self.interactive.borrow() => Input::Pending,
+            None => Input::End,
+        }
     }
 
     /// The contents of a file the program wrote.
@@ -362,11 +393,11 @@ impl Host for BufferHost {
         Some(format!("/tmp/temp{counter}"))
     }
 
-    fn read_line(&mut self) -> Option<String> {
-        self.input.borrow_mut().pop_front()
+    fn read_line(&mut self) -> Input {
+        self.next_input()
     }
 
-    fn read_key(&mut self) -> Option<String> {
-        self.input.borrow_mut().pop_front()
+    fn read_key(&mut self) -> Input {
+        self.next_input()
     }
 }

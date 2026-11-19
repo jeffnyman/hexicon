@@ -54,6 +54,10 @@ pub enum VmError {
     /// The program used a part of the VM that Hexicon does not have yet.
     /// Programs cannot catch this.
     Unimplemented(String),
+    /// The host has no input yet, so the program has to stop where it is
+    /// until it does. This is how the instruction that asked finds its
+    /// way out of the interpreter; it never reaches a program or a host.
+    Suspend,
 }
 
 impl VmError {
@@ -82,6 +86,7 @@ impl fmt::Display for VmError {
             Self::Runtime(error) => write!(f, "VM Error: {error}"),
             Self::Thrown(_) => f.write_str("unhandled exception"),
             Self::Unimplemented(what) => write!(f, "not implemented: {what}"),
+            Self::Suspend => f.write_str("the program is waiting for input"),
         }
     }
 }
