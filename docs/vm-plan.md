@@ -211,6 +211,10 @@ Findings from milestone 6 so far:
 - The browser's files are kept in memory by the module and stored by the page in the browser's local storage, under the game's file name. There are no folders. The page passes the browser's time zone name to the module, and the clock is the browser's.
 - The module is built with `wasm-bindgen`, whose crate and command-line tool have to be the same version, so the crate's version is pinned. Its generated bindings are unsafe code, so `hexicon-wasm` is the one crate that does not forbid it; it has none of its own.
 - The page shows the game's text as the console formats it: plain text in lines of at most 80 columns. A narrow window scrolls sideways. Making the width the page's own is part of the display work that banners and the status line also wait for.
+- Eight published games were replayed under Hexicon and the reference with the same scripts, and every one gave identical output: Return to Ditch Day (a partial walkthrough, 4,577 lines), All Hope Abandon (its walkthrough to an ending, 3,784 lines), Square Circle (its walkthrough to a win, 1,703 lines), and about forty exploratory commands each, with saving, restoring, undo, a transcript, and restarting, in The Elysium Enigma, Blighted Isle, Mrs. Pepper's Nasty Secret, According to Cain, and Under the Cognomen of Edgar Allan Poe. None of them needed the dynamic compiler on these paths.
+- Games that open with "press a key" need an event script to replay, since a command script only supplies lines; and the reference has to be run with `-nomore`, or it stops at a More prompt for a real key once a script's keys run past a screenful.
+- When an event script supplies a file name, the reference checks whether the file exists against the working folder, although the file itself is read and written in the game's folder. Hexicon checks where the file will actually be. The two agree when a game is run from its own folder.
+- Hexicon takes about twice as long as the reference on these replays (3.2 seconds against 1.6 for the longest). Nothing has been done about speed yet.
 
 Findings from milestone 5:
 
