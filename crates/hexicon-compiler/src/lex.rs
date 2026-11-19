@@ -86,12 +86,16 @@ pub(crate) fn is_sym(c: u8) -> bool {
     c == b'_' || c.is_ascii_alphanumeric()
 }
 
-/// The kinds of token.
+/// The kinds of token. They are in the order the reference compiler has
+/// them in, so that a kind's number here is its number there, which is
+/// what lets the two tokenizers' output be compared.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum Tok {
     Invalid,
-    /// The end of the line.
+    /// Nothing: the reader should go on to the next token.
+    NullTok,
+    /// The end of the line, or of the source.
     Eof,
     MacroFormal,
     MacroForeach,
@@ -119,6 +123,8 @@ pub enum Tok {
     RBrack,
     Eq,
     EqEq,
+    /// `:=`, which the language no longer has.
+    Asi,
     Plus,
     Minus,
     Times,
@@ -167,6 +173,120 @@ pub enum Tok {
     BigInt,
     At,
     DotDot,
+    /// The format in `<<%fmt expr>>`.
+    FmtSpec,
+
+    // Keywords.
+    SelfKw,
+    Inherited,
+    ArgCount,
+    If,
+    Else,
+    For,
+    While,
+    Do,
+    Switch,
+    Case,
+    Default,
+    Goto,
+    Break,
+    Continue,
+    Function,
+    Return,
+    Local,
+    Object,
+    Nil,
+    True,
+    Pass,
+    External,
+    Extern,
+    FormatString,
+    Class,
+    Replace,
+    Modify,
+    New,
+    Delete,
+    Throw,
+    Try,
+    Catch,
+    Finally,
+    Intrinsic,
+    Dictionary,
+    Grammar,
+    Enum,
+    Template,
+    Static,
+    Foreach,
+    Export,
+    Delegated,
+    TargetProp,
+    PropertySet,
+    TargetObj,
+    DefiningObj,
+    Transient,
+    Replaced,
+    Property,
+    Operator,
+    Method,
+    Invokee,
+}
+
+/// The keyword a symbol is, if it is one.
+pub(crate) fn keyword(text: &[u8]) -> Option<Tok> {
+    Some(match text {
+        b"self" => Tok::SelfKw,
+        b"targetprop" => Tok::TargetProp,
+        b"targetobj" => Tok::TargetObj,
+        b"definingobj" => Tok::DefiningObj,
+        b"inherited" => Tok::Inherited,
+        b"delegated" => Tok::Delegated,
+        b"argcount" => Tok::ArgCount,
+        b"if" => Tok::If,
+        b"else" => Tok::Else,
+        b"for" => Tok::For,
+        b"while" => Tok::While,
+        b"do" => Tok::Do,
+        b"switch" => Tok::Switch,
+        b"case" => Tok::Case,
+        b"default" => Tok::Default,
+        b"goto" => Tok::Goto,
+        b"break" => Tok::Break,
+        b"continue" => Tok::Continue,
+        b"function" => Tok::Function,
+        b"return" => Tok::Return,
+        b"local" => Tok::Local,
+        b"object" => Tok::Object,
+        b"nil" => Tok::Nil,
+        b"true" => Tok::True,
+        b"pass" => Tok::Pass,
+        b"external" => Tok::External,
+        b"extern" => Tok::Extern,
+        b"formatstring" => Tok::FormatString,
+        b"class" => Tok::Class,
+        b"replace" => Tok::Replace,
+        b"modify" => Tok::Modify,
+        b"new" => Tok::New,
+        b"throw" => Tok::Throw,
+        b"try" => Tok::Try,
+        b"catch" => Tok::Catch,
+        b"finally" => Tok::Finally,
+        b"intrinsic" => Tok::Intrinsic,
+        b"dictionary" => Tok::Dictionary,
+        b"grammar" => Tok::Grammar,
+        b"enum" => Tok::Enum,
+        b"template" => Tok::Template,
+        b"static" => Tok::Static,
+        b"foreach" => Tok::Foreach,
+        b"export" => Tok::Export,
+        b"propertyset" => Tok::PropertySet,
+        b"transient" => Tok::Transient,
+        b"replaced" => Tok::Replaced,
+        b"property" => Tok::Property,
+        b"operator" => Tok::Operator,
+        b"method" => Tok::Method,
+        b"invokee" => Tok::Invokee,
+        _ => return None,
+    })
 }
 
 /// A token: its kind and where its text is in the buffer it came from.

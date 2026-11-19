@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 
+use crate::Tok;
 use crate::pp::{Preprocessor, Severity, SourceFiles};
 
 /// Source files held in memory.
@@ -47,6 +48,7 @@ fn preprocess_files(mut files: Files) -> (Vec<String>, Vec<String>) {
             let kind = match problem.severity {
                 Severity::Error => "error",
                 Severity::Warning => "warning",
+                Severity::Message => "message",
             };
             format!(
                 "{}({}): {kind}: {}",
@@ -208,4 +210,150 @@ fn a_file_says_what_character_set_it_is_in() {
         preprocess_files(Files::default().with("main.t", "#charset \"klingon\"\nx\n"));
     assert_eq!(lines, ["", "x"]);
     assert_eq!(messages, ["main.t(1): error: unable to load #charset"]);
+}
+
+// ---- the tokenizer ----
+
+/// The tokens of `main.t`, as kind and text, and the messages about it.
+fn tokens(text: &str) -> (Vec<(Tok, String)>, Vec<String>) {
+    let mut files = Files::default().with("main.t", text);
+    let mut pp = Preprocessor::new(&mut files);
+    pp.set_test_report_mode(true);
+    pp.set_compile_mode();
+    assert!(pp.set_source("main.t"));
+    let mut out = Vec::new();
+    while pp.next_token() != Tok::Eof {
+        let token = pp.cur_token();
+        out.push((token.typ, String::from_utf8_lossy(&token.text).into_owned()));
+    }
+    let messages = pp
+        .take_diagnostics()
+        .into_iter()
+        .map(|problem| format!("{}: {}", problem.line, problem.message))
+        .collect();
+    (out, messages)
+}
+
+fn token_list(text: &str) -> Vec<(Tok, String)> {
+    let (tokens, messages) = tokens(text);
+    assert_eq!(messages, Vec::<String>::new());
+    tokens
+}
+
+fn tok(typ: Tok, text: &str) -> (Tok, String) {
+    (typ, text.to_owned())
+}
+
+#[test]
+fn keywords_numbers_and_operators() {
+    assert_eq!(
+        token_list("local x = nil;\nif (x >>>= 0x1F) return 1.5e3;\n"),
+        [
+            tok(Tok::Local, "local"),
+            tok(Tok::Sym, "x"),
+            tok(Tok::Eq, "="),
+            tok(Tok::Nil, "nil"),
+            tok(Tok::Sem, ";"),
+            tok(Tok::If, "if"),
+            tok(Tok::LPar, "("),
+            tok(Tok::Sym, "x"),
+            tok(Tok::LShrEq, ">>>="),
+            tok(Tok::Int, "0x1F"),
+            tok(Tok::RPar, ")"),
+            tok(Tok::Return, "return"),
+            tok(Tok::Float, "1.5e3"),
+            tok(Tok::Sem, ";"),
+        ]
+    );
+}
+
+#[test]
+fn macros_are_expanded_before_tokens_are_read() {
+    assert_eq!(
+        token_list("#define TWICE(x) x x\nTWICE(if)\n"),
+        [tok(Tok::If, "if"), tok(Tok::If, "if")]
+    );
+}
+
+#[test]
+fn a_string_token_has_the_translated_text() {
+    assert_eq!(
+        token_list("'it\\'s\\n\\u00e9' \"\"\"a \"quoted\" word\"\"\" R'a+'"),
+        [
+            tok(Tok::SStr, "it's\n\u{e9}"),
+            tok(Tok::DStr, "a \"quoted\" word"),
+            tok(Tok::ReStr, "a+"),
+        ]
+    );
+}
+
+#[test]
+fn a_string_with_embedded_expressions_is_several_tokens() {
+    assert_eq!(
+        token_list("\"a<<b + 1>>c<<%2d n>>d\""),
+        [
+            tok(Tok::DStrStart, "a"),
+            tok(Tok::Sym, "b"),
+            tok(Tok::Plus, "+"),
+            tok(Tok::Int, "1"),
+            tok(Tok::DStrMid, "c"),
+            tok(Tok::FmtSpec, "%2d"),
+            tok(Tok::Sym, "n"),
+            tok(Tok::DStrEnd, "d"),
+        ]
+    );
+    // A shift inside brackets is a shift, not the end of the expression.
+    assert_eq!(
+        token_list("'<<(a >> 1)>>'"),
+        [
+            tok(Tok::SStrStart, ""),
+            tok(Tok::LPar, "("),
+            tok(Tok::Sym, "a"),
+            tok(Tok::AShr, ">>"),
+            tok(Tok::Int, "1"),
+            tok(Tok::RPar, ")"),
+            tok(Tok::SStrEnd, ""),
+        ]
+    );
+}
+
+#[test]
+fn tokens_can_be_put_back() {
+    let mut files = Files::default().with("main.t", "a b c");
+    let mut pp = Preprocessor::new(&mut files);
+    pp.set_compile_mode();
+    assert!(pp.set_source("main.t"));
+    pp.next_token();
+    pp.next_token();
+    assert_eq!(pp.cur_token().text, b"b");
+    pp.unget_token();
+    assert_eq!(pp.cur_token().text, b"a");
+    assert_eq!(pp.next_token(), Tok::Sym);
+    assert_eq!(pp.cur_token().text, b"b");
+    pp.next_token();
+    assert_eq!(pp.cur_token().text, b"c");
+    assert_eq!(pp.next_token(), Tok::Eof);
+    assert_eq!(pp.next_token(), Tok::Eof);
+}
+
+#[test]
+fn tokenizer_problems() {
+    let (list, messages) = tokens("a $ b\n#pragma message(\"hello \" 2)\n#error stop\n\"no end\n");
+    assert_eq!(
+        list,
+        [
+            tok(Tok::Sym, "a"),
+            tok(Tok::Sym, "b"),
+            tok(Tok::DStr, "no end ")
+        ]
+    );
+    assert_eq!(
+        messages,
+        [
+            "1: invalid character in input \"$\"",
+            "2: hello 2",
+            "3: #error :  stop",
+            "4: unterminated string literal: string started with \"no end \"",
+        ]
+    );
 }

@@ -44,7 +44,7 @@ The reference is the specification of record. Its source is in `../_tads/tads-ru
 | Stage | Checked against |
 |---|---|
 | Preprocessor | The reference's preprocessed text (`test_tok -P`, `t3make -P`), line for line, over the suite's 12 preprocessor tests, every file of adv3 and adv3Lite, and the sources of the games in the playground that have them |
-| Tokenizer | The reference's token listing (`test_tok`) over the same files |
+| Tokenizer | A listing of the tokens the reference's tokenizer finds (`tools/reference/tok_dump.cpp`), over the same files |
 | Parser | Parsing every file of both libraries, the suite's 381 test programs, and Return to Ditch Day without error; and reporting the reference's errors for the tests that are meant to fail |
 | Code generation | Running Hexicon-compiled programs under both VMs and comparing output with the same programs compiled by `t3make`: first the conformance suite, then the games with walkthroughs |
 | Dynamic compiler | The ten conformance tests that need it |
@@ -66,10 +66,13 @@ crates/
   hexicon-compiler/       the compiler as a library: no file system or console of its own
     src/pp.rs             the preprocessor
     src/lex.rs            the scanner that finds the next token on a line
+    src/tok.rs            the tokenizer: the stream of tokens the parser reads
     src/ppexpr.rs         constant expressions for #if, until the parser takes them over
-  hexicon-cli/            `hexicon preprocess`, and later `hexicon build`
+  hexicon-cli/            `hexicon preprocess` and `hexicon tokens`, and later `hexicon build`
 tools/
-  pp-compare.sh           preprocesses files with Hexicon and the reference's test program, and compares
+  pp-compare.sh           preprocesses files with Hexicon and the reference's test program, and compares;
+                          with --tokens, compares the tokens
+  reference/tok_dump.cpp  lists a file's tokens using the reference's own tokenizer
 ```
 
 The compiler reads files through a small interface the caller supplies, as the VM reaches the outside through its host. That keeps it usable inside the VM, in a browser, and in tests.
@@ -77,6 +80,8 @@ The compiler reads files through a small interface the caller supplies, as the V
 ## Status
 
 - Milestone 1: the preprocessor is written and matches the reference (2026-11-19). `hexicon preprocess` writes a file's preprocessed text in the form the reference's preprocess-only mode does. Over 579 source files, about three million lines of output, it is identical to the reference's, messages included: the suite's 12 preprocessor tests and 381 test programs, every file of adv3 and its extensions, Return to Ditch Day, every file of adv3Lite, and Airport. Still to do in this milestone: the character sets beyond ASCII, UTF-8, and Latin-1; the compiler's own predefined macros; and `#if` expressions through the real expression parser, which waits for milestone 2.
+
+- Milestone 2: the tokenizer is written and matches the reference (2026-11-19). `hexicon tokens` lists a file's tokens as the compiler proper reads them: after preprocessing, with keywords recognized and strings translated. Over the same 579 files, it lists the same tokens as the reference, with the same messages. The parser is next.
 
 ## Findings
 
@@ -92,6 +97,14 @@ From milestone 1:
 - The messages are the reference's short forms, word for word, and are reported at the same lines. An `#if` left open at the end of a file is reported against the line after the last one.
 - An `#if` condition that cannot be evaluated counts as true, as in the reference.
 - The reference's test program (`test_tok -P`) is the oracle, and it differs from the compiler proper in three ways that the comparison inherits: it defines a handful of macros of its own (`_WIN32` and the like) and not the compiler's (`__TADS3`, `__DEBUG`, and so on); it names files without their folders; and it cannot load the character set tables, so files in `cp1252` or `win1251` are compared as files whose character set failed to load.
+
+From milestone 2, so far:
+
+- The reference has no program that lists tokens: its tokenizer test only writes lines. `tools/reference/tok_dump.cpp` is a driver of Hexicon's own, built against the reference's sources by the same build that builds its test programs, and `pp-compare.sh --tokens` compares against it. The kinds of token are numbered here as they are there, so the listings can be compared as text.
+- A string's token carries the translated text: escape sequences are replaced by the characters they stand for. A string with embedded expressions is several tokens: the text up to the first `<<`, the tokens of the expression, the text after `>>`, and so on. A format (`<<%2d n>>`) is a token of its own after the text before it. Whether `>>` ends an embedded expression or is a shift depends on whether any brackets are open inside the expression.
+- What comes after `<<`, such as `if`, `one of`, and `first time`, is ordinary tokens at this stage. Making sense of them is the parser's job.
+- After a character that is not valid, the reference skips the character after it as well. So does Hexicon.
+- A `#pragma message` is shown as the file is read, and `#error` is reported as an error with the rest of its line, the space after `#error` included.
 
 Open after milestone 1:
 

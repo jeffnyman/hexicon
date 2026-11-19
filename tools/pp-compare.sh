@@ -1,8 +1,10 @@
 #!/bin/bash
 # Preprocess source files with Hexicon and with the reference compiler's
-# test program, and report the files whose output differs.
+# test program, and report the files whose output differs. With --tokens,
+# compare the tokens the two tokenizers find instead of the preprocessed
+# text.
 #
-# usage: pp-compare.sh [-I dir]... file...
+# usage: pp-compare.sh [--tokens] [-I dir]... file...
 #
 # The reference's system headers are always on the include path. A file's
 # own folder is searched for the files it includes in quotes. The outputs
@@ -14,6 +16,15 @@
 root=$(cd "$(dirname "$0")/.." && pwd)
 runner=${TADS_RUNNER:-$root/../_tads/tads-runner}
 ref=$root/build/reference/bin/test_tok.exe
+ref_mode=(-P)
+hex_mode=preprocess
+if [ "$1" = --tokens ]; then
+  # A driver of our own, built against the reference's sources.
+  ref=$root/build/reference/bin/tok_dump.exe
+  ref_mode=()
+  hex_mode=tokens
+  shift
+fi
 hex=$root/target/release/hexicon
 out=$root/build/pp-compare
 mkdir -p "$out"
@@ -37,8 +48,8 @@ for file in "$@"; do
   src=$(native "$file")
   ref_inc=()
   for ((i = 0; i < ${#inc[@]}; i += 2)); do ref_inc+=("-I${inc[i + 1]}"); done
-  timeout 60 "$ref" "${ref_inc[@]}" -P "$src" 2>&1 < /dev/null | tr -d '\r' > "$out/$name.ref"
-  timeout 60 "$hex" preprocess --test "${inc[@]}" "${defs[@]}" "$src" 2> "$out/$name.err" \
+  timeout 60 "$ref" "${ref_inc[@]}" "${ref_mode[@]}" "$src" 2>&1 < /dev/null | tr -d '\r' > "$out/$name.ref"
+  timeout 60 "$hex" $hex_mode --test "${inc[@]}" "${defs[@]}" "$src" 2> "$out/$name.err" \
     | tr -d '\r' > "$out/$name.hex"
   if diff "$out/$name.hex" "$out/$name.ref" > "$out/$name.dif"; then
     pass=$((pass + 1))

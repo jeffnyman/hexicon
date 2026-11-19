@@ -41,6 +41,8 @@ commands:
       -D <name>[=<text>]       define a macro (as 1, without a text)
       -U <name>                undefine a macro
       --test                   name files without their folders
+  tokens [options] <source>    list a source file's tokens, as the compiler
+                               reads them; the options are the same
   dump <image.t3>              describe the contents of a program image file
   disasm <image.t3>            list the byte code of every function found
   disasm --summary <image.t3>  report how much of the code was accounted for
@@ -108,7 +110,10 @@ fn main() -> ExitCode {
         }
     }
     if let ["preprocess", rest @ ..] = args.as_slice() {
-        return preprocess::run(rest, USAGE);
+        return preprocess::run(rest, USAGE, preprocess::Output::Text);
+    }
+    if let ["tokens", rest @ ..] = args.as_slice() {
+        return preprocess::run(rest, USAGE, preprocess::Output::Tokens);
     }
     let (path, result) = match args.as_slice() {
         ["dump", path] => (path, dump(path)),

@@ -22,6 +22,11 @@ use crate::lex::{
 };
 use crate::ppexpr::{self, PpValue};
 
+#[path = "tok.rs"]
+mod tok;
+
+pub use tok::SrcToken;
+
 /// The most arguments a macro can have.
 const MAX_MACRO_ARGS: usize = 128;
 /// The deepest `#if` blocks can nest.
@@ -45,6 +50,9 @@ pub enum Severity {
     Warning,
     /// The program cannot be compiled.
     Error,
+    /// Not a problem: text the source asked to be shown while it is
+    /// compiled, with `#pragma message`.
+    Message,
 }
 
 /// A problem found in the source.
@@ -266,6 +274,15 @@ pub struct Preprocessor<'a> {
     /// Only preprocessing: directives that the compiler proper would act
     /// on are passed through.
     pp_only: bool,
+    /// Tokens are read from the macro-expanded line, not the line buffer.
+    tok_in_expbuf: bool,
+    /// Embedded expressions, as the tokenizer follows them.
+    main_ec: EmbedCtx,
+    /// The token most recently read, and the one before it.
+    cur: SrcToken,
+    prv: SrcToken,
+    /// Tokens put back to be read again, the next one last.
+    pushed: Vec<SrcToken>,
     /// Name files by their names without folders, so that output is the
     /// same wherever the files are.
     test_report: bool,
@@ -303,6 +320,11 @@ impl<'a> Preprocessor<'a> {
             appended_line: 0,
             expand_stack: Vec::new(),
             pp_only: true,
+            tok_in_expbuf: false,
+            main_ec: EmbedCtx::default(),
+            cur: SrcToken::new(Tok::Invalid),
+            prv: SrcToken::new(Tok::Invalid),
+            pushed: Vec::new(),
             test_report: false,
             notes: Vec::new(),
             diagnostics: Vec::new(),
@@ -564,6 +586,7 @@ impl<'a> Preprocessor<'a> {
     fn clear_linebuf(&mut self) {
         self.linebuf.clear();
         self.p = 0;
+        self.tok_in_expbuf = false;
     }
 
     fn in_false_if(&self) -> bool {
@@ -1012,6 +1035,11 @@ impl<'a> Preprocessor<'a> {
             }
             if self.pp_only {
                 self.linebuf = self.expbuf.clone();
+            } else {
+                // The compiler proper reads its tokens from the expanded
+                // line.
+                self.tok_in_expbuf = true;
+                self.p = 0;
             }
         }
         false
@@ -1894,9 +1922,56 @@ impl<'a> Preprocessor<'a> {
             self.clear_linebuf();
             return;
         }
-        // The compiler proper shows the message; when only preprocessing,
-        // the line is passed on with its macros expanded.
-        self.linebuf = self.expbuf.clone();
+        if self.pp_only {
+            // The line is passed on, with its macros expanded, for the
+            // compiler proper to show.
+            self.linebuf = self.expbuf.clone();
+            return;
+        }
+        // Show what is in the parentheses: strings and names as they
+        // are, numbers as numbers.
+        let buf = std::mem::take(&mut self.expbuf);
+        self.p = startofs;
+        let mut message = String::new();
+        let mut typ = self.next_message_token(&buf);
+        if typ == Tok::LPar {
+            typ = self.next_message_token(&buf);
+        } else {
+            self.warning("invalid syntax for #pragma");
+        }
+        while typ != Tok::RPar && typ != Tok::Eof {
+            match typ {
+                Tok::SStr | Tok::DStr | Tok::Sym => {
+                    message.push_str(&String::from_utf8_lossy(&self.cur.text));
+                }
+                Tok::Int => message.push_str(&(self.cur.int_val as i32).to_string()),
+                _ => {}
+            }
+            typ = self.next_message_token(&buf);
+        }
+        self.expbuf = buf;
+        self.report(Severity::Message, message);
+        self.clear_linebuf();
+    }
+
+    /// The next token of a `#pragma message`, with strings translated.
+    fn next_message_token(&mut self, buf: &[u8]) -> Tok {
+        lex::skip_ws_and_markers(buf, &mut self.p);
+        if matches!(at(buf, self.p), b'"' | b'\'') {
+            return self.xlat_string_to(buf, false);
+        }
+        let mut cx = LexCtx {
+            ec: None,
+            expanding: false,
+            in_pp_expr: false,
+            notes: &mut self.notes,
+        };
+        let tok = lex::next_on_line(buf, &mut self.p, &mut cx);
+        self.cur = SrcToken::new(tok.typ);
+        self.cur.text = tok.text(buf).to_vec();
+        self.cur.int_val = tok.int_val;
+        self.flush_notes();
+        tok.typ
     }
 
     fn pragma_newline_spacing(&mut self) {
@@ -2407,9 +2482,8 @@ impl<'a> Preprocessor<'a> {
             // on to it.
             self.linebuf = self.expbuf.clone();
         } else {
-            let message = String::from_utf8_lossy(slice(&self.expbuf, startofs, usize::MAX))
-                .trim()
-                .to_owned();
+            let message =
+                String::from_utf8_lossy(slice(&self.expbuf, startofs, usize::MAX)).into_owned();
             self.error(format!("#error : {message}"));
             self.clear_linebuf();
         }

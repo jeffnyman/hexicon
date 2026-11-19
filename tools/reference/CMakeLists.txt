@@ -141,6 +141,19 @@ add_listed_test(test_tok test_tok.cpp
     ${os_sources_min}
 )
 
+# A driver of Hexicon's own, not from the suite: lists the tokens of a
+# source file. It links what test_tok links.
+add_listed_test(tok_dump test_tok.cpp
+    std std_dbg derived/vmuni_cs tcglob vmerr vmerrmsg utf8 charmap resload
+    resnoexe tcmain tcerr tcerrmsg tchostsi tcsrc tctok tcprs tcprsnl tcprsnf
+    tcgen tct3 vmop tct3unas tct3nl tct3_d vmhash vmtypedh vmbignumlib
+    ${os_sources_min}
+)
+get_target_property(tok_dump_sources tok_dump SOURCES)
+list(REMOVE_ITEM tok_dump_sources ${T3}/test/test_tok.cpp)
+list(APPEND tok_dump_sources ${CMAKE_CURRENT_LIST_DIR}/tok_dump.cpp)
+set_target_properties(tok_dump PROPERTIES SOURCES "${tok_dump_sources}")
+
 add_listed_test(test_prs_top test_prs_top.cpp
     tcglob std std_dbg vmerr vmerrmsg utf8 derived/vmuni_cs charmap resload
     resnoexe tcmain tcerr tcerrmsg tchostsi tcsrc tctok tcprs tcprsfil
@@ -193,4 +206,5 @@ add_listed_test(test_obj test_obj.cpp
 )
 
 add_custom_target(reference ALL DEPENDS
-    t3make t3run t3res test_exec test_tok test_prs_top t3pre test_obj timezone_db)
+    t3make t3run t3res test_exec test_tok tok_dump test_prs_top t3pre test_obj
+    timezone_db)
