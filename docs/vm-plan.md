@@ -73,6 +73,7 @@ hexicon/
     hexicon-image/        .t3 image parsing and validation; no VM dependency
     hexicon-bytecode/     the instruction set, decoder, and disassembler
     hexicon-vm/           values, object table, interpreter, metaclasses, GC, undo, save/restore
+    hexicon-compiler/     the compiler; see compiler-plan.md
     hexicon-host/         the host interface trait and shared host types
     hexicon-cli/          native terminal runner: `hexicon run`, `hexicon dump`, `hexicon disasm`; uses `crossterm` for the terminal
     hexicon-wasm/         the VM as a WebAssembly module that a page's JavaScript runs

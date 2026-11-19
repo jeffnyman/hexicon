@@ -1,0 +1,12 @@
+[package]
+name = "hexicon-compiler"
+description = "The Hexicon compiler: source text to a program image"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

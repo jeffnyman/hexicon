@@ -5,6 +5,7 @@ members = [
     "crates/hexicon-bytecode",
     "crates/hexicon-host",
     "crates/hexicon-vm",
+    "crates/hexicon-compiler",
     "crates/hexicon-cli",
     "crates/hexicon-wasm",
 ]

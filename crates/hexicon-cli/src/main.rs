@@ -1,5 +1,6 @@
 //! The `hexicon` command-line tool.
 
+mod preprocess;
 mod terminal;
 mod windows_zones;
 
@@ -33,6 +34,13 @@ commands:
                                anywhere but writing only in the sandbox,
                                2 for the sandbox only, 3 for reading in
                                the sandbox only, 4 for nowhere (default 22)
+  preprocess [options] <source>
+                               write a source file's preprocessed text;
+                               the options are:
+      -I <dir>                 a folder to look for included files in
+      -D <name>[=<text>]       define a macro (as 1, without a text)
+      -U <name>                undefine a macro
+      --test                   name files without their folders
   dump <image.t3>              describe the contents of a program image file
   disasm <image.t3>            list the byte code of every function found
   disasm --summary <image.t3>  report how much of the code was accounted for
@@ -98,6 +106,9 @@ fn main() -> ExitCode {
                 }
             }
         }
+    }
+    if let ["preprocess", rest @ ..] = args.as_slice() {
+        return preprocess::run(rest, USAGE);
     }
     let (path, result) = match args.as_slice() {
         ["dump", path] => (path, dump(path)),
