@@ -1,5 +1,6 @@
 //! The `hexicon` command-line tool.
 
+mod build;
 mod preprocess;
 mod terminal;
 mod windows_zones;
@@ -34,6 +35,19 @@ commands:
                                anywhere but writing only in the sandbox,
                                2 for the sandbox only, 3 for reading in
                                the sandbox only, 4 for nowhere (default 22)
+  build [options] <source>     compile a source file into a program image;
+                               the options are:
+      -o <image.t3>            where to write the image (default: beside
+                               the source, with the extension .t3)
+      -cs <name>               the character set of source files that do
+                               not say what they are in (default: ASCII)
+      --unspecified <file>     list the parts of the image that mean
+                               nothing, such as the time it was compiled,
+                               each as an offset and a length; a comparison
+                               of two images should skip them
+      -I <dir>                 a folder to look for included files in
+      -D <name>[=<text>]       define a macro (as 1, without a text)
+      -U <name>                undefine a macro
   preprocess [options] <source>
                                write a source file's preprocessed text;
                                the options are:
@@ -108,6 +122,9 @@ fn main() -> ExitCode {
                 }
             }
         }
+    }
+    if let ["build", rest @ ..] = args.as_slice() {
+        return build::run(rest, USAGE);
     }
     if let ["preprocess", rest @ ..] = args.as_slice() {
         return preprocess::run(rest, USAGE, preprocess::Output::Text);

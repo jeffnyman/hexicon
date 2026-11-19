@@ -369,3 +369,208 @@ fn tokenizer_problems() {
         ]
     );
 }
+
+// ---- compiling ----
+//
+// The compiler's real test is the comparison of whole images with the
+// reference compiler's (`tools/compile-compare.sh`). These pin down
+// what that comparison established.
+
+use crate::{CompileOptions, Compiled, compile};
+
+fn compile_text(text: &str) -> Compiled {
+    let mut files = Files::default().with("main.t", text);
+    compile(&mut files, "main.t", &CompileOptions::default())
+}
+
+fn compile_messages(text: &str) -> Vec<String> {
+    compile_text(text)
+        .diagnostics
+        .into_iter()
+        .map(|problem| {
+            let kind = match problem.severity {
+                Severity::Error => "error",
+                Severity::Warning => "warning",
+                Severity::Message => "message",
+            };
+            format!("{}: {kind}: {}", problem.line, problem.message)
+        })
+        .collect()
+}
+
+/// The data of the image's first block of the given kind.
+fn block<'i>(image: &'i [u8], kind: &[u8; 4]) -> &'i [u8] {
+    let mut pos = 69;
+    loop {
+        let size = u32::from_le_bytes(image[pos + 4..pos + 8].try_into().unwrap()) as usize;
+        if &image[pos..pos + 4] == kind {
+            return &image[pos + 10..pos + 10 + size];
+        }
+        pos += 10 + size;
+    }
+}
+
+/// The first page of code: what follows the page's own header.
+fn code(image: &[u8]) -> &[u8] {
+    &block(image, b"CPPG")[7..]
+}
+
+#[test]
+fn a_function_is_a_header_its_code_and_its_locals() {
+    let compiled = compile_text(
+        "_main(args) { local a = 1; local b = a + 2; return b * 3; }\n\
+         foo(x, y) { if (x > y) return x; else return y; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // One parameter, two locals, four stack slots, and the table of
+    // locals 23 bytes in.
+    assert_eq!(code[..10], [1, 0, 2, 0, 4, 0, 0, 0, 0x17, 0]);
+    // onelcl1 0; getlcln0; pushint8 2; add; setlcl1 1; getlcln1;
+    // pushint8 3; mul; retval
+    assert_eq!(
+        code[10..0x17],
+        [0xda, 0, 0xaa, 3, 2, 0x22, 0xe0, 1, 0xab, 3, 3, 0x24, 0x50]
+    );
+    // The table: no line records, one scope, and in it `a`, `b` and
+    // `args`, in the order of the reference's hash table. A name longer
+    // than two characters is in the constant pool.
+    assert_eq!(
+        code[0x17..0x47],
+        [
+            0, 0, 0x2a, 0, 1, 0, 2, 0, // counts and offsets
+            0, 0, 3, 0, 0x0a, 0, 0x17, 0, // the scope: three names, bytes 10 to 23
+            0, 0, 0, 0, 0, 0, 1, 0, b'a', // local 0
+            1, 0, 0, 0, 0, 0, 1, 0, b'b', // local 1
+            0, 0, 5, 0, 0, 0, 0, 0, 0, 0, // parameter 0, named in the pool
+            0, 0, 0, 0,
+        ]
+    );
+    // The second function: a comparison and a jump become one
+    // instruction, and nothing follows a return.
+    assert_eq!(
+        code[0x47 + 10..0x47 + 0x13],
+        [0x7c, 0x7d, 0x99, 4, 0, 0x7c, 0x50, 0x7d, 0x50]
+    );
+    // The program starts at the first function.
+    assert_eq!(block(&image, b"ENTP")[..4], [0, 0, 0, 0]);
+}
+
+#[test]
+fn the_parts_that_mean_nothing_are_listed() {
+    let compiled = compile_text("_main(args) { local a = 1; return a; }\n");
+    // The compiler's bytes and the time stamp in the header come first.
+    assert_eq!(compiled.unspecified[0], (41, 28));
+    // Then the padding after each exported property number, and one
+    // field for each local in a function's table.
+    assert_eq!(compiled.unspecified.len(), 1 + 21 + 2);
+    let image = compiled.image.expect("an image");
+    for (offset, len) in &compiled.unspecified[1..] {
+        assert!(image[*offset..offset + len].iter().all(|&byte| byte == 0));
+    }
+}
+
+#[test]
+fn a_program_needs_a_main_function() {
+    assert_eq!(
+        compile_messages("f() { }\n"),
+        ["0: error: function _main() is not defined"]
+    );
+}
+
+#[test]
+fn constants_are_worked_out_when_compiling() {
+    // `2 + 3 * 4` is 14, and the string is put together.
+    let compiled =
+        compile_text("_main(args) { if (args) return 2 + 3 * 4; return 'a' + 1 + true; }\n");
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // getargn0; jf; pushint8 14; retval; pushstr; retval
+    assert_eq!(code[10..17], [0x7c, 0x93, 5, 0, 3, 14, 0x50]);
+    assert_eq!(code[17], 0x05);
+    let mut pages = Vec::new();
+    let mut pos = 69;
+    while pos < image.len() {
+        let size = u32::from_le_bytes(image[pos + 4..pos + 8].try_into().unwrap()) as usize;
+        if &image[pos..pos + 4] == b"CPPG" {
+            pages.push(&image[pos + 10..pos + 10 + size]);
+        }
+        pos += 10 + size;
+    }
+    // The last page is the constants, stored under a mask.
+    let constants: Vec<u8> = pages.last().unwrap()[7..]
+        .iter()
+        .map(|byte| byte ^ 0xdf)
+        .collect();
+    assert_eq!(constants[..8], *b"\x06\x00a1true");
+}
+
+#[test]
+fn adding_nil_to_a_constant_string_adds_nothing() {
+    // The reference reads past the end of an empty string here; what
+    // it makes of this depends on what is in its memory.
+    let compiled = compile_text("_main(args) { return 'ab' + nil; }\n");
+    let image = compiled.image.expect("an image");
+    assert!(image.windows(4).any(|window| {
+        window.iter().map(|byte| byte ^ 0xdf).collect::<Vec<u8>>() == b"\x02\x00ab"
+    }));
+}
+
+#[test]
+fn problems_are_reported_as_the_reference_reports_them() {
+    assert_eq!(
+        compile_messages("_main(args) { return undefinedThing; }\n"),
+        ["1: error: undefined symbol \"undefinedThing\""]
+    );
+    assert_eq!(
+        compile_messages("f(a) { return a; }\n_main(args) { return f(); }\n"),
+        ["2: error: wrong number of arguments to function \"f\": 1 required, 0 actual"]
+    );
+    assert_eq!(
+        compile_messages("_main(args) { break; }\n"),
+        ["1: error: invalid \"break\" - not in a for/while/do/switch"]
+    );
+    assert_eq!(
+        compile_messages(
+            "_main(args) { if (args
+"
+        ),
+        [
+            "2: error: expected ')' after the \"if\" condition, but found \"<End Of File>\"",
+            "2: error: unexpected end of file in code block - '}' missing",
+        ]
+    );
+}
+
+#[test]
+fn locals_that_are_not_used_get_warnings() {
+    assert_eq!(
+        compile_messages(
+            "_main(args)\n{\n    local a;\n    local b = 1;\n    local c;\n    return c;\n}\n"
+        ),
+        [
+            "3: warning: local variable \"a\" is never used",
+            "4: warning: value is assigned to local variable \"b\" but the value is never used",
+            "5: warning: no value is assigned to local variable \"c\"",
+        ]
+    );
+}
+
+#[test]
+fn a_false_while_condition_is_only_noticed_on_the_first_reading() {
+    // The reference warns about this while it reads for symbols, and
+    // not when it reads again to generate code; an `if` is the other
+    // way around.
+    assert_eq!(
+        compile_messages("_main(args)\n{\n    while (nil) args = 1;\n    if (nil) args = 2;\n}\n"),
+        [
+            "3: warning: \"while\" condition is always false - loop body is unreachable",
+            "4: warning: \"if\" condition is always false",
+        ]
+    );
+}

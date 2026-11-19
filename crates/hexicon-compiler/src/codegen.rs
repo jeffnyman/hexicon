@@ -26,7 +26,6 @@ struct LabelInfo {
 /// The code being generated, and what is known about the last
 /// instructions written to it.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) struct CodeGen {
     /// The byte code.
     pub code: Vec<u8>,
@@ -41,7 +40,6 @@ pub(crate) struct CodeGen {
 
 const NOP: u8 = Op::Nop as u8;
 
-#[allow(dead_code)]
 impl CodeGen {
     pub(crate) fn new() -> Self {
         Self {
@@ -110,10 +108,6 @@ impl CodeGen {
         self.sp_depth
     }
 
-    pub(crate) fn set_sp_depth(&mut self, depth: i32) {
-        self.sp_depth = depth;
-    }
-
     pub(crate) fn max_sp_depth(&self) -> i32 {
         self.max_sp_depth
     }
@@ -149,10 +143,6 @@ impl CodeGen {
         .any(|&op| op as u8 == self.last_op)
     }
 
-    pub(crate) fn last_op(&self) -> u8 {
-        self.last_op
-    }
-
     // ---- labels ----
 
     pub(crate) fn new_label(&mut self) -> Label {
@@ -170,6 +160,16 @@ impl CodeGen {
     /// Put a label at the current position. Jumps can arrive here, so
     /// what came before is no guide to what the next instruction follows.
     pub(crate) fn def_label(&mut self, label: Label) {
+        // A jump to the very next instruction does nothing: if the last
+        // instruction is a jump to this label, take it back out.
+        if self.last_op == Op::Jmp as u8 && self.ofs() >= 3 {
+            let operand = self.ofs() - 2;
+            let fixups = &mut self.labels[label.0].fixups;
+            if let Some(index) = fixups.iter().position(|&at| at == operand) {
+                fixups.remove(index);
+                self.dec_ofs(3);
+            }
+        }
         let pos = self.ofs();
         let info = &mut self.labels[label.0];
         info.pos = Some(pos);

@@ -297,6 +297,9 @@ pub struct Preprocessor<'a> {
     test_report: bool,
     notes: Vec<LexNote>,
     diagnostics: Vec<Diagnostic>,
+    /// The character set of a source file that does not say what it is
+    /// in.
+    default_charset: String,
 }
 
 impl<'a> Preprocessor<'a> {
@@ -337,6 +340,7 @@ impl<'a> Preprocessor<'a> {
             test_report: false,
             notes: Vec::new(),
             diagnostics: Vec::new(),
+            default_charset: "us-ascii".to_owned(),
         };
         pp.add_special(b"__LINE__", MacroKind::Line);
         pp.add_special(b"__FILE__", MacroKind::File);
@@ -346,6 +350,13 @@ impl<'a> Preprocessor<'a> {
     /// Name files without their folders in `__FILE__` and in messages.
     pub fn set_test_report_mode(&mut self, on: bool) {
         self.test_report = on;
+    }
+
+    /// Set the character set of source files that do not say what they
+    /// are in, with a byte order mark or `#charset`. It is ASCII unless
+    /// this is called.
+    pub fn set_default_charset(&mut self, name: &str) {
+        name.clone_into(&mut self.default_charset);
     }
 
     /// Add a folder to look for included files in.
@@ -391,7 +402,7 @@ impl<'a> Preprocessor<'a> {
             return false;
         };
         let desc = self.file_desc(name);
-        let (data, charset_error) = decode_source(&data, self.files);
+        let (data, charset_error) = decode_source(&data, self.files, &self.default_charset);
         self.streams.push(Stream {
             desc,
             data,
@@ -2136,7 +2147,7 @@ impl<'a> Preprocessor<'a> {
         if let Some(stream) = self.streams.last_mut() {
             stream.newline_spacing = self.newline_spacing;
         }
-        let (data, charset_error) = decode_source(&data, self.files);
+        let (data, charset_error) = decode_source(&data, self.files, &self.default_charset);
         self.streams.push(Stream {
             desc,
             data,
@@ -2751,7 +2762,12 @@ fn file_names_equal(a: &str, b: &str) -> bool {
 
 /// A name as messages show it: a character that is not ASCII is given
 /// as its code.
-fn show_name(name: &[u8]) -> String {
+pub(crate) fn show_name(name: &[u8]) -> String {
+    // The reference shows at most 60 bytes of a name, and marks one it
+    // has cut short.
+    const LIMIT: usize = 60;
+    let cut = name.len() > LIMIT;
+    let name = if cut { &name[..LIMIT] } else { name };
     let mut out = String::new();
     for c in String::from_utf8_lossy(name).chars() {
         if c.is_ascii() {
@@ -2759,6 +2775,9 @@ fn show_name(name: &[u8]) -> String {
         } else {
             out.push_str(&format!("\\u{:04x}", u32::from(c)));
         }
+    }
+    if cut {
+        out.push_str("...");
     }
     out
 }
@@ -2817,10 +2836,15 @@ fn charset_directive(text: &[u8]) -> Option<(&[u8], usize)> {
 /// A file that starts with a byte order mark is in the Unicode encoding
 /// the mark is for. Otherwise a `#charset "name"` directive at the very
 /// start of the file says what it is in, and without one it is plain
-/// ASCII. A directive that is understood is taken out, leaving the rest
+/// in the default character set, which is plain ASCII unless whoever is
+/// compiling says otherwise. A directive that is understood is taken out, leaving the rest
 /// of its line, so that the lines after it keep their numbers; one that
 /// is not is left for the preprocessor to complain about.
-fn decode_source(data: &[u8], files: &mut dyn SourceFiles) -> (Vec<u8>, bool) {
+fn decode_source(
+    data: &[u8],
+    files: &mut dyn SourceFiles,
+    default_charset: &str,
+) -> (Vec<u8>, bool) {
     if let Some(rest) = data.strip_prefix(&[0xef, 0xbb, 0xbf]) {
         let skip = match charset_directive(rest) {
             Some((name, len)) if name.eq_ignore_ascii_case(b"utf-8") => len,
@@ -2869,6 +2893,9 @@ fn decode_source(data: &[u8], files: &mut dyn SourceFiles) -> (Vec<u8>, bool) {
             None => charset_error = true,
         }
     }
-    let text = decode_charset("us-ascii", data).unwrap_or_default();
+    let text = decode_charset(default_charset, data)
+        .or_else(|| files.decode(default_charset, data))
+        .or_else(|| decode_charset("us-ascii", data))
+        .unwrap_or_default();
     (text, charset_error)
 }

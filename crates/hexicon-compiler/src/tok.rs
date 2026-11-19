@@ -416,3 +416,53 @@ pub(super) fn xlat_escape(dst: &mut Vec<u8>, buf: &[u8], p: &mut usize, qu: u8, 
         }
     }
 }
+
+/// What the parser needs besides tokens: where it is, and somewhere to
+/// report problems.
+impl Preprocessor<'_> {
+    /// The file and line of the token most recently read.
+    pub(crate) fn last_pos(&self) -> (usize, u32) {
+        (self.last_desc.unwrap_or(0), self.last_line)
+    }
+
+    /// Report an error at the current position.
+    pub(crate) fn log_error(&mut self, message: impl Into<String>) {
+        self.error(message);
+    }
+
+    /// Report a warning at the current position.
+    pub(crate) fn log_warning(&mut self, message: impl Into<String>) {
+        self.warning(message);
+    }
+
+    /// Report a problem at a given position.
+    pub(crate) fn log_at(&mut self, file: usize, line: u32, severity: Severity, message: String) {
+        let file = self.file_name(file).to_owned();
+        self.diagnostics.push(super::Diagnostic {
+            file,
+            line,
+            severity,
+            message,
+        });
+    }
+
+    /// The current token as a message shows it.
+    pub(crate) fn cur_token_shown(&self) -> String {
+        let text = String::from_utf8_lossy(&self.cur.text);
+        let quoted = |before: &str, after: &str| {
+            let shown: String = text.chars().take(20).collect();
+            format!("{before}{shown}{after}")
+        };
+        let shown = match self.cur.typ {
+            Tok::Eof => "<End Of File>".to_owned(),
+            Tok::SStr => quoted("'", "'"),
+            Tok::DStr => quoted("\"", "\""),
+            Tok::DStrStart => quoted("\"", "<<"),
+            Tok::DStrMid => quoted(">>", "<<"),
+            Tok::DStrEnd => quoted(">>", "\""),
+            Tok::ReStr => quoted("R'", "'"),
+            _ => text.into_owned(),
+        };
+        show_name(shown.as_bytes())
+    }
+}

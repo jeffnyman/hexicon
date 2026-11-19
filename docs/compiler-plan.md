@@ -45,7 +45,7 @@ The reference is the specification of record. Its source is in `../_tads/tads-ru
 |---|---|
 | Preprocessor | The reference's preprocessed text (`test_tok -P`, `t3make -P`), line for line, over the suite's 12 preprocessor tests, every file of adv3 and adv3Lite, and the sources of the games in the playground that have them |
 | Tokenizer | A listing of the tokens the reference's tokenizer finds (`tools/reference/tok_dump.cpp`), over the same files |
-| Parser and code generation | The reference has nothing that shows a syntax tree, so the two are checked together: the same source compiled by both compilers (`test_prs_top -u` for single-file programs, `t3make` for the rest), the byte code compared function by function, and the images run and their output compared. First small programs, then the conformance suite, then the games with walkthroughs. Programs that are meant not to compile have to give the reference's messages |
+| Parser and code generation | The reference has nothing that shows a syntax tree, so the two are checked together: the same source compiled by both compilers, and the whole image compared byte for byte, along with the messages each compiler gives (`tools/compile-compare.sh`). The sources are hand-written programs for each feature (`tools/compile-tests`), about a hundred small ones that each probe one case or one mistake (`gen-cases.py` there), random programs made of whatever the compiler supports so far (`gen-random.py`), then the conformance suite, then the games with walkthroughs. Programs that are meant not to compile have to give the reference's messages |
 | Dynamic compiler | The ten conformance tests that need it |
 | Whole | Airport (adv3Lite's tutorial game) and Return to Ditch Day built from source by Hexicon alone, replayed against the reference build |
 
@@ -66,23 +66,33 @@ crates/
     src/pp.rs             the preprocessor
     src/lex.rs            the scanner that finds the next token on a line
     src/tok.rs            the tokenizer: the stream of tokens the parser reads
+    src/parse.rs          the parser: tokens to a syntax tree and the program's symbols
+    src/ast.rs            the syntax tree
+    src/fold.rs           working out constant expressions
+    src/emit.rs           the code generator: the syntax tree to byte code
     src/codegen.rs        the code stream and the instruction writer, with its peephole rules
+    src/image.rs          the image writer: pool layout, addresses, and the image's blocks
+    src/compile.rs        the two readings of the source, and what comes back to the caller
     src/ppexpr.rs         constant expressions for #if, until the parser takes them over
-  hexicon-cli/            `hexicon preprocess` and `hexicon tokens`, and later `hexicon build`
+  hexicon-cli/            `hexicon build`, `hexicon preprocess`, and `hexicon tokens`
 tools/
   pp-compare.sh           preprocesses files with Hexicon and the reference's test program, and compares;
                           with --tokens, compares the tokens
   reference/tok_dump.cpp  lists a file's tokens using the reference's own tokenizer
+  compile-compare.sh      compiles files with Hexicon and with `t3make`, and compares the images
+                          and the messages
+  image-diff.py           compares two images, leaving out the parts that mean nothing
+  compile-tests/          programs for compile-compare.sh, and the generator of random ones
 ```
 
 The compiler reads files through a small interface the caller supplies, as the VM reaches the outside through its host. That keeps it usable inside the VM, in a browser, and in tests.
 
 ## Status
 
-- Milestone 1: the preprocessor is written and matches the reference (2026-11-19). `hexicon preprocess` writes a file's preprocessed text in the form the reference's preprocess-only mode does. Over 579 source files, about three million lines of output, it is identical to the reference's, messages included: the suite's 12 preprocessor tests and 381 test programs, every file of adv3 and its extensions, Return to Ditch Day, every file of adv3Lite, and Airport. Still to do in this milestone: the compiler's own predefined macros; and `#if` expressions through the real expression parser, which waits for the parser.
+- Milestone 1: the preprocessor is written and matches the reference (2026-11-19). `hexicon preprocess` writes a file's preprocessed text in the form the reference's preprocess-only mode does. Over 579 source files, about three million lines of output, it is identical to the reference's, messages included: the suite's 12 preprocessor tests and 381 test programs, every file of adv3 and its extensions, Return to Ditch Day, every file of adv3Lite, and Airport. Still to do in this milestone: `#if` expressions through the real expression parser.
 
 - Milestone 2: done (2026-11-19). `hexicon tokens` lists a file's tokens as the compiler proper reads them: after preprocessing, with keywords recognized and strings translated. Over the same 579 files, it lists the same tokens as the reference, with the same messages.
-- Milestone 3: started (2026-11-19). The instruction writer, with the reference's peephole rules, is written and tested (`src/codegen.rs`). What an image and a compiled function have to look like, byte for byte, has been worked out from the reference and is recorded in the findings. Nothing is compiled yet: the parser, the code generators for expressions and statements, and the image writer are next.
+- Milestone 3: under way. `hexicon build` compiles a single-file program of functions to an image (2026-11-19). It has parameters (plain, `...`, and `[rest]`), locals and nested scopes, `if`, `while`, `do`, `for`, `break`, `continue`, and `return`, and expressions over integers, strings, `nil`, `true`, locals, and calls to functions by name or through a value, with every operator except those that need objects or lists. Over 7 hand-written programs, 113 small ones that each probe one case or one mistake, and 1,650 random programs, it writes the same image as `t3make`, byte for byte, and gives the same messages. The exceptions, about one random program in a hundred, are a constant divided by zero, where the reference's messages depend on what is in its memory (see the findings), and constant arithmetic that overflows an integer, which needs floating-point constants. The compiler's predefined macros are in (`__TADS3`, the version numbers, `__DATE__`, `__TIME__`, and the system's name, which for Hexicon is `HEXICON`). Anything else in the language is reported as not supported yet. Still to do in this milestone: the remaining statements (`switch`, labels and `goto`, `try` and `throw`, `foreach`, `for` over a collection); lists, indexing, properties and method calls; double-quoted strings and embedded expressions; anonymous functions; floating-point and regular-expression constants; optional, named, and typed parameters; `intrinsic` declarations, without which a program cannot call a built-in function; and the dynamic compiler itself.
 
 ## Findings
 
@@ -112,7 +122,20 @@ From milestone 2, so far:
 
 From milestone 3, so far:
 
-- The check is `t3make -nodef -nopre` on a single file against Hexicon's image, compared block by block. Three things in the reference's image cannot be reproduced and are left out of the comparison: the time stamp, the four bytes of the build configuration in the header, and two bytes of padding after each exported symbol's value in the `SYMD` block, which the reference never sets.
+- The check is `t3make -nodef -nopre` on a single file against Hexicon's image, the whole file compared. Some of the reference's image cannot be reproduced and is left out of the comparison: the time stamp; the four bytes of the build configuration in the header; two bytes of padding after each exported symbol's value in the `SYMD` block, which the reference never sets; and, in a function's table of locals, the field for a local's place in a shared context, which the reference never sets for a local that is not shared and which then holds whatever its memory did. Hexicon writes zeros in the last two. Rather than have the comparison know the image's layout, `hexicon build --unspecified` lists these stretches of its own image, and the comparison skips them in both.
+- The reference reads a source file twice: once only to learn what it defines (the symbol file `t3make` writes), and again, knowing that, to generate code. Hexicon does the same, because it shows: a function can be called before the line that defines it, and some messages come only from one reading. A `while` whose condition is always false is warned about on the first reading and not the second; an `if` on the second and not the first. The reference's messages from the first reading come out before those of the second, and so do Hexicon's.
+- Constants are folded twice as well. Each operator is folded as it is parsed, when both operands are already constants. After the whole program has been read, names are looked up, and a name that is a function becomes a constant; then only the comma, `+`, `-`, `==`, `!=`, `&&`, `||`, `!`, `?:`, and `??` are tried again.
+- Once a function's name has become a constant, a call through it is taken to leave a value whether or not the function returns one. That matters in `a ? f() : g()`, where a branch that leaves no value has `nil` pushed for it: after folding, no call by name is such a branch.
+- A statement's code depends on small things that are easy to get wrong and that the comparison found: `x * 0` evaluates `x` and pushes zero even when the value is not wanted, leaving it on the stack; an integer from -128 to 126 is pushed in two bytes, but 127 takes five; a jump to the very next instruction is taken back out when the label is placed; and nothing is written after an instruction that cannot be fallen out of until a label is placed.
+- A local declared as the single statement of an `if` or a loop, with no braces, belongs to the scope around. `if (a) local b = 1;` declares `b` for the rest of the enclosing block. A `for` has a scope of its own for the locals in its parentheses, and a braceless body's locals go there.
+- Each scope that declares locals takes new slots for them, and slots are never used again by a later scope, though the reference has a comment wishing they were.
+- Warnings about locals that are never used, or never given a value, come after all the code has been generated, function by function and scope by scope, in the order of the reference's hash table, and are reported at the line of the declaration. An unused parameter is not warned about by default.
+- Two places where the reference's result depends on what happens to be in its memory, and Hexicon's does not. Adding `nil` to a constant string (`'ab' + nil`) reads past the end of an empty string in the reference; in Hexicon it adds nothing. A constant division by zero is reported once by Hexicon; the reference goes on to use a flag it never set, and usually reports it twice.
+- In the reference built for Windows, a constant multiplication that overflows 32 bits wraps around, because its arithmetic there is 32 bits wide before it looks for the overflow; built elsewhere it becomes a floating-point number. Hexicon wraps for now, and will have to decide when it has floating-point constants.
+- `name { ... }` is not a function without parameters; without the keyword `function` it is taken for an object.
+- A name in a message is cut to 60 bytes, with `...` after it, by the reference's message formatter. Hexicon does the same for every name it shows.
+- A symbol longer than 80 characters draws a warning that it has been truncated, but the tokenizer passes it on whole. A local with such a name gets a broken entry in its function's table: the reference collects the names of locals in a stream of their own before moving them to the constant pool, does not move one longer than 80, and leaves the table holding the name's offset in that stream as if it were an address in the pool. It is the same number every time, so Hexicon writes it too.
+- A source file that does not say what character set it is in (no byte order mark, no `#charset`) is read by `t3make` in the system's own character set, which on the Windows machine the reference was built on is code page 1252; the reference's tokenizer test program reads it as ASCII. Hexicon reads it as ASCII unless told otherwise (`hexicon build -cs name`), and the comparison tells it code page 1252. What Hexicon's own default should be is open: see below.
 - The order of an image's blocks: `ENTP`, `SYMD`, `FNSD`, `MCLD`, the code pool (`CPDF` and its `CPPG` pages), the constant pool, the objects, `SINI`, and `EOF`. Even a program of two functions has nine metaclasses in `MCLD` and 21 exported symbols in `SYMD` (`LastProp`, `Constructor`, `Destructor`, the three grammar properties, and one for each operator that can be overloaded).
 - A pool's page size is the smallest power of two, from 2,048 up, that holds the pool's largest item. Items are laid out in the order they were generated, and one that does not fit in what is left of a page starts the next. Code has two streams, main and static; the static stream starts on a new page. It is never empty: the compiler always generates a function there for registering multi-methods, which is a bare `retnil` when there are none. The constant pool's pages are stored XORed with a mask (0xDF from `t3make`).
 - A compiled function is a 10-byte header (parameter count, with the top bit for variable arguments; optional parameter count; number of locals; stack slots needed, locals included; offset of the exception table; offset of the debug table), the code, the exception table if any, and the debug table. The stack figure comes from counting pushes and pops as the code is generated, not from analyzing it afterward.
@@ -121,9 +144,18 @@ From milestone 3, so far:
 - At the end of a function, a `retnil` is added unless the last instruction cannot be fallen out of (a return, a throw, or a jump). Then jumps to jumps are shortened.
 - The reference's driver for testing expressions alone is no use (see above), and its whole-program test driver compiles for debugging, which `t3make` by default does not. `t3make` is the one to compare with.
 
+Open after the first part of milestone 3:
+
+- The default character set for source files. ASCII, as now, turns every other character in an undeclared file into a replacement character, which is safe but unhelpful. UTF-8 is what a new source file is most likely to be in. The reference's answer, the system's code page, depends on the machine, which Hexicon avoids everywhere else.
+- Constant arithmetic that overflows an integer is reported as not supported, until there are floating-point constants. Multiplication is the exception, and wraps, as in the reference built for Windows.
+- The messages of the first reading of the source are kept and those of the second added, as the reference does, so a warning from the preprocessor comes out twice. That is the reference's behavior, and is not pleasant; Hexicon's own language may want it otherwise.
+- Warnings that the reference gives only when asked for every warning (an unused parameter, for one) are not given at all.
+- An image's exported symbols and metaclass list are the fixed ones of a program without objects or properties.
+- The time stamp in an image, and `__DATE__` and `__TIME__`, are in UTC from `hexicon build`. The reference uses local time.
+
 Open after milestone 1:
 
 - In a message, a name with a character that is not ASCII is shown by the reference with its nearest ASCII stand-in (`cafe` for `café`). Hexicon shows the character's code instead.
 - `#if` expressions are evaluated by a small evaluator of the preprocessor's own: integers, strings, `true`, `nil`, and the operators on them. The reference uses the compiler's expression parser and constant folding, which also covers floating-point numbers. The parser replaces the evaluator when it exists.
-- The comparison is with the reference's test program. Comparing with `t3make -P` as well would cover the predefined macros and the character sets.
+- The preprocessor's own comparison is with the reference's test program. The predefined macros and the default character set are now covered by the comparison of compiled programs instead.
 - Speed has not been looked at. An argument is copied each time it is expanded.

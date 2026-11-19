@@ -15,7 +15,7 @@ use hexicon_compiler::Tok;
 use hexicon_compiler::pp::{Preprocessor, Severity, SourceFiles};
 
 /// Source files on disk.
-struct DiskFiles;
+pub(crate) struct DiskFiles;
 
 impl SourceFiles for DiskFiles {
     fn read(&mut self, name: &str) -> Option<Vec<u8>> {
