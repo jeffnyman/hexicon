@@ -190,6 +190,12 @@ pub(crate) enum Expr {
     Index(Box<Expr>, Box<Expr>),
     /// A string in double quotes: text to display.
     DStr(Vec<u8>),
+    /// An expression embedded in a string in double quotes: its value
+    /// is displayed.
+    DStrEmbed(Box<Expr>),
+    /// `<<one of>>` in a string: the alternatives. The flag is for a
+    /// string in double quotes.
+    OneOf(bool, Vec<Expr>),
 }
 
 impl Expr {

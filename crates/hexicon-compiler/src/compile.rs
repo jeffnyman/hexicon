@@ -59,7 +59,7 @@ const TOOL_DATA: [u8; 4] = *b"hxcn";
 fn has_errors(diagnostics: &[Diagnostic]) -> bool {
     diagnostics
         .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
+        .any(|diagnostic| matches!(diagnostic.severity, Severity::Error | Severity::Fatal))
 }
 
 fn start<'a>(
@@ -154,6 +154,23 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
             line: diagnostic.line,
             severity: diagnostic.severity,
             message: diagnostic.message,
+        });
+    }
+    if has_errors(&compiled.diagnostics) {
+        return compiled;
+    }
+
+    // Putting the program together: everything it refers to has to be
+    // in it.
+    for name in emit::unresolved_externs(&prog, &generated) {
+        compiled.diagnostics.push(Diagnostic {
+            file: String::new(),
+            line: 0,
+            severity: Severity::Error,
+            message: format!(
+                "unresolved external reference \"{}\"",
+                crate::pp::show_name(&name)
+            ),
         });
     }
     if has_errors(&compiled.diagnostics) {

@@ -5,7 +5,7 @@
 //! rules, the count of stack slots, and the tables after each function
 //! all depend on exactly what is written and in what order.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use hexicon_bytecode::{Layout, Opcode as Op};
@@ -18,7 +18,7 @@ use crate::codegen::{CodeGen, Label};
 use crate::flow::Flow;
 use crate::fold::{self, Folded};
 use crate::parse::{BifSym, Global, Program, enum_order};
-use crate::pp::{Severity, show_name};
+use crate::pp::{MAX_ERRORS, Severity, TOO_MANY_ERRORS, show_name};
 
 /// The start of one item in a stream: a function in the code, or a
 /// string in the constants. An item is never split across pages.
@@ -97,8 +97,38 @@ pub(crate) struct Generated {
     pub diagnostics: Vec<GenDiagnostic>,
 }
 
-/// How many chains the reference's table of a function's labels has.
+/// How many chains the reference's table of a function's labels has,
+/// and its table of global names.
 const LABEL_HASH_SIZE: usize = 512;
+
+/// The functions that the code refers to but the program never defines,
+/// in the order the reference reports them: the order of its table of
+/// global names when it links.
+pub(crate) fn unresolved_externs(prog: &Program, generated: &Generated) -> Vec<Vec<u8>> {
+    let mut funcs: Vec<usize> = generated
+        .fixups
+        .iter()
+        .chain(&generated.const_fixups)
+        .filter_map(|fixup| match fixup.target {
+            Target::Func(func) if prog.funcs[func].body.is_none() => Some(func),
+            _ => None,
+        })
+        .collect();
+    funcs.sort_unstable();
+    funcs.dedup();
+    funcs.sort_by_key(|&func| {
+        prog.funcs[func]
+            .name
+            .iter()
+            .map(|&byte| usize::from(byte))
+            .sum::<usize>()
+            % LABEL_HASH_SIZE
+    });
+    funcs
+        .into_iter()
+        .map(|func| prog.funcs[func].name.clone())
+        .collect()
+}
 
 /// Strings shorter than this are stored once however often they occur.
 const INTERN_THRESHOLD: usize = 40;
@@ -201,6 +231,11 @@ struct Gen<'p> {
     /// everything else.
     local_names: Vec<(usize, Vec<u8>)>,
     errors: usize,
+    /// The undefined names reported so far.
+    undefined_names: HashSet<Vec<u8>>,
+    /// How many problems had been reported when the generator gave up
+    /// for too many errors, if it has.
+    gave_up: Option<usize>,
 }
 
 /// Generate the code for a program.
@@ -226,6 +261,8 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         interned: HashMap::new(),
         local_names: Vec::new(),
         errors: 0,
+        undefined_names: HashSet::new(),
+        gave_up: None,
     };
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
     if let Some((body, _)) = bodies.last() {
@@ -244,6 +281,9 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
     }
     let mut scopes = Vec::new();
     for (body, func) in &bodies {
+        if generator.gave_up.is_some() {
+            break;
+        }
         generator.gen_code_body(body, *func);
         scopes.push(std::mem::take(&mut generator.frames));
     }
@@ -252,6 +292,10 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         for frame in frames {
             generator.check_unreferenced_locals(frame);
         }
+    }
+    // Giving up for too many errors is the last thing said.
+    if let Some(count) = generator.gave_up {
+        generator.out.diagnostics.truncate(count);
     }
     generator.finish_local_names();
     let mut out = generator.out;
@@ -264,8 +308,8 @@ impl Gen<'_> {
     // ---- messages ----
 
     fn log(&mut self, severity: Severity, message: impl Into<String>) {
-        if severity == Severity::Error {
-            self.errors += 1;
+        if self.gave_up.is_some() {
+            return;
         }
         self.out.diagnostics.push(GenDiagnostic {
             file: self.cur_file,
@@ -273,6 +317,18 @@ impl Gen<'_> {
             severity,
             message: message.into(),
         });
+        if severity == Severity::Error {
+            self.errors += 1;
+            if self.errors > MAX_ERRORS {
+                self.out.diagnostics.push(GenDiagnostic {
+                    file: self.cur_file,
+                    line: self.cur_line,
+                    severity: Severity::Fatal,
+                    message: TOO_MANY_ERRORS.to_owned(),
+                });
+                self.gave_up = Some(self.out.diagnostics.len());
+            }
+        }
     }
 
     fn error(&mut self, message: impl Into<String>) {
@@ -419,6 +475,14 @@ impl Gen<'_> {
                 Some(Global::Bif(_)) | None => Expr::Sym(name),
             },
             Expr::DStr(_) => expr,
+            Expr::DStrEmbed(sub) => Expr::DStrEmbed(Box::new(self.fold_expr(*sub))),
+            Expr::OneOf(dbl, elements) => {
+                let elements = elements
+                    .into_iter()
+                    .map(|element| self.fold_expr(element))
+                    .collect();
+                Expr::OneOf(dbl, elements)
+            }
             Expr::List(elements) => {
                 let elements = elements
                     .into_iter()
@@ -1812,6 +1876,22 @@ impl Gen<'_> {
                 self.add_const_str(text, false, self.cg.ofs());
                 self.cg.write4(0);
             }
+            Expr::DStrEmbed(sub) => {
+                // Whatever value the expression leaves is displayed. It
+                // need not leave one: a call to a function that returns
+                // nothing is there for what it does.
+                let depth = self.cg.sp_depth();
+                self.gen_expr(sub, !self.has_return_value(sub), false);
+                if self.cg.sp_depth() > depth {
+                    self.cg.write_op(Op::SayVal);
+                    self.cg.note_pop();
+                }
+            }
+            Expr::OneOf(..) => {
+                // The parser has reported that this needs a class the
+                // program does not have, so nothing is generated.
+                self.error("<<one of>> requires class OneOfIndexGen to be defined in the program");
+            }
             Expr::List(elements) => {
                 // The elements, last first, and then a list made of
                 // them.
@@ -1970,13 +2050,19 @@ impl Gen<'_> {
             Expr::IfNil(first, second) => {
                 self.has_return_value(first) || self.has_return_value(second)
             }
-            Expr::DStr(_) => false,
+            Expr::DStr(_) | Expr::DStrEmbed(_) => false,
+            Expr::OneOf(dbl, _) => !dbl,
             _ => true,
         }
     }
 
+    /// Report a name that nothing defines. It is reported once: the
+    /// reference then notes the name as one that is known to be
+    /// undefined, and says nothing about it again.
     fn undefined(&mut self, name: &[u8]) {
-        self.error(format!("undefined symbol \"{}\"", show_name(name)));
+        if self.undefined_names.insert(name.to_vec()) {
+            self.error(format!("undefined symbol \"{}\"", show_name(name)));
+        }
     }
 
     fn gen_unary(&mut self, opc: Op, sub: &Expr, discard: bool, for_condition: bool) {

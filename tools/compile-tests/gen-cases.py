@@ -641,6 +641,129 @@ _main(args) { return f(1) + g(1) + h(1) + i(1); }
 
 # Mistakes, and code that draws a warning. Each is a program of its own,
 # since what a compiler does after an error depends on how it recovers.
+SPRINTF = """intrinsic 'tads-gen/030008'
+{
+    dataType(val); getArg(idx); firstObj(cls?, flags?); nextObj(obj, cls?, flags?);
+    randomize(...); rand(x, ...); toString(val, radix?, isSigned?); toInteger(val, radix?);
+    getTime(typ?); rexMatch(pat, str, idx?); rexSearch(pat, str, idx?); rexGroup(n);
+    rexReplace(pat, str, repl, flags?, idx?); savepoint(); undo(); saveGame(fname, metaTab?);
+    restoreGame(fname); restartGame(); max(val, ...); min(val, ...); makeString(val, rpt?);
+    getFuncParams(func); toNumber(val, radix?); sprintf(fmt, ...);
+}
+"""
+
+programs["embed1"] = """
+f() { return 1; }
+g() { }
+_main(args)
+{
+    "a<<1>>b"; "<<args>>"; "x<<f()>>"; "<<g()>>y"; "<<>>"; "a<<>>b<<  >>";
+    "<<args>><<args>>"; "<<1, 2>>"; "<<args = 1>><<args += 2, args>>";
+    "a<<"b<<1>>c">>d"; "<<'x<<1>>y'>>"; "<<'q<<"r<<args>>s">>t'>>";
+    "a<<
+      args
+      + 1>>b
+      c";
+    "<<args ? "x" : "y">>c<<args ? f() : 1>><<args ? g() : g()>>";
+    "<<[1, 2][1]>><<[args]>><<args[1]>><<f>><<nil>><<true>>";
+}
+"""
+
+programs["embed2"] = """
+f() { return 1; }
+g() { }
+_main(args)
+{
+    local s = 'p<<args>>q<<3>>';
+    s = '<<1>><<2>>'; s = 'a<<1>>b'; s = '<<>>'; s = '<<args>>'; s = 'a<<>>b';
+    s = 'a<<'b'>>c' + 'p<<'q<<args>>r'>>s';
+    s = '<<1, 2>><<args>>' + ['a<<1>>', 'b<<args>>'];
+    s = 'a<<f()>>b<<g()>>c<<f>>';
+    s = 'a<<args>>b'[1];
+    s += 'x<<s>>' + '<<nil>><<true>><<[1]>><<[args]>>';
+    switch (args)
+    {
+    case 'x<<1>>y': return 1;
+    case 'x<<if nil>>a<<else>>b<<end>>': return s;
+    case 'a<<1>>' == 'a1': return 2;
+    }
+    return 'a<<1>>' == 'a1';
+}
+"""
+
+programs["embed3"] = """
+_main(args)
+{
+    "a<<if args>>yes<<else>>no<<end>>z"; "<<if args>>yes"; "<<if args>><<else>>";
+    "<<unless args>>u<<else if args > 1>>v<<otherwise>>w<<end>>"; "<<if args>><<end>>";
+    "<<if args>>a<<if args > 1>>b<<else>>c<<end>>d<<else>>e<<if 1>>f<<end>><<end>>g";
+    "<<if args>>one<<else>>two"; "<<unless args>><<otherwise unless args>>x<<end>>";
+    "<<if args>>a<<else unless args>>b<<otherwise if args>>c<<else>>d<<end>>e";
+    "<<if nil>>a<<end>><<if true>>b<<end>><<unless 1>>c<<else>>d<<end>>";
+    "<<if args = 1>>a<<end>>"; "<<if args>><<args>><<else>><<args + 1>><<end>>";
+    "<<if args>>a<<end>><<end>>"; "<<end>><<only>><<or>><<stopping>><<otherwise>>";
+    local s = 'q<<if args>>yes<<end>>';
+    s = '<<if args>>a<<else unless args>>b<<otherwise if 3>>c';
+    s = '<<if nil>>a<<else if true>>b<<end>>';
+    s = '<<if args>><<end>>' + '<<if args>>a<<else>>';
+    s = '<<if args>><<args>><<else>><<if s>>x<<end>>y<<end>>z<<unless args>>w';
+    return s;
+}
+"""
+
+programs["embed4"] = SPRINTF + """
+_main(args)
+{
+    "<<%d args>> <<%5.2f args + 1>><<%s 'x' >><<% d 5>><<%-5.2f 1>><<%% 3>>";
+    "<<%x args, 2>><<%d if>><<if args>><<%d args>><<end>>";
+    local s = '<<%x args>>' + '<<%s s>><<%c 65>>';
+    local sprintf = 1;
+    "<<%d args>>";
+    return s + sprintf;
+}
+"""
+
+programs["embed5"] = """
+string template <<* in words>> spell;
+string template <<nope>> nope;
+string template <<the * thing>> spell;
+string template <<>> nope;
+string template << * >> spell;
+string template <<the * of *>> pair;
+string template <<big *>> big;
+string template <<* said>> said;
+string template <<'*' x>> spell;
+string template <<if only>> nope;
+spell(x) { return x; }
+nope() { return 'n'; }
+pair(x) { return x; }
+big(x) { return x; }
+said(x) { return x; }
+_main(args)
+{
+    "<<args in words>> <<nope>> <<the args in words thing>> <<args>>";
+    "<<the 1 of 2>> <<the big 1 thing>> <<big the 2 thing>> <<big nope>> <<nope said>>";
+    "<<big big 1 + 2 said>> <<the nope thing>> <<the thing>> <<big>> <<nope nope>>";
+    "<<1 x>> <<'*' x>> <<if only>>a<<end>> <<%d nope>> <<%d args in words>>";
+    local s = '<<nope>><<the 1 thing>><<args, 2>>';
+    local spell = 1;
+    "<<spell in words>>";
+    return s;
+}
+"""
+
+programs["embed6"] = """
+string template <<a>> fa;
+string template <<b>> fb;
+string template <<c *>> fc;
+used() { return 1; }
+string template <<d>> used;
+later() { }
+string template <<e>> later;
+string template <<f g h i j>> later;
+_main(args) { local q = 'x<<d>>'; return q; }
+"""
+
 mistakes = {
     "e_undef": "_main(args) { return undefinedThing; }",
     "e_undefcall": "_main(args) { return undefinedFunc(1); }",
@@ -821,7 +944,66 @@ mistakes = {
     "w_throw1": "_main(args) { throw args; args = 1; }",
     "w_throw2": "_main(args) { if (args) throw args; else return 1; }",
     "w_argnoval": "f() { } g(a) { } _main(args) { g(f()); }",
+    "e_emb1": "_main(args) { \"a<<args b>>c\"; }",
+    "e_emb2": "_main(args) { \"a<<1 +>>c\"; }",
+    "e_emb3": "_main(args) { \"a<<(1>>b\"; }",
+    "e_emb4": "_main(args) { \"a<<1;>>b\"; local s = 'a<<args args>>b'; }",
+    "e_emb5": "_main(args) { local x = \"a<<args>>b\"; x = \"a<<args>>\"; }",
+    "e_emb6": "_main(args) { local y = (\"<<args>>b\", 1); local z = args ? \"a<<1>>\" : \"b\"; }",
+    "e_emb7": "_main(args) { \"<<args>>\" + 1; \"<<args>>\"(1); }",
+    "e_emb8": "_main(args) { \"a<<else>>b\"; }",
+    "e_emb9": "_main(args) { \"<<else if args>>x\"; \"a<<else unless 1>>b\"; }",
+    "e_emb10": "_main(args) { \"<<if>>a<<end>>\"; \"<<unless>>b\"; }",
+    "e_emb11": "_main(args) { \"<<if args>>a<<else>>b<<else>>c<<end>>\"; }",
+    "e_emb12": "_main(args) { \"<<if args>>a<<or>>b<<end>>c<<only>>d<<stopping>>e<<at random>>f\"; }",
+    "e_emb13": "_main(args) { \"<<one of>>a<<or>>b<<at random>>\"; }",
+    "e_emb14": "_main(args) { \"<<first time>>a<<only>>\"; local s = 'x<<one of>>a<<or>>b<<cycling>>'; }",
+    "e_emb15": "_main(args) { \"<<one of>>a<<or>>b<<or>><<if args>>c<<end>><<stopping>>\"; }",
+    "e_emb16": "_main(args) { \"<<one of>>a<<||>>b<<then purely at random>>c<<one of>>d<<first time>>e\"; }",
+    "e_emb17": "_main(args) { \"<<one of>>a<<if args>>b<<or>>c<<end>>d<<as decreasingly likely outcomes>>\"; }",
+    "e_emb18": "_main(args) { \"<<%d>>\"; }",
+    "e_emb19": "_main(args) { \"<<%>>\"; }",
+    "e_emb20": "_main(args) { \"<<%d args>>\"; }",
+    "e_emb21": "_main(args) { \"a<<args>>b\" ; \"a<<args>>b",
+    "e_emb22": "_main(args) { \"a<<args; \"b\"; }",
+    "e_emb23": "_main(args) { \"a<<args}\nf() { \"x<<1 2>>y<<3>>z<<4 5\"; }",
+    "e_emb24": "_main(args) { \"<<\nargs +\n1 +\n>>\n\"; \"<<args>>\n<<args args>>\nz\"; }",
+    "e_emb25": "_main(args) { \"<<if args>>a<<end\"; }",
+    "e_emb26": "_main(args) { 'a<<if args>>b<<else'; 'c<<end>>'; }",
+    "e_emb27": "_main(args) { \"<<nosuch>><<end>><<or>>\"; }",
+    "e_emb28": "_main(args) { local s = '<<\"a\">>'; return s; }",
+    "e_emb29": "_main(args) { \"<<if args>>x<<else>>y<<end>><<end>>\"; return 'a<<}>>'; }",
+    "e_emb30": "_main(args) { \"<<[>>\"; \"<<)>>\"; \"<<(>>\"; \"<<]>>\"; }",
+    "e_tpl1": "string template <<* in words>> spell;\n_main(args) { \"<<args in words>>\"; }",
+    "e_tpl2": "string template <<the * of *>> bad;\n_main(args) { }",
+    "e_tpl3": "nope() { }\nstring template <<nope2>> nope;\n_main(args) { }",
+    "e_tpl4": "string template <<* in words>> spell;\nspell(x, y) { return x; }\n_main(args) { }",
+    "e_tpl5": "string template nope3 nope;\n_main(args) { }",
+    "e_tpl6": "string template <<nope3 nope;\n_main(args) { }",
+    "e_tpl7": "string template <<a b>> 3;\n_main(args) { }",
+    "e_tpl8": "string template <<q>> _main;\n_main(args) { }",
+    "e_tpl9": "string template <<a>> fa;\n_main(args) { fa(1); undefinedthing(); }",
+    "e_tpl10": "string template <<p>> ab;\nstring template <<q>> ba;\nstring template <<r>> zz;\nstring template <<s>> aa;\nstring template <<t *>> cab;\nstring template <<u>> bca;\n_main(args) { \"<<s>><<r>><<q>><<p>><<u>><<t 1>>\"; }",
+    "e_tpl11": "f(x) { return x; }\nstring template <<a *>> f;\nstring template <<b>> f;\nstring template <<c *>> g;\ng() { return 1; }\nstring template <<d *>> h;\nh(...) { }\nstring template <<e *>> k;\nk(a, b) { }\n_main(args) { }",
+    "e_tpl12": "string template <<a>> fa;\n_main(args) { return fa; }",
+    "e_tpl13": "string template <<a>> fa;\n_main(args) { return [fa, 1]; }",
+    "e_tpl15": "string template;\nstring template <<a>>;\n_main(args) { }",
+    "e_tpl16": "string template <<a>> fa\n_main(args) { }",
+    "e_undef1": "_main(args) { nosuch; nosuch; nosuch(); nosuch = 1; other; return nosuch + other; }",
+    "e_undef2": "f() { nosuch(); } g() { \"<<nosuch>>\"; }\n_main(args) { nosuch; try { } catch (nosuch e) { } }",
+    "e_undef3": "_main(args) { try { } catch (nosuch e) { } try { } catch (nosuch e) { } nosuch = 1; }",
 }
+
+# The compiler gives up after a hundred errors, whether it finds them
+# reading the source, working out constants, or generating code.
+mistakes["e_many1"] = "f() { local q; }\n_main(args) {\n" + "".join(
+    f"  u{n}();\n" for n in range(120)) + "}\ng() { local r; }\n\n"
+mistakes["e_many2"] = "f() { local q; }\n_main(args) {\n" + "".join(
+    f"  u{n}();\n" for n in range(100)) + "}\ng() { local r; }"
+mistakes["e_many6"] = "_main(args) {\n" + "  u();\n" * 150 + "}"
+mistakes["e_many3"] = "_main(args) {\n" + "  1 2;\n" * 150 + "}"
+mistakes["e_many4"] = "_main(args) {\n" + "  [1][2];\n" * 101 + "}"
+mistakes["e_many5"] = "_main(args) {\n" + "  1 2;\n" * 100 + "}"
 
 
 def main():

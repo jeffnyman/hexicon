@@ -62,7 +62,17 @@ pub enum Severity {
     /// Not a problem: text the source asked to be shown while it is
     /// compiled, with `#pragma message`.
     Message,
+    /// The compiler has given up: nothing is read or reported after
+    /// this.
+    Fatal,
 }
+
+/// How many errors are reported before the compiler gives up.
+pub(crate) const MAX_ERRORS: usize = 100;
+
+/// What is said on giving up.
+pub(crate) const TOO_MANY_ERRORS: &str =
+    "too many errors (try fixing the first couple of errors and recompiling)";
 
 /// A problem found in the source.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -297,6 +307,10 @@ pub struct Preprocessor<'a> {
     test_report: bool,
     notes: Vec<LexNote>,
     diagnostics: Vec<Diagnostic>,
+    /// How many of the problems found were errors.
+    errors: usize,
+    /// So many errors were found that nothing more is read.
+    gave_up: bool,
     /// The character set of a source file that does not say what it is
     /// in.
     default_charset: String,
@@ -340,6 +354,8 @@ impl<'a> Preprocessor<'a> {
             test_report: false,
             notes: Vec::new(),
             diagnostics: Vec::new(),
+            errors: 0,
+            gave_up: false,
             default_charset: "utf-8".to_owned(),
         };
         pp.add_special(b"__LINE__", MacroKind::Line);
@@ -426,6 +442,42 @@ impl<'a> Preprocessor<'a> {
         }
     }
 
+    /// How many errors have been found so far.
+    pub(crate) fn error_count(&self) -> usize {
+        self.errors
+    }
+
+    /// Whether so many errors have been found that nothing more is
+    /// read: from then on the source is at its end.
+    pub fn gave_up(&self) -> bool {
+        self.gave_up
+    }
+
+    /// Record a problem. One error too many is the last thing recorded.
+    pub(crate) fn push_diagnostic(&mut self, diagnostic: Diagnostic) {
+        if self.gave_up {
+            return;
+        }
+        let is_error = diagnostic.severity == Severity::Error;
+        self.diagnostics.push(diagnostic);
+        if is_error {
+            self.errors += 1;
+            if self.errors > MAX_ERRORS {
+                let file = self
+                    .last_desc
+                    .map(|desc| self.file_name(desc).to_owned())
+                    .unwrap_or_default();
+                self.diagnostics.push(Diagnostic {
+                    file,
+                    line: self.last_line,
+                    severity: Severity::Fatal,
+                    message: TOO_MANY_ERRORS.to_owned(),
+                });
+                self.gave_up = true;
+            }
+        }
+    }
+
     /// Take the problems found so far.
     pub fn take_diagnostics(&mut self) -> Vec<Diagnostic> {
         std::mem::take(&mut self.diagnostics)
@@ -435,7 +487,7 @@ impl<'a> Preprocessor<'a> {
     /// source. There is a line of output, possibly empty, for each line
     /// of the source.
     pub fn next_line(&mut self) -> Option<Line> {
-        if self.read_line_pp() {
+        if self.gave_up || self.read_line_pp() || self.gave_up {
             return None;
         }
         // The text ends at the first zero byte: see the note at the top.
@@ -485,7 +537,7 @@ impl<'a> Preprocessor<'a> {
             .last_desc
             .map(|desc| self.file_name(desc).to_owned())
             .unwrap_or_default();
-        self.diagnostics.push(Diagnostic {
+        self.push_diagnostic(Diagnostic {
             file,
             line: self.last_line,
             severity,

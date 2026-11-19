@@ -108,6 +108,7 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     for problem in &compiled.diagnostics {
         let kind = match problem.severity {
             Severity::Error => "error",
+            Severity::Fatal => "fatal error",
             Severity::Warning => "warning",
             Severity::Message => {
                 eprintln!("{}", problem.message);

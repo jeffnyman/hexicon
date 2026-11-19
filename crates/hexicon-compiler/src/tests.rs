@@ -53,6 +53,7 @@ fn preprocess_files(mut files: Files) -> (Vec<String>, Vec<String>) {
         .map(|problem| {
             let kind = match problem.severity {
                 Severity::Error => "error",
+                Severity::Fatal => "fatal error",
                 Severity::Warning => "warning",
                 Severity::Message => "message",
             };
@@ -390,6 +391,7 @@ fn compile_messages(text: &str) -> Vec<String> {
         .map(|problem| {
             let kind = match problem.severity {
                 Severity::Error => "error",
+                Severity::Fatal => "fatal error",
                 Severity::Warning => "warning",
                 Severity::Message => "message",
             };
@@ -797,5 +799,173 @@ fn labels_and_the_jumps_that_name_them() {
     assert_eq!(
         compile_messages("_main(args) { try { args = 1; } finally { in: args = 2; } goto in; }\n"),
         ["1: error: 'goto' cannot transfer control into a 'finally' block"]
+    );
+}
+
+#[test]
+fn an_expression_embedded_in_a_displayed_string_is_displayed() {
+    let compiled = compile_text("_main(args) { \"a<<args>>b<<>>\"; }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // say "a"; the argument; sayval; say "b"
+    assert_eq!(code[10], 0xb0);
+    assert_eq!(code[15..17], [0x7c, 0xb9]);
+    assert_eq!(code[17], 0xb0);
+    assert_eq!(code[22], 0x51);
+}
+
+#[test]
+fn an_expression_embedded_in_a_string_value_is_added_to_it() {
+    let compiled = compile_text("_main(args) { return 'a<<args>>b'; }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // pushstr "a"; the argument; add; pushstr "b"; add; retval
+    assert_eq!(code[10], 0x05);
+    assert_eq!(code[15..17], [0x7c, 0x22]);
+    assert_eq!(code[17], 0x05);
+    assert_eq!(code[22..24], [0x22, 0x50]);
+
+    // With nothing but constants embedded, the string is a constant,
+    // which a `case` has to be.
+    assert_eq!(
+        compile_messages(
+            "_main(args) { switch (args) { case 'a<<1>>b<<if nil>>c<<else>>d<<end>>': ; } }\n"
+        ),
+        [] as [&str; 0]
+    );
+}
+
+#[test]
+fn what_is_embedded_can_depend_on_a_condition() {
+    let compiled = compile_text("_main(args) { \"<<if args>>yes<<else>>no<<end>>\"; }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // the argument; jf; say "yes"; return, where a jump to the end
+    // was; say "no"; return
+    assert_eq!(code[10..12], [0x7c, 0x93]);
+    assert_eq!(code[14], 0xb0);
+    assert_eq!(code[19], 0x51);
+    assert_eq!(code[22], 0xb0);
+    assert_eq!(code[27], 0x51);
+
+    assert_eq!(
+        compile_messages("_main(args) { \"a<<else>>b\"; }\n"),
+        ["1: error: <<else>> found in string without a matching <<if>> or <<unless>>"]
+    );
+    assert_eq!(
+        compile_messages("_main(args) { \"a<<args args>>b\"; }\n"),
+        ["1: error: expected '>>' and the string continuation, but found \"args\""]
+    );
+    // Choosing among alternatives needs a class, and so objects.
+    assert_eq!(
+        compile_messages("_main(args) { \"<<one of>>a<<or>>b<<stopping>>\"; }\n"),
+        ["1: error: <<one of>> requires class OneOfIndexGen to be defined in the program"]
+    );
+}
+
+#[test]
+fn a_string_template_makes_an_embedded_phrase_a_call() {
+    let compiled = compile_text(
+        "string template <<* twice>> twice;\n\
+         twice(x) { return x + x; }\n\
+         _main(args) { \"<<args twice>>\"; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // In _main: the argument; call twice with one argument; the result;
+    // sayval
+    let code = code(&image);
+    let call = code
+        .windows(3)
+        .position(|bytes| bytes == [0x7c, 0x58, 1])
+        .expect("a call with the argument");
+    assert_eq!(code[call + 7..call + 9], [0x8b, 0xb9]);
+
+    // The function has to be defined somewhere if it is used,
+    assert_eq!(
+        compile_messages("string template <<* twice>> twice;\n_main(args) { \"<<1 twice>>\"; }\n"),
+        ["0: error: unresolved external reference \"twice\""]
+    );
+    // but not if it is not.
+    assert_eq!(
+        compile_messages("string template <<* twice>> twice;\n_main(args) { }\n"),
+        [] as [&str; 0]
+    );
+    assert_eq!(
+        compile_messages("f() { }\nstring template <<a * b * c>> f;\n_main(args) { }\n"),
+        [
+            "2: error: only one '*' is allowed in a string template",
+            "2: error: string template processor function f() does not match template - \
+             must take 1 parameter(s) and return a value",
+        ]
+    );
+}
+
+#[test]
+fn the_compiler_gives_up_after_a_hundred_errors() {
+    let mut source = String::from("_main(args) {\n");
+    for _ in 0..150 {
+        source.push_str("1 2;\n");
+    }
+    source.push_str("}\n");
+    let messages = compile_messages(&source);
+    assert_eq!(messages.len(), 102);
+    assert_eq!(messages[100], "102: error: expected ';', but found \"2\"");
+    assert_eq!(
+        messages[101],
+        "102: fatal error: too many errors (try fixing the first couple of errors and recompiling)"
+    );
+
+    // The same when the errors are found generating the code.
+    let mut source = String::from("_main(args) {\n");
+    for index in 0..150 {
+        source.push_str(&format!("u{index}();\n"));
+    }
+    source.push_str("}\n");
+    let messages = compile_messages(&source);
+    assert_eq!(messages.len(), 102);
+    assert_eq!(messages[100], "102: error: undefined symbol \"u100\"");
+    assert!(messages[101].starts_with("102: fatal error: too many errors"));
+}
+
+#[test]
+fn an_undefined_name_is_reported_once() {
+    assert_eq!(
+        compile_messages("f() { nosuch(); }\n_main(args) { nosuch; other = nosuch; }\n"),
+        [
+            "1: error: undefined symbol \"nosuch\"",
+            "2: error: undefined symbol \"other\"",
+        ]
+    );
+}
+
+#[test]
+fn a_long_string_in_a_message_is_cut_short() {
+    assert_eq!(
+        compile_messages("_main(args) { 1 'a string that goes on\\nand on'; }\n"),
+        ["1: error: expected ';', but found \"'a string that goes o...'\""]
+    );
+    assert_eq!(
+        compile_messages("_main(args) { 1 'two\\nlines'; }\n"),
+        ["1: error: expected ';', but found \"'two\\nlines'\""]
     );
 }

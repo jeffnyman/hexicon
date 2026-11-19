@@ -7,7 +7,8 @@ Each program is made of the parts of the language Hexicon compiles so
 far: functions, locals, the statements that need no objects (labels,
 `goto`, `switch`, `try` with `finally`, and `throw` among them), and
 expressions over numbers, strings, lists, locals, and calls to functions
-and to built-in functions. The programs are
+and to built-in functions. Strings have expressions embedded in them,
+string templates included. The programs are mostly
 valid but mean nothing; they are for tools/compile-compare.sh, to find
 source that the two compilers turn into different code.
 """
@@ -49,6 +50,11 @@ intrinsic 'tads-gen/030008'
     restoreGame(filename);
     restartGame();
     max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+    toNumber(val, radix?);
+    sprintf(format, ...);
 }
 intrinsic 'tads-io/030007'
 {
@@ -56,6 +62,12 @@ intrinsic 'tads-io/030007'
 }
 """
 ASSIGN = ["=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ">>>="]
+# String templates a program can have: the definition, the function's
+# number of parameters, and how an expression is written to use it.
+TEMPLATES = [("<<* in words>>", 1, "{} in words"), ("<<bold>>", 0, "bold"),
+             ("<<the * thing>>", 1, "the {} thing"), ("<<big *>>", 1, "big {}")]
+WORDS = ["", "", "a", "one two", " and ", ". ", "x", "It\\'s ", "\\n", "%"]
+FORMATS = ["%d", "%5d", "%s", "%x", "%-3s", "%05.2f", "%c"]
 
 
 class Program:
@@ -70,6 +82,68 @@ class Program:
         # is on a loop.
         self.labels = []
         self.around = []
+        # The string templates the program defines.
+        self.templates = []
+        # How deep in embedded expressions the expression being written
+        # is. `>>` there ends the expression, so no operator has it.
+        self.embedding = 0
+        if rng.random() < 0.3:
+            self.templates = rng.sample(TEMPLATES, rng.randint(1, len(TEMPLATES)))
+
+    def embedded_expr(self, scope, depth, plain=False):
+        """An expression to go between `<<` and `>>`."""
+        rng = self.rng
+        self.embedding += 1
+        text = self.expr(scope, depth)
+        self.embedding -= 1
+        if plain:
+            return text
+        if self.templates and rng.random() < 0.3:
+            text = rng.choice(self.templates)[2].format(text)
+        if rng.random() < 0.1:
+            text = rng.choice(FORMATS) + " " + text
+        return text
+
+    def pick(self, ops):
+        """An operator, but not one with `>>` in an embedded expression."""
+        if self.embedding:
+            ops = [op for op in ops if ">>" not in op]
+        return self.rng.choice(ops)
+
+    def embedded(self, scope, depth, quote, nested=0):
+        """The inside of a string with expressions embedded in it."""
+        rng = self.rng
+        # The reference crashes on text after an empty embedding, in a
+        # string in double quotes, if nothing has come before the two
+        # in the string or in the branch of an `if` that they are in.
+        parts = []
+        for _ in range(rng.randint(1, 4)):
+            parts.append(rng.choice(WORDS))
+            kind = rng.random()
+            if 0.6 <= kind < 0.9 and quote == '"' and not "".join(parts):
+                kind = 0
+            if kind < 0.6:
+                parts.append(f"<<{self.embedded_expr(scope, depth)}>>")
+            elif kind < 0.85 and nested < 2:
+                word = rng.choice(["if", "if", "unless"])
+                parts.append(f"<<{word} {self.embedded_expr(scope, depth, True)}>>")
+                parts.append(self.embedded(scope, depth - 1, quote, nested + 1))
+                while rng.random() < 0.3:
+                    other = rng.choice(["else if", "else unless", "otherwise if"])
+                    parts.append(f"<<{other} {self.embedded_expr(scope, depth, True)}>>")
+                    parts.append(self.embedded(scope, depth - 1, quote, nested + 1))
+                if rng.random() < 0.5:
+                    parts.append(rng.choice(["<<else>>", "<<otherwise>>"]))
+                    parts.append(self.embedded(scope, depth - 1, quote, nested + 1))
+                if rng.random() < 0.8:
+                    parts.append("<<end>>")
+            elif kind < 0.9:
+                parts.append("<<>>")
+            elif kind < 0.91:
+                parts.append(rng.choice(["<<one of>>a<<or>>b<<stopping>>", "<<first time>>a<<only>>",
+                                         "<<end>>", "<<else>>", "<<or>>", "<<only>>"]))
+        parts.append(rng.choice(WORDS))
+        return "".join(parts)
 
     def constant(self):
         rng = self.rng
@@ -93,7 +167,7 @@ class Program:
             return self.constant()
         kind = rng.random()
         if kind < 0.45:
-            op = rng.choice(BINARY)
+            op = self.pick(BINARY)
             left, right = self.expr(scope, depth - 1), self.expr(scope, depth - 1)
             # The reference reports a constant division by zero once or
             # twice, depending on what is in its memory; leave the
@@ -125,6 +199,8 @@ class Program:
                     f" : {self.expr(scope, depth - 1)})")
         if kind < 0.87:
             return f"({self.expr(scope, depth - 1)} ?? {self.expr(scope, depth - 1)})"
+        if kind < 0.89:
+            return "'" + self.embedded(scope, depth - 2, "'") + "'"
         if kind < 0.95 and scope:
             target = rng.choice(scope)
             if rng.random() < 0.3:
@@ -132,7 +208,7 @@ class Program:
                 if rng.random() < 0.2:
                     target += f"[{self.expr(scope, depth - 2)}]"
             if rng.random() < 0.5:
-                return f"({target} {rng.choice(ASSIGN)} {self.expr(scope, depth - 1)})"
+                return f"({target} {self.pick(ASSIGN)} {self.expr(scope, depth - 1)})"
             return rng.choice([f"{target}++", f"{target}--", f"++{target}", f"--{target}"])
         return f"({self.expr(scope, depth - 1)}, {self.expr(scope, depth - 1)})"
 
@@ -166,8 +242,10 @@ class Program:
         rng = self.rng
         pad = "    " * indent
         kind = rng.random()
-        if kind < 0.06:
+        if kind < 0.04:
             return [pad + '"' + rng.choice(["", "text", "Hello!", "one two"]) + '";']
+        if kind < 0.12:
+            return [pad + '"' + self.embedded(scope, 2, '"') + '";']
         if kind < 0.5 and scope:
             target = rng.choice(scope)
             if rng.random() < 0.25:
@@ -290,6 +368,17 @@ class Program:
         funcs = list(self.funcs)
         self.rng.shuffle(funcs)
         lines = []
+        # A template's function is defined before the template or after,
+        # or not at all.
+        for index, (pattern, argc, _) in enumerate(self.templates):
+            params = "x" if argc else ""
+            define = f"tpl{index}({params}) {{ return {'x' if argc else '1'}; }}"
+            where = self.rng.random()
+            if where < 0.45:
+                lines.append(define)
+            lines.append(f"string template {pattern} tpl{index};")
+            if 0.45 <= where < 0.97:
+                lines.append(define)
         for name, argc, more in funcs:
             lines += self.function(name, argc, more)
         return PRELUDE + "\n".join(lines) + "\n"

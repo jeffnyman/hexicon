@@ -62,6 +62,10 @@ impl Preprocessor<'_> {
     /// [`Tok::Eof`], however often it is asked for.
     pub fn next_token(&mut self) -> Tok {
         self.prv = self.cur.clone();
+        if self.gave_up {
+            self.cur = SrcToken::new(Tok::Eof);
+            return Tok::Eof;
+        }
         if let Some(token) = self.pushed.pop() {
             self.cur = token;
             return self.cur.typ;
@@ -86,6 +90,14 @@ impl Preprocessor<'_> {
     /// before it current. Only one token can be put back this way.
     pub fn unget_token(&mut self) {
         let current = std::mem::replace(&mut self.cur, self.prv.clone());
+        self.pushed.push(current);
+        self.prv = SrcToken::new(Tok::Invalid);
+    }
+
+    /// Put the current token back, to be read again, and make a token
+    /// that was read earlier current in its place.
+    pub fn unget_to(&mut self, earlier: SrcToken) {
+        let current = std::mem::replace(&mut self.cur, earlier);
         self.pushed.push(current);
         self.prv = SrcToken::new(Tok::Invalid);
     }
@@ -438,7 +450,7 @@ impl Preprocessor<'_> {
     /// Report a problem at a given position.
     pub(crate) fn log_at(&mut self, file: usize, line: u32, severity: Severity, message: String) {
         let file = self.file_name(file).to_owned();
-        self.diagnostics.push(super::Diagnostic {
+        self.push_diagnostic(super::Diagnostic {
             file,
             line,
             severity,
@@ -450,8 +462,47 @@ impl Preprocessor<'_> {
     pub(crate) fn cur_token_shown(&self) -> String {
         let text = String::from_utf8_lossy(&self.cur.text);
         let quoted = |before: &str, after: &str| {
-            let shown: String = text.chars().take(20).collect();
-            format!("{before}{shown}{after}")
+            // The first twenty characters, with control characters
+            // written out, and a mark if there are more.
+            let mut shown = String::from(before);
+            let mut chars = text.chars();
+            for c in chars.by_ref().take(20) {
+                let code = u32::from(c);
+                if code >= 32 {
+                    shown.push(c);
+                    continue;
+                }
+                shown.push('\\');
+                match code {
+                    10 => shown.push('n'),
+                    13 => shown.push('r'),
+                    0x0f => shown.push('^'),
+                    0x0e => shown.push('v'),
+                    0x0b => shown.push('b'),
+                    0x15 => shown.push(' '),
+                    9 => shown.push('t'),
+                    _ => {
+                        // The reference means to give the code in
+                        // hexadecimal, but adds the digit zero to what
+                        // is already a digit.
+                        shown.push('x');
+                        for shift in [12, 8, 4, 0] {
+                            let nibble = (code >> shift) & 0xf;
+                            let digit = if nibble < 10 {
+                                u32::from(b'0') + nibble
+                            } else {
+                                u32::from(b'A') + nibble - 10
+                            };
+                            shown.push(char::from_u32(u32::from(b'0') + digit).unwrap_or('?'));
+                        }
+                    }
+                }
+            }
+            if chars.next().is_some() {
+                shown.push_str("...");
+            }
+            shown.push_str(after);
+            shown
         };
         let shown = match self.cur.typ {
             Tok::Eof => "<End Of File>".to_owned(),

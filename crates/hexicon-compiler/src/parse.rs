@@ -15,7 +15,7 @@ use crate::ast::{
 use crate::flow::Flow;
 use crate::fold::{self, Folded};
 use crate::lex::Tok;
-use crate::pp::{Preprocessor, Severity, show_name};
+use crate::pp::{Preprocessor, Severity, SrcToken, show_name};
 
 /// A local variable or a parameter.
 #[derive(Debug, Clone)]
@@ -145,10 +145,12 @@ pub(crate) struct Program {
 
 impl Program {
     /// The functions as another reading of the same source should see
-    /// them before it starts: known, but not yet defined.
+    /// them before it starts: known, but not yet defined. A function
+    /// that was only ever declared is not passed on.
     pub(crate) fn exported_funcs(&self) -> Vec<FuncSym> {
         self.funcs
             .iter()
+            .filter(|func| !func.is_extern)
             .map(|func| FuncSym {
                 is_extern: true,
                 body: None,
@@ -188,7 +190,59 @@ pub(crate) struct Parser<'p, 'a> {
     next_enclosure_id: usize,
     /// The `switch` statements being read, outermost first.
     switches: Vec<SwitchInfo>,
+    /// The tokens of the expression embedded in a string that was last
+    /// looked at, read ahead to see what kind of thing it is.
+    embed_toks: Vec<SrcToken>,
+    /// The string templates, in the order they were defined.
+    str_templates: Vec<StrTemplate>,
 }
+
+/// A string template: an embedded expression made of these tokens is a
+/// call to a function.
+struct StrTemplate {
+    /// The tokens' text. `*` stands for one or more tokens that are an
+    /// expression, the function's argument.
+    toks: Vec<Vec<u8>>,
+    star: bool,
+    func: Vec<u8>,
+}
+
+/// What an embedded expression is inside of, within its string.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EmbedKind {
+    Outer,
+    If,
+    OneOf,
+    FirstTime,
+}
+
+struct EmbedLevel<'l> {
+    kind: EmbedKind,
+    parent: Option<&'l EmbedLevel<'l>>,
+}
+
+impl EmbedLevel<'_> {
+    fn is_in(&self, kind: EmbedKind) -> bool {
+        self.kind == kind || self.parent.is_some_and(|parent| parent.is_in(kind))
+    }
+}
+
+/// The phrases that end `<<one of>>`, each saying how the alternatives
+/// are chosen.
+const ONE_OF_ENDINGS: [&str; 12] = [
+    "purely at random",
+    "then purely at random",
+    "at random",
+    "then at random",
+    "sticky random",
+    "as decreasingly likely outcomes",
+    "shuffled",
+    "then shuffled",
+    "half shuffled",
+    "then half shuffled",
+    "cycling",
+    "stopping",
+];
 
 /// What a `switch` learns from its body as the body is read.
 #[derive(Default)]
@@ -230,6 +284,8 @@ impl<'p, 'a> Parser<'p, 'a> {
             enclosing: Vec::new(),
             next_enclosure_id: 0,
             switches: Vec::new(),
+            embed_toks: Vec::new(),
+            str_templates: Vec::new(),
         }
     }
 
@@ -245,6 +301,12 @@ impl<'p, 'a> Parser<'p, 'a> {
 
     fn cur_text(&self) -> Vec<u8> {
         self.tok.cur_token().text.clone()
+    }
+
+    /// Whether the current token is this text, whatever kind of token
+    /// it is.
+    fn cur_matches(&self, text: &[u8]) -> bool {
+        self.tok.cur_token().text == text
     }
 
     fn cur_is_sym(&self, text: &[u8]) -> bool {
@@ -434,10 +496,17 @@ impl<'p, 'a> Parser<'p, 'a> {
         suppress_error: bool,
         suppress_next_error: &mut bool,
     ) -> Parsed<()> {
+        let first = self.cur_text();
         match self.next() {
             Tok::LPar => {
                 self.tok.unget_token();
                 self.parse_function(false)
+            }
+            Tok::Template if first == b"string" => self.parse_string_template(),
+            Tok::Template => {
+                self.unsupported("an object template");
+                *suppress_next_error = true;
+                Ok(())
             }
             Tok::Colon => {
                 self.unsupported("an object definition");
@@ -537,6 +606,99 @@ impl<'p, 'a> Parser<'p, 'a> {
         self.prog.funcs[func_id].body = Some(self.prog.bodies.len());
         self.prog.bodies.push((body, func_id));
         Ok(())
+    }
+
+    /// Read `string template <<tokens>> function;`. From here on, an
+    /// expression embedded in a string that is these tokens is a call
+    /// to the function. One token can be `*`, for an expression that is
+    /// the function's argument.
+    fn parse_string_template(&mut self) -> Parsed<()> {
+        let mut toks = Vec::new();
+        let mut star = false;
+        if self.next() == Tok::Shl {
+            self.next();
+        } else {
+            self.error_curtok("expected '<<' at start of string template, but found '%'");
+        }
+        loop {
+            match self.cur() {
+                Tok::AShr => {
+                    self.next();
+                    break;
+                }
+                Tok::Sem | Tok::RBrace => {
+                    self.error_curtok("expected '>>' at end of string template, but found '%'");
+                    return Ok(());
+                }
+                Tok::Eof => {
+                    // The reference never stops reading here.
+                    self.error_curtok("expected '>>' at end of string template, but found '%'");
+                    return Err(Stop);
+                }
+                typ => {
+                    toks.push(self.cur_text());
+                    if typ == Tok::Times {
+                        if star {
+                            self.error("only one '*' is allowed in a string template");
+                        }
+                        star = true;
+                    }
+                    self.next();
+                }
+            }
+        }
+        if self.cur() != Tok::Sym {
+            return self.skip_to_sem();
+        }
+
+        // The function takes one argument if there is a `*`, and none
+        // if not. If nothing is known of it yet, that is what it is
+        // declared to be.
+        let argc = usize::from(star);
+        let name = self.cur_text();
+        match self.prog.globals.get(&name).copied() {
+            Some(Global::Func(id)) => {
+                let func = &self.prog.funcs[id];
+                if !func.argc_ok(argc) || (!func.is_extern && !func.has_retval) {
+                    self.error(format!(
+                        "string template processor function {}() does not match template - \
+                         must take {argc} parameter(s) and return a value",
+                        String::from_utf8_lossy(&name)
+                    ));
+                }
+            }
+            Some(Global::Bif(_)) => {
+                // The reference takes whatever has the name to be a
+                // function, and reads what is not there.
+                self.error(format!(
+                    "string template processor function {}() does not match template - \
+                     must take {argc} parameter(s) and return a value",
+                    String::from_utf8_lossy(&name)
+                ));
+            }
+            None => {
+                self.prog.funcs.push(FuncSym {
+                    name: name.clone(),
+                    argc,
+                    opt_argc: 0,
+                    varargs: false,
+                    has_retval: true,
+                    is_extern: true,
+                    has_proto: true,
+                    body: None,
+                });
+                self.prog
+                    .globals
+                    .insert(name.clone(), Global::Func(self.prog.funcs.len() - 1));
+            }
+        }
+        self.str_templates.push(StrTemplate {
+            toks,
+            star,
+            func: name,
+        });
+        self.next();
+        self.parse_req_sem()
     }
 
     /// Note that the program uses a set of built-in functions, and give
@@ -2208,6 +2370,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.next();
                     return Some(Expr::DStr(text));
                 }
+                Tok::DStrStart => return self.parse_embedding(true),
+                Tok::SStrStart => return self.parse_embedding(false),
                 Tok::LBrack => return self.parse_list(),
                 Tok::Sym => {
                     let name = self.cur_text();
@@ -2238,8 +2402,6 @@ impl<'p, 'a> Parser<'p, 'a> {
                 }
                 Tok::Float
                 | Tok::BigInt
-                | Tok::DStrStart
-                | Tok::SStrStart
                 | Tok::ReStr
                 | Tok::LBrace
                 | Tok::Method
@@ -2271,6 +2433,486 @@ impl<'p, 'a> Parser<'p, 'a> {
             self.next();
             return Some(Expr::constant(value));
         }
+    }
+}
+
+// ---- expressions embedded in strings ----
+//
+// A string with expressions in it comes from the tokenizer as its
+// pieces: the text up to the first expression, the expression's tokens,
+// the text up to the next, and so on. In double quotes,
+// `"one <<two>> three"` is `"one ", say(two), " three"`; in single
+// quotes, `'one <<two>> three'` is `'one ' + (two) + ' three'`.
+impl Parser<'_, '_> {
+    fn embed_mid(dbl: bool) -> Tok {
+        if dbl { Tok::DStrMid } else { Tok::SStrMid }
+    }
+
+    fn embed_end(dbl: bool) -> Tok {
+        if dbl { Tok::DStrEnd } else { Tok::SStrEnd }
+    }
+
+    /// The text that starts a string or a part of one, which is the
+    /// current token. Empty text in double quotes displays nothing, so
+    /// it is left out; in single quotes it still makes what follows a
+    /// string.
+    fn embed_lead(&self, dbl: bool) -> Option<Expr> {
+        let text = self.cur_text();
+        if !dbl {
+            Some(Expr::constant(Value::SStr(text)))
+        } else if text.is_empty() {
+            None
+        } else {
+            Some(Expr::DStr(text))
+        }
+    }
+
+    fn embed_finish(dbl: bool, cur: Option<Expr>) -> Expr {
+        cur.unwrap_or_else(|| {
+            if dbl {
+                Expr::DStr(Vec::new())
+            } else {
+                Expr::constant(Value::SStr(Vec::new()))
+            }
+        })
+    }
+
+    /// Add an embedded expression to what there is of the string so
+    /// far.
+    fn embed_add(dbl: bool, cur: Option<Expr>, sub: Expr) -> Expr {
+        let op = if dbl { BinOp::Comma } else { BinOp::Add };
+        let sub = if dbl {
+            Expr::DStrEmbed(Box::new(sub))
+        } else {
+            sub
+        };
+        match cur {
+            Some(cur) => Expr::Binary(op, Box::new(cur), Box::new(sub)),
+            None => sub,
+        }
+    }
+
+    /// Add the text after an embedded expression, which is the current
+    /// token.
+    fn embed_add_segment(&self, dbl: bool, cur: Option<Expr>) -> Option<Expr> {
+        let text = self.cur_text();
+        if text.is_empty() {
+            return cur;
+        }
+        let (op, segment) = if dbl {
+            (BinOp::Comma, Expr::DStr(text))
+        } else {
+            (BinOp::Add, Expr::constant(Value::SStr(text)))
+        };
+        Some(match cur {
+            Some(cur) => Expr::Binary(op, Box::new(cur), Box::new(segment)),
+            // Text after an embedding with nothing in it, at the very
+            // start of a string. The reference crashes.
+            None => segment,
+        })
+    }
+
+    /// Whether tokens are a pattern: the same text, token for token,
+    /// but that `*` in the pattern is one or more tokens.
+    fn toks_match(toks: &[SrcToken], pattern: &[&[u8]]) -> bool {
+        let mut tokn = toks.len();
+        let mut argn = pattern.len();
+        if tokn < argn {
+            return false;
+        }
+        let mut tok = 0;
+        let mut arg = 0;
+        while tokn != 0 && argn != 0 {
+            if pattern[arg] == b"*" {
+                while tokn > argn {
+                    tok += 1;
+                    tokn -= 1;
+                }
+            } else if toks[tok].text != pattern[arg] {
+                return false;
+            }
+            tok += 1;
+            arg += 1;
+            tokn -= 1;
+            argn -= 1;
+        }
+        tokn == 0 && argn == 0
+    }
+
+    /// Whether the tokens read ahead are a phrase, given as its words
+    /// with spaces between.
+    fn embed_match(&self, phrase: &str) -> bool {
+        let pattern: Vec<&[u8]> = phrase.split(' ').map(str::as_bytes).collect();
+        Self::toks_match(&self.embed_toks, &pattern)
+    }
+
+    /// Read ahead through an embedded expression, to the next part of
+    /// the string or to what looks like the end of the statement.
+    fn embed_capture(&mut self, dbl: bool) {
+        self.embed_toks.clear();
+        // Only braces are counted: a semicolon inside them is not the
+        // end of the statement.
+        let mut braces = 0i32;
+        loop {
+            match self.cur() {
+                Tok::LBrace => braces += 1,
+                Tok::RBrace => {
+                    braces -= 1;
+                    if braces < 0 {
+                        return;
+                    }
+                }
+                Tok::Sem if braces == 0 => return,
+                Tok::Eof => return,
+                typ if typ == Self::embed_mid(dbl) || typ == Self::embed_end(dbl) => return,
+                _ => {}
+            }
+            self.embed_toks.push(self.tok.cur_token().clone());
+            self.next();
+        }
+    }
+
+    /// Put the tokens read ahead back to be read again, but for the
+    /// first `skip` of them.
+    fn embed_unget(&mut self, skip: usize) {
+        for index in (skip..self.embed_toks.len()).rev() {
+            let token = self.embed_toks[index].clone();
+            self.tok.unget_to(token);
+        }
+    }
+
+    /// Read a string with embedded expressions, from its first part on.
+    fn parse_embedding(&mut self, dbl: bool) -> Option<Expr> {
+        loop {
+            let mut eos = false;
+            let level = EmbedLevel {
+                kind: EmbedKind::Outer,
+                parent: None,
+            };
+            let tree = self.parse_embedding_list(dbl, &mut eos, &level)?;
+            if eos {
+                return Some(tree);
+            }
+            // At the end of the source this would go on for ever; what
+            // stops the reference is its limit on errors.
+            if self.tok.gave_up() {
+                return None;
+            }
+            // Something that ends a construct no construct is open
+            // for: `<<end>>`, `<<else>>`.
+            let (_, open_kw) = self.embed_end_tok_ahead(dbl, &level);
+            let found = String::from_utf8_lossy(&self.cur_text()).into_owned();
+            self.error(format!(
+                "<<{found}>> found in string without a matching {open_kw}"
+            ));
+        }
+    }
+
+    /// Read text and embedded expressions up to the end of the string,
+    /// or up to something that ends a construct this is inside of.
+    fn parse_embedding_list(
+        &mut self,
+        dbl: bool,
+        eos: &mut bool,
+        parent: &EmbedLevel<'_>,
+    ) -> Option<Expr> {
+        *eos = false;
+        let mut curtyp = self.cur();
+        let mut cur = self.embed_lead(dbl);
+        self.next();
+        if curtyp == Self::embed_end(dbl) {
+            *eos = true;
+            return Some(Self::embed_finish(dbl, cur));
+        }
+
+        loop {
+            let nerr = self.tok.error_count();
+            self.embed_capture(dbl);
+
+            let sub;
+            let mut check_end = true;
+            if self.embed_match("if *") {
+                self.embed_unget(1);
+                sub = self.parse_embedded_if(dbl, false, eos, parent);
+            } else if self.embed_match("unless *") {
+                self.embed_unget(1);
+                sub = self.parse_embedded_if(dbl, true, eos, parent);
+            } else if self.embed_match("one of") {
+                sub = self.parse_embedded_oneof(dbl, eos, parent);
+            } else if self.embed_match("first time") {
+                sub = self.parse_embedded_firsttime(dbl, eos, parent);
+            } else if self.embed_end_tok(parent).0 {
+                // The end of a construct this is inside of: whoever is
+                // reading that takes it from here.
+                self.embed_unget(0);
+                return Some(Self::embed_finish(dbl, cur));
+            } else if self.embed_toks.is_empty() {
+                sub = None;
+            } else {
+                // An expression, perhaps after how to format it
+                // (`<<%2d x>>`).
+                let fmt =
+                    (self.embed_toks[0].typ == Tok::FmtSpec).then(|| self.embed_toks.remove(0));
+                let expr = self.parse_embedded_expr()?;
+                check_end = false;
+                sub = Some(match fmt {
+                    Some(fmt) => {
+                        let fmt = Arg {
+                            expr: Expr::constant(Value::SStr(fmt.text)),
+                            varargs: false,
+                        };
+                        let arg = Arg {
+                            expr,
+                            varargs: false,
+                        };
+                        Expr::Call(Box::new(Expr::Sym(b"sprintf".to_vec())), vec![fmt, arg])
+                    }
+                    None => expr,
+                });
+            }
+            if let Some(sub) = sub {
+                cur = Some(Self::embed_add(dbl, cur, sub));
+            }
+
+            // Then comes more of the string.
+            if *eos {
+                return Some(Self::embed_finish(dbl, cur));
+            }
+            curtyp = self.cur();
+            if curtyp == Self::embed_mid(dbl) {
+                cur = self.embed_add_segment(dbl, cur);
+                self.next();
+            } else if curtyp == Self::embed_end(dbl) {
+                cur = self.embed_add_segment(dbl, cur);
+                self.next();
+                *eos = true;
+                return Some(Self::embed_finish(dbl, cur));
+            } else if check_end && self.embed_end_tok_ahead(dbl, parent).0 {
+                // A construct that was inside this one stopped at the
+                // end of an outer one.
+                return Some(Self::embed_finish(dbl, cur));
+            } else if self.tok.error_count() != nerr {
+                // The expression went wrong, so it is no surprise that
+                // the string does not go on here. Look for where it
+                // does, or for the end of the statement.
+                loop {
+                    if matches!(curtyp, Tok::Sem | Tok::RBrace) {
+                        return Some(Self::embed_finish(dbl, cur));
+                    }
+                    if curtyp == Tok::Eof {
+                        return None;
+                    }
+                    if curtyp == Self::embed_mid(dbl) || curtyp == Self::embed_end(dbl) {
+                        break;
+                    }
+                    curtyp = self.next();
+                }
+            } else {
+                self.error_curtok("expected '>>' and the string continuation, but found \"%\"");
+                self.embed_capture(dbl);
+                if self.cur() != Self::embed_mid(dbl) && self.cur() != Self::embed_end(dbl) {
+                    return Some(Self::embed_finish(dbl, cur));
+                }
+            }
+        }
+    }
+
+    /// Read one embedded expression, from the tokens read ahead. If
+    /// they are a string template, it is a call to the template's
+    /// function.
+    fn parse_embedded_expr(&mut self) -> Option<Expr> {
+        for index in 0..self.str_templates.len() {
+            let template = &self.str_templates[index];
+            let pattern: Vec<&[u8]> = template.toks.iter().map(Vec::as_slice).collect();
+            if !Self::toks_match(&self.embed_toks, &pattern) {
+                continue;
+            }
+            let func = Expr::Sym(template.func.clone());
+            let mut args = Vec::new();
+            if template.star {
+                let expr = if pattern.len() > 1 {
+                    // Leave only the tokens that the `*` stands for,
+                    // and see whether they are a template in turn.
+                    let before = pattern
+                        .iter()
+                        .position(|tok| *tok == b"*")
+                        .unwrap_or(pattern.len());
+                    let after = pattern.len().saturating_sub(before + 1);
+                    let end = self.embed_toks.len().saturating_sub(after);
+                    self.embed_toks.truncate(end);
+                    self.embed_toks.drain(..before.min(end));
+                    self.parse_embedded_expr()?
+                } else {
+                    self.embed_unget(0);
+                    self.parse_expr()?
+                };
+                args.push(Arg {
+                    expr,
+                    varargs: false,
+                });
+            }
+            return Some(Expr::Call(Box::new(func), args));
+        }
+        self.embed_unget(0);
+        self.parse_expr()
+    }
+
+    /// Read `<<if cond>>...<<else if cond>>...<<else>>...<<end>>`, from
+    /// the first condition on. `unless` is `if` the other way round.
+    fn parse_embedded_if(
+        &mut self,
+        dbl: bool,
+        unless: bool,
+        eos: &mut bool,
+        parent: &EmbedLevel<'_>,
+    ) -> Option<Expr> {
+        let level = EmbedLevel {
+            kind: EmbedKind::If,
+            parent: Some(parent),
+        };
+        let not = |cond: Expr, unless: bool| {
+            if unless {
+                Expr::Unary(UnOp::Not, Box::new(cond))
+            } else {
+                cond
+            }
+        };
+        let cond = self.parse_cond_expr()?;
+        let then = self.parse_embedding_list(dbl, eos, &level)?;
+        let mut branches = vec![(not(cond, unless), then)];
+        let mut last = None;
+        while !*eos && (self.cur() == Tok::Else || self.cur_matches(b"otherwise")) {
+            if self.next() == Tok::If || self.cur_matches(b"unless") {
+                let unless = self.cur() != Tok::If;
+                self.next();
+                let cond = self.parse_cond_expr()?;
+                let then = self.parse_embedding_list(dbl, eos, &level)?;
+                branches.push((not(cond, unless), then));
+            } else {
+                last = Some(self.parse_embedding_list(dbl, eos, &level)?);
+                break;
+            }
+        }
+        // Without an `else`, there is nothing where it would be.
+        let mut tree = last.unwrap_or_else(|| Self::embed_finish(dbl, None));
+        for (cond, then) in branches.into_iter().rev() {
+            tree = Expr::If(Box::new(cond), Box::new(then), Box::new(tree));
+        }
+        // `<<end>>` can be left out, at the end of the string or of
+        // whatever this is inside of.
+        if !*eos && self.cur_matches(b"end") {
+            self.next();
+        }
+        Some(tree)
+    }
+
+    /// Read `<<one of>>...<<or>>...`, and how to choose among them.
+    fn parse_embedded_oneof(
+        &mut self,
+        dbl: bool,
+        eos: &mut bool,
+        parent: &EmbedLevel<'_>,
+    ) -> Option<Expr> {
+        let level = EmbedLevel {
+            kind: EmbedKind::OneOf,
+            parent: Some(parent),
+        };
+        let mut elements = Vec::new();
+        loop {
+            elements.push(self.parse_embedding_list(dbl, eos, &level)?);
+            self.embed_capture(dbl);
+            if !self.embed_match("or") && !self.embed_match("||") {
+                break;
+            }
+        }
+        // If what follows is not one of the endings, it is for whatever
+        // this is inside of.
+        if !ONE_OF_ENDINGS.iter().any(|ending| self.embed_match(ending)) {
+            self.embed_unget(0);
+        }
+        Some(self.oneof_node(dbl, elements))
+    }
+
+    /// Read `<<first time>>...<<only>>`: text for the first time only,
+    /// which is a choice between it and nothing that stops at the
+    /// second.
+    fn parse_embedded_firsttime(
+        &mut self,
+        dbl: bool,
+        eos: &mut bool,
+        parent: &EmbedLevel<'_>,
+    ) -> Option<Expr> {
+        let level = EmbedLevel {
+            kind: EmbedKind::FirstTime,
+            parent: Some(parent),
+        };
+        let element = self.parse_embedding_list(dbl, eos, &level)?;
+        self.embed_capture(dbl);
+        if !self.embed_match("only") {
+            self.embed_unget(0);
+        }
+        let nothing = Expr::constant(Value::SStr(Vec::new()));
+        Some(self.oneof_node(dbl, vec![element, nothing]))
+    }
+
+    /// A choice among alternatives keeps its state in an object of the
+    /// class `OneOfIndexGen`, and there are no objects yet.
+    fn oneof_node(&mut self, dbl: bool, elements: Vec<Expr>) -> Expr {
+        if !self.syntax_only {
+            self.error("<<one of>> requires class OneOfIndexGen to be defined in the program");
+        }
+        Expr::OneOf(dbl, elements)
+    }
+
+    /// Whether what comes next ends a construct this is inside of. The
+    /// tokens are looked at and put back.
+    fn embed_end_tok_ahead(&mut self, dbl: bool, parent: &EmbedLevel<'_>) -> (bool, &'static str) {
+        self.embed_capture(dbl);
+        let result = self.embed_end_tok(parent);
+        self.embed_unget(0);
+        result
+    }
+
+    /// Whether the tokens read ahead end a construct this is inside of,
+    /// and what kind of construct they would end.
+    fn embed_end_tok(&self, parent: &EmbedLevel<'_>) -> (bool, &'static str) {
+        let mut open_kw = "unknown";
+        // `else` can be nothing else, wherever it is.
+        if self.embed_match("else")
+            || self.embed_match("else if *")
+            || self.embed_match("else unless *")
+        {
+            return (true, "<<if>> or <<unless>>");
+        }
+        if self.embed_match("end")
+            || self.embed_match("otherwise")
+            || self.embed_match("otherwise if *")
+            || self.embed_match("otherwise unless *")
+        {
+            open_kw = "<<if>> or <<unless>>";
+            if parent.is_in(EmbedKind::If) {
+                return (true, open_kw);
+            }
+        }
+        if self.embed_match("or") || self.embed_match("||") {
+            open_kw = "<<one of>>";
+            if parent.is_in(EmbedKind::OneOf) {
+                return (true, open_kw);
+            }
+        }
+        if ONE_OF_ENDINGS.iter().any(|ending| self.embed_match(ending)) {
+            open_kw = "<<one of>>";
+            if parent.is_in(EmbedKind::OneOf) {
+                return (true, open_kw);
+            }
+        }
+        if self.embed_match("only") {
+            open_kw = "<<first time>>";
+            if parent.is_in(EmbedKind::FirstTime) {
+                return (true, open_kw);
+            }
+        }
+        (false, open_kw)
     }
 }
 
