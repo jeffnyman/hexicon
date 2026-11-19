@@ -5,7 +5,8 @@ usage: gen-random.py <folder> <count> [seed]
 
 Each program is made of the parts of the language Hexicon compiles so
 far: functions, locals, the statements that need no objects, and
-expressions over numbers, strings, locals and calls. The programs are
+expressions over numbers, strings, lists, locals, and calls to functions
+and to built-in functions. The programs are
 valid but mean nothing; they are for tools/compile-compare.sh, to find
 source that the two compilers turn into different code.
 """
@@ -18,6 +19,41 @@ NAMES = ["a", "b", "c", "i", "n", "x", "y", "ab", "ba", "tmp", "count", "total",
          "index", "value", "result", "flag", "left", "right", "xx", "k9"]
 BINARY = ["+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>", ">>>",
           "==", "!=", "<", "<=", ">", ">=", "&&", "||"]
+# Built-in functions to call: name, fewest arguments, most.
+BUILTINS = [("tadsSay", 1, 3), ("toString", 1, 3), ("dataType", 1, 1),
+            ("max", 1, 4), ("getArg", 1, 1), ("t3RunGC", 0, 0)]
+PRELUDE = """intrinsic 't3vm/010006'
+{
+    t3RunGC();
+    t3SetSay(val);
+}
+intrinsic 'tads-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+}
+intrinsic 'tads-io/030007'
+{
+    tadsSay(val, ...);
+}
+"""
 ASSIGN = ["=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ">>>="]
 
 
@@ -35,8 +71,10 @@ class Program:
         if kind < 0.55:
             return str(rng.choice([0, 1, 2, 3, 7, 100, 126, 127, 128, 255, 256, 1000,
                                    65536, 2147483647, rng.randint(0, 300)]))
-        if kind < 0.7:
+        if kind < 0.65:
             return rng.choice(["nil", "true"])
+        if kind < 0.7:
+            return "[" + ", ".join(self.constant() for _ in range(rng.randint(0, 3))) + "]"
         if kind < 0.9:
             return "'" + rng.choice(["", "a", "abc", "hello", "x y", "one", "two"]) + "'"
         return "-" + str(rng.choice([1, 2, 128, 129, 1000]))
@@ -44,7 +82,7 @@ class Program:
     def expr(self, scope, depth):
         rng = self.rng
         if depth <= 0 or rng.random() < 0.25:
-            if scope and rng.random() < 0.65:
+            if scope and rng.random() < 0.92:
                 return rng.choice(scope)
             return self.constant()
         kind = rng.random()
@@ -61,7 +99,17 @@ class Program:
             return f"({self.expr(scope, depth - 1)})"
         if kind < 0.65:
             return rng.choice(["!", "-", "~", "+"]) + self.operand(scope, depth - 1)
+        if kind < 0.69:
+            name, fewest, most = rng.choice(BUILTINS)
+            args = ", ".join(self.expr(scope, depth - 2)
+                             for _ in range(rng.randint(fewest, most)))
+            return f"{name}({args})"
+        if kind < 0.72:
+            count = rng.randint(1, 3)
+            return "[" + ", ".join(self.expr(scope, depth - 2) for _ in range(count)) + "]"
         if kind < 0.75:
+            return f"{self.operand(scope, depth - 1)}[{self.expr(scope, depth - 2)}]"
+        if kind < 0.79:
             name, argc, more = rng.choice(self.funcs[1:])
             count = argc + (rng.randint(0, 2) if more else 0)
             args = ", ".join(self.expr(scope, depth - 2) for _ in range(count))
@@ -73,6 +121,10 @@ class Program:
             return f"({self.expr(scope, depth - 1)} ?? {self.expr(scope, depth - 1)})"
         if kind < 0.95 and scope:
             target = rng.choice(scope)
+            if rng.random() < 0.3:
+                target += f"[{self.expr(scope, depth - 2)}]"
+                if rng.random() < 0.2:
+                    target += f"[{self.expr(scope, depth - 2)}]"
             if rng.random() < 0.5:
                 return f"({target} {rng.choice(ASSIGN)} {self.expr(scope, depth - 1)})"
             return rng.choice([f"{target}++", f"{target}--", f"++{target}", f"--{target}"])
@@ -108,8 +160,12 @@ class Program:
         rng = self.rng
         pad = "    " * indent
         kind = rng.random()
+        if kind < 0.06:
+            return [pad + '"' + rng.choice(["", "text", "Hello!", "one two"]) + '";']
         if kind < 0.5 and scope:
             target = rng.choice(scope)
+            if rng.random() < 0.25:
+                target += f"[{self.expr(scope, 2)}]"
             return [f"{pad}{target} {rng.choice(ASSIGN)} {self.expr(scope, 3)};"]
         if kind < 0.7:
             return [f"{pad}{self.expr(scope, 3)};"]
@@ -184,7 +240,7 @@ class Program:
         lines = []
         for name, argc, more in funcs:
             lines += self.function(name, argc, more)
-        return "\n".join(lines) + "\n"
+        return PRELUDE + "\n".join(lines) + "\n"
 
 
 def main():

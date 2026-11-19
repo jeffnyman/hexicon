@@ -40,7 +40,7 @@ commands:
       -o <image.t3>            where to write the image (default: beside
                                the source, with the extension .t3)
       -cs <name>               the character set of source files that do
-                               not say what they are in (default: ASCII)
+                               not say what they are in (default: UTF-8)
       --unspecified <file>     list the parts of the image that mean
                                nothing, such as the time it was compiled,
                                each as an offset and a length; a comparison
@@ -54,6 +54,8 @@ commands:
       -I <dir>                 a folder to look for included files in
       -D <name>[=<text>]       define a macro (as 1, without a text)
       -U <name>                undefine a macro
+      -cs <name>               the character set of source files that do
+                               not say what they are in (default: UTF-8)
       --test                   name files without their folders
   tokens [options] <source>    list a source file's tokens, as the compiler
                                reads them; the options are the same

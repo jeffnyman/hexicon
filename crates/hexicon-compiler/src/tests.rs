@@ -574,3 +574,115 @@ fn a_false_while_condition_is_only_noticed_on_the_first_reading() {
         ]
     );
 }
+
+/// The image's pages of constants, with the mask taken off.
+fn constants(image: &[u8]) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut pos = 69;
+    while pos < image.len() {
+        let size = u32::from_le_bytes(image[pos + 4..pos + 8].try_into().unwrap()) as usize;
+        let data = &image[pos + 10..pos + 10 + size];
+        if &image[pos..pos + 4] == b"CPPG" && data[0] == 2 {
+            out.extend(data[7..].iter().map(|byte| byte ^ data[6]));
+        }
+        pos += 10 + size;
+    }
+    out
+}
+
+#[test]
+fn built_in_functions_are_called_by_set_and_number() {
+    let compiled = compile_text(
+        "intrinsic 'first/010000' { a(); b(x, y?); }\n\
+         intrinsic 'second/020000' { c(...); }\n\
+         _main(args) { b(1); c(1, 2); return a; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // The sets, in the order they were declared.
+    assert_eq!(
+        block(&image, b"FNSD"),
+        b"\x02\x00\x0cfirst/010000\x0dsecond/020000"
+    );
+    // push1; builtin_a 1, 1; push 2; push1; builtin_b 2, 0;
+    // builtin_a 0, 0 (a name alone is a call); the result; retval
+    assert_eq!(
+        code(&image)[10..23],
+        [0x02, 0xb1, 1, 1, 0x03, 2, 0x02, 0xb2, 2, 0, 0xb1, 0, 0]
+    );
+    assert_eq!(
+        compile_messages("intrinsic 'x/1' { b(x, y?); }\n_main(args) { b(); b(1, 2, 3); }\n"),
+        [
+            "2: error: too few arguments to function \"b\"",
+            "2: error: too many arguments to function \"b\"",
+        ]
+    );
+}
+
+#[test]
+fn a_constant_list_goes_in_the_constants() {
+    let compiled = compile_text("_main(args) { return [1, 'two', [3]]; }\n");
+    let image = compiled.image.expect("an image");
+    // The list: three elements, each a kind and four bytes. The string
+    // and the inner list follow it, and the elements hold their
+    // addresses.
+    assert_eq!(
+        constants(&image)[..31],
+        [
+            3, 0, // three elements
+            7, 1, 0, 0, 0, // the integer 1
+            8, 17, 0, 0, 0, // a string, at 17
+            10, 22, 0, 0, 0, // a list, at 22
+            3, 0, b't', b'w', b'o', // the string
+            1, 0, 7, 3, 0, 0, 0, // the inner list
+            4, 0, // the next constant: the name `args`
+        ]
+    );
+}
+
+#[test]
+fn a_list_with_a_variable_is_made_when_the_program_runs() {
+    let compiled = compile_text("_main(args) { return [args, 2]; }\n");
+    let image = compiled.image.expect("an image");
+    // The elements, last first; new1 2, list; and the result returned
+    assert_eq!(code(&image)[10..17], [0x03, 2, 0x7c, 0xc0, 2, 1, 0x54]);
+}
+
+#[test]
+fn a_folded_comparison_of_lists_is_still_the_list() {
+    // The reference overwrites the left operand's value in place, and a
+    // list that has had that done to it is still generated as a list.
+    let compiled = compile_text("_main(args) { local a = [5] == [5]; return a; }\n");
+    let image = compiled.image.expect("an image");
+    // pushlst; setlcl1 0
+    assert_eq!(code(&image)[10], 0x06);
+    assert_eq!(constants(&image)[..7], [1, 0, 7, 5, 0, 0, 0]);
+    // But where only the value is asked for, it is true.
+    let compiled = compile_text("_main(args) { return [5] == [5]; }\n");
+    let image = compiled.image.expect("an image");
+    assert_eq!(code(&image)[10], 0x52);
+}
+
+#[test]
+fn a_string_in_double_quotes_is_displayed_not_used() {
+    let compiled = compile_text("_main(args) { \"hello\"; }\n");
+    let image = compiled.image.expect("an image");
+    // say; retnil
+    assert_eq!(code(&image)[10], 0xb0);
+    assert_eq!(code(&image)[15], 0x51);
+    assert_eq!(
+        compile_messages("_main(args) { local a = \"hello\"; return a; }\n"),
+        ["1: error: a double-quoted string (\"hello\") is not valid within an expression"]
+    );
+}
+
+#[test]
+fn source_files_are_utf8_unless_they_say_otherwise() {
+    let compiled = compile_text("_main(args) { return 'caf\u{e9}'; }\n");
+    let image = compiled.image.expect("an image");
+    assert_eq!(constants(&image)[..7], *"\u{5}\0caf\u{e9}".as_bytes());
+}

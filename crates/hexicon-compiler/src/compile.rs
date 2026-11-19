@@ -15,7 +15,7 @@ pub struct CompileOptions {
     /// Macros to remove before the source is read.
     pub undefines: Vec<String>,
     /// The character set of source files that do not say what they are
-    /// in. Without one, they are taken to be ASCII.
+    /// in. Without one, they are taken to be UTF-8.
     pub default_charset: Option<String>,
     /// When the program is compiled, as the 24 characters the image
     /// records (`Thu Nov 19 09:24:12 2026`). The compiler has no clock

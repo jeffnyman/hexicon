@@ -340,7 +340,7 @@ impl<'a> Preprocessor<'a> {
             test_report: false,
             notes: Vec::new(),
             diagnostics: Vec::new(),
-            default_charset: "us-ascii".to_owned(),
+            default_charset: "utf-8".to_owned(),
         };
         pp.add_special(b"__LINE__", MacroKind::Line);
         pp.add_special(b"__FILE__", MacroKind::File);
@@ -353,7 +353,7 @@ impl<'a> Preprocessor<'a> {
     }
 
     /// Set the character set of source files that do not say what they
-    /// are in, with a byte order mark or `#charset`. It is ASCII unless
+    /// are in, with a byte order mark or `#charset`. It is UTF-8 unless
     /// this is called.
     pub fn set_default_charset(&mut self, name: &str) {
         name.clone_into(&mut self.default_charset);
@@ -2836,7 +2836,7 @@ fn charset_directive(text: &[u8]) -> Option<(&[u8], usize)> {
 /// A file that starts with a byte order mark is in the Unicode encoding
 /// the mark is for. Otherwise a `#charset "name"` directive at the very
 /// start of the file says what it is in, and without one it is plain
-/// in the default character set, which is plain ASCII unless whoever is
+/// in the default character set, which is UTF-8 unless whoever is
 /// compiling says otherwise. A directive that is understood is taken out, leaving the rest
 /// of its line, so that the lines after it keep their numbers; one that
 /// is not is left for the preprocessor to complain about.

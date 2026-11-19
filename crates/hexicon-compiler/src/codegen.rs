@@ -143,6 +143,11 @@ impl CodeGen {
         .any(|&op| op as u8 == self.last_op)
     }
 
+    /// The last instruction written, as the peephole rules left it.
+    pub(crate) fn last_op(&self) -> u8 {
+        self.last_op
+    }
+
     // ---- labels ----
 
     pub(crate) fn new_label(&mut self) -> Label {

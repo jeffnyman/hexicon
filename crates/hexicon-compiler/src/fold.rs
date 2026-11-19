@@ -111,6 +111,19 @@ pub(crate) fn binary(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String
             }
             if is_int(&left) && is_int(&right) {
                 arithmetic(op, left, right, errors)
+            } else if is_list(&left) {
+                // Take out every element equal to the right side, or to
+                // any element of it if it is a list too.
+                let removed = match into_const(right).value {
+                    Value::List(elements) => elements,
+                    other => vec![ConstVal::new(other)],
+                };
+                let mut result = into_const(left);
+                if let Value::List(elements) = &mut result.value {
+                    elements
+                        .retain(|element| !removed.iter().any(|gone| gone.value == element.value));
+                }
+                Folded::Yes(Expr::Const(result))
             } else {
                 errors.push("incompatible constant types for two-operand '-' operator".into());
                 Folded::No(left, right)
@@ -128,6 +141,10 @@ fn is_int(expr: &Expr) -> bool {
             ..
         })
     )
+}
+
+fn is_list(expr: &Expr) -> bool {
+    expr.const_list_len().is_some()
 }
 
 fn is_str(expr: &Expr) -> bool {
@@ -247,7 +264,7 @@ fn as_text(value: &Value) -> Option<Vec<u8>> {
         Value::True => b"true".to_vec(),
         Value::Int(int) => int.to_string().into_bytes(),
         Value::SStr(text) => text.clone(),
-        Value::FuncPtr(_) => return None,
+        Value::FuncPtr(_) | Value::List(_) => return None,
     })
 }
 
@@ -258,7 +275,27 @@ fn add(left: Expr, right: Expr, errors: &mut Vec<String>) -> Folded {
     if is_int(&left) && is_int(&right) {
         return arithmetic(BinOp::Add, left, right, errors);
     }
+    if is_list(&left) {
+        // A list and a list are joined; anything else becomes one more
+        // element.
+        let mut result = into_const(left);
+        if let Value::List(elements) = &mut result.value {
+            match into_const(right) {
+                ConstVal {
+                    value: Value::List(more),
+                    ..
+                } => elements.extend(more),
+                other => elements.push(other),
+            }
+        }
+        return Folded::Yes(Expr::Const(result));
+    }
     if is_str(&left) || is_str(&right) {
+        // A string and a list cannot be put together until the program
+        // runs.
+        if is_list(&right) {
+            return Folded::No(left, right);
+        }
         let right_value = &right.as_const().expect("constant").value;
         let (Some(mut text), Some(right_text)) = (
             as_text(&left.as_const().expect("constant").value),
@@ -276,6 +313,42 @@ fn add(left: Expr, right: Expr, errors: &mut Vec<String>) -> Folded {
     }
     errors.push("incompatible constant types for two-operand '+' operator".into());
     Folded::No(left, right)
+}
+
+/// Try to index a constant with a constant. Nothing comes back if the
+/// indexing has to wait until the program runs.
+pub(crate) fn subscript(left: &Expr, index: &Expr, errors: &mut Vec<String>) -> Option<Expr> {
+    let (Some(left), Some(index)) = (left.as_const(), index.as_const()) else {
+        return None;
+    };
+    match &left.value {
+        Value::List(elements) => {
+            let Value::Int(index) = index.value else {
+                errors.push(
+                    "index value must be an integer in constant list index expression".into(),
+                );
+                return None;
+            };
+            // Elements are numbered from one.
+            let element = usize::try_from(index)
+                .ok()
+                .and_then(|index| index.checked_sub(1))
+                .and_then(|index| elements.get(index));
+            match element {
+                Some(element) => Some(Expr::Const(element.clone())),
+                None => {
+                    errors
+                        .push("index value out of range in constant list index expression".into());
+                    None
+                }
+            }
+        }
+        Value::SStr(_) | Value::FuncPtr(_) => None,
+        _ => {
+            errors.push("invalid indexed type in constant expression - list required".into());
+            None
+        }
+    }
 }
 
 /// `!` of a constant.

@@ -100,11 +100,27 @@ impl FuncSym {
     }
 }
 
+/// A function built into the virtual machine.
+#[derive(Debug, Clone)]
+pub(crate) struct BifSym {
+    pub name: Vec<u8>,
+    /// Which set of functions it is in: an index into
+    /// [`Program::fnsets`].
+    pub set: usize,
+    /// Its place in the set.
+    pub index: usize,
+    pub min_argc: usize,
+    pub max_argc: usize,
+    pub varargs: bool,
+}
+
 /// What a name means at the outermost level of the program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Global {
     /// An index into [`Program::funcs`].
     Func(usize),
+    /// An index into [`Program::bifs`].
+    Bif(usize),
 }
 
 /// A program as the parser leaves it.
@@ -113,6 +129,12 @@ pub(crate) struct Program {
     pub locals: Vec<Local>,
     pub tabs: Vec<LocalTab>,
     pub funcs: Vec<FuncSym>,
+    pub bifs: Vec<BifSym>,
+    /// The sets of built-in functions the program uses, by name, in the
+    /// order they were first declared.
+    pub fnsets: Vec<Vec<u8>>,
+    /// The number of elements in the longest list in the source.
+    pub max_list_cnt: usize,
     pub globals: HashMap<Vec<u8>, Global>,
     /// The function bodies, in the order the source has them, each with
     /// the function it defines.
@@ -345,8 +367,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.next();
                     Ok(())
                 }
+                Tok::Intrinsic => self.parse_intrinsic(),
                 Tok::Extern
-                | Tok::Intrinsic
                 | Tok::Transient
                 | Tok::Object
                 | Tok::Plus
@@ -440,6 +462,18 @@ impl<'p, 'a> Parser<'p, 'a> {
 
         let existing = self.prog.globals.get(&name).copied();
         let func_id = match existing {
+            Some(Global::Bif(_)) => {
+                self.tok.log_at(
+                    sym_file,
+                    sym_line,
+                    Severity::Error,
+                    format!(
+                        "symbol \"{}\" is already defined - can't redefine as function",
+                        Self::name(&name)
+                    ),
+                );
+                return Ok(());
+            }
             Some(Global::Func(id)) => {
                 let func = &self.prog.funcs[id];
                 let mut redef = !func.is_extern;
@@ -482,6 +516,124 @@ impl<'p, 'a> Parser<'p, 'a> {
         self.prog.funcs[func_id].body = Some(self.prog.bodies.len());
         self.prog.bodies.push((body, func_id));
         Ok(())
+    }
+
+    /// Note that the program uses a set of built-in functions, and give
+    /// the set's number. A set's name is a name proper, a slash, and a
+    /// version; of two declarations of a set, the later version is
+    /// kept.
+    fn add_fnset(&mut self, name: &[u8]) -> usize {
+        // No more of a version is kept than the slash and six characters.
+        const VERSION_LEN: usize = 7;
+        let split = |text: &[u8]| text.iter().position(|&c| c == b'/').unwrap_or(text.len());
+        let slash = split(name);
+        let version = &name[slash..];
+        for (index, known) in self.prog.fnsets.iter_mut().enumerate() {
+            let known_slash = split(known);
+            if known[..known_slash] != name[..slash] {
+                continue;
+            }
+            if known_slash < known.len() && !version.is_empty() {
+                // Both have versions. The reference compares as many
+                // bytes as the new one has, and if the new is greater,
+                // writes those bytes over the start of the old:
+                // `/123456789` and then `/2` leave `/223456789`.
+                let version = &version[..version.len().min(VERSION_LEN)];
+                let old: Vec<u8> = (0..version.len())
+                    .map(|i| known.get(known_slash + i).copied().unwrap_or(0))
+                    .collect();
+                if version > old.as_slice() {
+                    let end = known_slash + version.len();
+                    if known.len() < end {
+                        known.resize(end, 0);
+                    }
+                    known[known_slash..end].copy_from_slice(version);
+                }
+            } else if known_slash == known.len() {
+                known.extend_from_slice(&version[..version.len().min(VERSION_LEN)]);
+            }
+            return index;
+        }
+        self.prog.fnsets.push(name.to_vec());
+        self.prog.fnsets.len() - 1
+    }
+
+    /// Read `intrinsic 'set-name' { name(parameters); ... }`: the
+    /// functions of a set built into the virtual machine, in the order
+    /// the set has them.
+    fn parse_intrinsic(&mut self) -> Parsed<()> {
+        let set = match self.next() {
+            Tok::SStr => {
+                let name = self.cur_text();
+                self.next();
+                self.add_fnset(&name)
+            }
+            Tok::Class => {
+                self.unsupported("an intrinsic class");
+                self.next();
+                return Ok(());
+            }
+            _ => {
+                self.error_curtok(
+                    "expected function set name string after \"intrinsic\", but found \"%\"",
+                );
+                0
+            }
+        };
+        if self.cur() == Tok::LBrace {
+            self.next();
+        } else {
+            self.error_curtok("expected '{' after intrinsic name, but found \"%\"");
+        }
+        let mut index = 0;
+        loop {
+            match self.cur() {
+                Tok::RBrace => {
+                    self.next();
+                    return Ok(());
+                }
+                Tok::Eof => {
+                    self.error("end of file in \"intrinsic\" list - '}' is probably missing");
+                    return Err(Stop);
+                }
+                Tok::Sem => {
+                    self.next();
+                }
+                Tok::Sym => {
+                    let name = self.cur_text();
+                    if self.next() == Tok::LPar {
+                        self.next();
+                    } else {
+                        self.error_curtok(
+                            "expected '(' after function name in intrinsic list, but found \"%\"",
+                        );
+                    }
+                    // Only the number of parameters matters.
+                    let mut formals = Formals {
+                        count_only: true,
+                        ..Formals::default()
+                    };
+                    self.parse_formal_list(&mut formals)?;
+                    self.parse_req_sem()?;
+                    self.prog
+                        .globals
+                        .insert(name.clone(), Global::Bif(self.prog.bifs.len()));
+                    self.prog.bifs.push(BifSym {
+                        name,
+                        set,
+                        index,
+                        min_argc: formals.argc,
+                        max_argc: formals.argc + formals.opt_argc,
+                        varargs: formals.varargs,
+                    });
+                    index += 1;
+                }
+                _ => {
+                    self.error_curtok("expected function name in intrinsic list, but found \"%\"");
+                    self.next();
+                }
+            }
+        }
     }
 
     /// Read a function's parameters and body. Nothing comes back if the
@@ -565,15 +717,17 @@ impl<'p, 'a> Parser<'p, 'a> {
                     match self.next() {
                         Tok::RBrack => done = self.after_ellipsis(MISSING_RPAR),
                         Tok::Sym => {
-                            self.create_scope_local_symtab();
-                            let name = self.cur_text();
-                            let id = self.add_local(&name);
-                            if let Some(id) = id {
-                                let local = &mut self.prog.locals[id];
-                                local.val_assigned = true;
-                                local.is_list_param = true;
+                            if !formals.count_only {
+                                self.create_scope_local_symtab();
+                                let name = self.cur_text();
+                                let id = self.add_local(&name);
+                                if let Some(id) = id {
+                                    let local = &mut self.prog.locals[id];
+                                    local.val_assigned = true;
+                                    local.is_list_param = true;
+                                }
+                                formals.varargs_list_local = id;
                             }
-                            formals.varargs_list_local = id;
                             match self.next() {
                                 Tok::RBrack => {
                                     if self.next() == Tok::RPar {
@@ -633,17 +787,46 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Sym => {
                     let name = self.cur_text();
                     self.next();
-                    match self.cur() {
-                        Tok::Colon => self.unsupported("a named parameter"),
-                        Tok::Question | Tok::Eq => self.unsupported("an optional parameter"),
-                        Tok::Sym if !self.cur_is_sym(b"multimethod") => {
-                            self.unsupported("a parameter with a type");
+                    let mut named = false;
+                    if formals.count_only {
+                        // A parameter of a built-in function: it can be
+                        // named, and it can be optional.
+                        if self.cur() == Tok::Colon {
+                            named = true;
+                            self.next();
                         }
-                        _ => {}
+                        let suffix = self.cur();
+                        let optional = matches!(suffix, Tok::Question | Tok::Eq);
+                        if optional {
+                            if !named {
+                                formals.opt_argc += 1;
+                            }
+                            self.next();
+                            if suffix == Tok::Eq {
+                                self.parse_asi_expr();
+                            }
+                        }
+                        if formals.opt_argc != 0 && !optional && !named {
+                            self.error(format!(
+                                "parameter '{}' must be optional because it follows an optional parameter",
+                                String::from_utf8_lossy(&name)
+                            ));
+                        }
+                    } else {
+                        match self.cur() {
+                            Tok::Colon => self.unsupported("a named parameter"),
+                            Tok::Question | Tok::Eq => self.unsupported("an optional parameter"),
+                            Tok::Sym if !self.cur_is_sym(b"multimethod") => {
+                                self.unsupported("a parameter with a type");
+                            }
+                            _ => {}
+                        }
+                        self.create_scope_local_symtab();
+                        self.add_local_entry(&name, true, formals.argc);
                     }
-                    self.create_scope_local_symtab();
-                    self.add_local_entry(&name, true, formals.argc);
-                    formals.argc += 1;
+                    if !named {
+                        formals.argc += 1;
+                    }
                     match self.cur() {
                         Tok::RPar => {
                             self.next();
@@ -685,6 +868,8 @@ impl<'p, 'a> Parser<'p, 'a> {
             self.unsupported("a multi-method");
             self.next();
         }
+        // The count is of the parameters that have to be there.
+        formals.argc -= formals.opt_argc;
         Ok(())
     }
 
@@ -1555,7 +1740,12 @@ impl<'p, 'a> Parser<'p, 'a> {
             self.error(message);
         }
         match result {
-            Folded::Yes(expr) => expr,
+            Folded::Yes(expr) => {
+                if let Some(len) = expr.const_list_len() {
+                    self.prog.max_list_cnt = self.prog.max_list_cnt.max(len);
+                }
+                expr
+            }
             Folded::No(lhs, rhs) => Expr::Binary(op, Box::new(lhs), Box::new(rhs)),
         }
     }
@@ -1650,11 +1840,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         loop {
             match self.cur() {
                 Tok::LPar => sub = self.parse_call(sub)?,
-                Tok::LBrack => {
-                    self.unsupported("indexing");
-                    self.next();
-                    return Some(sub);
-                }
+                Tok::LBrack => sub = self.parse_subscript(sub)?,
                 Tok::Dot => {
                     self.unsupported("a property or method reference");
                     self.next();
@@ -1671,6 +1857,76 @@ impl<'p, 'a> Parser<'p, 'a> {
                 _ => return Some(sub),
             }
         }
+    }
+
+    /// Read `[index]` after an expression.
+    fn parse_subscript(&mut self, lhs: Expr) -> Option<Expr> {
+        self.next();
+        let index = self.parse_expr()?;
+        if self.cur() == Tok::RBrack {
+            self.next();
+        } else {
+            self.error_curtok("expected ']' at end of subscript, but found \"%\"");
+        }
+        let mut errors = Vec::new();
+        let folded = fold::subscript(&lhs, &index, &mut errors);
+        for message in errors {
+            self.error(message);
+        }
+        Some(folded.unwrap_or_else(|| Expr::Index(Box::new(lhs), Box::new(index))))
+    }
+
+    /// Read a list. The current token is the opening bracket.
+    fn parse_list(&mut self) -> Option<Expr> {
+        const MISSING_RBRACK: &str = "expected ']' or a list element, but found \"%\"";
+        self.next();
+        let mut elements = Vec::new();
+        'list: loop {
+            match self.cur() {
+                Tok::RBrack => {
+                    self.next();
+                    break;
+                }
+                Tok::Eof | Tok::RBrace | Tok::Sem | Tok::DStrMid | Tok::DStrEnd => {
+                    self.error_curtok(MISSING_RBRACK);
+                    break;
+                }
+                Tok::RPar => {
+                    self.error("found extraneous ')' in list; ignored");
+                    self.next();
+                }
+                _ => {}
+            }
+            elements.push(self.parse_asi_expr()?);
+            match self.cur() {
+                Tok::Comma => {
+                    self.next();
+                    if self.cur() == Tok::RBrack {
+                        self.error(
+                            "extra list element expected after comma, but found end of list",
+                        );
+                        break 'list;
+                    }
+                }
+                Tok::Arrow => {
+                    self.unsupported("a lookup table list");
+                    self.next();
+                }
+                Tok::RBrack => {
+                    self.next();
+                    break;
+                }
+                Tok::Eof | Tok::LBrace | Tok::RBrace | Tok::Sem | Tok::DStrMid | Tok::DStrEnd => {
+                    self.error_curtok(MISSING_RBRACK);
+                    break;
+                }
+                _ => {
+                    self.error_curtok("expected ',' separating list elements, but found \"%\"");
+                }
+            }
+        }
+        self.prog.max_list_cnt = self.prog.max_list_cnt.max(elements.len());
+        Some(Expr::list(elements))
     }
 
     /// Read a call's arguments. The current token is the opening
@@ -1751,6 +2007,12 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::True => Value::True,
                 Tok::Int => Value::Int(self.tok.cur_token().int_val as i32),
                 Tok::SStr => Value::SStr(self.cur_text()),
+                Tok::DStr => {
+                    let text = self.cur_text();
+                    self.next();
+                    return Some(Expr::DStr(text));
+                }
+                Tok::LBrack => return self.parse_list(),
                 Tok::Sym => {
                     let name = self.cur_text();
                     self.next();
@@ -1780,11 +2042,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                 }
                 Tok::Float
                 | Tok::BigInt
-                | Tok::DStr
                 | Tok::DStrStart
                 | Tok::SStrStart
                 | Tok::ReStr
-                | Tok::LBrack
                 | Tok::LBrace
                 | Tok::Method
                 | Tok::Function
@@ -1821,7 +2081,11 @@ impl<'p, 'a> Parser<'p, 'a> {
 /// What a parameter list says about a function.
 #[derive(Default)]
 struct Formals {
+    /// The list is only being read for how many parameters there are;
+    /// they are not declared.
+    count_only: bool,
     argc: usize,
+    opt_argc: usize,
     varargs: bool,
     varargs_list_local: Option<LocalId>,
 }

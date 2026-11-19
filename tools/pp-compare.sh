@@ -49,7 +49,7 @@ for file in "$@"; do
   ref_inc=()
   for ((i = 0; i < ${#inc[@]}; i += 2)); do ref_inc+=("-I${inc[i + 1]}"); done
   timeout 60 "$ref" "${ref_inc[@]}" "${ref_mode[@]}" "$src" 2>&1 < /dev/null | tr -d '\r' > "$out/$name.ref"
-  timeout 60 "$hex" $hex_mode --test "${inc[@]}" "${defs[@]}" "$src" 2> "$out/$name.err" \
+  timeout 60 "$hex" $hex_mode --test -cs us-ascii "${inc[@]}" "${defs[@]}" "$src" 2> "$out/$name.err" \
     | tr -d '\r' > "$out/$name.hex"
   if diff "$out/$name.hex" "$out/$name.ref" > "$out/$name.dif"; then
     pass=$((pass + 1))

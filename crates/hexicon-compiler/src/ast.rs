@@ -22,6 +22,8 @@ pub(crate) enum Value {
     /// The address of a function: an index into the program's list of
     /// functions.
     FuncPtr(usize),
+    /// A list all of whose elements are constants.
+    List(Vec<ConstVal>),
 }
 
 /// A constant in an expression.
@@ -32,11 +34,22 @@ pub(crate) struct ConstVal {
     /// (`defined(x)`), not from the source saying it outright. A
     /// condition that is constant for that reason is not worth a warning.
     pub ctc: bool,
+    /// The elements of the list this constant used to be. The reference
+    /// folds some operators by overwriting the value of the left
+    /// operand in place, and when that operand is a list, what is left
+    /// is a list that claims to be `true` or `nil`: everything that
+    /// asks for its value sees the truth value, but the code generated
+    /// for it pushes the list. `[1] == [1]` is `[1]`.
+    pub list_node: Option<Vec<ConstVal>>,
 }
 
 impl ConstVal {
     pub(crate) fn new(value: Value) -> Self {
-        Self { value, ctc: false }
+        Self {
+            value,
+            ctc: false,
+            list_node: None,
+        }
     }
 
     /// The value as a condition. Only nil and zero are false.
@@ -47,11 +60,16 @@ impl ConstVal {
     /// Replace the value by true or nil. The reference changes the
     /// value in place, so the note of where it came from stays.
     pub(crate) fn set_bool(&mut self, value: bool) {
-        self.value = if value { Value::True } else { Value::Nil };
+        let new = if value { Value::True } else { Value::Nil };
+        if let Value::List(elements) = std::mem::replace(&mut self.value, new) {
+            self.list_node = Some(elements);
+        }
     }
 
+    /// Whether the value is sure to be true or nil when the program
+    /// runs.
     pub(crate) fn is_bool(&self) -> bool {
-        matches!(self.value, Value::Nil | Value::True)
+        matches!(self.value, Value::Nil | Value::True) && self.list_node.is_none()
     }
 }
 
@@ -111,13 +129,16 @@ pub(crate) enum AsiOp {
     PreDec,
     PostInc,
     PostDec,
+    /// Not an assignment to the target itself but to an element of it:
+    /// the target is what is being indexed in `target[i] = value`.
+    Idx,
 }
 
 impl AsiOp {
     /// The operator as messages name it.
     pub(crate) fn text(self) -> &'static str {
         match self {
-            Self::Simple => "=",
+            Self::Simple | Self::Idx => "=",
             Self::Add => "+=",
             Self::Sub => "-=",
             Self::Mul => "*=",
@@ -163,6 +184,12 @@ pub(crate) enum Expr {
     IfNil(Box<Expr>, Box<Expr>),
     /// A call, with its arguments in the order the source has them.
     Call(Box<Expr>, Vec<Arg>),
+    /// A list with an element that is not a constant.
+    List(Vec<Expr>),
+    /// `a[b]`
+    Index(Box<Expr>, Box<Expr>),
+    /// A string in double quotes: text to display.
+    DStr(Vec<u8>),
 }
 
 impl Expr {
@@ -209,7 +236,34 @@ impl Expr {
     /// Whether the expression can be assigned to, as far as the parser
     /// can tell.
     pub(crate) fn check_lvalue(&self) -> bool {
-        matches!(self, Self::Sym(_) | Self::Local(_))
+        matches!(self, Self::Sym(_) | Self::Local(_) | Self::Index(..))
+    }
+
+    /// A list of these elements: a constant if they all are.
+    pub(crate) fn list(elements: Vec<Expr>) -> Self {
+        if elements.iter().all(Self::is_const) {
+            let values = elements
+                .into_iter()
+                .map(|element| match element {
+                    Self::Const(value) => value,
+                    _ => unreachable!("checked to be constants"),
+                })
+                .collect();
+            Self::constant(Value::List(values))
+        } else {
+            Self::List(elements)
+        }
+    }
+
+    /// How many elements a constant list has, if that is what this is.
+    pub(crate) fn const_list_len(&self) -> Option<usize> {
+        match self {
+            Self::Const(ConstVal {
+                value: Value::List(elements),
+                ..
+            }) => Some(elements.len()),
+            _ => None,
+        }
     }
 }
 

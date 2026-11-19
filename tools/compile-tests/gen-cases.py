@@ -244,6 +244,208 @@ programs["big"] = (
     + "last(s) { return s + 'tail'; }\n"
 )
 
+# The built-in functions most programs declare.
+BUILTINS = """intrinsic 't3vm/010006'
+{
+    t3RunGC();
+    t3SetSay(val);
+    t3GetVMVsn();
+    t3GetVMID();
+    t3GetVMBanner();
+    t3GetVMPreinitMode();
+    t3DebugTrace(mode, ...);
+    t3GetGlobalSymbols(which?);
+    t3AllocProp();
+    t3GetStackTrace(level?, flags?);
+    t3GetNamedArg(name, defval?);
+    t3GetNamedArgList();
+}
+intrinsic 'tads-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'tads-io/030007'
+{
+    tadsSay(val, ...);
+}
+"""
+
+programs["bif1"] = BUILTINS + """
+_main(args)
+{
+    tadsSay('hello\n');
+    tadsSay('a', 'b', 1);
+    local t = dataType(args);
+    local m = max(1, 2, 3) + min(4, 5);
+    local s = toString(m) + toString(m, 16) + toString(m, 16, nil);
+    t3RunGC();
+    t3RunGC;
+    local v = t3GetVMVsn;
+    tadsSay(args...);
+    tadsSay(t, args..., s, v);
+    return getArg(1) + rand(10);
+}
+"""
+
+# Sets declared more than once, with and without versions. (A set first
+# declared without a version and then with one is not here: the
+# reference leaves whatever was in its memory after the name.)
+programs["bif2"] = """
+intrinsic 'tads-gen/030001' { dataType(val); }
+intrinsic 'tads-gen/030008' { dataType2(val); second(a?); }
+intrinsic 'tads-gen/030005' { third(a, b?, c?); }
+intrinsic 'five' { f0(); }
+intrinsic 'six/1' { g0(); }
+intrinsic 'seven/123456789' { h0(); }
+intrinsic 'seven/2' { h1(); }
+_main(args)
+{
+    return dataType(1) + dataType2(2) + second() + second(1) + third(1) + third(1, 2, 3)
+        + f0() + g0() + h0() + h1();
+}
+"""
+
+# A big set. (Calling a function numbered above 255 is not here: the
+# reference crashes.)
+programs["bif3"] = (
+    "intrinsic 'many/1'\n{\n" + "".join(f"    fn{i}();\n" for i in range(300))
+    + "}\n_main(args) { return fn0() + fn255(); }\n"
+)
+
+programs["dstr1"] = BUILTINS + """
+_main(args)
+{
+    "Hello, world!\n";
+    "second";
+    "Hello, world!\n";
+    if (args) "yes"; else "no";
+    args ? "one" : "two";
+    args ? "one" : tadsSay('two');
+    "a", "b";
+    for (local i = 0 ; i < 3 ; ++i) "loop ";
+    "";
+}
+"""
+
+programs["list1"] = """
+f(a, b)
+{
+    local e = [];
+    local c = [1, 2, 3];
+    local s = ['a', 'b', 'a'];
+    local n = [1, 'two', nil, true, [3, 4], [], f, ['x', ['y']]];
+    local v = [a, b];
+    local w = [a, 1, 'x', [b]];
+    local i1 = c[1], i2 = c[a], i3 = [10, 20, 30][2], i4 = [a, b][1], i5 = n[5][1];
+    local j = [1, 2] + [3], k = [1, 2] + 3, l = [1, 2, 3, 2] - 2, m = [1, 2, 3] - [1, 3];
+    local o = [1] + 'x', p = 'x' + [1], q = [1, 2] == [1, 2], r = [1] != [2];
+    local t = c + a, u = c - a, x = [[1, 2], [3, 4]][2][1];
+    [1, 2, 3];
+    [a, b];
+    c[1];
+    return e + c + s + n + v + w + i1 + i2 + i3 + i4 + i5 + j + k + l + m + o + p + q + r + t + u + x;
+}
+_main(args) { return f(1, 2); }
+"""
+
+# A constant list whose value the reference overwrites in place: it
+# passes for true or nil, and is still generated as the list.
+programs["list_bool"] = """
+f(a)
+{
+    local q = [1, 2] == [1, 2], r = [1] != [2], s = ![1], t = [1] || a, u = [1] == 1;
+    local v = [[1] == [1], 2], w = ([1] == [1]) ? 3 : 4;
+    if ([1] == [1]) a = 1;
+    if ([1] == [2]) a = 2;
+    a = ([1] == [1]);
+    a = ([1] == [2]);
+    return [1] == [1];
+}
+g() { return [1] == [2]; }
+_main(args) { return f(1) + g(); }
+"""
+
+programs["list2"] = """
+f(a, b, i)
+{
+    local c = [1, 2, 3];
+    c[1] = a;
+    c[i] = b;
+    c[2] = c[3];
+    c[i + 1] = 5;
+    a[1] = 2;
+    a[i] = 3;
+    local d = (c[1] = 9);
+    d = (a[1] = 9);
+    c[1] += 2;
+    c[i] -= a;
+    c[1]++;
+    ++c[i];
+    d = c[1]++;
+    d = --c[i];
+    d = (c[2] *= 3);
+    a[1] += 1;
+    a[i]++;
+    c[1][2] = 3;
+    c[i][a] = b;
+    c[1][2][3] = 4;
+    c[1][2] += 4;
+    c[1][2]++;
+    d = (c[1][2] = 7);
+    f(1, 2, 3)[1] = 2;
+    [1, 2][1] = 3;
+    c[0] = 1; c[127] = 1; c[128] = 1; c[255] = 1; c[256] = 1; c[-1] = 1;
+    return c + d;
+}
+_main(args) { return f(1, 2, 3); }
+"""
+
+# Lists that decide the size of the constant pool's pages, and one too
+# long for the short instruction that makes a list.
+programs["list3"] = (
+    "_main(args)\n{\n    local big = [" + ", ".join(str(i) for i in range(600))
+    + "];\n    local dyn = [args, " + ", ".join(str(i) for i in range(300))
+    + "];\n    return big + dyn;\n}\n"
+)
+programs["list4"] = (
+    "_main(args)\n{\n    local dyn = [args, " + ", ".join(str(i) for i in range(900))
+    + "];\n    return dyn;\n}\n"
+)
+
+# Indexing a local with a small constant has instructions of its own.
+programs["locals_idx"] = """
+f(p0)
+{
+    local a = [1], b = [2], c = [3], d = [4], e = [5], f6 = [6], g = [7];
+    a[1] = 1; b[2] = 2; g[3] = 3; g[p0] = 4; a[p0] = 5; p0[1] = 6;
+    a[200] = 1; a[1000] = 1;
+    return a[1] + b[2] + g[3] + g[p0] + a[p0] + p0[1] + a[0] + a[200] + a[1000] + g[1000]
+        + c + d + e + f6;
+}
+_main(args) { return f(1); }
+"""
+
 # Mistakes, and code that draws a warning. Each is a program of its own,
 # since what a compiler does after an error depends on how it recovers.
 mistakes = {
@@ -333,6 +535,27 @@ mistakes = {
     "w_whilefalse": "_main(args) { while (nil) { args = 1; } while (0) ; return 3; }",
     "w_unused": "_main(args) { local a; local b = 1; local c; return c; }",
     "w_unusedparam": "f(a, [b]) { } _main(args) { }",
+    "e_bif1": BUILTINS + "_main(args) { return dataType() + dataType(1, 2) + max(); }",
+    "e_bif2": BUILTINS + "_main(args) { dataType = 1; dataType++; return 1; }",
+    "e_bif3": "intrinsic { f(); } _main(args) { }",
+    "e_bif4": "intrinsic 'x' f(); } _main(args) { }",
+    "e_bif5": "intrinsic 'x' { f; g() 1; } _main(args) { }",
+    "e_bif6": "intrinsic 'x' { f(a?, b); } _main(args) { }",
+    "e_bif7": "intrinsic 'x' { f();",
+    "e_bif9": "intrinsic 'x' { f(); } f() { } _main(args) { return f(); }",
+    "e_dstr1": "_main(args) { local a = \"text\"; return a; }",
+    "e_dstr2": "_main(args) { return \"text\"; }",
+    "e_dstr3": "f(x) { } _main(args) { f(\"text\"); }",
+    "e_list1": "_main(args) { return [1, 2; }",
+    "e_list2": "_main(args) { return [1 2]; }",
+    "e_list3": "_main(args) { return [1, ]; }",
+    "e_list4": "_main(args) { return [1, 2)]; }",
+    "e_list5": "_main(args) { return [1, 2][3]; }",
+    "e_list6": "_main(args) { return [1, 2][0] + [1, 2]['a'] + 1[2] + nil[1]; }",
+    "e_list7": "_main(args) { return args[1; }",
+    "e_list8": "_main(args) { return [1, 2] < [3]; }",
+    "e_list9": "_main(args) { return [1, 2] * 2 + 1 + [2]; }",
+    "e_list10": "_main(args) { return [1, 2",
     "w_argnoval": "f() { } g(a) { } _main(args) { g(f()); }",
 }
 

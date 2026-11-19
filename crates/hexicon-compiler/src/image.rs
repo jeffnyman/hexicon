@@ -195,7 +195,7 @@ pub(crate) fn write_image(
 ) -> Result<Image, String> {
     // Where the constants go. Pages are sized for twice the largest
     // item, unless that is large already.
-    let mut max_item = generated.max_str_len + 2;
+    let mut max_item = (generated.max_str_len + 2).max(generated.max_list_cnt * 5 + 2);
     if max_item < 16 * 1024 {
         max_item <<= 1;
     }
@@ -213,21 +213,31 @@ pub(crate) fn write_image(
     let static_addrs = code_layout.place(&static_anchors, STATIC_INIT_STUB.len());
     code_layout.finish();
 
-    // Fill in the addresses.
-    for fixup in &generated.fixups {
-        let addr = match &fixup.target {
-            Target::Func(func) => match generated.func_anchor.get(func) {
-                Some(anchor) => code_addrs[*anchor],
-                None => {
-                    return Err(format!(
-                        "function \"{}\" is declared but not defined",
-                        String::from_utf8_lossy(&prog.funcs[*func].name)
-                    ));
-                }
-            },
-            Target::Const(anchor) => const_addrs[*anchor],
-        };
-        generated.code[fixup.ofs..fixup.ofs + 4].copy_from_slice(&(addr as u32).to_le_bytes());
+    // Fill in the addresses, in the code and in the constants.
+    let Generated {
+        code,
+        consts,
+        fixups,
+        const_fixups,
+        func_anchor,
+        ..
+    } = &mut generated;
+    for (stream, fixups) in [(code, &*fixups), (consts, &*const_fixups)] {
+        for fixup in fixups {
+            let addr = match &fixup.target {
+                Target::Func(func) => match func_anchor.get(func) {
+                    Some(anchor) => code_addrs[*anchor],
+                    None => {
+                        return Err(format!(
+                            "function \"{}\" is declared but not defined",
+                            String::from_utf8_lossy(&prog.funcs[*func].name)
+                        ));
+                    }
+                },
+                Target::Const(anchor) => const_addrs[*anchor],
+            };
+            stream[fixup.ofs..fixup.ofs + 4].copy_from_slice(&(addr as u32).to_le_bytes());
+        }
     }
 
     // The program starts at `_main`.
@@ -236,6 +246,7 @@ pub(crate) fn write_image(
             Some(anchor) => code_addrs[*anchor],
             None => return Err("function _main() is not defined".to_owned()),
         },
+        Some(Global::Bif(_)) => return Err("_main is not a function".to_owned()),
         None => return Err("function _main() is not defined".to_owned()),
     };
 
@@ -275,8 +286,14 @@ pub(crate) fn write_image(
     }
     writer.block(b"SYMD", false, &symd);
 
-    // No sets of built-in functions yet.
-    writer.block(b"FNSD", true, &0u16.to_le_bytes());
+    // The sets of built-in functions the program uses.
+    let mut fnsd = Vec::new();
+    fnsd.extend_from_slice(&(prog.fnsets.len() as u16).to_le_bytes());
+    for name in &prog.fnsets {
+        fnsd.push(name.len() as u8);
+        fnsd.extend_from_slice(name);
+    }
+    writer.block(b"FNSD", true, &fnsd);
 
     let mut mcld = Vec::new();
     mcld.extend_from_slice(&(METACLASSES.len() as u16).to_le_bytes());
@@ -305,7 +322,16 @@ pub(crate) fn write_image(
         unspecified.push((file_ofs + ofs - generated.code_anchors[index].ofs, 2));
     }
     let const_items = items(&generated.consts, &generated.const_anchors, &const_addrs);
+    let first_const_item = writer.item_ofs.len();
     writer.pool(2, &const_layout, &const_items, CONST_XOR_MASK);
+    for ofs in &generated.const_unspecified {
+        let index = generated
+            .const_anchors
+            .partition_point(|anchor| anchor.ofs <= *ofs)
+            - 1;
+        let (_, file_ofs) = writer.item_ofs[first_const_item + index];
+        unspecified.push((file_ofs + ofs - generated.const_anchors[index].ofs, 4));
+    }
 
     // Where the code that runs before the program starts is, and the
     // (empty) list of properties with values to work out then.

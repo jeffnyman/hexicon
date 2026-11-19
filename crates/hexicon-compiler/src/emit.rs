@@ -14,7 +14,7 @@ use crate::ast::{
 };
 use crate::codegen::{CodeGen, Label};
 use crate::fold::{self, Folded};
-use crate::parse::{Global, Program, enum_order};
+use crate::parse::{BifSym, Global, Program, enum_order};
 use crate::pp::{Severity, show_name};
 
 /// The start of one item in a stream: a function in the code, or a
@@ -41,6 +41,20 @@ pub(crate) struct Fixup {
     pub target: Target,
 }
 
+/// The kinds of value in a constant list, as the virtual machine
+/// numbers them.
+mod datatype {
+    pub(super) const NIL: u8 = 1;
+    pub(super) const TRUE: u8 = 2;
+    pub(super) const INT: u8 = 7;
+    pub(super) const SSTRING: u8 = 8;
+    pub(super) const LIST: u8 = 10;
+    pub(super) const FUNCPTR: u8 = 12;
+}
+
+/// The number of the list metaclass among those every image has.
+const METACLASS_LIST: u8 = 1;
+
 /// A problem found while generating, and where.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GenDiagnostic {
@@ -62,13 +76,21 @@ pub(crate) struct Generated {
     pub consts: Vec<u8>,
     pub const_anchors: Vec<Anchor>,
     pub fixups: Vec<Fixup>,
+    /// Addresses to fill in within the constants, where a list has a
+    /// string, a list, or a function in it.
+    pub const_fixups: Vec<Fixup>,
     /// The length of the longest function, tables included.
     pub max_bytecode_len: usize,
     /// The length of the longest string.
     pub max_str_len: usize,
+    /// The number of elements in the longest list.
+    pub max_list_cnt: usize,
     /// Places in the code where two bytes are written that mean
     /// nothing.
     pub unspecified: Vec<usize>,
+    /// Places in the constants where four bytes are written that mean
+    /// nothing.
+    pub const_unspecified: Vec<usize>,
     pub diagnostics: Vec<GenDiagnostic>,
 }
 
@@ -120,6 +142,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         local_names: Vec::new(),
         errors: 0,
     };
+    generator.out.max_list_cnt = generator.prog.max_list_cnt;
     // Names are looked up, and what has become constant is worked out,
     // for the whole program before any code is generated.
     for (body, _) in &mut bodies {
@@ -262,8 +285,26 @@ impl Gen<'_> {
             Expr::Const(_) | Expr::Local(_) => expr,
             Expr::Sym(name) => match self.prog.globals.get(&name) {
                 Some(Global::Func(func)) => Expr::constant(Value::FuncPtr(*func)),
-                None => Expr::Sym(name),
+                Some(Global::Bif(_)) | None => Expr::Sym(name),
             },
+            Expr::DStr(_) => expr,
+            Expr::List(elements) => {
+                let elements = elements
+                    .into_iter()
+                    .map(|element| self.fold_expr(element))
+                    .collect();
+                Expr::list(elements)
+            }
+            Expr::Index(left, index) => {
+                let left = self.fold_expr(*left);
+                let index = self.fold_expr(*index);
+                let mut errors = Vec::new();
+                let folded = fold::subscript(&left, &index, &mut errors);
+                for message in errors {
+                    self.error(message);
+                }
+                folded.unwrap_or_else(|| Expr::Index(Box::new(left), Box::new(index)))
+            }
             Expr::Unary(op, sub) => {
                 let sub = self.fold_expr(*sub);
                 if op == UnOp::Not {
@@ -299,7 +340,12 @@ impl Gen<'_> {
                     self.error(message);
                 }
                 match result {
-                    Folded::Yes(expr) => expr,
+                    Folded::Yes(expr) => {
+                        if let Some(len) = expr.const_list_len() {
+                            self.out.max_list_cnt = self.out.max_list_cnt.max(len);
+                        }
+                        expr
+                    }
                     Folded::No(left, right) => Expr::Binary(op, Box::new(left), Box::new(right)),
                 }
             }
@@ -995,10 +1041,20 @@ impl Gen<'_> {
         self.cg.note_push();
     }
 
-    fn gen_str(&mut self, text: &[u8]) {
-        self.cg.write_op(Op::PushStr);
-        self.cg.note_push();
-        let ofs = self.cg.ofs();
+    /// Record that four bytes are to hold an address: in the code, or
+    /// in the constants.
+    fn add_fixup(&mut self, in_consts: bool, ofs: usize, target: Target) {
+        let fixup = Fixup { ofs, target };
+        if in_consts {
+            self.out.const_fixups.push(fixup);
+        } else {
+            self.out.fixups.push(fixup);
+        }
+    }
+
+    /// Put a string in the constants, unless it is a short one that is
+    /// there already, and note where its address is wanted.
+    fn add_const_str(&mut self, text: &[u8], in_consts: bool, ofs: usize) {
         let known = (text.len() < INTERN_THRESHOLD)
             .then(|| self.interned.get(text).copied())
             .flatten();
@@ -1017,10 +1073,55 @@ impl Gen<'_> {
             self.out.max_str_len = self.out.max_str_len.max(text.len());
             anchor
         });
-        self.out.fixups.push(Fixup {
-            ofs,
-            target: Target::Const(anchor),
-        });
+        self.add_fixup(in_consts, ofs, Target::Const(anchor));
+    }
+
+    /// Put a list in the constants, and note where its address is
+    /// wanted. The list is a count and then five bytes for each
+    /// element; the strings and lists among the elements follow it.
+    fn add_const_list(&mut self, elements: &[ConstVal], in_consts: bool, ofs: usize) {
+        let anchor = self.out.const_anchors.len();
+        let start = self.out.consts.len();
+        self.out.const_anchors.push(Anchor { ofs: start });
+        self.add_fixup(in_consts, ofs, Target::Const(anchor));
+        self.out
+            .consts
+            .extend_from_slice(&(elements.len() as u16).to_le_bytes());
+        self.out.consts.resize(start + 2 + 5 * elements.len(), 0);
+        for (index, element) in elements.iter().enumerate() {
+            let at = start + 2 + 5 * index;
+            let (kind, value) = match &element.value {
+                Value::Nil => (datatype::NIL, 0),
+                Value::True => (datatype::TRUE, 0),
+                Value::Int(int) => (datatype::INT, *int as u32),
+                Value::SStr(text) => {
+                    self.add_const_str(text, true, at + 1);
+                    (datatype::SSTRING, 0)
+                }
+                Value::List(inner) => {
+                    self.add_const_list(inner, true, at + 1);
+                    (datatype::LIST, 0)
+                }
+                Value::FuncPtr(func) => {
+                    self.add_fixup(true, at + 1, Target::Func(*func));
+                    (datatype::FUNCPTR, 0)
+                }
+            };
+            if matches!(element.value, Value::Nil | Value::True) {
+                // The reference writes the kind and leaves the rest as
+                // it found it.
+                self.out.const_unspecified.push(at + 1);
+            }
+            self.out.consts[at] = kind;
+            self.out.consts[at + 1..at + 5].copy_from_slice(&value.to_le_bytes());
+        }
+        self.out.max_list_cnt = self.out.max_list_cnt.max(elements.len());
+    }
+
+    fn gen_str(&mut self, text: &[u8]) {
+        self.cg.write_op(Op::PushStr);
+        self.cg.note_push();
+        self.add_const_str(text, false, self.cg.ofs());
         self.cg.write4(0);
     }
 
@@ -1038,6 +1139,15 @@ impl Gen<'_> {
                 if discard {
                     return;
                 }
+                if let Some(elements) = &value.list_node {
+                    // A list whose value was overwritten is still
+                    // generated as the list.
+                    self.cg.write_op(Op::PushLst);
+                    self.add_const_list(elements, false, self.cg.ofs());
+                    self.cg.write4(0);
+                    self.cg.note_push();
+                    return;
+                }
                 match &value.value {
                     Value::Nil => self.cg.write_op(Op::PushNil),
                     Value::True => self.cg.write_op(Op::PushTrue),
@@ -1053,10 +1163,53 @@ impl Gen<'_> {
                         self.cg.write_op(Op::PushFnPtr);
                         self.gen_func_ref(*func);
                     }
+                    Value::List(elements) => {
+                        self.cg.write_op(Op::PushLst);
+                        self.add_const_list(elements, false, self.cg.ofs());
+                        self.cg.write4(0);
+                    }
                 }
                 self.cg.note_push();
             }
-            Expr::Sym(name) => self.undefined(name),
+            // A built-in function named without parentheses is called
+            // with no arguments.
+            Expr::Sym(name) => match self.prog.globals.get(name) {
+                Some(Global::Bif(bif)) => self.gen_bif_call(*bif, discard, 0, false),
+                _ => self.undefined(name),
+            },
+            Expr::DStr(text) => {
+                if !discard {
+                    self.error(format!(
+                        "a double-quoted string (\"{}\") is not valid within an expression",
+                        show_name(text)
+                    ));
+                }
+                self.cg.write_op(Op::Say);
+                self.add_const_str(text, false, self.cg.ofs());
+                self.cg.write4(0);
+            }
+            Expr::List(elements) => {
+                // The elements, last first, and then a list made of
+                // them.
+                for element in elements.iter().rev() {
+                    self.gen_expr(element, false, false);
+                }
+                if elements.len() <= 255 {
+                    self.cg.write_op(Op::New1);
+                    self.cg.write(elements.len() as u8);
+                    self.cg.write(METACLASS_LIST);
+                } else {
+                    self.cg.write_op(Op::New2);
+                    self.cg.write2(elements.len() as u16);
+                    self.cg.write2(u16::from(METACLASS_LIST));
+                }
+                self.cg.note_pops(elements.len() as i32);
+                if !discard {
+                    self.cg.write_op(Op::GetR0);
+                    self.cg.note_push();
+                }
+            }
+            Expr::Index(left, index) => self.gen_binary(Op::Index, left, index, discard),
             Expr::Local(id) => self.gen_local(*id, discard),
             Expr::Unary(op, sub) => match op {
                 UnOp::Not => self.gen_unary(Op::Not, sub, discard, true),
@@ -1077,10 +1230,10 @@ impl Gen<'_> {
                 self.gen_binary_expr(*op, left, right, discard, for_condition)
             }
             Expr::Assign(AsiOp::Simple, left, right) => {
-                self.gen_asi(left, discard, 1, AsiOp::Simple, Some(right), true);
+                self.gen_asi(left, discard, 1, AsiOp::Simple, Some(right), false, true);
             }
             Expr::Assign(op, left, right) => {
-                if !self.gen_asi(left, discard, 1, *op, Some(right), true) {
+                if !self.gen_asi(left, discard, 1, *op, Some(right), false, true) {
                     // Nothing special for this target: work out the new
                     // value, then store it.
                     let opc = match op {
@@ -1099,7 +1252,7 @@ impl Gen<'_> {
                     self.gen_expr(right, false, false);
                     self.cg.write_op(opc);
                     self.cg.note_pop();
-                    self.gen_asi(left, discard, 2, *op, None, true);
+                    self.gen_asi(left, discard, 2, *op, None, false, true);
                 }
             }
             Expr::IncDec(op, sub) => {
@@ -1109,7 +1262,7 @@ impl Gen<'_> {
                     AsiOp::PostInc => (Op::Inc, true),
                     _ => (Op::Dec, true),
                 };
-                if !self.gen_asi(sub, discard, 1, *op, None, true) {
+                if !self.gen_asi(sub, discard, 1, *op, None, false, true) {
                     if post {
                         // The result is the value from before.
                         if !discard {
@@ -1117,10 +1270,10 @@ impl Gen<'_> {
                             self.cg.note_push();
                         }
                         self.cg.write_op(opc);
-                        self.gen_asi(sub, true, 2, *op, None, true);
+                        self.gen_asi(sub, true, 2, *op, None, false, true);
                     } else {
                         self.cg.write_op(opc);
-                        self.gen_asi(sub, discard, 2, *op, None, true);
+                        self.gen_asi(sub, discard, 2, *op, None, false, true);
                     }
                 }
             }
@@ -1182,7 +1335,7 @@ impl Gen<'_> {
             Expr::Call(func, _) => match &**func {
                 Expr::Sym(name) => match self.prog.globals.get(name) {
                     Some(Global::Func(func)) => self.prog.funcs[*func].has_retval,
-                    None => true,
+                    Some(Global::Bif(_)) | None => true,
                 },
                 _ => true,
             },
@@ -1193,6 +1346,7 @@ impl Gen<'_> {
             Expr::IfNil(first, second) => {
                 self.has_return_value(first) || self.has_return_value(second)
             }
+            Expr::DStr(_) => false,
             _ => true,
         }
     }
@@ -1394,7 +1548,10 @@ impl Gen<'_> {
             Expr::Const(_) => {
                 self.error("this constant expression cannot be called as a function");
             }
-            Expr::Sym(name) => self.undefined(name),
+            Expr::Sym(name) => match self.prog.globals.get(name) {
+                Some(Global::Bif(bif)) => self.gen_bif_call(*bif, discard, argc, varargs),
+                _ => self.undefined(name),
+            },
             _ => {
                 // Anything else is taken to be a pointer to a function.
                 self.gen_expr(func, false, false);
@@ -1410,6 +1567,55 @@ impl Gen<'_> {
                     self.cg.note_push();
                 }
             }
+        }
+    }
+
+    /// Call a function built into the virtual machine.
+    fn gen_bif_call(&mut self, bif: usize, discard: bool, argc: usize, varargs: bool) {
+        let BifSym {
+            name,
+            set,
+            index,
+            min_argc,
+            max_argc,
+            varargs: takes_more,
+        } = self.prog.bifs[bif].clone();
+        if argc < min_argc {
+            self.error(format!(
+                "too few arguments to function \"{}\"",
+                show_name(&name)
+            ));
+        } else if !takes_more && argc > max_argc {
+            self.error(format!(
+                "too many arguments to function \"{}\"",
+                show_name(&name)
+            ));
+        }
+        if varargs {
+            self.cg.write_op(Op::VarArgc);
+        }
+        // The first four sets have short instructions of their own.
+        if set < 4 && index < 256 {
+            let opc = [Op::BuiltinA, Op::BuiltinB, Op::BuiltinC, Op::BuiltinD][set];
+            self.cg.write_op(opc);
+            self.cg.write(argc as u8);
+            self.cg.write(index as u8);
+        } else {
+            if index < 256 {
+                self.cg.write_op(Op::Builtin1);
+                self.cg.write(argc as u8);
+                self.cg.write(index as u8);
+            } else {
+                self.cg.write_op(Op::Builtin2);
+                self.cg.write(argc as u8);
+                self.cg.write2(index as u16);
+            }
+            self.cg.write(set as u8);
+        }
+        self.cg.note_pops(argc as i32);
+        if !discard {
+            self.cg.write_op(Op::GetR0);
+            self.cg.note_push();
         }
     }
 
@@ -1468,6 +1674,7 @@ impl Gen<'_> {
     /// may do the whole job with instructions of its own, and says so
     /// by returning true; otherwise it leaves its present value on the
     /// stack, the caller computes the new value, and phase 2 stores it.
+    #[allow(clippy::too_many_arguments)]
     fn gen_asi(
         &mut self,
         target: &Expr,
@@ -1475,18 +1682,27 @@ impl Gen<'_> {
         phase: u8,
         typ: AsiOp,
         rhs: Option<&Expr>,
+        ignore_error: bool,
         explicit: bool,
     ) -> bool {
         match target {
             Expr::Local(id) => self.gen_local_asi(*id, discard, phase, typ, rhs, explicit),
+            Expr::Index(left, index) => {
+                self.gen_index_asi(left, index, discard, phase, typ, rhs, explicit)
+            }
             Expr::Sym(name) => {
-                if phase == 1 {
-                    self.undefined(name);
+                if ignore_error || phase > 1 {
+                    return false;
                 }
+                if self.prog.globals.contains_key(name) {
+                    self.error(format!("cannot assign to \"{}\"", show_name(name)));
+                    return true;
+                }
+                self.undefined(name);
                 false
             }
             _ => {
-                if phase == 1 {
+                if !ignore_error && phase == 1 {
                     let message = if matches!(
                         typ,
                         AsiOp::PreInc | AsiOp::PreDec | AsiOp::PostInc | AsiOp::PostDec
@@ -1505,6 +1721,99 @@ impl Gen<'_> {
                 }
                 false
             }
+        }
+    }
+
+    /// Assign to an element: `left[index] = value`. Storing into an
+    /// element gives a new container, which is then stored back into
+    /// `left` if `left` can be assigned to.
+    #[allow(clippy::too_many_arguments)]
+    fn gen_index_asi(
+        &mut self,
+        left: &Expr,
+        index: &Expr,
+        discard: bool,
+        phase: u8,
+        typ: AsiOp,
+        rhs: Option<&Expr>,
+        explicit: bool,
+    ) -> bool {
+        if typ == AsiOp::Simple {
+            if let Some(rhs) = rhs {
+                self.gen_expr(rhs, false, false);
+            }
+            if !discard {
+                self.cg.write_op(Op::Dup);
+                self.cg.note_push();
+            }
+            // Have the container left on the stack. What is being
+            // indexed may itself be an element of something, and then
+            // there is more on the stack than the container.
+            let rhs_depth = self.cg.sp_depth();
+            self.gen_asi(left, false, 1, AsiOp::Idx, None, true, explicit);
+            let mut extra_disc = 0;
+            if self.cg.sp_depth() == rhs_depth {
+                self.gen_expr(left, false, false);
+            } else if self.cg.sp_depth() > rhs_depth + 1 {
+                let dist = self.cg.sp_depth() - rhs_depth;
+                if dist > 255 {
+                    self.error("expression too complex");
+                }
+                self.cg.write_op(Op::GetSpN);
+                self.cg.write(dist as u8);
+                self.cg.note_push();
+                self.cg.write_op(Op::Swap);
+                extra_disc += 1;
+            }
+            self.gen_expr(index, false, false);
+            self.cg.write_op(Op::SetInd);
+            self.cg.note_pops(2);
+            if self.cg.last_op() == Op::SetIndLcl1I8 as u8 {
+                // The instruction writer made it one instruction that
+                // stores back into the local too.
+                self.cg.note_pop();
+            } else if !self.gen_asi(left, true, 2, AsiOp::Idx, None, true, explicit) {
+                self.cg.write_op(Op::Disc);
+                self.cg.note_pop();
+            }
+            for _ in 0..extra_disc {
+                self.cg.write_op(Op::Disc);
+                self.cg.note_pop();
+            }
+            true
+        } else if phase == 1 {
+            // Leave the container, the index, and the element's present
+            // value for the caller to work on.
+            self.gen_asi(left, false, 1, AsiOp::Idx, None, true, explicit);
+            self.gen_expr(index, false, false);
+            self.cg.write_op(Op::Dup2);
+            self.cg.note_pushes(2);
+            self.cg.write_op(Op::Index);
+            self.cg.note_pop();
+            false
+        } else if phase == 2 {
+            if !discard {
+                self.cg.write_op(Op::Dup);
+                self.cg.note_push();
+            }
+            // Bring the container and the index back above the value.
+            if discard {
+                self.cg.write_op(Op::SwapN);
+                self.cg.write(0);
+                self.cg.write(2);
+                self.cg.write_op(Op::Swap);
+            } else {
+                self.cg.write_op(Op::Swap2);
+            }
+            self.cg.write_op(Op::SetInd);
+            self.cg.note_pops(2);
+            if !self.gen_asi(left, true, 2, AsiOp::Idx, None, true, explicit) {
+                self.cg.write_op(Op::Disc);
+                self.cg.note_pop();
+            }
+            true
+        } else {
+            false
         }
     }
 

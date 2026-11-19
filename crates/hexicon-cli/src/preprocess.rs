@@ -101,6 +101,10 @@ pub(crate) fn run(args: &[&str], usage: &str, output: Output) -> ExitCode {
                 pp.undefine(name);
                 rest = tail;
             }
+            ["-cs", name, tail @ ..] => {
+                pp.set_default_charset(name);
+                rest = tail;
+            }
             ["--test", tail @ ..] => {
                 pp.set_test_report_mode(true);
                 rest = tail;
