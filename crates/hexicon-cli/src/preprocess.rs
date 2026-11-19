@@ -25,6 +25,11 @@ impl SourceFiles for DiskFiles {
     fn exists(&mut self, name: &str) -> bool {
         std::path::Path::new(name).is_file()
     }
+
+    // The character sets are the ones programs have, from the VM.
+    fn decode(&mut self, charset: &str, bytes: &[u8]) -> Option<Vec<u8>> {
+        hexicon_vm::decode_text(charset, bytes).map(String::into_bytes)
+    }
 }
 
 /// A file name as a string in double quotes.

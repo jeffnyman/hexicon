@@ -163,6 +163,23 @@ add_listed_test(test_prs_top test_prs_top.cpp
     ${os_sources_min}
 )
 
+# test_prs parses a file of expressions, and shows what each folds to and
+# the code it compiles to. It links what test_prs_top links.
+add_listed_test(test_prs test_prs.cpp
+    tcglob std std_dbg vmerr vmerrmsg utf8 derived/vmuni_cs charmap resload
+    resnoexe tcmain tcerr tcerrmsg tchostsi tcsrc tctok tcprs tcprsfil
+    tcprsstm tcprsprg tcprsimg tcgen tcgenfil vmop vmbignumlib vmhash
+    vmwrtimg vmtypedh vmfile vmglob
+    tct3 tct3stm tct3unas tct3img tct3prg
+    ${os_sources_min}
+)
+if (MSVC)
+    target_compile_options(test_prs PRIVATE /UVMGLOB_VARS)
+else()
+    target_compile_options(test_prs PRIVATE -UVMGLOB_VARS)
+endif()
+target_compile_definitions(test_prs PRIVATE VMGLOB_STRUCT)
+
 # test_prs_top links the VM globals without the VM itself, so it cannot use
 # the "individual global variables" mode, whose globals are VM objects with
 # constructors. Use the static-structure mode for this one program.
@@ -205,6 +222,18 @@ add_listed_test(test_obj test_obj.cpp
     ${T2}/msdos/ostzw32.c
 )
 
+# The character set tables, as files beside the programs. The test
+# programs are linked without the code that reads them out of the library
+# tads-runner builds, and find them only as files.
+file(GLOB charmap_files "${T3}/charmap/*.tcm")
+add_custom_target(charmap_files
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/charmap"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${charmap_files}
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/charmap"
+)
+
 add_custom_target(reference ALL DEPENDS
-    t3make t3run t3res test_exec test_tok tok_dump test_prs_top t3pre test_obj
-    timezone_db)
+    t3make t3run t3res test_exec test_tok tok_dump test_prs test_prs_top t3pre
+    test_obj
+    timezone_db charmap_files)

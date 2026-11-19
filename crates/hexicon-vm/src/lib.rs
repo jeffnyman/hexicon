@@ -53,6 +53,7 @@ mod value;
 mod vector;
 mod vm;
 
+pub use charset::decode_text;
 pub use error::{ErrParam, RuntimeError, VmError, VmResult, code};
 pub use value::{ObjId, PropId, Value};
 pub use vm::{RunState, Vm};

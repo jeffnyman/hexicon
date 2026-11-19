@@ -170,6 +170,22 @@ fn find_table(name: &str) -> Option<&'static [u8]> {
     None
 }
 
+/// Text in a named character set, as a string; `None` if the name is not
+/// one of a character set that is known. A byte that the set has no
+/// character for becomes U+FFFD.
+///
+/// This is for the compiler, which reads source files in whatever
+/// character set they say they are in, and uses the same tables as
+/// programs do.
+pub fn decode_text(charset: &str, bytes: &[u8]) -> Option<String> {
+    let map = CharMap::load(charset)?;
+    Some(match map {
+        // Source text keeps what is there; it is not a program's string.
+        CharMap::Utf8 => String::from_utf8_lossy(bytes).into_owned(),
+        other => other.decode(bytes),
+    })
+}
+
 impl CharMap {
     /// The mapping for a character set name, if the name is known.
     pub(crate) fn load(name: &str) -> Option<Self> {

@@ -45,17 +45,16 @@ The reference is the specification of record. Its source is in `../_tads/tads-ru
 |---|---|
 | Preprocessor | The reference's preprocessed text (`test_tok -P`, `t3make -P`), line for line, over the suite's 12 preprocessor tests, every file of adv3 and adv3Lite, and the sources of the games in the playground that have them |
 | Tokenizer | A listing of the tokens the reference's tokenizer finds (`tools/reference/tok_dump.cpp`), over the same files |
-| Parser | Parsing every file of both libraries, the suite's 381 test programs, and Return to Ditch Day without error; and reporting the reference's errors for the tests that are meant to fail |
-| Code generation | Running Hexicon-compiled programs under both VMs and comparing output with the same programs compiled by `t3make`: first the conformance suite, then the games with walkthroughs |
+| Parser and code generation | The reference has nothing that shows a syntax tree, so the two are checked together: the same source compiled by both compilers (`test_prs_top -u` for single-file programs, `t3make` for the rest), the byte code compared function by function, and the images run and their output compared. First small programs, then the conformance suite, then the games with walkthroughs. Programs that are meant not to compile have to give the reference's messages |
 | Dynamic compiler | The ten conformance tests that need it |
 | Whole | Airport (adv3Lite's tutorial game) and Return to Ditch Day built from source by Hexicon alone, replayed against the reference build |
 
 ## Milestones
 
 1. **Preprocessor.** Text in, preprocessed text out, identical to the reference's.
-2. **Tokenizer and parser.** The whole language to a syntax tree, with the reference's diagnostics.
-3. **Expressions and functions to byte code.** Enough for the dynamic compiler. Exit: the ten remaining conformance tests pass.
-4. **Objects, grammar, and the rest of the language.** Enough to compile a single-file program to an image. Exit: the conformance suite's programs, compiled by Hexicon, give the same output as when compiled by `t3make`.
+2. **Tokenizer.** The stream of tokens the parser reads, identical to the reference's.
+3. **Functions: parser and code generator together.** Expressions and statements, parsed, folded, and compiled to byte code, with enough of an image writer to make a single-file program of functions runnable. Checked by compiling the same source with both compilers and comparing the byte code and the output. This is also what the dynamic compiler needs. Exit: the ten remaining conformance tests pass.
+4. **Objects, grammar, and the rest of the language.** Enough to compile any single-file program to an image. Exit: the conformance suite's programs, compiled by Hexicon, give the same output as when compiled by `t3make`.
 5. **Separate compilation, linking, project files.** Exit: the sample game, Airport, and Return to Ditch Day built from source and replayed identically.
 6. **Hexicon's own language.** Its file extensions and its differences from TADS 3 are decided here, not before. The compiler accepts `.t`, `.h`, `.tl`, and `.t3m` throughout.
 
@@ -79,9 +78,10 @@ The compiler reads files through a small interface the caller supplies, as the V
 
 ## Status
 
-- Milestone 1: the preprocessor is written and matches the reference (2026-11-19). `hexicon preprocess` writes a file's preprocessed text in the form the reference's preprocess-only mode does. Over 579 source files, about three million lines of output, it is identical to the reference's, messages included: the suite's 12 preprocessor tests and 381 test programs, every file of adv3 and its extensions, Return to Ditch Day, every file of adv3Lite, and Airport. Still to do in this milestone: the character sets beyond ASCII, UTF-8, and Latin-1; the compiler's own predefined macros; and `#if` expressions through the real expression parser, which waits for milestone 2.
+- Milestone 1: the preprocessor is written and matches the reference (2026-11-19). `hexicon preprocess` writes a file's preprocessed text in the form the reference's preprocess-only mode does. Over 579 source files, about three million lines of output, it is identical to the reference's, messages included: the suite's 12 preprocessor tests and 381 test programs, every file of adv3 and its extensions, Return to Ditch Day, every file of adv3Lite, and Airport. Still to do in this milestone: the compiler's own predefined macros; and `#if` expressions through the real expression parser, which waits for the parser.
 
-- Milestone 2: the tokenizer is written and matches the reference (2026-11-19). `hexicon tokens` lists a file's tokens as the compiler proper reads them: after preprocessing, with keywords recognized and strings translated. Over the same 579 files, it lists the same tokens as the reference, with the same messages. The parser is next.
+- Milestone 2: done (2026-11-19). `hexicon tokens` lists a file's tokens as the compiler proper reads them: after preprocessing, with keywords recognized and strings translated. Over the same 579 files, it lists the same tokens as the reference, with the same messages.
+- Milestone 3: not started. The way to check it is settled; see the findings.
 
 ## Findings
 
@@ -106,10 +106,12 @@ From milestone 2, so far:
 - After a character that is not valid, the reference skips the character after it as well. So does Hexicon.
 - A `#pragma message` is shown as the file is read, and `#error` is reported as an error with the rest of its line, the space after `#error` included.
 
+- The compiler knows ASCII, UTF-8, UTF-16, and Latin-1 itself, and asks whoever is using it for any other character set a source file names. The command-line program answers from the VM's tables, which are the reference's, so a source file can be in any of the sets a program can use. This closed a gap that was hidden at first: the reference's test programs could not find their character set tables, so files in `cp1252` and `win1251` were being compared as files whose character set failed to load. The reference build now puts the tables where the test programs look (`bin/charmap`), and those files are compared decoded.
+- How the parser can be checked, which decides the order of the work from here. The reference has no way to show a syntax tree. Its expression test program (`test_prs`, now part of the reference build) shows what an expression folds to and the code it compiles to, but it has not kept up with the compiler: it crashes on an expression that uses a local variable, so it is only good for constants. What does work is `test_prs_top -u`, which compiles a whole single-file program, writes a runnable image, and lists the code. So the check on the parser is the code that comes out the far end: the same program compiled by both, with the byte code compared function by function and the two images run. The parser and the code generator are therefore built together, a part of the language at a time, and not one after the other.
+
 Open after milestone 1:
 
-- Character sets other than ASCII, UTF-8, UTF-16, and Latin-1. The VM has the reference's 43 tables; they need to be somewhere both the VM and the compiler can use them.
-- In a message, a name with a character that is not ASCII is shown by the reference with its nearest ASCII stand-in (`cafe` for `café`), from the same tables. Hexicon shows the character's code instead.
+- In a message, a name with a character that is not ASCII is shown by the reference with its nearest ASCII stand-in (`cafe` for `café`). Hexicon shows the character's code instead.
 - `#if` expressions are evaluated by a small evaluator of the preprocessor's own: integers, strings, `true`, `nil`, and the operators on them. The reference uses the compiler's expression parser and constant folding, which also covers floating-point numbers. The parser replaces the evaluator when it exists.
 - The comparison is with the reference's test program. Comparing with `t3make -P` as well would cover the predefined macros and the character sets.
 - Speed has not been looked at. An argument is copied each time it is expanded.

@@ -41,6 +41,15 @@ pub trait SourceFiles {
     fn read(&mut self, name: &str) -> Option<Vec<u8>>;
     /// Whether a file is there to be read.
     fn exists(&mut self, name: &str) -> bool;
+
+    /// Text in a named character set, as UTF-8, or `None` if the set is
+    /// not known. The compiler knows ASCII, UTF-8, UTF-16, and Latin-1
+    /// itself, and asks here for any other that a source file's
+    /// `#charset` names.
+    fn decode(&mut self, charset: &str, bytes: &[u8]) -> Option<Vec<u8>> {
+        let _ = (charset, bytes);
+        None
+    }
 }
 
 /// How serious a problem is.
@@ -382,7 +391,7 @@ impl<'a> Preprocessor<'a> {
             return false;
         };
         let desc = self.file_desc(name);
-        let (data, charset_error) = decode_source(&data);
+        let (data, charset_error) = decode_source(&data, self.files);
         self.streams.push(Stream {
             desc,
             data,
@@ -2127,7 +2136,7 @@ impl<'a> Preprocessor<'a> {
         if let Some(stream) = self.streams.last_mut() {
             stream.newline_spacing = self.newline_spacing;
         }
-        let (data, charset_error) = decode_source(&data);
+        let (data, charset_error) = decode_source(&data, self.files);
         self.streams.push(Stream {
             desc,
             data,
@@ -2811,7 +2820,7 @@ fn charset_directive(text: &[u8]) -> Option<(&[u8], usize)> {
 /// ASCII. A directive that is understood is taken out, leaving the rest
 /// of its line, so that the lines after it keep their numbers; one that
 /// is not is left for the preprocessor to complain about.
-fn decode_source(data: &[u8]) -> (Vec<u8>, bool) {
+fn decode_source(data: &[u8], files: &mut dyn SourceFiles) -> (Vec<u8>, bool) {
     if let Some(rest) = data.strip_prefix(&[0xef, 0xbb, 0xbf]) {
         let skip = match charset_directive(rest) {
             Some((name, len)) if name.eq_ignore_ascii_case(b"utf-8") => len,
@@ -2852,7 +2861,10 @@ fn decode_source(data: &[u8]) -> (Vec<u8>, bool) {
     }
     let mut charset_error = false;
     if let Some((name, len)) = charset_directive(data) {
-        match decode_charset(&String::from_utf8_lossy(name), &data[len..]) {
+        let name = String::from_utf8_lossy(name);
+        let text =
+            decode_charset(&name, &data[len..]).or_else(|| files.decode(&name, &data[len..]));
+        match text {
             Some(text) => return (text, false),
             None => charset_error = true,
         }

@@ -29,6 +29,12 @@ impl SourceFiles for Files {
     fn exists(&mut self, name: &str) -> bool {
         self.0.contains_key(name)
     }
+
+    // A character set of the tests' own: every byte is the letter after
+    // it.
+    fn decode(&mut self, charset: &str, bytes: &[u8]) -> Option<Vec<u8>> {
+        (charset == "shifted").then(|| bytes.iter().map(|&c| c + 1).collect())
+    }
 }
 
 /// The preprocessed lines of `main.t`, and the messages about it.
@@ -204,6 +210,12 @@ fn a_file_says_what_character_set_it_is_in() {
     files.0.insert("main.t".to_owned(), b"'caf\xe9'\n".to_vec());
     let (lines, _) = preprocess_files(files);
     assert_eq!(lines, ["'caf\u{fffd}'"]);
+
+    // A set the compiler does not know itself is asked for from outside.
+    let (lines, messages) =
+        preprocess_files(Files::default().with("main.t", "#charset \"shifted\"\nHAL\n"));
+    assert_eq!(messages, Vec::<String>::new());
+    assert_eq!(lines, ["\u{b}IBM\u{b}"]);
 
     // A set that is not known is an error, and the file is read as ASCII.
     let (lines, messages) =
