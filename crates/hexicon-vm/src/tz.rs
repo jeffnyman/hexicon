@@ -11,7 +11,11 @@ use std::rc::Rc;
 
 use crate::date::CalDate;
 
-static DATABASE: &[u8] = include_bytes!("../data/timezones.t3tz");
+// The file is the reference VM's `timezones.t3tz`, byte for byte, under a
+// name in keeping with the other data here. It can be replaced with a
+// newer one built by the reference's tools whenever the zoneinfo data
+// changes.
+static DATABASE: &[u8] = include_bytes!("../data/timezones.bin");
 
 const MS_PER_DAY: i32 = 24 * 60 * 60 * 1000;
 
@@ -569,6 +573,7 @@ impl ZoneCache {
             let bytes = data.get(at..at + 4)?;
             Some(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize)
         };
+        // The signature the reference VM gives the format.
         if data.get(..4)? != b"T3TZ" {
             return None;
         }
