@@ -64,7 +64,7 @@ impl Vm {
         }
     }
 
-    fn bytes_mut(&mut self, id: ObjId) -> VmResult<&mut Vec<u8>> {
+    pub(crate) fn bytes_mut(&mut self, id: ObjId) -> VmResult<&mut Vec<u8>> {
         match self.objects.get_mut(id) {
             Some(Object::ByteArray(bytes)) => Ok(bytes),
             _ => Err(VmError::new(code::BAD_TYPE_BIF)),

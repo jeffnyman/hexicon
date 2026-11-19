@@ -74,6 +74,13 @@ pub enum Object {
     Dict(Box<crate::dict::Dictionary>),
     /// A byte array: bytes that can change in place.
     ByteArray(Vec<u8>),
+    /// A file name.
+    FileName(Box<crate::file::FileNameObj>),
+    /// A file, open or closed.
+    File(Box<crate::file::FileObj>),
+    /// A temporary file, by name. The file is deleted when the object
+    /// goes. An object loaded from an image has no name and no file.
+    TempFile(String),
     /// A BigNumber: a decimal floating-point number.
     BigNumber(Box<Big>),
     /// A string buffer: text that can change in place.
@@ -180,12 +187,39 @@ pub struct ObjectTable {
     image_state: std::collections::HashMap<u32, Object>,
     /// Whether changes to image objects are being recorded yet.
     track_image_state: bool,
+    /// File objects that have been freed, for the VM to finish with.
+    released: Vec<Object>,
 }
 
 impl ObjectTable {
     /// An empty table.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The file objects freed since this was last asked.
+    pub fn take_released(&mut self) -> Vec<Object> {
+        std::mem::take(&mut self.released)
+    }
+
+    /// Hand over what every file object stands for, as if all of them
+    /// had been freed: open files' contents and temporary files' names.
+    pub fn release_all_files(&mut self) {
+        for slot in &mut self.slots {
+            match &mut slot.object {
+                Some(Object::File(file)) => {
+                    if file.open.is_some() {
+                        let mut released = file.clone();
+                        released.open = file.open.take();
+                        self.released.push(Object::File(released));
+                    }
+                }
+                Some(Object::TempFile(name)) => {
+                    self.released.push(Object::TempFile(std::mem::take(name)));
+                }
+                _ => {}
+            }
+        }
     }
 
     fn add_page(&mut self) {
@@ -431,7 +465,13 @@ fn references(object: &Object, out: &mut Vec<Value>) {
             out.push(Value::Obj(class.modifier));
             out.push(class.class_state);
         }
+        Object::File(file) => {
+            out.push(Value::Obj(file.charset));
+            out.push(file.spec);
+        }
         Object::String(_)
+        | Object::FileName(_)
+        | Object::TempFile(_)
         | Object::CharSet { .. }
         | Object::ByteArray(_)
         | Object::BigNumber(_)
@@ -734,6 +774,11 @@ impl ObjectTable {
     fn free(&mut self, id: u32) {
         let first = self.first_free;
         let slot = &mut self.slots[id as usize];
+        // What a file object stands for outlives it until the VM has
+        // dealt with it.
+        if let Some(object @ (Object::File(_) | Object::TempFile(_))) = slot.object.take() {
+            self.released.push(object);
+        }
         slot.object = None;
         slot.in_root_set = false;
         slot.transient = false;

@@ -1770,3 +1770,188 @@ fn get_time_takes_a_date_apart() {
     assert_eq!(items_of(&vm, now), expected);
     assert_eq!(vm.get_time(2).expect("a count"), Value::Int(0));
 }
+
+// ---- files ----
+
+use crate::file::{combine, is_absolute, root_name};
+
+#[test]
+fn file_names_combine_as_paths() {
+    let join = |dir, name| combine(dir, name, false);
+    assert_eq!(join("a", "b"), "a/b");
+    assert_eq!(join("a/", "b"), "a/b");
+    assert_eq!(join("a", "/b"), "/b", "a name from the root stays");
+    assert_eq!(join("a", "../b"), "b");
+    assert_eq!(join("a", ".."), ".");
+    assert_eq!(join("..", "b"), "../b");
+    assert_eq!(join("../x", "../y"), "../y");
+    assert_eq!(join("/a", "../../b"), "/../b");
+    assert_eq!(join("a/b/", "./c/"), "a/b/c");
+    assert_eq!(join("", "b"), "b");
+    assert_eq!(join(".", "b"), "b");
+    assert_eq!(join("a", ""), "a");
+    // A directory listing keeps the entries as they are.
+    assert_eq!(combine("dir", "..", true), "dir/..");
+    assert_eq!(root_name("a/b/c.txt"), "c.txt");
+    assert_eq!(root_name("plain"), "plain");
+    assert!(is_absolute("/a") && is_absolute("C:/a") && !is_absolute("a/b"));
+}
+
+/// Call a method of File: on the class with no object, or on a file.
+fn file_call(
+    vm: &mut Vm,
+    file: Option<Value>,
+    index: u16,
+    args: &[Value],
+) -> crate::error::VmResult<Value> {
+    for &arg in args.iter().rev() {
+        vm.push(arg);
+    }
+    let mut argc = args.len() as u32;
+    let id = file.map(|file| file.obj_id());
+    let result = vm.file_method(id, index, Some(&mut argc));
+    if result.is_err() {
+        for _ in args {
+            vm.pop();
+        }
+    }
+    result.map(|value| value.expect("the method exists"))
+}
+
+const OPEN_TEXT: u16 = 1;
+const OPEN_DATA: u16 = 2;
+const OPEN_RAW: u16 = 3;
+const CLOSE: u16 = 6;
+const READ: u16 = 7;
+const WRITE: u16 = 8;
+
+#[test]
+fn data_file_round_trips_values() {
+    let (mut vm, host) = vm_with_host();
+    let name = vm.new_str("values");
+    let file = file_call(&mut vm, None, OPEN_DATA, &[name, Value::Int(2)]).expect("opens");
+    let text = vm.new_str("text");
+    for value in [Value::Int(7), Value::True, text, Value::Enum(3)] {
+        file_call(&mut vm, Some(file), WRITE, &[value]).expect("writes");
+    }
+    // Nil has no form in a data file.
+    let error = file_call(&mut vm, Some(file), WRITE, &[Value::Nil]).expect_err("fails");
+    assert_eq!(error, VmError::new(code::BAD_TYPE_BIF));
+    // The file reaches the host when it is closed.
+    assert_eq!(host.file("values").as_deref(), Some(b"".as_slice()));
+    file_call(&mut vm, Some(file), CLOSE, &[]).expect("closes");
+    let expected: &[u8] = &[
+        1, 7, 0, 0, 0, 8, 3, 6, 0, b't', b'e', b'x', b't', 0x20, 3, 0, 0, 0,
+    ];
+    assert_eq!(host.file("values").as_deref(), Some(expected));
+    // A closed file cannot be used.
+    assert!(file_call(&mut vm, Some(file), READ, &[]).is_err());
+
+    let file = file_call(&mut vm, None, OPEN_DATA, &[name, Value::Int(1)]).expect("opens");
+    let mut read = || file_call(&mut vm, Some(file), READ, &[]).expect("reads");
+    assert_eq!(read(), Value::Int(7));
+    assert_eq!(read(), Value::True);
+    let text = read();
+    assert_eq!(read(), Value::Enum(3));
+    assert_eq!(read(), Value::Nil, "the end of the file");
+    assert_eq!(text_of(&vm, text), "text");
+    // A file opened for reading cannot be written.
+    assert!(file_call(&mut vm, Some(file), WRITE, &[Value::Int(1)]).is_err());
+}
+
+#[test]
+fn text_file_reads_lines_with_any_ending() {
+    let (mut vm, host) = vm_with_host();
+    host.set_file("lines", b"one\r\ntwo\rthree\nfour\n\rfive\r\r\ncaf\xe9");
+    let name = vm.new_str("lines");
+    let charset = vm.new_str("latin1");
+    let file = file_call(&mut vm, None, OPEN_TEXT, &[name, Value::Int(1), charset]).expect("opens");
+    let mut lines = Vec::new();
+    loop {
+        let line = file_call(&mut vm, Some(file), READ, &[]).expect("reads");
+        if line == Value::Nil {
+            break;
+        }
+        lines.push(text_of(&vm, line));
+    }
+    assert_eq!(
+        lines,
+        [
+            "one\n",
+            "two\n",
+            "three\n",
+            "four\n",
+            "five\n",
+            "\n",
+            "caf\u{e9}"
+        ]
+    );
+
+    // Text is written in the file's character set.
+    let name = vm.new_str("written");
+    let file = file_call(&mut vm, None, OPEN_TEXT, &[name, Value::Int(2), charset]).expect("opens");
+    let text = vm.new_str("caf\u{e9}\n");
+    file_call(&mut vm, Some(file), WRITE, &[text]).expect("writes");
+    file_call(&mut vm, Some(file), WRITE, &[Value::Int(42)]).expect("writes");
+    file_call(&mut vm, Some(file), CLOSE, &[]).expect("closes");
+    assert_eq!(
+        host.file("written").as_deref(),
+        Some(b"caf\xe9\n42".as_slice())
+    );
+}
+
+#[test]
+fn unclosed_file_is_written_when_collected() {
+    let (mut vm, host) = vm_with_host();
+    let name = vm.new_str("left-open");
+    let file = file_call(&mut vm, None, OPEN_DATA, &[name, Value::Int(2)]).expect("opens");
+    file_call(&mut vm, Some(file), WRITE, &[Value::Int(1)]).expect("writes");
+    assert_eq!(host.file("left-open").as_deref(), Some(b"".as_slice()));
+    // Opening the file again shows what was written so far.
+    let again = file_call(&mut vm, None, OPEN_RAW, &[name, Value::Int(1)]).expect("opens");
+    assert_eq!(host.file("left-open").map(|data| data.len()), Some(5));
+    file_call(&mut vm, Some(again), CLOSE, &[]).expect("closes");
+    file_call(&mut vm, Some(file), WRITE, &[Value::Int(2)]).expect("writes");
+    // Nothing refers to the file object, so the collector frees it.
+    vm.r0 = Value::Nil;
+    vm.collect_garbage(false);
+    assert!(vm.objects.get(file.obj_id()).is_none());
+    assert_eq!(host.file("left-open").map(|data| data.len()), Some(10));
+}
+
+/// A host that confines the program to a folder nothing is in.
+struct LockedHost(BufferHost);
+
+impl hexicon_host::Host for LockedHost {
+    fn print(&mut self, text: &str) {
+        self.0.print(text);
+    }
+
+    fn write_file(&mut self, name: &str, data: &[u8]) -> Result<(), hexicon_host::FileError> {
+        self.0.write_file(name, data)
+    }
+
+    fn sandbox(&mut self, _name: &str) -> hexicon_host::Sandbox {
+        hexicon_host::Sandbox::Outside
+    }
+}
+
+#[test]
+fn file_outside_the_sandbox_is_refused() {
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.op(Op::RetNil);
+    let image = ImageBuilder::default().build(main, &code, &Consts::default());
+    let host = BufferHost::new();
+    let mut vm = Vm::new(&image, Box::new(LockedHost(host.clone()))).expect("the image loads");
+    let name = vm.new_str("secret");
+    // With no exception class in the program, the refusal is a run-time
+    // error.
+    let error = file_call(&mut vm, None, OPEN_RAW, &[name, Value::Int(2)]).expect_err("refused");
+    assert!(matches!(error, VmError::Runtime(error) if error.code == code::INTCLS_GENERAL_ERROR));
+    assert!(host.file("secret").is_none());
+    // Safety level 0 for writing allows it anywhere.
+    vm.set_file_safety(2, 0);
+    file_call(&mut vm, None, OPEN_RAW, &[name, Value::Int(2)]).expect("allowed");
+    assert!(host.file("secret").is_some());
+}

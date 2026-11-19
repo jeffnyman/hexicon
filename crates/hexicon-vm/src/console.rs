@@ -423,7 +423,7 @@ impl Formatter {
                 c = ' ';
             }
             _ => {
-                if c.is_whitespace() {
+                if crate::regex::is_space(c) {
                     c = ' ';
                     quoted_space = self.pre_level > 0;
                 }

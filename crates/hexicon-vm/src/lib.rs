@@ -19,6 +19,7 @@ mod console;
 mod dict;
 mod entities;
 mod error;
+mod file;
 mod gc;
 mod gram;
 mod hash;

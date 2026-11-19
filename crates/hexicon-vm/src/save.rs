@@ -277,6 +277,14 @@ impl Vm {
                 w.u16(0);
             }
             Object::CharSet { name, .. } => w.counted(name.as_bytes()),
+            Object::FileName(name) => {
+                w.u32(name.special as u32);
+                if name.special == 0 {
+                    w.counted(name.path.as_bytes());
+                }
+            }
+            // These are transient, so they are never saved.
+            Object::File(_) | Object::TempFile(_) => {}
             Object::StrComp(comparator) => w.bytes(&comparator.to_bytes()),
             // A production from the image is never saved, so one that is
             // being saved is one the program made.
@@ -595,6 +603,19 @@ impl Vm {
                 let map = crate::charset::CharMap::load(&name).map(Rc::new);
                 Object::CharSet { name, map }
             }
+            MetaKind::FileName => {
+                let special = r.u32()? as i32;
+                let path = if special == 0 {
+                    String::from_utf8_lossy(r.counted()?).into_owned()
+                } else {
+                    String::new()
+                };
+                Object::FileName(Box::new(crate::file::FileNameObj {
+                    path,
+                    special,
+                    from_ui: 0,
+                }))
+            }
             MetaKind::GrammarProduction => {
                 let (mut production, used) =
                     crate::gram::GramProd::from_bytes(&r.data[r.pos..]).ok_or_else(bad)?;
@@ -866,16 +887,6 @@ impl Vm {
 
     // ---- the functions a program calls ----
 
-    /// The name of the file a program asked for.
-    pub(crate) fn file_name_arg(&self, value: Value) -> VmResult<String> {
-        match self.as_str(value) {
-            Some(name) => Ok(String::from_utf8_lossy(&name).into_owned()),
-            None => Err(VmError::unimplemented(
-                "a file given as anything but a name",
-            )),
-        }
-    }
-
     /// `saveGame(file, metadata?)`.
     pub(crate) fn bif_save(&mut self, argc: u32) -> VmResult<()> {
         if !(1..=2).contains(&argc) {
@@ -885,7 +896,7 @@ impl Vm {
         if !matches!(metadata, Value::Nil | Value::Obj(_)) {
             return Err(VmError::new(code::BAD_TYPE_BIF));
         }
-        let name = self.file_name_arg(self.arg(0))?;
+        let name = self.file_name_arg(self.arg(0), crate::file::Access::Write)?;
         let state = self.save_state(metadata)?;
         self.host
             .write_file(&name, &state)
@@ -899,7 +910,8 @@ impl Vm {
         if argc != 1 {
             return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
         }
-        let name = self.file_name_arg(self.arg(0))?;
+        let name = self.file_name_arg(self.arg(0), crate::file::Access::Read)?;
+        self.sync_files();
         let state = self.host.read_file(&name).map_err(|error| {
             VmError::new(match error {
                 FileError::NotFound => code::FILE_NOT_FOUND,

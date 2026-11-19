@@ -47,6 +47,17 @@ impl Stream {
         }
     }
 
+    /// A stream over data that grows as it is written past its end.
+    pub fn growing(data: Vec<u8>, pos: usize) -> Self {
+        let pos = pos.min(data.len());
+        Self {
+            data,
+            pos,
+            growable: true,
+            wide: Vec::new(),
+        }
+    }
+
     /// A stream over data of a fixed size.
     pub fn fixed(data: Vec<u8>, pos: usize) -> Self {
         let pos = pos.min(data.len());
@@ -1676,7 +1687,22 @@ impl Vm {
     /// Pack arguments into a stream. Argument `first_arg` is the format
     /// string, and the `argc - 1` after it are the values.
     pub(crate) fn pack(&mut self, first_arg: usize, argc: usize, ds: Stream) -> VmResult<Stream> {
-        let format = self.require_str(self.arg(first_arg))?.to_vec();
+        let (ds, result) = self.pack_stream(first_arg, argc, ds);
+        result.map(|()| ds)
+    }
+
+    /// Pack arguments into a stream, and give the stream back whether or
+    /// not that worked.
+    pub(crate) fn pack_stream(
+        &mut self,
+        first_arg: usize,
+        argc: usize,
+        ds: Stream,
+    ) -> (Stream, VmResult<()>) {
+        let format = match self.require_str(self.arg(first_arg)) {
+            Ok(format) => format.to_vec(),
+            Err(error) => return (ds, Err(error)),
+        };
         let fmt: Vec<char> = String::from_utf8_lossy(&format).chars().collect();
         let mut p = Pos {
             at: 0,
@@ -1688,22 +1714,31 @@ impl Vm {
             cur: first_arg + 1,
             end: first_arg + argc.max(1),
         };
-        packer.pack_group(&mut p, &mut args, &mut root, false)?;
-        if packer.more(&mut p) {
-            return Err(parse_error(p.index()));
+        let mut result = packer.pack_group(&mut p, &mut args, &mut root, false);
+        if result.is_ok() && packer.more(&mut p) {
+            result = Err(parse_error(p.index()));
         }
-        if args.more() {
-            return Err(VmError::with(
+        if result.is_ok() && args.more() {
+            result = Err(VmError::with(
                 code::PACK_ARGC_MISMATCH,
                 vec![ErrParam::Int(format.len() as i32 + 1)],
             ));
         }
-        Ok(packer.ds)
+        (packer.ds, result)
     }
 
     /// Unpack a stream into a list of values, according to a format.
     pub(crate) fn unpack(&mut self, format: Value, ds: Stream) -> VmResult<Value> {
-        let format = self.require_str(format)?.to_vec();
+        self.unpack_stream(format, ds).1
+    }
+
+    /// Unpack a stream, and give the stream back whether or not that
+    /// worked.
+    pub(crate) fn unpack_stream(&mut self, format: Value, ds: Stream) -> (Stream, VmResult<Value>) {
+        let format = match self.require_str(format) {
+            Ok(format) => format.to_vec(),
+            Err(error) => return (ds, Err(error)),
+        };
         let fmt: Vec<char> = String::from_utf8_lossy(&format).chars().collect();
         let mut p = Pos {
             at: 0,
@@ -1712,10 +1747,17 @@ impl Vm {
         let mut packer = Packer { vm: self, fmt, ds };
         let mut root = packer.root_group(p);
         let mut out = Vec::new();
-        packer.unpack_group(&mut p, &mut out, &mut root, false)?;
-        if packer.more(&mut p) {
-            return Err(parse_error(p.index()));
+        let mut result = packer.unpack_group(&mut p, &mut out, &mut root, false);
+        if result.is_ok() && packer.more(&mut p) {
+            result = Err(parse_error(p.index()));
         }
-        Ok(self.new_list(out))
+        let ds = packer.ds;
+        match result {
+            Ok(_) => {
+                let list = self.new_list(out);
+                (ds, Ok(list))
+            }
+            Err(error) => (ds, Err(error)),
+        }
     }
 }

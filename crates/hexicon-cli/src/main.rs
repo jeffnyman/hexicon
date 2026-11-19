@@ -2,11 +2,12 @@
 
 use std::fmt::Write as _;
 use std::io::Write as _;
+use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 
 use hexicon_bytecode::listing::{Names, write_function};
 use hexicon_bytecode::{Extent, discover};
-use hexicon_host::{FileError, Host};
+use hexicon_host::{FileError, FileInfo, Host, Sandbox, file_attr, file_type};
 use hexicon_image::{Image, Pool, Value};
 use hexicon_vm::Vm;
 
@@ -19,6 +20,13 @@ commands:
       --norand                 make the same random choices on every run
       -I, --script <file>      read input from a command script before
                                asking for any
+      --sandbox <dir>          the folder the program's file access is
+                               confined to (default: the image's folder)
+      --safety <read><write>   how far file access is confined, as two
+                               digits: 0 for anywhere, 1 for reading
+                               anywhere but writing only in the sandbox,
+                               2 for the sandbox only, 3 for reading in
+                               the sandbox only, 4 for nowhere (default 22)
   dump <image.t3>              describe the contents of a program image file
   disasm <image.t3>            list the byte code of every function found
   disasm --summary <image.t3>  report how much of the code was accounted for
@@ -31,6 +39,8 @@ fn main() -> ExitCode {
         let mut options = RunOptions {
             seed_random: true,
             script: None,
+            sandbox: None,
+            safety: (2, 2),
         };
         let mut rest = rest;
         loop {
@@ -41,6 +51,26 @@ fn main() -> ExitCode {
                 }
                 ["-I" | "--script", file, tail @ ..] => {
                     options.script = Some(file);
+                    rest = tail;
+                }
+                ["--sandbox", dir, tail @ ..] => {
+                    options.sandbox = Some(dir);
+                    rest = tail;
+                }
+                ["--safety", levels, tail @ ..] => {
+                    let digits: Vec<u8> = levels
+                        .bytes()
+                        .filter(|digit| (b'0'..=b'4').contains(digit))
+                        .map(|digit| digit - b'0')
+                        .collect();
+                    options.safety = match (digits.as_slice(), levels.len()) {
+                        ([both], 1) => (*both, *both),
+                        ([read, write], 2) => (*read, *write),
+                        _ => {
+                            eprint!("{USAGE}");
+                            return ExitCode::from(2);
+                        }
+                    };
                     rest = tail;
                 }
                 [path, program_args @ ..] if !path.starts_with('-') => {
@@ -90,6 +120,10 @@ struct RunOptions<'a> {
     seed_random: bool,
     /// A command script to read input from.
     script: Option<&'a str>,
+    /// The folder file access is confined to, if not the image's.
+    sandbox: Option<&'a str>,
+    /// The file safety levels for reading and for writing.
+    safety: (u8, u8),
 }
 
 /// A host that writes program output to standard output, reads input
@@ -97,7 +131,71 @@ struct RunOptions<'a> {
 /// as the reference interpreter does.
 struct Console {
     /// The folder a file name without one is taken to be in.
-    file_base: std::path::PathBuf,
+    file_base: PathBuf,
+    /// The folder the program's file access is confined to.
+    sandbox: PathBuf,
+    /// How many temporary file names have been handed out.
+    temp_count: u32,
+}
+
+impl Console {
+    /// The file a program's name for it refers to.
+    fn path(&self, name: &str) -> PathBuf {
+        self.file_base.join(name)
+    }
+}
+
+/// A path from its root, with `.` and `..` worked out by name alone, so
+/// that it has an answer for a file that does not exist yet.
+fn full_path(path: &Path) -> PathBuf {
+    // An empty path is the current folder.
+    let path = if path.as_os_str().is_empty() {
+        Path::new(".")
+    } else {
+        path
+    };
+    let absolute = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+    let mut out = PathBuf::new();
+    for part in absolute.components() {
+        match part {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// A path in the syntax programs use, with `/` between the parts.
+fn program_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+/// Whether two paths are the same, on a system where the case of
+/// letters does not tell names apart.
+fn same_part(a: &std::ffi::OsStr, b: &std::ffi::OsStr) -> bool {
+    if cfg!(windows) {
+        a.to_string_lossy().to_lowercase() == b.to_string_lossy().to_lowercase()
+    } else {
+        a == b
+    }
+}
+
+/// Whether `path` is `dir` or somewhere within it.
+fn starts_with(path: &Path, dir: &Path) -> bool {
+    let mut parts = path.components();
+    dir.components().all(|part| {
+        parts
+            .next()
+            .is_some_and(|other| same_part(other.as_os_str(), part.as_os_str()))
+    })
+}
+
+fn seconds(time: std::io::Result<std::time::SystemTime>) -> Option<i64> {
+    let since = time.ok()?.duration_since(std::time::UNIX_EPOCH).ok()?;
+    Some(since.as_secs() as i64)
 }
 
 impl Host for Console {
@@ -120,18 +218,160 @@ impl Host for Console {
 
     // A file name is a path, relative to the folder the image is in.
     fn read_file(&mut self, name: &str) -> Result<Vec<u8>, FileError> {
-        std::fs::read(self.file_base.join(name)).map_err(file_error)
+        std::fs::read(self.path(name)).map_err(file_error)
     }
 
     fn write_file(&mut self, name: &str, data: &[u8]) -> Result<(), FileError> {
-        std::fs::write(self.file_base.join(name), data).map_err(file_error)
+        std::fs::write(self.path(name), data).map_err(file_error)
+    }
+
+    fn file_info(&mut self, name: &str, follow_links: bool) -> Option<FileInfo> {
+        let path = self.path(name);
+        let meta = if follow_links {
+            std::fs::metadata(&path)
+        } else {
+            std::fs::symlink_metadata(&path)
+        }
+        .ok()?;
+        let kind = if meta.is_dir() {
+            file_type::DIR
+        } else if meta.is_file() {
+            file_type::FILE
+        } else if meta.file_type().is_symlink() {
+            file_type::LINK
+        } else {
+            0
+        };
+        let hidden = Path::new(name)
+            .file_name()
+            .is_some_and(|base| base.to_string_lossy().starts_with('.'));
+        let mut attrs = file_attr::READ;
+        if !meta.permissions().readonly() {
+            attrs |= file_attr::WRITE;
+        }
+        if hidden {
+            attrs |= file_attr::HIDDEN;
+        }
+        Some(FileInfo {
+            kind,
+            attrs,
+            size: if meta.is_dir() { 0 } else { meta.len() },
+            accessed: seconds(meta.accessed()),
+            modified: seconds(meta.modified()),
+            created: seconds(meta.created()),
+            link_target: std::fs::read_link(&path)
+                .ok()
+                .map(|target| program_path(&target)),
+        })
+    }
+
+    fn delete_file(&mut self, name: &str) -> Result<(), FileError> {
+        std::fs::remove_file(self.path(name)).map_err(file_error)
+    }
+
+    fn rename_file(&mut self, from: &str, to: &str) -> Result<(), FileError> {
+        std::fs::rename(self.path(from), self.path(to)).map_err(file_error)
+    }
+
+    fn create_dir(&mut self, name: &str, parents: bool) -> Result<(), FileError> {
+        let path = self.path(name);
+        if path.exists() {
+            return Err(FileError::Failed);
+        }
+        if parents {
+            std::fs::create_dir_all(path)
+        } else {
+            std::fs::create_dir(path)
+        }
+        .map_err(file_error)
+    }
+
+    fn remove_dir(&mut self, name: &str, contents: bool) -> Result<(), FileError> {
+        let path = self.path(name);
+        if contents {
+            std::fs::remove_dir_all(path)
+        } else {
+            std::fs::remove_dir(path)
+        }
+        .map_err(file_error)
+    }
+
+    // The entries for the directory itself and its parent come first, as
+    // systems that list them do.
+    fn list_dir(&mut self, name: &str) -> Option<Vec<String>> {
+        let mut names = vec![".".to_owned(), "..".to_owned()];
+        for entry in std::fs::read_dir(self.path(name)).ok()? {
+            names.push(entry.ok()?.file_name().to_string_lossy().into_owned());
+        }
+        Some(names)
+    }
+
+    fn absolute_path(&mut self, name: &str) -> Option<String> {
+        Some(program_path(&full_path(&self.path(name))))
+    }
+
+    fn root_dirs(&mut self) -> Vec<String> {
+        if cfg!(windows) {
+            (b'A'..=b'Z')
+                .map(|letter| format!("{}:/", char::from(letter)))
+                .filter(|root| Path::new(root).exists())
+                .collect()
+        } else {
+            vec!["/".to_owned()]
+        }
+    }
+
+    fn sandbox(&mut self, name: &str) -> Sandbox {
+        let path = full_path(&self.path(name));
+        let sandbox = full_path(&self.sandbox);
+        let inside = starts_with(&path, &sandbox);
+        let contains = starts_with(&sandbox, &path);
+        match (inside, contains) {
+            (true, true) => Sandbox::Itself,
+            (true, false) => Sandbox::Inside,
+            (false, true) => Sandbox::Contains,
+            (false, false) => Sandbox::Outside,
+        }
+    }
+
+    fn temp_file_name(&mut self) -> Option<String> {
+        let dir = std::env::temp_dir();
+        loop {
+            self.temp_count += 1;
+            let name = format!("hexicon-{}-{}.tmp", std::process::id(), self.temp_count);
+            let path = dir.join(name);
+            if !path.exists() {
+                return Some(program_path(&path));
+            }
+        }
+    }
+
+    // The settings that games share are kept in the user's own
+    // configuration folder.
+    fn special_file(&mut self, id: i32) -> Option<String> {
+        let name = match id {
+            1 => "settings.txt",
+            2 => "webprefs.txt",
+            _ => return None,
+        };
+        let base = if cfg!(windows) {
+            PathBuf::from(std::env::var_os("APPDATA")?)
+        } else if let Some(config) = std::env::var_os("XDG_CONFIG_HOME") {
+            PathBuf::from(config)
+        } else {
+            PathBuf::from(std::env::var_os("HOME")?).join(".config")
+        };
+        let dir = base.join(if cfg!(windows) { "Hexicon" } else { "hexicon" });
+        // The folder has to be there before a file can be written in it.
+        let _ = std::fs::create_dir_all(&dir);
+        Some(program_path(&dir.join(name)))
     }
 
     fn append_file(&mut self, name: &str, data: &[u8]) -> Result<(), FileError> {
         std::fs::OpenOptions::new()
             .append(true)
             .create(true)
-            .open(self.file_base.join(name))
+            .open(self.path(name))
             .and_then(|mut file| file.write_all(data))
             .map_err(file_error)
     }
@@ -198,18 +438,36 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
         eprintln!("hexicon: {path}: {message}");
         ExitCode::FAILURE
     };
-    let image = match load(path) {
-        Ok((image, _)) => image,
-        Err(message) => return fail(message),
+    let data = match std::fs::read(path) {
+        Ok(data) => data,
+        Err(error) => return fail(error.to_string()),
     };
-    let file_base = std::path::Path::new(path)
+    let image = match Image::parse(&data) {
+        Ok(image) => image,
+        Err(error) => return fail(error.to_string()),
+    };
+    let file_base = Path::new(path)
         .parent()
-        .map(std::path::Path::to_path_buf)
+        .map(Path::to_path_buf)
         .unwrap_or_default();
-    let mut vm = match Vm::new(&image, Box::new(Console { file_base })) {
+    let console = Console {
+        sandbox: options
+            .sandbox
+            .map_or_else(|| file_base.clone(), PathBuf::from),
+        file_base,
+        temp_count: 0,
+    };
+    let mut vm = match Vm::new(&image, Box::new(console)) {
         Ok(vm) => vm,
         Err(error) => return fail(error.to_string()),
     };
+    vm.set_file_safety(options.safety.0, options.safety.1);
+    for resource in &image.resources {
+        if let Some(contents) = data.get(resource.offset..resource.offset + resource.size as usize)
+        {
+            vm.add_resource(&resource.name, contents);
+        }
+    }
     vm.set_error_trace(std::env::var_os("HEXICON_TRACE_ERRORS").is_some());
     vm.set_image_name(path);
     if options.seed_random {
@@ -248,6 +506,7 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
         }
     };
     vm.flush_output();
+    vm.close_files();
     code
 }
 

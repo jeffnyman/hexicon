@@ -97,7 +97,7 @@ pub(crate) struct Frame {
 
 impl Predef {
     /// The objects the VM knows by name, which are never garbage.
-    pub(crate) fn objects(&self) -> [ObjId; 9] {
+    pub(crate) fn objects(&self) -> [ObjId; 18] {
         [
             self.gram_alt_info,
             self.gram_alt_token_info,
@@ -108,6 +108,15 @@ impl Predef {
             self.last_prop_obj,
             self.reflection_services,
             self.charset_unknown_exception,
+            self.file_not_found_exc,
+            self.file_creation_exc,
+            self.file_open_exc,
+            self.file_io_exc,
+            self.file_sync_exc,
+            self.file_closed_exc,
+            self.file_mode_exc,
+            self.file_safety_exc,
+            self.file_info,
         ]
     }
 }
@@ -200,6 +209,20 @@ pub(crate) struct Predef {
     pub match_values: PropId,
     /// The exception class for using a character set the VM lacks.
     pub charset_unknown_exception: ObjId,
+    /// The exception classes of the File class.
+    pub file_not_found_exc: ObjId,
+    pub file_creation_exc: ObjId,
+    pub file_open_exc: ObjId,
+    pub file_io_exc: ObjId,
+    pub file_sync_exc: ObjId,
+    pub file_closed_exc: ObjId,
+    pub file_mode_exc: ObjId,
+    pub file_safety_exc: ObjId,
+    /// The class that describes a file for `FileName.getFileInfo`.
+    pub file_info: ObjId,
+    /// The methods of an object a program writes to stand for a file.
+    pub filespec_get_filename: PropId,
+    pub filespec_close_file: PropId,
     /// Where `specialsToHtml` keeps its state between calls.
     pub string_sth_flags: PropId,
     pub string_sth_tag: PropId,
@@ -460,6 +483,9 @@ impl Vm {
             Object::Dict(_) => MetaKind::Dictionary,
             Object::GramProd(_) => MetaKind::GrammarProduction,
             Object::CharSet { .. } => MetaKind::CharacterSet,
+            Object::FileName(_) => MetaKind::FileName,
+            Object::File(_) => MetaKind::File,
+            Object::TempFile(_) => MetaKind::TemporaryFile,
             Object::Class(_) => MetaKind::IntrinsicClass,
             Object::Opaque { meta_index, .. } => self.meta.get(*meta_index as usize)?.kind,
         })

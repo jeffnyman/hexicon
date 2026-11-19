@@ -133,6 +133,9 @@ impl Vm {
             MetaKind::StringComparator => self.strcomp_method(self_value.obj_id(), index, argc),
             MetaKind::Dictionary => self.dict_method(self_value.obj_id(), index, argc),
             MetaKind::GrammarProduction => self.gram_method(self_value.obj_id(), index, argc),
+            MetaKind::File => self.file_method(Some(self_value.obj_id()), index, argc),
+            MetaKind::FileName => self.file_name_method(Some(self_value.obj_id()), index, argc),
+            MetaKind::TemporaryFile => self.temp_file_method(self_value.obj_id(), index, argc),
             other => Err(VmError::unimplemented(format!(
                 "method {index} of intrinsic class {}",
                 other.name()
@@ -343,6 +346,8 @@ impl Vm {
             (MetaKind::BigNumber, index) if index != 0 => self.big_static_method(index, argc),
             (MetaKind::ByteArray, index) if index != 0 => self.bytes_static_method(index, argc),
             (MetaKind::String, index) if index != 0 => self.string_static_method(index, argc),
+            (MetaKind::File, index) if index != 0 => self.file_method(None, index, argc),
+            (MetaKind::FileName, index) if index != 0 => self.file_name_method(None, index, argc),
             // IntrinsicClass.isIntrinsicClass(val)
             (MetaKind::IntrinsicClass, 1) => self
                 .native_method(argc, NativeDesc::fixed(1), |vm, _| {
@@ -382,6 +387,9 @@ impl Vm {
                             | MetaKind::StringComparator
                             | MetaKind::Dictionary
                             | MetaKind::GrammarProduction
+                            | MetaKind::File
+                            | MetaKind::FileName
+                            | MetaKind::TemporaryFile
                     ) =>
             {
                 Err(VmError::unimplemented(format!(

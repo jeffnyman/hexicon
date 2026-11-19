@@ -138,6 +138,37 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             source: Value::from_holder(data.get(..Value::HOLDER_SIZE).ok_or_else(bad)?),
             compiled: None,
         },
+        MetaKind::FileName => {
+            // The number of a special file, or zero and then the name.
+            let special = data.get(..4).ok_or_else(bad)?;
+            let special = i32::from_le_bytes([special[0], special[1], special[2], special[3]]);
+            let path = if special == 0 {
+                let len = u16_at(4)? as usize;
+                String::from_utf8_lossy(data.get(6..6 + len).ok_or_else(bad)?).into_owned()
+            } else {
+                String::new()
+            };
+            Object::FileName(Box::new(crate::file::FileNameObj {
+                path,
+                special,
+                from_ui: 0,
+            }))
+        }
+        MetaKind::File => {
+            // The character set, the mode, the access, and flags. The
+            // file itself is not open: the object is out of sync with it.
+            let charset = data.get(..4).ok_or_else(bad)?;
+            let charset = u32::from_le_bytes([charset[0], charset[1], charset[2], charset[3]]);
+            Object::File(Box::new(crate::file::FileObj {
+                charset: ObjId(charset),
+                mode: *data.get(4).ok_or_else(bad)?,
+                access: *data.get(5).ok_or_else(bad)?,
+                out_of_sync: true,
+                spec: Value::Nil,
+                open: None,
+            }))
+        }
+        MetaKind::TemporaryFile => Object::TempFile(String::new()),
         MetaKind::IntrinsicClass => {
             // A length, the index of the class in the dependency list,
             // the modifier object, and optionally the class state.
@@ -321,6 +352,17 @@ impl Vm {
                 image,
                 "CharacterSet.UnknownCharSetException",
             )?,
+            file_not_found_exc: object_symbol(image, "File.FileNotFoundException")?,
+            file_creation_exc: object_symbol(image, "File.FileCreationException")?,
+            file_open_exc: object_symbol(image, "File.FileOpenException")?,
+            file_io_exc: object_symbol(image, "File.FileIOException")?,
+            file_sync_exc: object_symbol(image, "File.FileSyncException")?,
+            file_closed_exc: object_symbol(image, "File.FileClosedException")?,
+            file_mode_exc: object_symbol(image, "File.FileModeException")?,
+            file_safety_exc: object_symbol(image, "File.FileSafetyException")?,
+            file_info: object_symbol(image, "File.FileInfo")?,
+            filespec_get_filename: prop_symbol(image, "FileSpec.getFilename")?,
+            filespec_close_file: prop_symbol(image, "FileSpec.closeFile")?,
             string_sth_flags: prop_symbol(image, "String.specialsToHtml.flags")?,
             string_sth_tag: prop_symbol(image, "String.specialsToHtml.tag")?,
             iter_get_next: INVALID_PROP,

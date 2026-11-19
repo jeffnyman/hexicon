@@ -21,6 +21,70 @@ pub enum FileError {
     Failed,
 }
 
+/// What kind of thing a file name refers to. The values are the ones
+/// programs see, and can be combined.
+pub mod file_type {
+    /// An ordinary file.
+    pub const FILE: u32 = 0x01;
+    /// A directory.
+    pub const DIR: u32 = 0x02;
+    /// A character device.
+    pub const CHAR: u32 = 0x04;
+    /// A block device.
+    pub const BLOCK: u32 = 0x08;
+    /// A pipe.
+    pub const PIPE: u32 = 0x10;
+    /// A socket.
+    pub const SOCKET: u32 = 0x20;
+    /// A symbolic link.
+    pub const LINK: u32 = 0x40;
+}
+
+/// Attributes of a file. The values are the ones programs see.
+pub mod file_attr {
+    /// Not normally listed.
+    pub const HIDDEN: u32 = 0x01;
+    /// Belongs to the system.
+    pub const SYSTEM: u32 = 0x02;
+    /// Can be read.
+    pub const READ: u32 = 0x04;
+    /// Can be written.
+    pub const WRITE: u32 = 0x08;
+}
+
+/// What the host knows about a file.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FileInfo {
+    /// A combination of [`file_type`] values.
+    pub kind: u32,
+    /// A combination of [`file_attr`] values.
+    pub attrs: u32,
+    /// The size in bytes.
+    pub size: u64,
+    /// When the file was last read, in seconds since the start of 1970.
+    pub accessed: Option<i64>,
+    /// When the file was last changed.
+    pub modified: Option<i64>,
+    /// When the file was created.
+    pub created: Option<i64>,
+    /// Where a symbolic link leads.
+    pub link_target: Option<String>,
+}
+
+/// Where a file is in relation to the folder a program's file access is
+/// confined to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sandbox {
+    /// In the folder, or in a folder within it.
+    Inside,
+    /// The folder itself.
+    Itself,
+    /// A folder the sandbox is in.
+    Contains,
+    /// Anywhere else.
+    Outside,
+}
+
 /// The time on the host's clock.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Time {
@@ -54,6 +118,85 @@ pub trait Host {
     fn write_file(&mut self, name: &str, data: &[u8]) -> Result<(), FileError> {
         let _ = (name, data);
         Err(FileError::Unsupported)
+    }
+
+    /// What a name refers to, or `None` if nothing. With `follow_links`,
+    /// a symbolic link is described by what it leads to.
+    ///
+    /// File names are in one syntax on every host: parts separated by
+    /// `/`, with `.` for the folder itself and `..` for the one above. A
+    /// name that does not start at a root is relative to wherever the
+    /// host keeps the program's files.
+    fn file_info(&mut self, name: &str, follow_links: bool) -> Option<FileInfo> {
+        let _ = (name, follow_links);
+        None
+    }
+
+    /// Delete a file.
+    fn delete_file(&mut self, name: &str) -> Result<(), FileError> {
+        let _ = name;
+        Err(FileError::Unsupported)
+    }
+
+    /// Give a file a new name, which must not be in use.
+    fn rename_file(&mut self, from: &str, to: &str) -> Result<(), FileError> {
+        let _ = (from, to);
+        Err(FileError::Unsupported)
+    }
+
+    /// Create a directory, and with `parents` any directories above it
+    /// that are missing.
+    fn create_dir(&mut self, name: &str, parents: bool) -> Result<(), FileError> {
+        let _ = (name, parents);
+        Err(FileError::Unsupported)
+    }
+
+    /// Remove a directory, which has to be empty unless `contents` says
+    /// to delete what is in it too.
+    fn remove_dir(&mut self, name: &str, contents: bool) -> Result<(), FileError> {
+        let _ = (name, contents);
+        Err(FileError::Unsupported)
+    }
+
+    /// The names in a directory, without the path to it. A host whose
+    /// directories have entries for themselves and their parents includes
+    /// `.` and `..`.
+    fn list_dir(&mut self, name: &str) -> Option<Vec<String>> {
+        let _ = name;
+        None
+    }
+
+    /// The full name of a file, from a root.
+    fn absolute_path(&mut self, name: &str) -> Option<String> {
+        let _ = name;
+        None
+    }
+
+    /// The roots of the file system: `/` on some systems, a list of
+    /// drives on others.
+    fn root_dirs(&mut self) -> Vec<String> {
+        Vec::new()
+    }
+
+    /// Where a file is in relation to the folder the program's file
+    /// access is confined to. The default confines nothing.
+    fn sandbox(&mut self, name: &str) -> Sandbox {
+        let _ = name;
+        Sandbox::Inside
+    }
+
+    /// A name for a new temporary file, which does not exist yet.
+    fn temp_file_name(&mut self) -> Option<String> {
+        None
+    }
+
+    /// The name of one of the files that programs ask for by number
+    /// because where they are kept is up to the system: 1 is the file of
+    /// settings shared by every game that uses the standard library, and
+    /// 2 the same for the web interface.
+    fn special_file(&mut self, id: i32) -> Option<String> {
+        let _ = id;
+        None
     }
 
     /// Add to the end of a file, creating it if it is not there.
@@ -116,6 +259,7 @@ pub struct BufferHost {
     output: Rc<RefCell<String>>,
     files: Rc<RefCell<HashMap<String, Vec<u8>>>>,
     input: Rc<RefCell<VecDeque<String>>>,
+    temp_counter: Rc<RefCell<u32>>,
 }
 
 impl BufferHost {
@@ -176,6 +320,39 @@ impl Host for BufferHost {
             .or_default()
             .extend_from_slice(data);
         Ok(())
+    }
+
+    // The files have no directories: a name is only a key.
+    fn file_info(&mut self, name: &str, _follow_links: bool) -> Option<FileInfo> {
+        self.files.borrow().get(name).map(|data| FileInfo {
+            kind: file_type::FILE,
+            attrs: file_attr::READ | file_attr::WRITE,
+            size: data.len() as u64,
+            ..FileInfo::default()
+        })
+    }
+
+    fn delete_file(&mut self, name: &str) -> Result<(), FileError> {
+        match self.files.borrow_mut().remove(name) {
+            Some(_) => Ok(()),
+            None => Err(FileError::NotFound),
+        }
+    }
+
+    fn rename_file(&mut self, from: &str, to: &str) -> Result<(), FileError> {
+        let mut files = self.files.borrow_mut();
+        if files.contains_key(to) {
+            return Err(FileError::Failed);
+        }
+        let data = files.remove(from).ok_or(FileError::NotFound)?;
+        files.insert(to.to_owned(), data);
+        Ok(())
+    }
+
+    fn temp_file_name(&mut self) -> Option<String> {
+        let mut counter = self.temp_counter.borrow_mut();
+        *counter += 1;
+        Some(format!("/tmp/temp{counter}"))
     }
 
     fn read_line(&mut self) -> Option<String> {

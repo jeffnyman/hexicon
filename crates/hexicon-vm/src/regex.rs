@@ -134,7 +134,7 @@ fn is_vspace(c: char) -> bool {
     )
 }
 
-fn is_space(c: char) -> bool {
+pub(crate) fn is_space(c: char) -> bool {
     c.is_whitespace() && !is_vspace(c)
 }
 

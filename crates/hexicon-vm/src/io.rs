@@ -7,6 +7,7 @@
 
 use crate::console::{Formatter, Newline};
 use crate::error::{VmError, VmResult, code};
+use crate::file::Access;
 use crate::load::CONSOLE_WIDTH;
 use crate::object::Object;
 use crate::value::Value;
@@ -287,8 +288,9 @@ struct CommandLog {
     events: bool,
 }
 
-/// The state of the console apart from the main window's formatter.
-#[derive(Debug, Default)]
+/// The state of the console apart from the main window's formatter, and
+/// of the program's files.
+#[derive(Debug)]
 pub(crate) struct IoState {
     /// Formats text for the status line.
     status: Option<Formatter>,
@@ -308,6 +310,36 @@ pub(crate) struct IoState {
     /// The clock reading that the program's count of milliseconds starts
     /// from: the reading when the program first asked.
     tick_zero: Option<i64>,
+    /// How much of the file system the program may read, and write. See
+    /// [`Vm::set_file_safety`].
+    pub(crate) safety_read: u8,
+    pub(crate) safety_write: u8,
+    /// File objects whose files are open.
+    pub(crate) open_files: Vec<crate::value::ObjId>,
+    /// Resources the program can open by name.
+    pub(crate) resources: crate::file::Resources,
+}
+
+impl Default for IoState {
+    fn default() -> Self {
+        Self {
+            status: None,
+            in_status: false,
+            log: None,
+            command_log: None,
+            scripts: Vec::new(),
+            read_in_progress: false,
+            read_buf: Vec::new(),
+            log_consoles: Vec::new(),
+            tick_zero: None,
+            // The reference VM's default: read and write only in the
+            // sandbox folder.
+            safety_read: 2,
+            safety_write: 2,
+            open_files: Vec::new(),
+            resources: crate::file::Resources::new(),
+        }
+    }
 }
 
 impl Vm {
@@ -508,14 +540,14 @@ impl Vm {
     /// Read a line of input: the kind of event that ended the read, and
     /// the text. The host cannot interrupt a read, so one with a timeout
     /// reports that timeouts are not available.
-    fn read_line_timeout(&mut self, timeout: Option<i32>) -> (i32, Vec<u8>) {
+    fn read_line_timeout(&mut self, timeout: Option<i32>, bypass_script: bool) -> (i32, Vec<u8>) {
         let mut event = 0;
         let mut from_script = false;
         let mut echo = false;
         if !self.io.read_in_progress {
             self.flush_console(Newline::Input);
         }
-        while let Some(script) = self.io.scripts.last_mut() {
+        while let Some(script) = self.io.scripts.last_mut().filter(|_| !bypass_script) {
             let was_quiet = script.quiet;
             if let Some((found, line)) = script.read_line() {
                 self.io.read_buf = line;
@@ -577,11 +609,13 @@ impl Vm {
         (event, line)
     }
 
-    /// Read a line of input, or `None` at the end of input.
-    fn read_line(&mut self) -> Option<Vec<u8>> {
+    /// Read a line of input, or `None` at the end of input. With
+    /// `bypass_script`, the player is asked even if a script is being
+    /// read.
+    fn read_line(&mut self, bypass_script: bool) -> Option<Vec<u8>> {
         self.read_line_done();
         loop {
-            match self.read_line_timeout(None) {
+            match self.read_line_timeout(None, bypass_script) {
                 (EVT_LINE, line) => return Some(line),
                 (EVT_END_QUIET_SCRIPT, _) => {}
                 _ => return None,
@@ -645,8 +679,10 @@ impl Vm {
     }
 
     /// Ask the player to choose among buttons, on a console that has only
-    /// text: the number of the button chosen, counting from one.
-    fn text_dialog(&mut self, prompt: &str, buttons: &[String], cancel: i32) -> i32 {
+    /// text: the number of the button chosen, counting from one, or zero
+    /// at the end of input. The answer is a line of input, which a script
+    /// can supply.
+    fn text_dialog(&mut self, prompt: &str, buttons: &[String], bypass_script: bool) -> i32 {
         if buttons.is_empty() {
             return 0;
         }
@@ -657,25 +693,28 @@ impl Vm {
         };
         let same = |a: char, b: char| a.to_uppercase().eq(b.to_uppercase());
         loop {
-            let mut text = format!("\n{prompt}");
+            let mut text = format!("\n{prompt} ");
             for (index, label) in buttons.iter().enumerate() {
                 if index != 0 {
                     text.push('/');
                 }
                 match label.split_once('&') {
-                    Some((before, after)) if !after.is_empty() => {
+                    Some((before, after)) => {
                         let mut rest = after.chars();
-                        let key = rest.next().unwrap_or(' ');
+                        let key = rest.next().unwrap_or('\0');
                         text.push_str(&format!("{before}({key}){}", rest.as_str()));
                     }
-                    _ => text.push_str(label),
+                    None => text.push_str(label),
                 }
             }
-            text.push_str(" > ");
-            self.host.print(&text);
-            let Some(line) = self.host.read_line() else {
-                return cancel;
+            text.push_str("<font face='TADS-Input'> >");
+            self.print(text.as_bytes());
+            let line = self.read_line(bypass_script);
+            self.print(b"</font>");
+            let Some(line) = line else {
+                return 0;
             };
+            let line = String::from_utf8_lossy(&line).into_owned();
             let response = line.trim_start();
             let mut letters = response.chars();
             if let (Some(letter), None) = (letters.next(), letters.next()) {
@@ -776,7 +815,7 @@ impl Vm {
                         self.io.command_log = None;
                     }
                 } else {
-                    let name = self.file_name_arg(file)?;
+                    let name = self.file_name_arg(file, Access::Write)?;
                     let start: &[u8] = if kind == 3 { b"<eventscript>\n" } else { b"" };
                     ok = self.host.write_file(&name, start).is_ok();
                     if kind == 1 {
@@ -826,7 +865,7 @@ impl Vm {
             // inputLine()
             4 => {
                 Self::check_argc(argc, 0)?;
-                self.r0 = match self.read_line() {
+                self.r0 = match self.read_line(false) {
                     Some(line) => self.new_string(line),
                     None => Value::Nil,
                 };
@@ -900,7 +939,7 @@ impl Vm {
                     _ => vm.int_arg(value),
                 };
                 choice(self, self.arg(3))?;
-                let cancel = choice(self, self.arg(4))?;
+                choice(self, self.arg(4))?;
                 let response = match self.read_event_script(&[EVT_DIALOG], 32) {
                     Some((_, param, _)) => {
                         self.log_event(b"dialog", Some(&param));
@@ -908,12 +947,22 @@ impl Vm {
                     }
                     None => {
                         self.flush_console(Newline::Input);
-                        let response = self.text_dialog(&prompt, &buttons, cancel);
+                        let response = self.text_dialog(&prompt, &buttons, false);
                         self.log_event(b"dialog", Some(response.to_string().as_bytes()));
                         response
                     }
                 };
                 self.r0 = Value::Int(response);
+            }
+            // inputFile(prompt, dialogType, fileType, flags)
+            8 => {
+                Self::check_argc(argc, 4)?;
+                let prompt = self.require_str(self.arg(0))?;
+                let prompt = String::from_utf8_lossy(&prompt).into_owned();
+                let dialog = self.int_arg(self.arg(1))?;
+                self.int_arg(self.arg(2))?;
+                self.cast_to_int(self.arg(3))?;
+                self.r0 = self.input_file(&prompt, dialog)?;
             }
             // timeDelay(milliseconds)
             9 => {
@@ -966,6 +1015,13 @@ impl Vm {
                 let text = self.require_str(self.arg(0))?;
                 self.host.status_right(&String::from_utf8_lossy(&text));
             }
+            // resExists(name)
+            13 => {
+                Self::check_argc(argc, 1)?;
+                let name = self.require_str(self.arg(0))?;
+                let name = String::from_utf8_lossy(&name).into_owned();
+                self.r0 = Value::logical(self.resource_exists(&name));
+            }
             // setScriptFile(file, flags?)
             14 => {
                 Self::check_argc_range(argc, 1, 2)?;
@@ -991,7 +1047,8 @@ impl Vm {
                         } else {
                             0
                         };
-                        let name = self.file_name_arg(file)?;
+                        let name = self.file_name_arg(file, Access::Read)?;
+                        self.sync_files();
                         self.r0 = match self.host.read_file(&name) {
                             Ok(data) => {
                                 self.push_input_script(
@@ -1023,7 +1080,7 @@ impl Vm {
             17 => {
                 Self::check_argc_range(argc, 0, 1)?;
                 let timeout = self.timeout_arg(argc)?;
-                let (event, line) = self.read_line_timeout(timeout);
+                let (event, line) = self.read_line_timeout(timeout, false);
                 let has_text = matches!(event, EVT_LINE | EVT_TIMEOUT);
                 let list = self.event_list(event, if has_text { 2 } else { 1 });
                 if has_text {
@@ -1065,9 +1122,10 @@ impl Vm {
             30 => {
                 Self::check_argc(argc, 3)?;
                 let width = self.cast_to_int(self.arg(2))?;
-                let name = self.file_name_arg(self.arg(0))?;
+                let name = self.file_name_arg(self.arg(0), Access::Write)?;
                 if self.host.write_file(&name, b"").is_err() {
-                    return Err(VmError::new(code::CREATE_FILE));
+                    let class = self.predef.file_creation_exc;
+                    return Err(self.throw_class(class, "error creating log file"));
                 }
                 let console = LogFile {
                     name,
@@ -1140,7 +1198,7 @@ impl Vm {
                 let kind = self.list_like_get(event, 1)?;
                 let param = if len >= 2 {
                     let value = self.list_like_get(event, 2)?;
-                    Some(self.as_str(value).ok_or_else(bad_value)?.to_vec())
+                    Some(self.path_of(value).ok_or_else(bad_value)?.into_bytes())
                 } else {
                     None
                 };
@@ -1161,6 +1219,114 @@ impl Vm {
             }
         }
         Ok(true)
+    }
+
+    /// Ask the player for a file name: a list of a result code, and for
+    /// success the name as a FileName, nil, and a place for a warning.
+    fn input_file(&mut self, prompt: &str, dialog: i32) -> VmResult<Value> {
+        const SUCCESS: i32 = 0;
+        const FAILURE: i32 = 1;
+        const CANCEL: i32 = 2;
+        const OPEN: i32 = 1;
+        const SAVE: i32 = 2;
+        let mut name;
+        let mut from_ui = false;
+        let mut result;
+        self.sync_files();
+        if let Some((_, param, attrs)) = self.read_event_script(&[EVT_FILE], 1024) {
+            name = String::from_utf8_lossy(&param).into_owned();
+            result = if name.is_empty() { CANCEL } else { SUCCESS };
+            // A script could be used to get at files the player did not
+            // mean it to, so anything doubtful needs the player's say.
+            let mut warning = String::new();
+            if result == SUCCESS {
+                let exists = self.host.file_info(&name, true).is_some();
+                if dialog == SAVE && attrs & ATTR_OVERWRITE == 0 && exists {
+                    warning = format!("The script might overwrite the file {name}. ");
+                } else if dialog == SAVE && !exists && !self.can_create(&name) {
+                    warning = format!(
+                        "The script is attempting to write file {name}, \
+                         but that file cannot be written."
+                    );
+                } else if dialog == OPEN && !exists {
+                    warning = format!(
+                        "The script is attempting to open file {name}, \
+                         but this file doesn't exist or isn't readable."
+                    );
+                }
+            }
+            if !warning.is_empty() {
+                let question = format!(
+                    "{warning} Do you wish to proceed? Select Yes to proceed with this file, \
+                     No to choose a different file, or Cancel to stop replaying this script."
+                );
+                let buttons = ["&Yes", "&No", "&Cancel"].map(str::to_owned);
+                loop {
+                    self.flush_console(Newline::Input);
+                    match self.text_dialog(&question, &buttons, true) {
+                        1 => break,
+                        2 => {
+                            let (asked, chosen) = self.ask_file(prompt, true);
+                            if asked == CANCEL {
+                                continue;
+                            }
+                            if asked == FAILURE {
+                                self.io.scripts.pop();
+                            }
+                            result = asked;
+                            name = chosen;
+                            break;
+                        }
+                        3 => {
+                            self.io.scripts.pop();
+                            result = CANCEL;
+                            break;
+                        }
+                        // The end of input: the reference VM goes ahead
+                        // with whatever it had.
+                        _ => break,
+                    }
+                }
+            }
+        } else {
+            (result, name) = self.ask_file(prompt, false);
+            from_ui = true;
+        }
+        let list = self.event_list(result, if result == SUCCESS { 4 } else { 1 });
+        if result == SUCCESS {
+            let file_name = self.new_file_name(&name);
+            if from_ui {
+                self.set_file_name_from_ui(file_name, dialog as u8);
+            }
+            self.set_list_item(list, 1, Value::Obj(file_name));
+            self.log_event(b"file", Some(name.as_bytes()));
+        } else {
+            self.log_event(b"file", None);
+        }
+        Ok(list)
+    }
+
+    /// Whether a file that does not exist can be created.
+    fn can_create(&mut self, name: &str) -> bool {
+        if self.host.write_file(name, b"").is_ok() {
+            let _ = self.host.delete_file(name);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Ask for a file name on a console that has only text: a result
+    /// code and the name. The answer is a line of input, so a command
+    /// script supplies it like any other line. An empty answer cancels.
+    fn ask_file(&mut self, prompt: &str, bypass_script: bool) -> (i32, String) {
+        self.print(prompt.as_bytes());
+        self.print(b" >");
+        match self.read_line(bypass_script) {
+            None => (1, String::new()),
+            Some(line) if line.is_empty() => (2, String::new()),
+            Some(line) => (0, String::from_utf8_lossy(&line).into_owned()),
+        }
     }
 
     /// The optional timeout argument of an input function: none given, or

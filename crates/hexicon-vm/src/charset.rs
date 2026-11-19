@@ -385,24 +385,12 @@ impl Vm {
         self.charset_map(id).map(Some)
     }
 
-    fn charset_map(&mut self, id: ObjId) -> VmResult<Rc<CharMap>> {
+    pub(crate) fn charset_map(&mut self, id: ObjId) -> VmResult<Rc<CharMap>> {
         if let Some(Object::CharSet { map: Some(map), .. }) = self.objects.get(id) {
             return Ok(map.clone());
         }
         let class = self.predef.charset_unknown_exception;
-        if class.is_valid() {
-            self.create_instance(class, 0)?;
-            return Err(match self.r0 {
-                Value::Obj(exception) => VmError::Thrown(exception),
-                _ => VmError::new(code::EXCEPTION_OBJ_REQD),
-            });
-        }
-        Err(VmError::with(
-            code::INTCLS_GENERAL_ERROR,
-            vec![crate::error::ErrParam::Str(
-                "unknown character set".to_owned(),
-            )],
-        ))
+        Err(self.throw_class(class, "unknown character set"))
     }
 
     /// Whether two character sets have the same name, in any case.

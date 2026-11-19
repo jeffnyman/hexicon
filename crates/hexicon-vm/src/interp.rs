@@ -1488,12 +1488,17 @@ impl Vm {
             MetaKind::WeakRefLookupTable => self.create_table(argc, true),
             MetaKind::StringBuffer => self.create_strbuf(argc),
             MetaKind::BigNumber => self.create_big(argc),
+            MetaKind::File => Err(VmError::new(code::BAD_DYNAMIC_NEW)),
             MetaKind::ByteArray
             | MetaKind::CharacterSet
             | MetaKind::StringComparator
             | MetaKind::GrammarProduction
+            | MetaKind::FileName
+            | MetaKind::TemporaryFile
             | MetaKind::Dictionary => {
                 let id = match kind {
+                    MetaKind::FileName => self.create_file_name(argc)?,
+                    MetaKind::TemporaryFile => self.create_temp_file(argc)?,
                     MetaKind::ByteArray => self.create_bytes(argc)?,
                     MetaKind::CharacterSet => self.create_charset(argc)?,
                     MetaKind::StringComparator => self.create_strcomp(argc)?,

@@ -90,6 +90,7 @@ impl Vm {
         if automatic {
             self.objects.skip_next_alloc_count();
         }
+        self.release_files();
 
         // Run the finalizers. One that fails is no one's business but
         // its own, and a finalizer changes nothing in the code that
