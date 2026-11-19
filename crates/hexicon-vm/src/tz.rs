@@ -1,20 +1,18 @@
 //! Time zones: the zoneinfo database, and zones made up from an offset or
 //! a POSIX-style description.
 //!
-//! The database is the reference VM's own compiled form of the IANA
-//! zoneinfo data, embedded whole. For each zone it has the history of
-//! changes to the zone's offset from UTC, and the rules that carry the
-//! pattern of daylight saving time on past the last change recorded.
+//! The database is the IANA zoneinfo data as the reference VM's tools
+//! compile it, converted to a layout of Hexicon's own and embedded whole.
+//! For each zone it has the history of changes to the zone's offset from
+//! UTC, and the rules that carry the pattern of daylight saving time on
+//! past the last change recorded.
 
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::date::CalDate;
 
-// The file is the reference VM's `timezones.t3tz`, byte for byte, under a
-// name in keeping with the other data here. It can be replaced with a
-// newer one built by the reference's tools whenever the zoneinfo data
-// changes.
+// `tools/gen-timezones.py` builds the file, and describes its layout.
 static DATABASE: &[u8] = include_bytes!("../data/timezones.bin");
 
 const MS_PER_DAY: i32 = 24 * 60 * 60 * 1000;
@@ -548,13 +546,12 @@ pub(crate) struct ZoneCache {
     local: Option<Rc<Zone>>,
 }
 
-/// Text up to a null, after a length byte: the form names have in the
-/// database's tables.
+/// A name in one of the database's tables: a length byte and the text.
+/// Returns the name and the position after it.
 fn table_name(data: &[u8], at: usize) -> Option<(String, usize)> {
     let len = usize::from(*data.get(at)?);
     let name = String::from_utf8_lossy(data.get(at + 1..at + 1 + len)?).into_owned();
-    // The position after the name and its null.
-    Some((name, at + 1 + len + 1))
+    Some((name, at + 1 + len))
 }
 
 impl ZoneCache {
@@ -573,35 +570,26 @@ impl ZoneCache {
             let bytes = data.get(at..at + 4)?;
             Some(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize)
         };
-        // The signature the reference VM gives the format.
-        if data.get(..4)? != b"T3TZ" {
+        if data.get(..4)? != b"HXTZ" || u32_at(4)? != 1 {
             return None;
         }
-        // Each table is preceded by its length, which counts four bytes
-        // more than the table, and a count of entries.
-        let zones_at = 24;
-        let zones_end = zones_at + u32_at(16)?.checked_sub(4)?;
-        let links_at = zones_end + 8;
-        let links_end = links_at + u32_at(zones_end)?.checked_sub(4)?;
-        let abbrs_at = links_end + 8;
-        let abbrs_end = abbrs_at + u32_at(links_end)?.checked_sub(4)?;
+        let (zone_count, link_count, abbr_count) = (u32_at(8)?, u32_at(12)?, u32_at(16)?);
 
-        let mut at = zones_at;
-        while at < zones_end {
+        let mut at = 20;
+        for _ in 0..zone_count {
             let (name, after) = table_name(data, at)?;
-            let country = data.get(after + 4..after + 6)?;
+            let country = data.get(after..after + 2)?;
             self.names.insert(name.to_lowercase(), self.listed.len());
             self.listed.push(Listed {
                 name,
-                position: u32_at(after)?,
+                position: u32_at(after + 2)?,
                 country: [country[0], country[1]],
                 links: Vec::new(),
                 zone: None,
             });
             at = after + 6;
         }
-        let mut at = links_at;
-        while at < links_end {
+        for _ in 0..link_count {
             let (name, after) = table_name(data, at)?;
             let target = u32_at(after)?;
             if let Some(listed) = self.listed.get_mut(target) {
@@ -610,8 +598,7 @@ impl ZoneCache {
             }
             at = after + 4;
         }
-        let mut at = abbrs_at;
-        while at < abbrs_end {
+        for _ in 0..abbr_count {
             let (name, after) = table_name(data, at)?;
             let count = usize::from(*data.get(after)?);
             let mut uses = Vec::with_capacity(count);
