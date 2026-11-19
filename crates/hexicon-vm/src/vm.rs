@@ -484,6 +484,8 @@ impl Vm {
             Object::GramProd(_) => MetaKind::GrammarProduction,
             Object::CharSet { .. } => MetaKind::CharacterSet,
             Object::FileName(_) => MetaKind::FileName,
+            Object::Date { .. } => MetaKind::Date,
+            Object::TimeZone(_) => MetaKind::TimeZone,
             Object::File(_) => MetaKind::File,
             Object::TempFile(_) => MetaKind::TemporaryFile,
             Object::Class(_) => MetaKind::IntrinsicClass,

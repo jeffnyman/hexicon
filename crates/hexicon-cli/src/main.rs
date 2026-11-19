@@ -1,5 +1,7 @@
 //! The `hexicon` command-line tool.
 
+mod windows_zones;
+
 use std::fmt::Write as _;
 use std::io::Write as _;
 use std::path::{Component, Path, PathBuf};
@@ -405,8 +407,44 @@ impl Host for Console {
         emit("\x0c\n");
     }
 
-    // The standard library does not know the local time zone, so local
-    // time is UTC for now.
+    // The system's name for its zone is found by asking it, since the
+    // standard library does not know.
+    fn local_time_zone(&mut self) -> Option<String> {
+        if let Ok(zone) = std::env::var("TZ") {
+            let zone = zone.trim_start_matches(':');
+            if zone.contains('/') {
+                return Some(zone.to_owned());
+            }
+        }
+        if cfg!(windows) {
+            // Windows has names of its own, which a table maps to the
+            // database's.
+            let output = std::process::Command::new("tzutil")
+                .arg("/g")
+                .output()
+                .ok()?;
+            let name = String::from_utf8_lossy(&output.stdout);
+            let name = name.trim().trim_end_matches("_dstoff");
+            windows_zones::WINDOWS_ZONES
+                .iter()
+                .find(|(windows, _)| *windows == name)
+                .map(|(_, zone)| (*zone).to_owned())
+        } else {
+            // The system's zone is a link into the zoneinfo folder, or
+            // is named in a file.
+            if let Ok(target) = std::fs::read_link("/etc/localtime") {
+                let target = target.to_string_lossy().into_owned();
+                if let Some((_, zone)) = target.split_once("zoneinfo/") {
+                    return Some(zone.to_owned());
+                }
+            }
+            let name = std::fs::read_to_string("/etc/timezone").ok()?;
+            Some(name.trim().to_owned()).filter(|name| !name.is_empty())
+        }
+    }
+
+    // The standard library does not know the local time zone's offset,
+    // so without a zone name local time is UTC.
     fn time(&mut self) -> hexicon_host::Time {
         let unix_millis = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

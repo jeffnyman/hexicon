@@ -1495,8 +1495,12 @@ impl Vm {
             | MetaKind::GrammarProduction
             | MetaKind::FileName
             | MetaKind::TemporaryFile
+            | MetaKind::Date
+            | MetaKind::TimeZone
             | MetaKind::Dictionary => {
                 let id = match kind {
+                    MetaKind::Date => self.create_date(argc)?,
+                    MetaKind::TimeZone => self.create_time_zone(argc)?,
                     MetaKind::FileName => self.create_file_name(argc)?,
                     MetaKind::TemporaryFile => self.create_temp_file(argc)?,
                     MetaKind::ByteArray => self.create_bytes(argc)?,

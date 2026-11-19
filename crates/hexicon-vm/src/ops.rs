@@ -62,6 +62,8 @@ impl Vm {
             }
             Some(Object::CharSet { .. }) => Ok(self.charset_equals(id, other)),
             Some(Object::FileName(_)) => Ok(self.file_name_equals(id, other)),
+            // Dates are equal if they are the same moment.
+            Some(Object::Date { .. }) => Ok(self.as_date(Value::Obj(id)) == self.as_date(other)),
             // Byte arrays are equal if they hold the same bytes.
             Some(Object::ByteArray(bytes)) => {
                 Ok(other == Value::Obj(id)
@@ -151,6 +153,11 @@ impl Vm {
                     None => Err(VmError::new(code::INVALID_COMPARISON)),
                 }
             }
+            // A date compares with a date: the earlier is the lesser.
+            Some(Object::Date { dayno, daytime }) => match self.as_date(other) {
+                Some(other) => Ok((*dayno, *daytime).cmp(&other)),
+                None => Err(VmError::new(code::INVALID_COMPARISON)),
+            },
             _ => Err(VmError::new(code::INVALID_COMPARISON)),
         }
     }
@@ -171,6 +178,7 @@ impl Vm {
                 }
                 Some(Object::String(_)) => self.concat(a, b).map(Some),
                 Some(Object::FileName(_)) => self.file_name_add(id, b).map(Some),
+                Some(Object::Date { .. }) => self.date_add(id, b).map(Some),
                 Some(Object::List(_)) => self.list_append(a, b).map(Some),
                 Some(Object::Vector(items)) => {
                     let mut items = items.clone();
@@ -211,6 +219,7 @@ impl Vm {
                     let big = big.clone();
                     self.big_arith(Arith::Sub, &big, b).map(Some)
                 }
+                Some(Object::Date { .. }) => self.date_sub(id, b).map(Some),
                 Some(Object::List(_)) => self.list_remove(a, b).map(Some),
                 Some(Object::Vector(items)) => {
                     let items = items.clone();
@@ -617,6 +626,17 @@ impl Vm {
             }
             Some(Object::StringBuffer(_)) => {
                 let text: std::rc::Rc<[u8]> = self.strbuf_text(id).unwrap_or_default().into();
+                return Ok((self.new_string(text.clone()), text));
+            }
+            // A date converts to the date and time in the local zone, and
+            // a time zone to its name.
+            Some(Object::Date { .. }) => {
+                let text: std::rc::Rc<[u8]> = self.date_text(id).into_bytes().into();
+                return Ok((self.new_string(text.clone()), text));
+            }
+            Some(Object::TimeZone(_)) => {
+                let name = self.zone_name(id).unwrap_or_default();
+                let text: std::rc::Rc<[u8]> = name.into_bytes().into();
                 return Ok((self.new_string(text.clone()), text));
             }
             // A file name converts to the name.

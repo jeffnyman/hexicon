@@ -244,6 +244,13 @@ pub trait Host {
         Time::default()
     }
 
+    /// The name of the host's time zone in the zoneinfo database, such as
+    /// `America/Chicago`, if the host knows it. Without one, local time
+    /// is UTC shifted by the offset that [`Host::time`] reports.
+    fn local_time_zone(&mut self) -> Option<String> {
+        None
+    }
+
     /// A name for the system the host runs on.
     fn system_name(&self) -> String {
         std::env::consts::OS.to_owned()

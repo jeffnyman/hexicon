@@ -1442,13 +1442,20 @@ impl Vm {
                 };
                 let kind = Value::Int(info.kind as i32 | special_link_flags(&path));
                 // The arguments of the FileInfo constructor, first one
-                // first. The times wait for the Date class.
+                // first. The reference VM creates them last one first.
+                let mut time = |seconds: Option<i64>| match seconds {
+                    Some(seconds) if seconds != 0 => self.date_from_unix(seconds),
+                    _ => Value::Nil,
+                };
+                let accessed = time(info.accessed);
+                let modified = time(info.modified);
+                let created = time(info.created);
                 let args = [
                     kind,
                     size,
-                    Value::Nil,
-                    Value::Nil,
-                    Value::Nil,
+                    created,
+                    modified,
+                    accessed,
                     target,
                     Value::Int(info.attrs as i32),
                 ];

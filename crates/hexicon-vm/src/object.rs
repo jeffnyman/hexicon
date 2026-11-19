@@ -74,6 +74,11 @@ pub enum Object {
     Dict(Box<crate::dict::Dictionary>),
     /// A byte array: bytes that can change in place.
     ByteArray(Vec<u8>),
+    /// A date: a moment in time, as a day number and milliseconds into
+    /// the day, in UTC.
+    Date { dayno: i32, daytime: i32 },
+    /// A time zone.
+    TimeZone(Rc<crate::tz::Zone>),
     /// A file name.
     FileName(Box<crate::file::FileNameObj>),
     /// A file, open or closed.
@@ -195,6 +200,29 @@ impl ObjectTable {
     /// An empty table.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The time zone objects that have not been looked up yet.
+    pub fn pending_zones(&self) -> Vec<ObjId> {
+        (0..self.slots.len() as u32)
+            .filter(|&id| {
+                matches!(
+                    &self.slots[id as usize].object,
+                    Some(Object::TimeZone(zone)) if zone.pending.is_some()
+                )
+            })
+            .map(ObjId)
+            .collect()
+    }
+
+    /// Put another object in an object's place, without it counting as
+    /// a change to the object.
+    pub fn replace(&mut self, id: ObjId, object: Object) {
+        if let Some(slot) = self.slots.get_mut(id.0 as usize) {
+            if slot.object.is_some() {
+                slot.object = Some(object);
+            }
+        }
     }
 
     /// The file objects freed since this was last asked.
@@ -471,6 +499,8 @@ fn references(object: &Object, out: &mut Vec<Value>) {
         }
         Object::String(_)
         | Object::FileName(_)
+        | Object::Date { .. }
+        | Object::TimeZone(_)
         | Object::TempFile(_)
         | Object::CharSet { .. }
         | Object::ByteArray(_)

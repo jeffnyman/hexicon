@@ -1754,16 +1754,8 @@ fn log_console_formats_into_a_file() {
 
 #[test]
 fn get_time_takes_a_date_apart() {
-    use crate::io::{civil_from_days, days_from_civil};
-    assert_eq!(civil_from_days(0), (1970, 1, 1));
-    assert_eq!(civil_from_days(-1), (1969, 12, 31));
-    assert_eq!(civil_from_days(19_782), (2024, 2, 29));
-    for days in [-800_000, -1, 0, 59, 60, 11_016, 19_782, 2_932_896] {
-        let (year, month, day) = civil_from_days(days);
-        assert_eq!(days_from_civil(year, month, day), days);
-    }
-    // The host of a test has no clock, so the time is the start of 1970,
-    // a Thursday.
+    // The host of a test has no clock and no time zone, so the time is
+    // the start of 1970 in UTC, a Thursday.
     let (mut vm, _host) = vm_with_host();
     let now = vm.get_time(1).expect("a list");
     let expected = [1970, 1, 1, 5, 1, 0, 0, 0, 0].map(Value::Int);
@@ -1954,4 +1946,191 @@ fn file_outside_the_sandbox_is_refused() {
     vm.set_file_safety(2, 0);
     file_call(&mut vm, None, OPEN_RAW, &[name, Value::Int(2)]).expect("allowed");
     assert!(host.file("secret").is_some());
+}
+
+// ---- dates and time zones ----
+
+use crate::date::{CalDate, UNIX_EPOCH_DAYNO};
+use crate::tz::{LocalZone, ZoneCache};
+
+#[test]
+fn calendar_dates_convert_to_day_numbers_and_back() {
+    assert_eq!(CalDate::new(0, 3, 1).dayno(), 0);
+    assert_eq!(CalDate::new(1970, 1, 1).dayno(), UNIX_EPOCH_DAYNO);
+    assert_eq!(
+        CalDate::from_dayno(UNIX_EPOCH_DAYNO),
+        CalDate::new(1970, 1, 1)
+    );
+    // The leap day, and what out-of-range months and days mean.
+    assert_eq!(
+        CalDate::new(2012, 3, 1).dayno() - CalDate::new(2012, 2, 28).dayno(),
+        2
+    );
+    assert_eq!(
+        CalDate::new(2012, 3, 0).dayno(),
+        CalDate::new(2012, 2, 29).dayno()
+    );
+    assert_eq!(
+        CalDate::new(2011, 13, 1).dayno(),
+        CalDate::new(2012, 1, 1).dayno()
+    );
+    for dayno in [-800_000, -1, 0, 59, 730_000, 734_921, 3_000_000] {
+        assert_eq!(CalDate::from_dayno(dayno).dayno(), dayno);
+    }
+    // January 1, 1970 was a Thursday.
+    assert_eq!(CalDate::new(1970, 1, 1).weekday(), 4);
+    assert_eq!(CalDate::new(2012, 2, 29).weekday(), 3);
+}
+
+/// What a zone's clocks were doing at noon UTC on a date: the offset
+/// from UTC in hours and the abbreviation.
+fn zone_at(zones: &mut ZoneCache, name: &str, y: i32, m: i32, d: i32) -> (f64, String) {
+    let mut no_local = LocalZone::default;
+    let zone = zones.parse_zone(name, &mut no_local).expect("a zone");
+    let query = zone.query(CalDate::new(y, m, d).dayno(), 12 * 60 * 60 * 1000, false);
+    (
+        f64::from(query.gmtofs + query.save) / 3_600_000.0,
+        query.abbr.to_string(),
+    )
+}
+
+#[test]
+fn zones_know_their_history_and_their_rules() {
+    let mut zones = ZoneCache::default();
+    let at = |zones: &mut ZoneCache, y, m, d| zone_at(zones, "America/New_York", y, m, d);
+    assert_eq!(at(&mut zones, 2012, 1, 15), (-5.0, "EST".to_owned()));
+    assert_eq!(at(&mut zones, 2012, 7, 15), (-4.0, "EDT".to_owned()));
+    // Daylight time began on the last Sunday of April in 1967.
+    assert_eq!(at(&mut zones, 1967, 4, 29).0, -5.0);
+    assert_eq!(at(&mut zones, 1967, 5, 1).0, -4.0);
+    // Before standard time, the zone kept New York's own mean time.
+    assert_eq!(at(&mut zones, 1800, 1, 1).1, "LMT");
+    // Past the end of the recorded history, the rules carry on.
+    assert_eq!(at(&mut zones, 2400, 1, 15), (-5.0, "EST".to_owned()));
+    assert_eq!(at(&mut zones, 2400, 7, 15), (-4.0, "EDT".to_owned()));
+    // Names are found in any case, and by their other names.
+    assert_eq!(zone_at(&mut zones, "us/eastern", 2012, 7, 15).0, -4.0);
+    assert_eq!(zone_at(&mut zones, "Asia/Kolkata", 2012, 7, 15).0, 5.5);
+}
+
+#[test]
+fn zones_are_made_from_offsets_and_descriptions() {
+    let mut zones = ZoneCache::default();
+    let mut no_local = LocalZone::default;
+    assert_eq!(
+        zone_at(&mut zones, "UTC", 2012, 1, 1),
+        (0.0, "UTC".to_owned())
+    );
+    assert_eq!(
+        zone_at(&mut zones, "+0530", 2012, 1, 1),
+        (5.5, "UTC+5:30".to_owned())
+    );
+    assert_eq!(zone_at(&mut zones, "utc-8", 2012, 1, 1).0, -8.0);
+    // A POSIX-style description, whose offset the reference VM takes as
+    // east of UTC.
+    assert_eq!(
+        zone_at(&mut zones, "EST5", 2012, 1, 1),
+        (5.0, "EST".to_owned())
+    );
+    let described = "PST8PDT,M3.2.0,M11.1.0";
+    assert_eq!(
+        zone_at(&mut zones, described, 2012, 1, 15),
+        (8.0, "PST".to_owned())
+    );
+    assert_eq!(
+        zone_at(&mut zones, described, 2012, 7, 15),
+        (9.0, "PDT".to_owned())
+    );
+    assert!(zones.parse_zone("Nowhere/Land", &mut no_local).is_none());
+    assert!(zones.parse_zone("EST5 ", &mut no_local).is_none());
+    // The same name gives the same zone object.
+    let first = zones
+        .parse_zone("Europe/London", &mut no_local)
+        .expect("a zone");
+    let second = zones
+        .parse_zone("europe/london", &mut no_local)
+        .expect("a zone");
+    assert!(std::rc::Rc::ptr_eq(&first, &second));
+}
+
+/// Make a Date from a string read in UTC.
+fn date_from(vm: &mut Vm, text: &str) -> Value {
+    let zone = vm.new_str("UTC");
+    let text = vm.new_str(text);
+    vm.push(zone);
+    vm.push(text);
+    let id = vm.create_date(2).expect("a date");
+    vm.pop();
+    vm.pop();
+    Value::Obj(id)
+}
+
+/// Format a date in UTC.
+fn date_format(vm: &mut Vm, date: Value, format: &str) -> String {
+    let zone = vm.new_str("UTC");
+    let format = vm.new_str(format);
+    vm.push(zone);
+    vm.push(format);
+    let mut argc = 2;
+    let text = vm
+        .date_method(Some(date.obj_id()), 3, Some(&mut argc))
+        .expect("formats")
+        .expect("the method exists");
+    text_of(vm, text)
+}
+
+#[test]
+fn dates_parse_and_format() {
+    let (mut vm, _host) = vm_with_host();
+    let stamp = "%Y-%m-%d %H:%M:%S.%N";
+    for (text, expected) in [
+        ("2012-02-29 13:05:09.007", "2012-02-29 13:05:09.007"),
+        ("2/29/2012", "2012-02-29 00:00:00.000"),
+        ("February 29th, 2012 1:05 pm", "2012-02-29 13:05:00.000"),
+        ("29 Feb 2012 12:30 +0530", "2012-02-29 07:00:00.000"),
+        (
+            "2012-07-01 12:00 America/New_York",
+            "2012-07-01 16:00:00.000",
+        ),
+        ("@86400", "1970-01-02 00:00:00.000"),
+        ("2012-W09-3", "2012-02-29 00:00:00.000"),
+        ("44 BC", "-0043-01-01 00:00:00.000"),
+        // Parts the text leaves out come from the reference date, which
+        // for a test's host is the start of 1970.
+        ("12:30", "1970-01-01 12:30:00.000"),
+    ] {
+        let date = date_from(&mut vm, text);
+        assert_eq!(date_format(&mut vm, date, stamp), expected, "{text}");
+    }
+    let date = date_from(&mut vm, "2012-02-29 13:05:09");
+    assert_eq!(
+        date_format(&mut vm, date, "%a %A %b %B %j %t %#d/%#m %I%P %&Y %%"),
+        "Wed Wednesday Feb February 060 29th 29/2 01PM MMXII %"
+    );
+    assert_eq!(date_format(&mut vm, date, "%c"), "Wed Feb 29 13:05:09 2012");
+    assert_eq!(date_format(&mut vm, date, "%U %W %V %G"), "09 09 09 2012");
+    assert_eq!(
+        date_format(&mut vm, date, "%E|%s|%z|%Z"),
+        "AD 2012|1330520709|UTC|+0000"
+    );
+}
+
+#[test]
+fn dates_do_arithmetic() {
+    let (mut vm, _host) = vm_with_host();
+    let stamp = "%Y-%m-%d %H:%M";
+    let date = date_from(&mut vm, "2012-02-29 12:00");
+    let later = vm.date_add(date.obj_id(), Value::Int(1)).expect("adds");
+    assert_eq!(date_format(&mut vm, later, stamp), "2012-03-01 12:00");
+    let half = vm.new_big(Big::parse("1.5", 8));
+    let later = vm.date_add(date.obj_id(), half).expect("adds");
+    assert_eq!(date_format(&mut vm, later, stamp), "2012-03-02 00:00");
+    // The difference of two dates is a number of days.
+    let difference = vm.date_sub(later.obj_id(), date).expect("subtracts");
+    assert_eq!(vm.as_big(difference).expect("a number").to_text(), "1.5");
+    assert_eq!(
+        vm.compare(date, later).expect("compares"),
+        std::cmp::Ordering::Less
+    );
+    assert!(vm.compare(date, Value::Int(1)).is_err());
 }

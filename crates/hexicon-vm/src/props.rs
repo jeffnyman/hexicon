@@ -133,6 +133,8 @@ impl Vm {
             MetaKind::StringComparator => self.strcomp_method(self_value.obj_id(), index, argc),
             MetaKind::Dictionary => self.dict_method(self_value.obj_id(), index, argc),
             MetaKind::GrammarProduction => self.gram_method(self_value.obj_id(), index, argc),
+            MetaKind::Date => self.date_method(Some(self_value.obj_id()), index, argc),
+            MetaKind::TimeZone => self.time_zone_method(self_value.obj_id(), index, argc),
             MetaKind::File => self.file_method(Some(self_value.obj_id()), index, argc),
             MetaKind::FileName => self.file_name_method(Some(self_value.obj_id()), index, argc),
             MetaKind::TemporaryFile => self.temp_file_method(self_value.obj_id(), index, argc),
@@ -346,6 +348,7 @@ impl Vm {
             (MetaKind::BigNumber, index) if index != 0 => self.big_static_method(index, argc),
             (MetaKind::ByteArray, index) if index != 0 => self.bytes_static_method(index, argc),
             (MetaKind::String, index) if index != 0 => self.string_static_method(index, argc),
+            (MetaKind::Date, index) if index != 0 => self.date_method(None, index, argc),
             (MetaKind::File, index) if index != 0 => self.file_method(None, index, argc),
             (MetaKind::FileName, index) if index != 0 => self.file_name_method(None, index, argc),
             // IntrinsicClass.isIntrinsicClass(val)
@@ -388,6 +391,8 @@ impl Vm {
                             | MetaKind::Dictionary
                             | MetaKind::GrammarProduction
                             | MetaKind::File
+                            | MetaKind::Date
+                            | MetaKind::TimeZone
                             | MetaKind::FileName
                             | MetaKind::TemporaryFile
                     ) =>

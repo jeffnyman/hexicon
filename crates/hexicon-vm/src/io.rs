@@ -79,36 +79,6 @@ fn truncate(text: &mut Vec<u8>, max: usize) {
     }
 }
 
-/// The year, month, and day of a count of days from the start of 1970.
-pub(crate) fn civil_from_days(days: i64) -> (i64, i64, i64) {
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let day_of_era = z.rem_euclid(146_097);
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let shifted_month = (5 * day_of_year + 2) / 153;
-    let day = day_of_year - (153 * shifted_month + 2) / 5 + 1;
-    let month = if shifted_month < 10 {
-        shifted_month + 3
-    } else {
-        shifted_month - 9
-    };
-    let year = year_of_era + era * 400 + i64::from(month <= 2);
-    (year, month, day)
-}
-
-/// The count of days from the start of 1970 to a date.
-pub(crate) fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = year.div_euclid(400);
-    let year_of_era = year.rem_euclid(400);
-    let shifted_month = if month > 2 { month - 3 } else { month + 9 };
-    let day_of_year = (153 * shifted_month + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    era * 146_097 + day_of_era - 719_468
-}
-
 /// The integer at the start of text, as C's `atoi` reads it.
 fn leading_int(text: &[u8]) -> i32 {
     let mut rest = text;
@@ -318,6 +288,10 @@ pub(crate) struct IoState {
     pub(crate) open_files: Vec<crate::value::ObjId>,
     /// Resources the program can open by name.
     pub(crate) resources: crate::file::Resources,
+    /// The time zones the program has used.
+    pub(crate) zones: crate::tz::ZoneCache,
+    /// The day and time a state being saved is taken to be saved at.
+    pub(crate) save_time: (i32, i32),
 }
 
 impl Default for IoState {
@@ -338,6 +312,8 @@ impl Default for IoState {
             safety_write: 2,
             open_files: Vec::new(),
             resources: crate::file::Resources::new(),
+            zones: crate::tz::ZoneCache::default(),
+            save_time: (0, 0),
         }
     }
 }
@@ -740,35 +716,34 @@ impl Vm {
         }
     }
 
-    /// `getTime(type)`: the date and time as a list, or a count of
+    /// `getTime(type)`: the local date and time as a list, or a count of
     /// milliseconds for measuring intervals.
     pub(crate) fn get_time(&mut self, kind: i32) -> VmResult<Value> {
         let time = self.host.time();
         match kind {
             1 => {
                 let seconds = time.unix_millis.div_euclid(1000);
-                let local = seconds + i64::from(time.utc_offset_seconds);
-                let days = local.div_euclid(86400);
-                let second_of_day = local.rem_euclid(86400);
-                let (year, month, day) = civil_from_days(days);
-                let day_of_year = days - days_from_civil(year, 1, 1) + 1;
-                // The first day of 1970 was a Thursday; Sunday is day 1.
-                let day_of_week = (days + 4).rem_euclid(7) + 1;
+                let (mut dayno, mut daytime) = self.now();
+                self.local_zone().utc_to_local(&mut dayno, &mut daytime);
+                let date = crate::date::CalDate::from_dayno(dayno);
+                let day_of_year = dayno - crate::date::CalDate::new(date.y, 1, 1).dayno() + 1;
+                let second_of_day = daytime / 1000;
+                // Sunday is day 1 of the week.
                 let mut items: Vec<Value> = [
-                    year,
-                    month,
-                    day,
-                    day_of_week,
+                    date.y,
+                    date.m,
+                    date.d,
+                    date.weekday() + 1,
                     day_of_year,
                     second_of_day / 3600,
                     second_of_day / 60 % 60,
                     second_of_day % 60,
                 ]
                 .iter()
-                .map(|&n| Value::Int(n as i32))
+                .map(|&n| Value::Int(n))
                 .collect();
-                // The count of seconds, which stops fitting an integer
-                // in 2038.
+                // The count of seconds since the start of 1970, which
+                // stops fitting an integer in 2038.
                 items.push(match i32::try_from(seconds) {
                     Ok(seconds) => Value::Int(seconds),
                     Err(_) => {

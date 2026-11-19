@@ -169,6 +169,40 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             }))
         }
         MetaKind::TemporaryFile => Object::TempFile(String::new()),
+        MetaKind::TimeZone => {
+            // The offsets, the name, and the abbreviation, the last two
+            // each after a byte with its length.
+            let int = |at: usize| {
+                let bytes = data.get(at..at + 4).ok_or_else(bad)?;
+                Ok::<i32, VmError>(i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+            };
+            let text = |at: usize| {
+                let len = usize::from(*data.get(at).ok_or_else(bad)?);
+                let bytes = data.get(at + 1..at + 1 + len).ok_or_else(bad)?;
+                Ok::<(String, usize), VmError>((
+                    String::from_utf8_lossy(bytes).into_owned(),
+                    at + 1 + len,
+                ))
+            };
+            let (name, after) = text(8)?;
+            let (abbr, _) = text(after)?;
+            Object::TimeZone(std::rc::Rc::new(crate::tz::Zone::recorded(
+                &name,
+                int(0)?,
+                int(4)?,
+                &abbr,
+            )))
+        }
+        MetaKind::Date => {
+            let int = |at: usize| {
+                let bytes = data.get(at..at + 4).ok_or_else(bad)?;
+                Ok::<i32, VmError>(i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+            };
+            Object::Date {
+                dayno: int(0)?,
+                daytime: int(4)?,
+            }
+        }
         MetaKind::IntrinsicClass => {
             // A length, the index of the class in the dependency list,
             // the modifier object, and optionally the class state.
@@ -291,6 +325,7 @@ impl Vm {
         for id in dictionaries {
             vm.dict_rehash(id)?;
         }
+        vm.resolve_zones();
         // From here on, a change to an object from the image is a change
         // the program made.
         vm.objects.track_image_state();

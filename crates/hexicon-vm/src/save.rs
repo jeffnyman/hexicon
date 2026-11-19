@@ -283,6 +283,22 @@ impl Vm {
                     w.counted(name.path.as_bytes());
                 }
             }
+            Object::Date { dayno, daytime } => {
+                w.u32(*dayno as u32);
+                w.u32(*daytime as u32);
+            }
+            Object::TimeZone(zone) => {
+                // The offsets and abbreviation now, in case the name
+                // means nothing where the state is restored.
+                let (gmtofs, save, abbr, name) = self.zone_saved_form(zone);
+                w.u32(gmtofs as u32);
+                w.u32(save as u32);
+                for text in [abbr, name] {
+                    let text = &text.as_bytes()[..text.len().min(255)];
+                    w.u8(text.len() as u8);
+                    w.bytes(text);
+                }
+            }
             // These are transient, so they are never saved.
             Object::File(_) | Object::TempFile(_) => {}
             Object::StrComp(comparator) => w.bytes(&comparator.to_bytes()),
@@ -358,6 +374,7 @@ impl Vm {
     /// table of descriptive text the program passed to `saveGame`, or
     /// nil.
     pub(crate) fn save_state(&mut self, metadata: Value) -> VmResult<Vec<u8>> {
+        self.note_save_time();
         let mut w = Writer::default();
         w.bytes(SIGNATURE);
         let start = w.out.len();
@@ -602,6 +619,21 @@ impl Vm {
                 let name = String::from_utf8_lossy(r.counted()?).into_owned();
                 let map = crate::charset::CharMap::load(&name).map(Rc::new);
                 Object::CharSet { name, map }
+            }
+            MetaKind::Date => Object::Date {
+                dayno: r.u32()? as i32,
+                daytime: r.u32()? as i32,
+            },
+            MetaKind::TimeZone => {
+                let gmtofs = r.u32()? as i32;
+                let save = r.u32()? as i32;
+                let len = usize::from(r.u8()?);
+                let abbr = String::from_utf8_lossy(r.bytes(len)?).into_owned();
+                let len = usize::from(r.u8()?);
+                let name = String::from_utf8_lossy(r.bytes(len)?).into_owned();
+                Object::TimeZone(Rc::new(crate::tz::Zone::recorded(
+                    &name, gmtofs, save, &abbr,
+                )))
             }
             MetaKind::FileName => {
                 let special = r.u32()? as i32;
@@ -870,6 +902,7 @@ impl Vm {
         for id in dictionaries {
             self.dict_rehash(id)?;
         }
+        self.resolve_zones();
         self.last_match = Default::default();
         self.collect_garbage(false);
         Ok(())
