@@ -127,31 +127,14 @@ pub(crate) type Groups = [Option<(usize, usize)>; GROUP_COUNT];
 
 // ---- character classes ----
 
-fn is_vspace(c: char) -> bool {
-    matches!(
-        c,
-        '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{85}' | '\u{2028}' | '\u{2029}'
-    )
-}
-
-pub(crate) fn is_space(c: char) -> bool {
-    c.is_whitespace() && !is_vspace(c)
-}
-
-fn is_digit(c: char) -> bool {
-    c.is_ascii_digit() || (!c.is_ascii() && c.is_numeric() && !c.is_alphabetic())
-}
-
-fn is_punct(c: char) -> bool {
-    if c.is_ascii() {
-        c.is_ascii_punctuation()
-    } else {
-        !c.is_alphanumeric() && !c.is_whitespace() && !c.is_control()
-    }
-}
+// What kind of character each one is comes from the reference's table,
+// which differs from the standard library's in places a pattern can tell:
+// to the reference, symbols such as `>` and `+` are not punctuation.
+pub(crate) use crate::chartype::is_space;
+use crate::chartype::{is_alpha, is_digit, is_lower, is_punct, is_upper, is_vspace};
 
 fn is_word_char(c: char) -> bool {
-    c.is_alphabetic() || is_digit(c)
+    is_alpha(c) || is_digit(c)
 }
 
 fn is_newline(c: char) -> bool {
@@ -160,11 +143,11 @@ fn is_newline(c: char) -> bool {
 
 fn in_class(class: Class, c: char) -> bool {
     match class {
-        Class::Alpha => c.is_alphabetic(),
+        Class::Alpha => is_alpha(c),
         Class::Digit => is_digit(c),
-        Class::Upper => c.is_uppercase(),
-        Class::Lower => c.is_lowercase(),
-        Class::AlphaNum => c.is_alphabetic() || is_digit(c),
+        Class::Upper => is_upper(c),
+        Class::Lower => is_lower(c),
+        Class::AlphaNum => is_alpha(c) || is_digit(c),
         Class::Space => is_space(c),
         Class::VSpace => is_vspace(c),
         Class::Punct => is_punct(c),

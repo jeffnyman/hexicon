@@ -2236,3 +2236,24 @@ fn a_resource_not_in_the_image_is_a_file_beside_it() {
     vm.set_file_safety(4, 4);
     assert_eq!(vm.resource_file(Some("autosave.tmp")), None);
 }
+
+#[test]
+fn characters_are_the_kinds_the_reference_says() {
+    use crate::chartype::{is_alpha, is_digit, is_lower, is_punct, is_space, is_upper, is_vspace};
+    // Punctuation marks are punctuation; symbols are not.
+    for c in [
+        '!', '"', '#', '%', '&', '(', ')', '*', ',', '-', '.', '/', ':', ';', '?', '@',
+    ] {
+        assert!(is_punct(c), "{c}");
+    }
+    for c in ['$', '+', '<', '=', '>', '^', '`', '|', '~'] {
+        assert!(!is_punct(c), "{c}");
+    }
+    assert!(is_punct('\u{2019}'), "a curly apostrophe");
+    assert!(is_alpha('a') && is_lower('a') && !is_upper('a'));
+    assert!(is_alpha('\u{c9}') && is_upper('\u{c9}'));
+    assert!(is_digit('7') && !is_alpha('7'));
+    assert!(is_space(' ') && is_space('\t') && !is_vspace(' '));
+    assert!(is_vspace('\n') && is_vspace('\r') && !is_space('\n'));
+    assert!(!is_alpha('\0') && !is_punct('\0'));
+}

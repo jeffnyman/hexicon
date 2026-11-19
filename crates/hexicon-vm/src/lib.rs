@@ -15,6 +15,7 @@ mod bytearray;
 mod call;
 mod casefold;
 mod charset;
+mod chartype;
 mod console;
 mod date;
 mod dict;
