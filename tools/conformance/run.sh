@@ -56,10 +56,8 @@ check() { # test-name script-or-empty image args...
   if [ ! -f "test/out/$image.t3" ]; then
     echo "SKIP $name (no image)" >> "$R/results.txt"; skip=$((skip+1)); return
   fi
-  # Hexicon cannot read input yet, so a scripted test runs without its
-  # script and fails at the first read.
   local ref=() hex=()
-  if [ -n "$script" ]; then ref=(-I "$script"); fi
+  if [ -n "$script" ]; then ref=(-I "$script"); hex=(-I "$script"); fi
   timeout 120 "$BIN/test_exec.exe" -sd "$ROOT" "${ref[@]}" -cs utf8 -norand \
     "$OUT\\$image.t3" "$@" < /dev/null 2>&1 | norm > "$R/$name.expected"
   timeout 60 "$HEXICON" run --norand "${hex[@]}" "$OUT\\$image.t3" "$@" < /dev/null 2>&1 \

@@ -16,7 +16,7 @@ use crate::vm::{Layout, MethodContext, NativeCall, Predef, Return, STACK_LIMIT, 
 
 /// Width of the console in columns. The reference VM's plain console is
 /// 80 columns wide.
-const CONSOLE_WIDTH: usize = 80;
+pub(crate) const CONSOLE_WIDTH: usize = 80;
 
 /// Copy a pool into one contiguous array, so that a pool address is an
 /// index. Pages the image does not supply read as zeros.
@@ -246,6 +246,7 @@ impl Vm {
             macro_table: None,
             trace_errors: false,
             console: crate::console::Formatter::new(CONSOLE_WIDTH),
+            io: crate::io::IoState::default(),
             host,
         };
         vm.link(image)?;

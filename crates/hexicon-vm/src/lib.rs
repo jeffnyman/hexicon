@@ -24,6 +24,7 @@ mod gram;
 mod hash;
 pub mod identity;
 mod interp;
+mod io;
 mod list;
 mod load;
 mod lookup;

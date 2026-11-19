@@ -14,9 +14,11 @@ const USAGE: &str = "\
 usage: hexicon <command>
 
 commands:
-  run [--norand] <image.t3> [args...]
-                               run a program; with --norand, random
-                               choices are the same on every run
+  run [options] <image.t3> [args...]
+                               run a program; the options are:
+      --norand                 make the same random choices on every run
+      -I, --script <file>      read input from a command script before
+                               asking for any
   dump <image.t3>              describe the contents of a program image file
   disasm <image.t3>            list the byte code of every function found
   disasm --summary <image.t3>  report how much of the code was accounted for
@@ -25,10 +27,31 @@ commands:
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    match args.as_slice() {
-        ["run", "--norand", path, program_args @ ..] => return run(path, program_args, false),
-        ["run", path, program_args @ ..] => return run(path, program_args, true),
-        _ => {}
+    if let ["run", rest @ ..] = args.as_slice() {
+        let mut options = RunOptions {
+            seed_random: true,
+            script: None,
+        };
+        let mut rest = rest;
+        loop {
+            match rest {
+                ["--norand", tail @ ..] => {
+                    options.seed_random = false;
+                    rest = tail;
+                }
+                ["-I" | "--script", file, tail @ ..] => {
+                    options.script = Some(file);
+                    rest = tail;
+                }
+                [path, program_args @ ..] if !path.starts_with('-') => {
+                    return run(path, program_args, &options);
+                }
+                _ => {
+                    eprint!("{USAGE}");
+                    return ExitCode::from(2);
+                }
+            }
+        }
     }
     let (path, result) = match args.as_slice() {
         ["dump", path] => (path, dump(path)),
@@ -61,8 +84,17 @@ fn emit(text: &str) {
     let _ = std::io::stdout().lock().write_all(text.as_bytes());
 }
 
-/// A host that writes program output to standard output, and keeps the
-/// program's files beside its image, as the reference interpreter does.
+/// How to run a program.
+struct RunOptions<'a> {
+    /// Seed the random number generator from the system.
+    seed_random: bool,
+    /// A command script to read input from.
+    script: Option<&'a str>,
+}
+
+/// A host that writes program output to standard output, reads input
+/// from standard input, and keeps the program's files beside its image,
+/// as the reference interpreter does.
 struct Console {
     /// The folder a file name without one is taken to be in.
     file_base: std::path::PathBuf,
@@ -94,6 +126,61 @@ impl Host for Console {
     fn write_file(&mut self, name: &str, data: &[u8]) -> Result<(), FileError> {
         std::fs::write(self.file_base.join(name), data).map_err(file_error)
     }
+
+    fn append_file(&mut self, name: &str, data: &[u8]) -> Result<(), FileError> {
+        std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(self.file_base.join(name))
+            .and_then(|mut file| file.write_all(data))
+            .map_err(file_error)
+    }
+
+    fn read_line(&mut self) -> Option<String> {
+        let _ = std::io::stdout().flush();
+        let mut line = String::new();
+        match std::io::stdin().read_line(&mut line) {
+            Ok(0) | Err(_) => None,
+            Ok(_) => {
+                let len = line.trim_end_matches(['\r', '\n']).len();
+                line.truncate(len);
+                Some(line)
+            }
+        }
+    }
+
+    // Standard input delivers whole lines, so a key is the first character
+    // of a line, and an empty line is the Enter key.
+    fn read_key(&mut self) -> Option<String> {
+        let line = self.read_line()?;
+        Some(match line.chars().next() {
+            Some(key) => key.to_string(),
+            None => "\n".to_owned(),
+        })
+    }
+
+    // A form feed, which is all a stream of text can do, and what the
+    // reference interpreter's plain console writes.
+    fn clear_screen(&mut self) {
+        emit("\x0c\n");
+    }
+
+    // The standard library does not know the local time zone, so local
+    // time is UTC for now.
+    fn time(&mut self) -> hexicon_host::Time {
+        let unix_millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_millis() as i64);
+        hexicon_host::Time {
+            unix_millis,
+            utc_offset_seconds: 0,
+        }
+    }
+
+    fn sleep(&mut self, milliseconds: u32) {
+        let _ = std::io::stdout().flush();
+        std::thread::sleep(std::time::Duration::from_millis(milliseconds.into()));
+    }
 }
 
 fn file_error(error: std::io::Error) -> FileError {
@@ -106,7 +193,7 @@ fn file_error(error: std::io::Error) -> FileError {
 
 /// Run a program. The program sees its own file name as its first
 /// argument, followed by the ones given on the command line.
-fn run(path: &str, program_args: &[&str], seed_random: bool) -> ExitCode {
+fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode {
     let fail = |message: String| {
         eprintln!("hexicon: {path}: {message}");
         ExitCode::FAILURE
@@ -125,8 +212,18 @@ fn run(path: &str, program_args: &[&str], seed_random: bool) -> ExitCode {
     };
     vm.set_error_trace(std::env::var_os("HEXICON_TRACE_ERRORS").is_some());
     vm.set_image_name(path);
-    if seed_random {
+    if options.seed_random {
         vm.seed_random();
+    }
+    if let Some(script) = options.script {
+        match std::fs::read(script) {
+            // Output is not paused while a script supplies the input.
+            Ok(data) => vm.push_input_script(&data, false, false),
+            Err(error) => {
+                eprintln!("hexicon: {script}: {error}");
+                return ExitCode::FAILURE;
+            }
+        }
     }
     // As under the reference interpreter, the program sees the image's
     // file name without its directory.

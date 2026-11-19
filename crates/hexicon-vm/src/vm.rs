@@ -353,6 +353,7 @@ pub struct Vm {
     pub(crate) trace_errors: bool,
     /// Formats what the program displays into lines for the host.
     pub(crate) console: Formatter,
+    pub(crate) io: crate::io::IoState,
     pub(crate) host: Box<dyn Host>,
 }
 
@@ -548,20 +549,6 @@ impl Vm {
         }
     }
 
-    /// Display text on the console.
-    pub(crate) fn print(&mut self, text: &[u8]) {
-        self.console.format_text(text);
-        self.send_output();
-    }
-
-    /// Hand finished output to the host.
-    fn send_output(&mut self) {
-        let output = self.console.take_output();
-        if !output.is_empty() {
-            self.host.print(&output);
-        }
-    }
-
     /// Report each VM error on standard error as it is raised, with the
     /// address of the instruction that caused it. This is a debugging aid
     /// for work on the VM itself.
@@ -572,7 +559,6 @@ impl Vm {
     /// Write out any text the console is holding for an unfinished line.
     /// Call this when the program ends.
     pub fn flush_output(&mut self) {
-        self.console.flush(Newline::None);
-        self.send_output();
+        self.flush_console(Newline::None);
     }
 }

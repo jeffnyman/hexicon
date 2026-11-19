@@ -5,7 +5,7 @@
 //! portable to WebAssembly and makes runs reproducible under test.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
 /// Why a file could not be read or written.
@@ -19,6 +19,15 @@ pub enum FileError {
     Unsupported,
     /// Anything else, such as a full disk.
     Failed,
+}
+
+/// The time on the host's clock.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Time {
+    /// Milliseconds since the start of 1970, UTC.
+    pub unix_millis: i64,
+    /// How far local time is ahead of UTC, in seconds.
+    pub utc_offset_seconds: i32,
 }
 
 /// The services a VM needs from the system it runs on.
@@ -46,6 +55,56 @@ pub trait Host {
         let _ = (name, data);
         Err(FileError::Unsupported)
     }
+
+    /// Add to the end of a file, creating it if it is not there.
+    fn append_file(&mut self, name: &str, data: &[u8]) -> Result<(), FileError> {
+        let _ = (name, data);
+        Err(FileError::Unsupported)
+    }
+
+    /// Read a line of input from the player, without the line ending.
+    /// `None` means there is no more input.
+    fn read_line(&mut self) -> Option<String> {
+        None
+    }
+
+    /// Read one keystroke. A key that types a character is that character;
+    /// Enter is a newline; any other key goes by its T3 name in square
+    /// brackets, such as `[up]` or `[f1]`. `None` means there is no more
+    /// input.
+    fn read_key(&mut self) -> Option<String> {
+        None
+    }
+
+    /// Clear the main console.
+    fn clear_screen(&mut self) {}
+
+    /// Pause for a number of milliseconds.
+    fn sleep(&mut self, milliseconds: u32) {
+        let _ = milliseconds;
+    }
+
+    /// Show text in the status line: the left part, which is usually the
+    /// name of the player's location.
+    fn status_line(&mut self, text: &str) {
+        let _ = text;
+    }
+
+    /// Show text at the right of the status line, usually the score.
+    fn status_right(&mut self, text: &str) {
+        let _ = text;
+    }
+
+    /// The time now. A host without a clock reports the start of 1970,
+    /// which also keeps tests reproducible.
+    fn time(&mut self) -> Time {
+        Time::default()
+    }
+
+    /// A name for the system the host runs on.
+    fn system_name(&self) -> String {
+        std::env::consts::OS.to_owned()
+    }
 }
 
 /// A host that collects console output in memory.
@@ -56,6 +115,7 @@ pub trait Host {
 pub struct BufferHost {
     output: Rc<RefCell<String>>,
     files: Rc<RefCell<HashMap<String, Vec<u8>>>>,
+    input: Rc<RefCell<VecDeque<String>>>,
 }
 
 impl BufferHost {
@@ -67,6 +127,24 @@ impl BufferHost {
     /// Everything displayed so far.
     pub fn output(&self) -> String {
         self.output.borrow().clone()
+    }
+
+    /// Queue a line for the program to read. A read of one key takes a
+    /// whole line too, as the name of the key.
+    pub fn push_input(&self, line: &str) {
+        self.input.borrow_mut().push_back(line.to_owned());
+    }
+
+    /// The contents of a file the program wrote.
+    pub fn file(&self, name: &str) -> Option<Vec<u8>> {
+        self.files.borrow().get(name).cloned()
+    }
+
+    /// Supply a file for the program to read.
+    pub fn set_file(&self, name: &str, data: &[u8]) {
+        self.files
+            .borrow_mut()
+            .insert(name.to_owned(), data.to_vec());
     }
 }
 
@@ -89,5 +167,22 @@ impl Host for BufferHost {
             .borrow_mut()
             .insert(name.to_owned(), data.to_vec());
         Ok(())
+    }
+
+    fn append_file(&mut self, name: &str, data: &[u8]) -> Result<(), FileError> {
+        self.files
+            .borrow_mut()
+            .entry(name.to_owned())
+            .or_default()
+            .extend_from_slice(data);
+        Ok(())
+    }
+
+    fn read_line(&mut self) -> Option<String> {
+        self.input.borrow_mut().pop_front()
+    }
+
+    fn read_key(&mut self) -> Option<String> {
+        self.input.borrow_mut().pop_front()
     }
 }

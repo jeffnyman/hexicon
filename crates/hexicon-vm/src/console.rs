@@ -31,7 +31,10 @@ pub(crate) enum Newline {
     /// Write what is buffered and stay on the line.
     None,
     /// Write what is buffered and start a new line.
-    Newline,
+    Line,
+    /// Write what is buffered, spaces at the end included, because the
+    /// player is about to type on the same line.
+    Input,
 }
 
 /// Where the HTML parser is within a tag.
@@ -213,6 +216,27 @@ impl Formatter {
         std::mem::take(&mut self.out)
     }
 
+    /// Add text to the output as it is, past the formatting.
+    pub(crate) fn write_raw(&mut self, text: &str) {
+        self.out.push_str(text);
+    }
+
+    /// The player finished a line of input, which leaves the cursor at the
+    /// start of a new line.
+    pub(crate) fn note_input_line(&mut self) {
+        self.column = 0;
+        self.just_did_newline = true;
+    }
+
+    /// Forget the unfinished line, as when the screen is cleared.
+    pub(crate) fn empty_buffers(&mut self) {
+        self.line.clear();
+        self.flags.clear();
+        self.column = 0;
+        self.just_did_newline = false;
+        self.pending_tab_align = TabAlign::None;
+    }
+
     // ---- writing lines ----
 
     /// Write finished text.
@@ -228,38 +252,38 @@ impl Formatter {
 
     /// Write out the buffered line.
     pub(crate) fn flush(&mut self, newline: Newline) {
-        self.expand_pending_tab(newline == Newline::Newline);
+        self.expand_pending_tab(newline == Newline::Line);
 
         // Leave off spaces at the end of the line, unless they are marked
         // as not to be separated from what follows.
         let mut count = self.line.len();
-        while count > 0 && self.line[count - 1] == ' ' {
+        while newline != Newline::Input && count > 0 && self.line[count - 1] == ' ' {
             if self.flags[count - 1] & FLAG_NOBREAK != 0 {
                 break;
             }
             count -= 1;
         }
-        if newline == Newline::Newline {
+        if newline == Newline::Line {
             self.line.truncate(count);
             self.flags.truncate(count);
         }
 
         // A newline right after a newline adds nothing: blank lines have
         // to be asked for explicitly.
-        let write_newline = newline == Newline::Newline
+        let write_newline = newline == Newline::Line
             && (self.column != 0 || !self.just_did_newline || self.pre_level > 0);
 
         if count != 0 || (self.column != 0 && !self.just_did_newline) || self.pre_level > 0 {
             let text: Vec<char> = self.line[..count].to_vec();
             self.write_text(&text, write_newline);
         }
-        if newline == Newline::Newline {
+        if newline == Newline::Line {
             self.column = 0;
         }
         self.line.drain(..count);
         self.flags.drain(..count);
 
-        if newline == Newline::Newline {
+        if newline == Newline::Line {
             self.just_did_newline = true;
         } else if count != 0 {
             self.just_did_newline = false;
@@ -268,7 +292,7 @@ impl Formatter {
 
     /// End the current line and leave a blank line after it.
     fn write_blank_line(&mut self) {
-        self.flush(Newline::Newline);
+        self.flush(Newline::Line);
         self.write_text(&[], true);
     }
 
@@ -514,7 +538,7 @@ impl Formatter {
             None => {
                 // No break anywhere: the line is one long word. Write it
                 // and start a new line.
-                self.flush(Newline::Newline);
+                self.flush(Newline::Line);
                 self.line.clear();
                 self.flags.clear();
                 self.column = 0;
@@ -544,7 +568,7 @@ impl Formatter {
                 }
                 self.line.truncate(i);
                 self.flags.truncate(i);
-                self.flush(Newline::Newline);
+                self.flush(Newline::Line);
                 self.column = carried.len();
                 self.line = carried;
                 self.flags = carried_flags;
@@ -590,7 +614,7 @@ impl Formatter {
                 continue;
             }
             match c {
-                '\n' => self.flush(Newline::Newline),
+                '\n' => self.flush(Newline::Line),
                 '\t' => self.write_tab(0, 4),
                 // "\b": a blank line.
                 '\u{b}' => self.write_blank_line(),
@@ -676,7 +700,7 @@ impl Formatter {
             }
             "hr" => {
                 if !ignoring {
-                    self.flush(Newline::Newline);
+                    self.flush(Newline::Line);
                     for _ in 0..self.width.saturating_sub(1) {
                         self.buffer_char('-');
                     }
@@ -854,7 +878,7 @@ impl Formatter {
         self.parse_state = ParseState::Normal;
         match self.deferred_break {
             DeferredBreak::None => {}
-            DeferredBreak::Flush => self.flush(Newline::Newline),
+            DeferredBreak::Flush => self.flush(Newline::Line),
             DeferredBreak::Blank => self.write_blank_line(),
         }
         self.deferred_break = DeferredBreak::None;

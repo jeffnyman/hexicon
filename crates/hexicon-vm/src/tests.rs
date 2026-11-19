@@ -1565,3 +1565,208 @@ fn production_reads_and_writes_its_alternatives() {
     production.references(&mut references);
     assert_eq!(references, [Value::Obj(ObjId(99)), Value::Obj(ObjId(5))]);
 }
+
+// ---- input, scripts, and logs ----
+
+/// A VM whose program does nothing, and the host it talks to.
+fn vm_with_host() -> (Vm, BufferHost) {
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.op(Op::RetNil);
+    let image = ImageBuilder::default().build(main, &code, &Consts::default());
+    let host = BufferHost::new();
+    let vm = Vm::new(&image, Box::new(host.clone())).expect("the image loads");
+    (vm, host)
+}
+
+/// Call a console function with the given arguments, first one first.
+fn io_call(vm: &mut Vm, index: u16, args: &[Value]) -> Value {
+    for &arg in args.iter().rev() {
+        vm.push(arg);
+    }
+    let handled = vm
+        .bif_io(index, args.len() as u32)
+        .expect("the function succeeds");
+    assert!(handled, "function {index} is implemented");
+    for _ in args {
+        vm.pop();
+    }
+    vm.r0
+}
+
+fn text_of(vm: &Vm, value: Value) -> String {
+    let text = vm.as_str(value).expect("a string");
+    String::from_utf8_lossy(&text).into_owned()
+}
+
+fn items_of(vm: &Vm, value: Value) -> Vec<Value> {
+    vm.as_list(value).expect("a list").to_vec()
+}
+
+const INPUT_LINE: u16 = 4;
+const INPUT_KEY: u16 = 5;
+const INPUT_EVENT: u16 = 6;
+const INPUT_LINE_TIMEOUT: u16 = 17;
+
+#[test]
+fn input_line_reads_from_the_player() {
+    let (mut vm, host) = vm_with_host();
+    host.push_input("open door");
+    vm.print(b"What now? ");
+    let line = io_call(&mut vm, INPUT_LINE, &[]);
+    assert_eq!(text_of(&vm, line), "open door");
+    // The prompt is written before the read, with its space.
+    assert_eq!(host.output(), "What now? ");
+    // No more input.
+    assert_eq!(io_call(&mut vm, INPUT_LINE, &[]), Value::Nil);
+    // A read with a timeout says the host has no timeouts.
+    let result = io_call(&mut vm, INPUT_LINE_TIMEOUT, &[Value::Int(100)]);
+    assert_eq!(items_of(&vm, result), [Value::Int(4)]);
+}
+
+#[test]
+fn input_script_stands_in_for_the_player() {
+    let (mut vm, host) = vm_with_host();
+    host.push_input("typed");
+    vm.push_input_script(b">look\r\nnot a command\n\n>wait\n", false, false);
+    vm.print(b">");
+    let line = io_call(&mut vm, INPUT_LINE, &[]);
+    assert_eq!(text_of(&vm, line), "look");
+    vm.print(b">");
+    let line = io_call(&mut vm, INPUT_LINE, &[]);
+    assert_eq!(text_of(&vm, line), "wait");
+    // What the script supplied is displayed as if typed.
+    assert_eq!(host.output(), ">look\n>wait\n");
+    // When the script runs out, the player is asked.
+    let line = io_call(&mut vm, INPUT_LINE, &[]);
+    assert_eq!(text_of(&vm, line), "typed");
+}
+
+#[test]
+fn quiet_script_displays_nothing() {
+    let (mut vm, host) = vm_with_host();
+    vm.push_input_script(b">look\n", true, false);
+    vm.print(b"Hidden.\n>");
+    let line = io_call(&mut vm, INPUT_LINE, &[]);
+    assert_eq!(text_of(&vm, line), "look");
+    vm.print(b"Also hidden.\n");
+    // The read that finds the script used up turns the display back on.
+    assert_eq!(io_call(&mut vm, INPUT_LINE, &[]), Value::Nil);
+    vm.print(b"Shown.\n");
+    assert_eq!(host.output(), "Shown.\n");
+}
+
+#[test]
+fn event_script_supplies_keys_and_events() {
+    let (mut vm, _host) = vm_with_host();
+    let script = b"<eventscript>\n<key>a\n<key>[enter]\n<line>go north\n<href>link\n\
+        <command>3\n<timeout>part\n<key>z\n";
+    vm.push_input_script(script, false, false);
+    let key = io_call(&mut vm, INPUT_KEY, &[]);
+    assert_eq!(text_of(&vm, key), "a");
+    let event = io_call(&mut vm, INPUT_EVENT, &[]);
+    let event = items_of(&vm, event);
+    assert_eq!(event[0], Value::Int(1));
+    assert_eq!(text_of(&vm, event[1]), "\n");
+    // A read of a line skips events of other kinds. A script cannot hold
+    // a link event: the name is not one the reader knows.
+    let line = io_call(&mut vm, INPUT_LINE, &[]);
+    assert_eq!(text_of(&vm, line), "go north");
+    let event = io_call(&mut vm, INPUT_EVENT, &[]);
+    assert_eq!(items_of(&vm, event), [Value::Int(0x100), Value::Int(3)]);
+    let event = io_call(&mut vm, INPUT_EVENT, &[]);
+    assert_eq!(items_of(&vm, event), [Value::Int(2)]);
+    let key = io_call(&mut vm, INPUT_KEY, &[]);
+    assert_eq!(text_of(&vm, key), "z");
+    // With the script used up and no player, a key read reports the end.
+    let key = io_call(&mut vm, INPUT_KEY, &[]);
+    assert_eq!(text_of(&vm, key), "[eof]");
+}
+
+#[test]
+fn logs_record_output_and_input() {
+    const SET_LOG_FILE: u16 = 1;
+    let (mut vm, host) = vm_with_host();
+    let name = |vm: &mut Vm, text: &str| vm.new_str(text);
+
+    // A transcript gets what is displayed and what the player types.
+    let file = name(&mut vm, "transcript");
+    assert_eq!(io_call(&mut vm, SET_LOG_FILE, &[file]), Value::True);
+    host.push_input("look");
+    vm.print(b"A <b>bold</b> start.\n>");
+    io_call(&mut vm, INPUT_LINE, &[]);
+    vm.print(b"Unfinished");
+    io_call(&mut vm, SET_LOG_FILE, &[Value::Nil]);
+    assert_eq!(
+        host.file("transcript").as_deref(),
+        Some(b"A bold start.\n>look\n".as_slice())
+    );
+
+    // A command log gets command lines only.
+    let file = name(&mut vm, "commands");
+    io_call(&mut vm, SET_LOG_FILE, &[file, Value::Int(2)]);
+    host.push_input("north");
+    host.push_input("k");
+    io_call(&mut vm, INPUT_LINE, &[]);
+    io_call(&mut vm, INPUT_KEY, &[]);
+    io_call(&mut vm, SET_LOG_FILE, &[Value::Nil, Value::Int(2)]);
+    assert_eq!(
+        host.file("commands").as_deref(),
+        Some(b">north\n".as_slice())
+    );
+
+    // An event log gets every event, in the form of an event script.
+    let file = name(&mut vm, "events");
+    io_call(&mut vm, SET_LOG_FILE, &[file, Value::Int(3)]);
+    host.push_input("south");
+    host.push_input(" ");
+    io_call(&mut vm, INPUT_LINE, &[]);
+    io_call(&mut vm, INPUT_KEY, &[]);
+    io_call(&mut vm, INPUT_LINE, &[]);
+    assert_eq!(
+        host.file("events").as_deref(),
+        Some(b"<eventscript>\n<line>south\n<key>[space]\n<eof>\n".as_slice())
+    );
+    // The log can be played back.
+    let log = host.file("events").expect("written");
+    vm.push_input_script(&log, true, false);
+    let line = io_call(&mut vm, INPUT_LINE, &[]);
+    assert_eq!(text_of(&vm, line), "south");
+    let key = io_call(&mut vm, INPUT_KEY, &[]);
+    assert_eq!(text_of(&vm, key), " ");
+}
+
+#[test]
+fn log_console_formats_into_a_file() {
+    let (mut vm, host) = vm_with_host();
+    let file = vm.new_str("notes");
+    let handle = io_call(&mut vm, 30, &[file, Value::Nil, Value::Int(30)]);
+    assert_eq!(handle, Value::Int(1));
+    let text = vm.new_str("Text for the log console, <i>marked up</i>, long enough to wrap.\n");
+    io_call(&mut vm, 32, &[handle, text]);
+    io_call(&mut vm, 31, &[handle]);
+    assert_eq!(
+        host.file("notes").as_deref(),
+        Some(b"Text for the log console,\nmarked up, long enough to\nwrap.\n".as_slice())
+    );
+    assert_eq!(host.output(), "", "none of it is displayed");
+}
+
+#[test]
+fn get_time_takes_a_date_apart() {
+    use crate::io::{civil_from_days, days_from_civil};
+    assert_eq!(civil_from_days(0), (1970, 1, 1));
+    assert_eq!(civil_from_days(-1), (1969, 12, 31));
+    assert_eq!(civil_from_days(19_782), (2024, 2, 29));
+    for days in [-800_000, -1, 0, 59, 60, 11_016, 19_782, 2_932_896] {
+        let (year, month, day) = civil_from_days(days);
+        assert_eq!(days_from_civil(year, month, day), days);
+    }
+    // The host of a test has no clock, so the time is the start of 1970,
+    // a Thursday.
+    let (mut vm, _host) = vm_with_host();
+    let now = vm.get_time(1).expect("a list");
+    let expected = [1970, 1, 1, 5, 1, 0, 0, 0, 0].map(Value::Int);
+    assert_eq!(items_of(&vm, now), expected);
+    assert_eq!(vm.get_time(2).expect("a count"), Value::Int(0));
+}

@@ -867,7 +867,7 @@ impl Vm {
     // ---- the functions a program calls ----
 
     /// The name of the file a program asked for.
-    fn file_name_arg(&self, value: Value) -> VmResult<String> {
+    pub(crate) fn file_name_arg(&self, value: Value) -> VmResult<String> {
         match self.as_str(value) {
             Some(name) => Ok(String::from_utf8_lossy(&name).into_owned()),
             None => Err(VmError::unimplemented(

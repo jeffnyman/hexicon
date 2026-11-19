@@ -226,11 +226,11 @@ impl Vm {
         }
     }
 
-    fn check_argc(argc: u32, expected: u32) -> VmResult<()> {
+    pub(crate) fn check_argc(argc: u32, expected: u32) -> VmResult<()> {
         Self::check_argc_range(argc, expected, expected)
     }
 
-    fn check_argc_range(argc: u32, min: u32, max: u32) -> VmResult<()> {
+    pub(crate) fn check_argc_range(argc: u32, min: u32, max: u32) -> VmResult<()> {
         if argc < min || argc > max {
             Err(VmError::new(code::WRONG_NUM_OF_ARGS))
         } else {
@@ -562,6 +562,16 @@ impl Vm {
                 }
                 self.r0 = self.new_string(text);
             }
+            // getTime(type?)
+            8 => {
+                Self::check_argc_range(argc, 0, 1)?;
+                let kind = if argc >= 1 {
+                    self.int_arg(self.arg(0))?
+                } else {
+                    1
+                };
+                self.r0 = self.get_time(kind)?;
+            }
             _ => return Err(self.unimplemented_bif(FunctionSet::TadsGen, index)),
         }
         Ok(())
@@ -865,26 +875,32 @@ impl Vm {
             // tadsSay(...): display each argument.
             0 => {
                 for index in 0..argc as usize {
-                    let value = self.arg(index);
-                    match value {
-                        Value::Nil => {}
-                        Value::Int(_) => {
-                            let text = self.text_bytes(value)?;
-                            self.print(&text);
-                        }
-                        Value::SString(_) | Value::Obj(_) | Value::List(_) => {
-                            let (_, text) = self.text_cast(value)?;
-                            self.print(&text);
-                        }
-                        _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
+                    if let Some(text) = self.say_text(self.arg(index))? {
+                        self.print(&text);
                     }
                 }
             }
-            // flushOutput(): output is not buffered yet.
-            16 => Self::check_argc(argc, 0)?,
-            _ => return Err(self.unimplemented_bif(FunctionSet::TadsIo, index)),
+            _ => {
+                if !self.bif_io(index, argc)? {
+                    return Err(self.unimplemented_bif(FunctionSet::TadsIo, index));
+                }
+            }
         }
         Ok(())
+    }
+
+    /// The text to display for a value, or `None` for nil, which displays
+    /// nothing.
+    pub(crate) fn say_text(&mut self, value: Value) -> VmResult<Option<std::rc::Rc<[u8]>>> {
+        match value {
+            Value::Nil => Ok(None),
+            Value::Int(_) => Ok(Some(self.text_bytes(value)?)),
+            Value::SString(_) | Value::Obj(_) | Value::List(_) => {
+                let (_, text) = self.text_cast(value)?;
+                Ok(Some(text))
+            }
+            _ => Err(VmError::new(code::BAD_TYPE_BIF)),
+        }
     }
 }
 
