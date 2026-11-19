@@ -12,6 +12,7 @@ const transcript = element("transcript");
 const entry = element("entry");
 const command = element("command");
 const notice = element("notice");
+const more = element("more");
 
 let game = null;
 let gameName = "";
@@ -61,6 +62,61 @@ function storeFiles() {
 
 // ---- the screen ----
 
+// The most characters a line of the game's text has, however wide the
+// window: longer lines are hard to read.
+const widestLine = 80;
+let columns = widestLine;
+
+// How many characters fit across the screen, in the game's font.
+function measureColumns() {
+  const probe = document.createElement("span");
+  probe.id = "measure";
+  probe.textContent = "0".repeat(100);
+  screen.append(probe);
+  const characterWidth = probe.getBoundingClientRect().width / 100;
+  probe.remove();
+  const style = getComputedStyle(screen);
+  const room =
+    screen.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  if (!(characterWidth > 0) || !(room > 0)) {
+    return widestLine;
+  }
+  return Math.max(20, Math.min(widestLine, Math.floor(room / characterWidth)));
+}
+
+// Tell the game how much room there is. It takes effect for text shown
+// after the game next waits for input; text already shown stays as it is.
+function fitToWindow() {
+  columns = measureColumns();
+  if (game) {
+    game.setWidth(columns);
+  }
+  sizeCommandLine();
+}
+
+// The command line takes up the rest of the line its prompt is on.
+function sizeCommandLine() {
+  const text = transcript.textContent;
+  const prompt = text.length - (text.lastIndexOf("\n") + 1);
+  command.style.width = `${Math.max(columns - prompt - 1, 8)}ch`;
+}
+
+// Whether there is text below the bottom of the screen.
+const lineHeight = () => parseFloat(getComputedStyle(screen).lineHeight) || 24;
+const textBelow = () =>
+  screen.scrollHeight - screen.scrollTop - screen.clientHeight > lineHeight() / 2;
+
+function pageDown() {
+  screen.scrollBy({ top: screen.clientHeight - 2 * lineHeight() });
+}
+
+function showMore() {
+  more.hidden = !textBelow();
+}
+
+// Where the text the player has not yet seen starts, for scrolling to.
+let unseen = null;
+
 function say(text) {
   notice.textContent = text;
   notice.hidden = false;
@@ -76,12 +132,30 @@ function show(text, className) {
     span.className = className;
   }
   transcript.append(span);
+  unseen ??= span;
+}
+
+// Bring new text into view. When there is more of it than fits, show it
+// from its start and leave the player to read down to the end, instead
+// of letting the start scroll away unread.
+function scrollToNewText() {
+  const bottom = screen.scrollHeight - screen.clientHeight;
+  let top = bottom;
+  if (unseen && unseen.isConnected) {
+    const start =
+      unseen.getBoundingClientRect().top - screen.getBoundingClientRect().top + screen.scrollTop;
+    top = Math.min(bottom, Math.max(0, start - lineHeight() / 2));
+  }
+  screen.scrollTop = top;
+  unseen = null;
+  showMore();
 }
 
 // Show what the game has displayed, and get ready for what it needs next.
 function update() {
   if (game.takeCleared()) {
     transcript.replaceChildren();
+    unseen = null;
   }
   show(game.takeOutput());
   storeFiles();
@@ -93,8 +167,9 @@ function update() {
   element("status-right").textContent = right;
 
   entry.hidden = state !== "line";
+  sizeCommandLine();
   if (state === "line") {
-    command.focus();
+    command.focus({ preventScroll: true });
   } else if (state === "sleep") {
     setTimeout(() => {
       game.wake();
@@ -103,7 +178,7 @@ function update() {
   } else if (state === "done") {
     say("The game has ended. Choose a game to play again.");
   }
-  screen.scrollTop = screen.scrollHeight;
+  scrollToNewText();
 }
 
 function advance() {
@@ -144,8 +219,35 @@ const keyNames = {
   Insert: "[insert]",
 };
 
+// While there is text below the screen, the keys that would page through
+// it in a terminal do that here: Page Down always, and the space bar when
+// it is not being typed into a command.
+command.addEventListener("keydown", (event) => {
+  if (!textBelow()) {
+    return;
+  }
+  if (event.key === "PageDown" || (event.key === " " && command.value === "")) {
+    event.preventDefault();
+    pageDown();
+  }
+});
+
+screen.addEventListener("scroll", showMore);
+more.addEventListener("click", pageDown);
+window.addEventListener("resize", () => {
+  fitToWindow();
+  showMore();
+});
+
 document.addEventListener("keydown", (event) => {
   if (state !== "key" || event.ctrlKey || event.metaKey || event.altKey) {
+    return;
+  }
+  // A key pressed with text still to read shows more of it, as it would
+  // at a More prompt, and does not reach the game.
+  if (textBelow()) {
+    event.preventDefault();
+    pageDown();
     return;
   }
   let key = keyNames[event.key];
@@ -165,8 +267,15 @@ document.addEventListener("keydown", (event) => {
 // A click anywhere on the screen is a click on the command line, unless
 // the player is selecting text.
 screen.addEventListener("click", () => {
-  if (state === "line" && String(getSelection()) === "") {
-    command.focus();
+  if (String(getSelection()) !== "") {
+    return;
+  }
+  if (state === "line") {
+    command.focus({ preventScroll: true });
+  } else if (state === "key" && !textBelow()) {
+    // Where there is no keyboard, a tap is the key to press.
+    game.sendKey(" ");
+    advance();
   }
 });
 
@@ -189,6 +298,8 @@ function play(bytes, name) {
     return;
   }
   restoreFiles();
+  unseen = null;
+  fitToWindow();
   state = game.start();
   update();
 }

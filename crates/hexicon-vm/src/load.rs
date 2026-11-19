@@ -485,6 +485,7 @@ impl Vm {
     /// the host. The program sees `args` as the arguments of its main
     /// function.
     pub fn start(&mut self, args: &[String]) -> VmResult<RunState> {
+        self.sync_console_width();
         self.build_symbol_tables();
         self.run_static_initializers()?;
 

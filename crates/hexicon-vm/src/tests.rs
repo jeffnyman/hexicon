@@ -801,6 +801,37 @@ fn format(texts: &[&str]) -> String {
 }
 
 #[test]
+fn console_breaks_lines_to_the_width_it_is_given() {
+    let text = "one two three four five six seven eight nine ten eleven twelve";
+    let mut formatter = Formatter::new(80);
+    formatter.set_width(31);
+    formatter.format_text(text.as_bytes());
+    formatter.flush(Newline::None);
+    let output = formatter.take_output();
+    assert_eq!(
+        output,
+        "one two three four five six
+seven eight nine ten eleven
+twelve"
+    );
+    assert!(output.lines().all(|line| line.len() <= 30));
+
+    // A width too small to be a real console's is not taken literally.
+    formatter.set_width(0);
+    formatter.format_text(
+        b"
+alpha beta gamma delta epsilon",
+    );
+    formatter.flush(Newline::None);
+    assert_eq!(
+        formatter.take_output(),
+        "
+alpha beta gamma
+delta epsilon"
+    );
+}
+
+#[test]
 fn console_collapses_spaces_and_newlines() {
     assert_eq!(format(&["a   b\n\n\nc"]), "a b\nc");
     // Spaces at the start and end of a line are dropped.
@@ -2186,4 +2217,22 @@ fn a_dialog_asks_its_question_once_however_long_the_answer_takes() {
     assert!(ask(&mut vm).expect("answered"));
     assert_eq!(vm.r0, Value::Int(2));
     assert_eq!(host.output().matches("Proceed?").count(), 1);
+}
+
+#[test]
+fn a_resource_not_in_the_image_is_a_file_beside_it() {
+    let (mut vm, host) = vm_with_host();
+    host.set_file("autosave.tmp", b"saved");
+    assert_eq!(
+        vm.resource_file(Some("autosave.tmp")),
+        Some(b"saved".to_vec())
+    );
+    assert_eq!(vm.resource_file(Some("missing")), None);
+    // Nothing outside the image's folder, however it is named.
+    assert_eq!(vm.resource_file(Some("../autosave.tmp")), None);
+    assert_eq!(vm.resource_file(Some("/autosave.tmp")), None);
+    assert_eq!(vm.resource_file(None), None);
+    // And nothing at all when the program may read no files.
+    vm.set_file_safety(4, 4);
+    assert_eq!(vm.resource_file(Some("autosave.tmp")), None);
 }

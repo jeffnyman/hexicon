@@ -1,5 +1,6 @@
 //! The `hexicon` command-line tool.
 
+mod terminal;
 mod windows_zones;
 
 use std::fmt::Write as _;
@@ -20,6 +21,9 @@ commands:
   run [options] <image.t3> [args...]
                                run a program; the options are:
       --norand                 make the same random choices on every run
+      --plain                  treat a terminal as plain input and output:
+                               80 columns, no pauses, and keys read as lines
+      --nomore                 do not pause when a screenful has gone by
       -I, --script <file>      read input from a command script before
                                asking for any
       --sandbox <dir>          the folder the program's file access is
@@ -40,6 +44,8 @@ fn main() -> ExitCode {
     if let ["run", rest @ ..] = args.as_slice() {
         let mut options = RunOptions {
             seed_random: true,
+            plain: false,
+            paging: true,
             script: None,
             sandbox: None,
             safety: (2, 2),
@@ -49,6 +55,14 @@ fn main() -> ExitCode {
             match rest {
                 ["--norand", tail @ ..] => {
                     options.seed_random = false;
+                    rest = tail;
+                }
+                ["--plain", tail @ ..] => {
+                    options.plain = true;
+                    rest = tail;
+                }
+                ["--nomore", tail @ ..] => {
+                    options.paging = false;
                     rest = tail;
                 }
                 ["-I" | "--script", file, tail @ ..] => {
@@ -120,6 +134,10 @@ fn emit(text: &str) {
 struct RunOptions<'a> {
     /// Seed the random number generator from the system.
     seed_random: bool,
+    /// Make nothing of standard input and output being a terminal.
+    plain: bool,
+    /// Pause when a screenful of text has gone by.
+    paging: bool,
     /// A command script to read input from.
     script: Option<&'a str>,
     /// The folder file access is confined to, if not the image's.
@@ -138,6 +156,8 @@ struct Console {
     sandbox: PathBuf,
     /// How many temporary file names have been handed out.
     temp_count: u32,
+    /// The terminal, when that is what the program is being run in.
+    terminal: Option<terminal::Terminal>,
     /// Make the program stop and resume at every read, to test that.
     stall: bool,
     stalled: bool,
@@ -205,7 +225,20 @@ fn seconds(time: std::io::Result<std::time::SystemTime>) -> Option<i64> {
 
 impl Host for Console {
     fn print(&mut self, text: &str) {
-        emit(text);
+        match &mut self.terminal {
+            Some(terminal) => terminal.print(text),
+            None => emit(text),
+        }
+    }
+
+    fn console_width(&mut self) -> Option<usize> {
+        self.terminal.as_ref()?.width()
+    }
+
+    fn script_input(&mut self) {
+        if let Some(terminal) = &mut self.terminal {
+            terminal.start_page();
+        }
     }
 
     fn random_bytes(&mut self, buffer: &mut [u8]) {
@@ -391,6 +424,9 @@ impl Host for Console {
             }
         }
         let _ = std::io::stdout().flush();
+        if let Some(terminal) = &mut self.terminal {
+            terminal.start_page();
+        }
         let mut line = String::new();
         match std::io::stdin().read_line(&mut line) {
             Ok(0) | Err(_) => Input::End,
@@ -402,9 +438,16 @@ impl Host for Console {
         }
     }
 
-    // Standard input delivers whole lines, so a key is the first character
-    // of a line, and an empty line is the Enter key.
+    // A terminal delivers keys as they are pressed. Standard input
+    // otherwise delivers whole lines, so a key is the first character of a
+    // line, and an empty line is the Enter key.
     fn read_key(&mut self) -> Input {
+        if let Some(terminal) = &mut self.terminal {
+            return match terminal.read_key() {
+                Some(key) => Input::Text(key),
+                None => Input::End,
+            };
+        }
         match self.read_line() {
             Input::Text(line) => Input::Text(match line.chars().next() {
                 Some(key) => key.to_string(),
@@ -417,7 +460,10 @@ impl Host for Console {
     // A form feed, which is all a stream of text can do, and what the
     // reference interpreter's plain console writes.
     fn clear_screen(&mut self) {
-        emit("\x0c\n");
+        match &mut self.terminal {
+            Some(terminal) => terminal.clear(),
+            None => emit("\x0c\n"),
+        }
     }
 
     // The system's name for its zone is found by asking it, since the
@@ -508,6 +554,11 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
             .map_or_else(|| file_base.clone(), PathBuf::from),
         file_base,
         temp_count: 0,
+        terminal: if options.plain {
+            None
+        } else {
+            terminal::Terminal::detect(options.paging)
+        },
         stall: std::env::var_os("HEXICON_TEST_SUSPEND").is_some(),
         stalled: false,
     };

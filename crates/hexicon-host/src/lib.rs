@@ -234,6 +234,18 @@ pub trait Host {
     /// Clear the main console.
     fn clear_screen(&mut self) {}
 
+    /// The width of the main console in columns, if the host has one of
+    /// its own, such as a terminal window's. Text is broken into lines
+    /// that fit. Without one the width is 80 columns.
+    fn console_width(&mut self) -> Option<usize> {
+        None
+    }
+
+    /// Input has just come from a script instead of from the player. A
+    /// host that pauses when a screenful of text has gone by since the
+    /// player last typed starts counting again from here.
+    fn script_input(&mut self) {}
+
     /// Pause for a number of milliseconds. A host that can wait does,
     /// and returns true. One that cannot returns false, which stops the
     /// VM where it is; when the time has passed, the host resumes the VM,

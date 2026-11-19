@@ -119,6 +119,10 @@ fn is_color(_value: &str) -> bool {
     true
 }
 
+/// The narrowest a console can be. A host that reports less, as a window
+/// dragged down to nothing would, gets this.
+const MIN_WIDTH: usize = 20;
+
 /// The console formatter.
 #[derive(Debug)]
 pub(crate) struct Formatter {
@@ -209,6 +213,12 @@ impl Formatter {
             pending_tab_decimal: '\0',
             out: String::new(),
         }
+    }
+
+    /// Change the console width. Text already on the current line stays
+    /// there; the new width applies from the next character.
+    pub(crate) fn set_width(&mut self, width: usize) {
+        self.width = width.max(MIN_WIDTH);
     }
 
     /// Take the output produced so far.

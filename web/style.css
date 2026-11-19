@@ -83,6 +83,7 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  white-space: nowrap;
   padding: 0.15rem 1rem;
   background: var(--bar);
   color: var(--bar-ink);
@@ -96,7 +97,41 @@ h1 {
 #screen {
   flex: 1;
   overflow-y: auto;
+  /* Room for the scroll bar from the start, so that the width measured
+     for the game's text does not change when the bar appears. */
+  scrollbar-gutter: stable;
   padding: 1rem;
+}
+
+/* Shows when there is text below what is on the screen. */
+#more {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  padding: 0.3rem 0.8rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--bar);
+  color: var(--bar-ink);
+  font: 0.85rem system-ui, sans-serif;
+  cursor: pointer;
+}
+
+/* Used to measure how wide a character of the game's text is. */
+#measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+}
+
+@media (max-width: 40rem) {
+  body {
+    font-size: 14px;
+  }
+
+  #screen {
+    padding: 0.75rem;
+  }
 }
 
 #welcome,
@@ -110,9 +145,8 @@ h1 {
   margin-top: 1.5rem;
 }
 
-/* The game's text comes already broken into lines of at most 80
-   characters, so a narrow window scrolls sideways rather than breaking
-   them again. */
+/* The game's text comes already broken into lines that fit the window:
+   the page tells the game how many characters it has room for, up to 80. */
 #transcript {
   display: inline;
   white-space: pre;
@@ -129,6 +163,7 @@ h1 {
 #command {
   width: 60ch;
   max-width: 100%;
+  border-radius: 0;
   padding: 0;
   border: 0;
   outline: 0;
@@ -136,4 +171,9 @@ h1 {
   color: var(--accent);
   font: inherit;
   caret-color: var(--accent);
+}
+
+#status-left {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

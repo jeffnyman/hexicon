@@ -769,8 +769,10 @@ impl Vm {
     /// Replace the state of the program with a saved one.
     pub(crate) fn restore_state(&mut self, data: &[u8]) -> VmResult<()> {
         let mut r = Reader { data, pos: 0 };
-        let signature = r.bytes(SIGNATURE.len());
-        if signature.ok() != Some(SIGNATURE) {
+        // A file too short to hold the signature is one that could not
+        // be read, not one of the wrong kind.
+        let signature = r.bytes(SIGNATURE.len())?;
+        if signature != SIGNATURE {
             return Err(VmError::new(code::NOT_SAVED_STATE));
         }
         let size = r.u32()? as usize;

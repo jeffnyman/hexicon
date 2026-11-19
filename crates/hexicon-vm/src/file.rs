@@ -320,6 +320,23 @@ impl Vm {
         )
     }
 
+    /// A resource that is not in the image is looked for as a file beside
+    /// it, which is how a game under development gets at resources that
+    /// have not been bundled yet, and how some games read back files they
+    /// wrote. Only a file in the image's folder or below it will do,
+    /// whatever the safety level, unless that allows no reading at all.
+    pub(crate) fn resource_file(&mut self, name: Option<&str>) -> Option<Vec<u8>> {
+        let name = name?;
+        if self.io.safety_read > 3
+            || name.is_empty()
+            || is_absolute(name)
+            || name.split('/').any(|part| part == "..")
+        {
+            return None;
+        }
+        self.host.read_file(name).ok()
+    }
+
     fn file_exc(&mut self, which: FileExc) -> VmError {
         let predef = &self.predef;
         let (class, message) = match which {
@@ -711,7 +728,10 @@ impl Vm {
                 .cloned();
             match found {
                 Some(data) => data.to_vec(),
-                None => return Err(self.file_exc(FileExc::NotFound)),
+                None => match self.resource_file(name.as_deref()) {
+                    Some(data) => data,
+                    None => return Err(self.file_exc(FileExc::NotFound)),
+                },
             }
         } else {
             let Some(name) = &name else {

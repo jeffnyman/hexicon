@@ -355,6 +355,14 @@ impl Vm {
         }
     }
 
+    /// Take the width of the main console from the host. A host can
+    /// change it while a program runs, as when a window is resized, so
+    /// this is done whenever the player is about to be asked for input.
+    pub(crate) fn sync_console_width(&mut self) {
+        let width = self.host.console_width().unwrap_or(CONSOLE_WIDTH);
+        self.console.set_width(width);
+    }
+
     /// Hand finished output to the host. A script read quietly shows
     /// nothing.
     fn send_output(&mut self) {
@@ -576,13 +584,16 @@ impl Vm {
                 break;
             }
         }
-        if !from_script {
+        if from_script {
+            self.host.script_input();
+        } else {
             if timeout.is_some() {
                 event = EVT_NOTIMEOUT;
             } else {
                 // Everything up to here does nothing more if it is done
                 // again, so the read can be tried again from the top
                 // when the host has no input yet.
+                self.sync_console_width();
                 match self.host.read_line() {
                     Input::Text(line) => {
                         self.io.read_buf = line.into_bytes();
@@ -666,12 +677,14 @@ impl Vm {
                     _ => {}
                 }
             }
+            self.host.script_input();
             return Some((event, param, attrs));
         }
     }
 
     /// Read a key from the player, as its T3 name.
     fn read_key(&mut self) -> VmResult<Option<Vec<u8>>> {
+        self.sync_console_width();
         Ok(match self.host.read_key() {
             Input::Text(key) => Some(match key.as_str() {
                 "\r" | "\r\n" => b"\n".to_vec(),

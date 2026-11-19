@@ -12,6 +12,11 @@
 // The page address names the game to load:
 //   http://127.0.0.1:8765/web/index.html?game=/build/web-test/sample.t3
 // The commands file has one command to a line.
+//
+// Two environment variables change what is checked:
+//   HEXICON_CHECK_SIZE=390x800   the size of the window, for trying a
+//                                narrow one
+//   HEXICON_CHECK_PICTURE=a.png  save a picture of the page at the end
 
 const { spawn } = require("child_process");
 const fs = require("fs");
@@ -41,6 +46,7 @@ const browser = spawn(
     "--headless=new",
     "--disable-gpu",
     "--no-first-run",
+    `--window-size=${(process.env.HEXICON_CHECK_SIZE ?? "1200x900").replace("x", ",")}`,
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`,
     "about:blank",
@@ -161,6 +167,25 @@ async function main() {
   );
   if (notice) {
     process.stdout.write(`\n[${notice}]\n`);
+  }
+  const status = await evaluate(
+    `document.getElementById("status").hidden ? "" : document.getElementById("status-left").textContent + " | " + document.getElementById("status-right").textContent`,
+  );
+  if (status) {
+    process.stderr.write(`status line: ${status}\n`);
+  }
+  const longest = await evaluate(
+    `Math.max(...document.getElementById("transcript").textContent.split("\\n").map((line) => line.length))`,
+  );
+  const sideways = await evaluate(
+    `document.getElementById("screen").scrollWidth > document.getElementById("screen").clientWidth`,
+  );
+  process.stderr.write(
+    `longest line: ${longest} characters; scrolls sideways: ${sideways ? "yes" : "no"}\n`,
+  );
+  if (process.env.HEXICON_CHECK_PICTURE) {
+    const picture = await send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(process.env.HEXICON_CHECK_PICTURE, Buffer.from(picture.result.data, "base64"));
   }
   const files = await evaluate(
     `Object.keys(localStorage).filter((key) => key.startsWith("hexicon:")).join(", ")`,

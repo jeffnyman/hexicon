@@ -52,6 +52,8 @@ struct Shared {
     changed: Vec<String>,
     time_zone: Option<String>,
     temp_count: u32,
+    /// How many columns of text the page has room for, if it has said.
+    width: Option<usize>,
 }
 
 impl Shared {
@@ -185,6 +187,10 @@ impl Host for WebHost {
         shared.cleared = true;
     }
 
+    fn console_width(&mut self) -> Option<usize> {
+        self.0.borrow().width
+    }
+
     // The page does the waiting, and wakes the game when it is over.
     fn sleep(&mut self, milliseconds: u32) -> bool {
         let mut shared = self.0.borrow_mut();
@@ -275,6 +281,7 @@ impl Game {
             changed: Vec::new(),
             time_zone,
             temp_count: 0,
+            width: None,
         }));
         let mut vm = Vm::new(&parsed, Box::new(WebHost(shared.clone())))
             .map_err(|error| JsError::new(&error.to_string()))?;
@@ -379,6 +386,17 @@ impl Game {
             Waiting::Sleep(milliseconds) => milliseconds,
             _ => 0,
         }
+    }
+
+    /// Say how many columns of text the page has room for. The game's
+    /// text is broken into lines no longer than that. The page calls
+    /// this before starting the game and whenever its size changes; a new
+    /// width applies to text displayed after the game next waits for
+    /// input. Without it, lines are up to 79 characters.
+    #[wasm_bindgen(js_name = setWidth)]
+    pub fn set_width(&mut self, columns: u32) {
+        // The VM keeps the last column of its width free.
+        self.shared.borrow_mut().width = Some(columns as usize + 1);
     }
 
     /// The text the game has displayed since this was last called.
