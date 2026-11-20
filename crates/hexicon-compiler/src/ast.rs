@@ -202,6 +202,19 @@ pub(crate) enum Expr {
     OneOf(bool, Vec<Expr>),
     /// `self`
     SelfRef,
+    /// `x is in (a, b)`, or with `not` set `x not in (a, b)`. `hit` is
+    /// set when constants were worked out and the left side was found
+    /// among them: the test is then known to succeed if nothing else
+    /// stops it.
+    IsIn {
+        left: Box<Expr>,
+        args: Vec<Expr>,
+        not: bool,
+        hit: bool,
+    },
+    /// `x in collection` or `x in from..to step by`, among the
+    /// initializers of a `for`.
+    ForIn(Box<ForIn>),
     /// `&x`: the address of what a name stands for.
     Addr(Box<Expr>),
     /// `new Class(args)`, or `new transient Class(args)`. What is made
@@ -228,7 +241,40 @@ pub(crate) enum Expr {
     },
 }
 
+/// A variable in a `for` that takes each of a set of values in turn.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ForIn {
+    /// The elements of a collection. The local holds the iterator.
+    Coll {
+        lval: Expr,
+        expr: Expr,
+        iter_local: LocalId,
+    },
+    /// The integers of a range. The locals hold the end and the step,
+    /// where those are not constants.
+    Range {
+        lval: Expr,
+        from: Expr,
+        to: Expr,
+        step: Option<Expr>,
+        to_local: Option<LocalId>,
+        step_local: Option<LocalId>,
+    },
+}
+
 impl Expr {
+    /// The `in` clauses among a `for`'s initializers, in order.
+    pub(crate) fn for_ins<'e>(&'e self, found: &mut Vec<&'e ForIn>) {
+        match self {
+            Self::Binary(BinOp::Comma, left, right) => {
+                left.for_ins(found);
+                right.for_ins(found);
+            }
+            Self::ForIn(for_in) => found.push(for_in),
+            _ => {}
+        }
+    }
+
     pub(crate) fn constant(value: Value) -> Self {
         Self::Const(ConstVal::new(value))
     }
@@ -348,6 +394,15 @@ pub(crate) enum StmtKind {
         cond: Expr,
         body: Option<Box<Stmt>>,
         id: usize,
+    },
+    /// `foreach (x in collection) body`. The local holds the iterator.
+    Foreach {
+        iter: Expr,
+        coll: Expr,
+        body: Option<Box<Stmt>>,
+        symtab: Option<TabId>,
+        id: usize,
+        iter_local: LocalId,
     },
     DoWhile {
         body: Option<Box<Stmt>>,

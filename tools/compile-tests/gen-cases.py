@@ -1149,6 +1149,87 @@ f() { }
 _main(args) { return thing.beta; }
 """
 
+COLLECTION = """intrinsic class Object 'root-object/030004' { ofKind(cls); }
+intrinsic class Collection 'collection/030000': Object { createIterator(); createLiveIterator(); }
+intrinsic class List 'list/030008': Collection { length(); }
+"""
+
+programs["forin1"] = COLLECTION + """
+a: object lst = [1, 2] cur = nil;
+_main(args)
+{
+    local sum = 0;
+    foreach (local x in args) sum += x;
+    foreach (a.cur in a.lst) { if (a.cur) continue; break; }
+    local y;
+    foreach (y in [1, 2, 3]) ;
+    foreach (args[1] in args) { }
+    for (local i in 1..10) sum += i;
+    for (local i in args) sum += i;
+    for (local i = 1, local j in args, local k in 1..sum step 2, y in sum..1 step -1 ; i < 10 ; ++i)
+        sum += j + k;
+    for (y in args.length..sum step args[1]) { if (y) break; }
+    for (local i in 1..3 step 'x') ;
+    lbl: for (local q in a.lst) { foreach (local r in q) { continue lbl; } }
+    for (local i in 1..2, local j in 3..4 ; ; ) { if (i + j) break; }
+    for (a.cur in a.lst) ;
+    foreach (local unused in args) ;
+    return sum;
+}
+"""
+
+programs["forin2"] = COLLECTION + """
+f(lst)
+{
+    foreach (local x in lst)
+    {
+        try { if (x) return x; }
+        finally { lst = nil; }
+    }
+    for (local i in 1..lst)
+        return i;
+    for (local i in lst) { }
+    foreach (local x in lst) { return 1; }
+    lst = 2;
+}
+g(lst)
+{
+    for (local i in lst)
+        return i;
+}
+h(lst)
+{
+    foreach (local x in lst)
+        return x;
+}
+_main(args) { return f(args) + g(args) + h(args); }
+"""
+
+programs["isin1"] = """
+a: object;
+b: object;
+_main(args)
+{
+    local x = args is in (1, 2, 3);
+    local y = args not in (a, b);
+    if (args is in (1)) return 1;
+    if (1 is in (1, 2)) return 2;
+    if (1 is in (2, 3)) return 3;
+    if (1 not in (2, args)) return 4;
+    if (1 is in (args, 2, 1, x)) return 5;
+    if (a is in (b, a)) return 6;
+    args is in (1, 2);
+    args not in ();
+    if (1 is in ()) return 7;
+    if ('' not in ()) return 8;
+    x = [1] is in ();
+    while (args is in (x)) { }
+    x = (args is in (x, y) ? 1 : 2) + (1 not in (1) ? 3 : 4);
+    return x + y + (args is in (a, 'str', [1], nil)) + ('s' is in ('s')) + (nil not in (args))
+        + (args is in (x) is in (true)) + (args == x is in (1)) + (args is in (1) == 2);
+}
+"""
+
 mistakes = {
     "e_undef": "_main(args) { return undefinedThing; }",
     "e_undefcall": "_main(args) { return undefinedFunc(1); }",
@@ -1420,6 +1501,14 @@ mistakes = {
     "e_export1": "property a b, 1, , c d;\nproperty;\nproperty x\nexport;\nexport 1;\nexport a b;\nexport a 'x' y;\n_main(args) { }",
     "e_export2": "export a 'LastProp';\nexport b 'operator +';\nexport c 'Constructor';\nexport d 'same';\nexport e 'same';\nexport f 'same';\nexport tadsSay 'bif';\nintrinsic 'tads-io/030007' { tadsSay(val, ...); }\n_main(args) { }",
     "e_export3": "f() { }\nproperty f, _main;\nexport g;\ng() { }\n_main(args) { }",
+    "e_forin1": "_main(args) { foreach (local x in args) ; for (local i in args) ; }",
+    "e_forin2": COLLECTION + "_main(args)\n{\n    foreach;\n    foreach (;\n    foreach (local 1 in args) ;\n    foreach (x args) ;\n    foreach (local x in args ;\n    for (local i in ) ;\n    for (local i in 1.. ) ;\n    for (i in 1..2 step ) ;\n    for (local i in args ; ; ) ;\n    for (local i in args, ) ;\n}",
+    "e_forin3": COLLECTION + "_main(args) { for (local i in 1..2 ; i < 2 ; ) ; for (1 in args) ; foreach (2 in args) ; for (nosuch in args) ; foreach (local x in nosuch2) ; }",
+    "e_forin4": COLLECTION + "_main(args) { foreach (local x in args) { local y = x; } return x; }\nf() { foreach (local a in 1) break; continue; }",
+    "e_forin5": COLLECTION + "_main(args) { foreach (local x in args",
+    "e_forin6": COLLECTION + "_main(args) { for (local x in 1..",
+    "e_isin1": "_main(args)\n{\n    args is in 1, 2);\n    args is in (1 2);\n    args is in (1, ;\n    args not in (1, 2;\n    args is 3;\n    args not 4;\n}",
+    "e_isin2": "_main(args) { return args is in (nosuch, 1) + (args is in (1",
 }
 
 # The compiler gives up after a hundred errors, whether it finds them
@@ -1437,6 +1526,8 @@ mistakes["e_many2"] = (
 mistakes["e_many6"] = "_main(args) {\n" + "  u();\n" * 150 + "}"
 mistakes["e_many3"] = "_main(args) {\n" + "  1 2;\n" * 150 + "}"
 mistakes["e_many4"] = "_main(args) {\n" + "  [1][2];\n" * 101 + "}"
+mistakes["e_many7"] = "_main(a) { for (a x"
+mistakes["e_many8"] = "_main(a) { for (local i = 1, "
 mistakes["e_many5"] = "_main(args) {\n" + "  1 2;\n" * 100 + "}"
 
 

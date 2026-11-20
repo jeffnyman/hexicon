@@ -11,8 +11,8 @@ use std::rc::Rc;
 use hexicon_bytecode::{Layout, Opcode as Op};
 
 use crate::ast::{
-    Arg, AsiOp, BinOp, Catch, CodeBody, ConstVal, Expr, Finally, LabelSym, LocalId, Stmt, StmtKind,
-    TabId, UnOp, Value, flow,
+    Arg, AsiOp, BinOp, Catch, CodeBody, ConstVal, Expr, Finally, ForIn, LabelSym, LocalId, Stmt,
+    StmtKind, TabId, UnOp, Value, flow,
 };
 use crate::codegen::{CodeGen, Label};
 use crate::flow::Flow;
@@ -706,6 +706,15 @@ impl Gen<'_> {
                     self.fold_stmt(body);
                 }
             }
+            StmtKind::Foreach {
+                iter, coll, body, ..
+            } => {
+                self.fold_in_place(iter);
+                self.fold_in_place(coll);
+                if let Some(body) = body {
+                    self.fold_stmt(body);
+                }
+            }
             StmtKind::While { cond, body, .. } | StmtKind::DoWhile { body, cond, .. } => {
                 self.fold_in_place(cond);
                 if let Some(body) = body {
@@ -729,6 +738,59 @@ impl Gen<'_> {
                 Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_)) | None => Expr::Sym(name),
             },
             Expr::SelfRef | Expr::Inh | Expr::InhClass(_) | Expr::CtxEle(_) => expr,
+            Expr::IsIn {
+                left,
+                args,
+                not,
+                hit,
+            } => {
+                let left = self.fold_expr(*left);
+                let args: Vec<Expr> = args.into_iter().map(|arg| self.fold_expr(arg)).collect();
+                // The reference means to compare a constant on the left
+                // with the constants in the list here, but looks at the
+                // wrong thing to tell whether they are constants, and
+                // never finds one. So the test is left for when the
+                // program runs, unless the list is empty, when a
+                // constant is in it for certain not.
+                if args.is_empty() {
+                    if let Expr::Const(mut value) = left {
+                        value.set_bool(not);
+                        return Expr::Const(value);
+                    }
+                }
+                Expr::IsIn {
+                    left: Box::new(left),
+                    args,
+                    not,
+                    hit,
+                }
+            }
+            Expr::ForIn(for_in) => Expr::ForIn(Box::new(match *for_in {
+                ForIn::Coll {
+                    lval,
+                    expr,
+                    iter_local,
+                } => ForIn::Coll {
+                    lval: self.fold_expr(lval),
+                    expr: self.fold_expr(expr),
+                    iter_local,
+                },
+                ForIn::Range {
+                    lval,
+                    from,
+                    to,
+                    step,
+                    to_local,
+                    step_local,
+                } => ForIn::Range {
+                    lval: self.fold_expr(lval),
+                    from: self.fold_expr(from),
+                    to: self.fold_expr(to),
+                    step: step.map(|step| self.fold_expr(step)),
+                    to_local,
+                    step_local,
+                },
+            })),
             // The address of a property is a constant. What else a
             // name might be the address of is left for the generator.
             Expr::Addr(sub) => match &*sub {
@@ -1547,8 +1609,10 @@ impl Gen<'_> {
                 id,
             } => {
                 let old_frame = self.set_local_frame(*symtab);
+                let mut for_ins = Vec::new();
                 if let Some(init) = init {
                     self.gen_expr(init, true, true);
+                    init.for_ins(&mut for_ins);
                 }
                 let top_lbl = self.cg.new_label_here();
                 let cont_lbl = self.cg.new_label();
@@ -1558,6 +1622,9 @@ impl Gen<'_> {
                     break_lbl: end_lbl,
                     cont_lbl,
                 });
+                for for_in in &for_ins {
+                    self.gen_for_in_cond(for_in, end_lbl);
+                }
                 if let Some(cond) = cond {
                     self.gen_cond(cond, None, Some(end_lbl));
                 }
@@ -1567,6 +1634,36 @@ impl Gen<'_> {
                 self.cg.def_label(cont_lbl);
                 if let Some(reinit) = reinit {
                     self.gen_expr(reinit, true, true);
+                }
+                for for_in in &for_ins {
+                    self.gen_for_in_reinit(for_in);
+                }
+                self.cg.write_jump(Op::Jmp, top_lbl);
+                self.cg.def_label(end_lbl);
+                self.enclosing.pop();
+                self.set_local_frame(old_frame);
+            }
+            StmtKind::Foreach {
+                iter,
+                coll,
+                body,
+                symtab,
+                id,
+                iter_local,
+            } => {
+                let old_frame = self.set_local_frame(*symtab);
+                let local = self.prog.locals[*iter_local].var_num;
+                self.gen_iter_init(coll, local, "foreach");
+                let top_lbl = self.cg.new_label_here();
+                let end_lbl = self.cg.new_label();
+                self.enclosing.push(Enclosing::Loop {
+                    id: *id,
+                    break_lbl: end_lbl,
+                    cont_lbl: top_lbl,
+                });
+                self.gen_iter_cond(iter, local, end_lbl);
+                if let Some(body) = body {
+                    self.gen_substm(body, stmt);
                 }
                 self.cg.write_jump(Op::Jmp, top_lbl);
                 self.cg.def_label(end_lbl);
@@ -1659,7 +1756,12 @@ impl Gen<'_> {
                 }
                 let labels_loop = matches!(
                     inner.map(|stmt| &stmt.kind),
-                    Some(StmtKind::For { .. } | StmtKind::While { .. } | StmtKind::DoWhile { .. })
+                    Some(
+                        StmtKind::For { .. }
+                            | StmtKind::Foreach { .. }
+                            | StmtKind::While { .. }
+                            | StmtKind::DoWhile { .. }
+                    )
                 );
                 self.enclosing.push(Enclosing::Label {
                     id: *id,
@@ -2436,6 +2538,71 @@ impl Gen<'_> {
                     self.cg.note_push();
                 }
             }
+            Expr::IsIn {
+                left,
+                args,
+                not,
+                hit,
+            } => {
+                // The left side is compared with each in turn. If the
+                // answer is known already, there is only the one way
+                // out.
+                let lbl_found = self.cg.new_label();
+                let lbl_done = (!hit && !discard).then(|| self.cg.new_label());
+                self.gen_expr(left, false, false);
+                for arg in args {
+                    self.cg.write_op(Op::Dup);
+                    self.gen_expr(arg, false, false);
+                    self.cg.write_jump(Op::Je, lbl_found);
+                    self.cg.note_push();
+                    self.cg.note_pops(2);
+                }
+                if let Some(lbl_done) = lbl_done {
+                    self.cg.write_op(Op::Disc);
+                    self.cg
+                        .write_op(if *not { Op::PushTrue } else { Op::PushNil });
+                    self.cg.write_jump(Op::Jmp, lbl_done);
+                }
+                self.cg.def_label(lbl_found);
+                self.cg.write_op(Op::Disc);
+                if discard {
+                    self.cg.note_pop();
+                } else {
+                    self.cg
+                        .write_op(if *not { Op::PushNil } else { Op::PushTrue });
+                }
+                if let Some(lbl_done) = lbl_done {
+                    self.cg.def_label(lbl_done);
+                }
+            }
+            Expr::ForIn(for_in) => match &**for_in {
+                ForIn::Coll {
+                    expr, iter_local, ..
+                } => {
+                    let local = self.prog.locals[*iter_local].var_num;
+                    self.gen_iter_init(expr, local, "for");
+                }
+                ForIn::Range {
+                    lval,
+                    from,
+                    to,
+                    step,
+                    to_local,
+                    step_local,
+                } => {
+                    self.gen_asi(lval, true, 1, AsiOp::Simple, Some(from), false, true);
+                    if let (false, Some(local)) = (to.is_const(), to_local) {
+                        self.gen_expr(to, false, false);
+                        self.gen_setlcl_stk(self.prog.locals[*local].var_num, false);
+                    }
+                    if let (Some(step), Some(local)) = (step, step_local) {
+                        if !step.is_const() {
+                            self.gen_expr(step, false, false);
+                            self.gen_setlcl_stk(self.prog.locals[*local].var_num, false);
+                        }
+                    }
+                }
+            },
             Expr::Member {
                 obj,
                 prop,
@@ -2650,6 +2817,142 @@ impl Gen<'_> {
             Expr::DStr(_) | Expr::DStrEmbed(_) => false,
             Expr::OneOf(dbl, _) => !dbl,
             _ => true,
+        }
+    }
+
+    // ---- loops over collections and ranges ----
+
+    /// Make an iterator for a collection, and keep it in a local. How
+    /// is the first thing the built-in class `collection` is declared
+    /// to do.
+    fn gen_iter_init(&mut self, coll: &Expr, local: usize, keyword: &str) {
+        let create_iter = self
+            .prog
+            .meta_table
+            .iter()
+            .find(|entry| entry.name.starts_with(b"collection/"))
+            .and_then(|entry| entry.sym)
+            .and_then(|sym| self.prog.metas[sym].props.first().copied());
+        let Some(prop) = create_iter else {
+            self.error(format!(
+                "Container.createIterator is not defined - {keyword}..in is not valid"
+            ));
+            return;
+        };
+        let prop = Expr::constant(Value::Prop(self.prog.props[prop].id));
+        self.gen_member(coll, &prop, false, 0, false, false);
+        self.gen_setlcl_stk(local, false);
+    }
+
+    /// Take the next value from an iterator, or leave the loop if there
+    /// is none.
+    fn gen_iter_cond(&mut self, lval: &Expr, local: usize, end_lbl: Label) {
+        self.cg.write_op(Op::IterNext);
+        self.cg.write2(local as u16);
+        self.cg.write_label_ofs(end_lbl);
+        self.cg.note_push();
+        self.gen_asi(lval, true, 1, AsiOp::Simple, None, false, true);
+    }
+
+    /// What an `in` clause of a `for` does at the top of each turn.
+    fn gen_for_in_cond(&mut self, for_in: &ForIn, end_lbl: Label) {
+        match for_in {
+            ForIn::Coll {
+                lval, iter_local, ..
+            } => {
+                let local = self.prog.locals[*iter_local].var_num;
+                self.gen_iter_cond(lval, local, end_lbl);
+            }
+            ForIn::Range {
+                lval,
+                to,
+                step,
+                to_local,
+                step_local,
+                ..
+            } => {
+                self.gen_expr(lval, false, false);
+                match (to.is_const(), to_local) {
+                    (false, Some(local)) => {
+                        self.gen_getlcl(self.prog.locals[*local].var_num, false);
+                    }
+                    _ => self.gen_expr(to, false, false),
+                }
+                // Which way the range runs is known if the step is.
+                let sign = match step.as_ref().map(|step| step.as_const()) {
+                    None => 1,
+                    Some(Some(ConstVal {
+                        value: Value::Int(step),
+                        ..
+                    })) => {
+                        if *step < 0 {
+                            -1
+                        } else {
+                            1
+                        }
+                    }
+                    Some(_) => 0,
+                };
+                if sign > 0 {
+                    self.cg.write_jump(Op::Jgt, end_lbl);
+                    self.cg.note_pops(2);
+                } else if sign < 0 {
+                    self.cg.write_jump(Op::Jlt, end_lbl);
+                    self.cg.note_pops(2);
+                } else {
+                    // Find out when the program runs.
+                    self.gen_range_step(step.as_ref(), *step_local);
+                    self.cg.write_op(Op::Push0);
+                    self.cg.note_push();
+                    let down = self.gen_jump_ahead(Op::Jlt);
+                    self.cg.note_pops(2);
+                    self.cg.write_jump(Op::Jgt, end_lbl);
+                    let done = self.gen_jump_ahead(Op::Jmp);
+                    self.def_label_pos(down);
+                    self.cg.write_jump(Op::Jlt, end_lbl);
+                    self.def_label_pos(done);
+                    self.cg.note_pops(2);
+                }
+            }
+        }
+    }
+
+    /// Push a range's step: the local it was put in, if it is not a
+    /// constant.
+    fn gen_range_step(&mut self, step: Option<&Expr>, step_local: Option<LocalId>) {
+        match (step, step_local) {
+            (Some(step), Some(local)) if !step.is_const() => {
+                self.gen_getlcl(self.prog.locals[local].var_num, false);
+            }
+            (Some(step), _) => self.gen_expr(step, false, false),
+            (None, _) => {}
+        }
+    }
+
+    /// What an `in` clause of a `for` does at the end of each turn.
+    fn gen_for_in_reinit(&mut self, for_in: &ForIn) {
+        let ForIn::Range {
+            lval,
+            step,
+            step_local,
+            ..
+        } = for_in
+        else {
+            return;
+        };
+        match (step, step_local) {
+            (None, _) => {
+                let inc = Expr::IncDec(AsiOp::PreInc, Box::new(lval.clone()));
+                self.gen_expr(&inc, true, false);
+            }
+            (Some(step), local) => {
+                let step = match local {
+                    Some(local) if !step.is_const() => Expr::Local(*local),
+                    _ => step.clone(),
+                };
+                let add = Expr::Assign(AsiOp::Add, Box::new(lval.clone()), Box::new(step));
+                self.gen_expr(&add, true, false);
+            }
         }
     }
 

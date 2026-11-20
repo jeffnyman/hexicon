@@ -106,6 +106,23 @@ intrinsic 'tads-io/030007'
 {
     tadsSay(val, ...);
 }
+intrinsic class Object 'root-object/030004'
+{
+    ofKind(cls);
+    getSuperclassList();
+    propDefined(prop, flags?);
+}
+intrinsic class Collection 'collection/030000': Object
+{
+    createIterator();
+    createLiveIterator();
+}
+intrinsic class List 'list/030008': Collection
+{
+    subset(func);
+    mapAll(func);
+    length();
+}
 """
 ASSIGN = ["=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ">>>="]
 # String templates a program can have: the definition, the function's
@@ -397,11 +414,16 @@ class Program:
             count = argc + (rng.randint(0, 2) if more else 0)
             args = ", ".join(self.expr(scope, depth - 2) for _ in range(count))
             return f"{name}({args})"
-        if kind < 0.83:
+        if kind < 0.81:
             return (
                 f"({self.expr(scope, depth - 1)} ? {self.expr(scope, depth - 1)}"
                 f" : {self.expr(scope, depth - 1)})"
             )
+        if kind < 0.83:
+            count = rng.randint(0, 3)
+            items = ", ".join(self.expr(scope, depth - 2) for _ in range(count))
+            word = rng.choice(["is in", "not in"])
+            return f"({self.operand(scope, depth - 1)} {word} ({items}))"
         if kind < 0.87:
             return f"({self.expr(scope, depth - 1)} ?? {self.expr(scope, depth - 1)})"
         if kind < 0.89:
@@ -498,6 +520,8 @@ class Program:
         kind = rng.random() if force is None else force
         if (depth <= 0 and (force is None or force < 0.35)) or kind < 0.35:
             return self.simple(scope, indent, in_loop)
+        if force is None and rng.random() < 0.08:
+            return self.for_in(scope, depth, indent)
         if kind < 0.5:
             name = rng.choice(NAMES)
             # A block cannot declare a name twice.
@@ -614,6 +638,26 @@ class Program:
             lines += ["    " + line for line in body if "return " not in line]
         lines.append("}" if braces else ";")
         return lines
+
+    def for_in(self, scope, depth, indent):
+        """A loop over a collection or a range."""
+        rng = self.rng
+        pad = "    " * indent
+        name = rng.choice(NAMES)
+        inner = list(scope)
+        if rng.random() < 0.7 or not scope:
+            var = f"local {name}"
+            inner.append(name)
+        else:
+            var = rng.choice(scope)
+        if rng.random() < 0.4:
+            head = f"foreach ({var} in {self.expr(scope, 2)})"
+        elif rng.random() < 0.5:
+            head = f"for ({var} in {self.expr(scope, 2)})"
+        else:
+            step = rng.choice(["", "", " step 2", " step -1", f" step {self.expr(scope, 1)}"])
+            head = f"for ({var} in {self.expr(scope, 2)}..{self.expr(scope, 2)}{step})"
+        return [pad + head] + self.body(inner, depth - 1, indent, 2)
 
     def function(self, name, argc, more):
         params = [f"p{index}" for index in range(argc)]

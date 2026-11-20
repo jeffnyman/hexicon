@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    Arg, AsiOp, BinOp, Catch, CodeBody, Enclosure, Expr, Finally, LabelSym, LocalId, Stmt,
+    Arg, AsiOp, BinOp, Catch, CodeBody, Enclosure, Expr, Finally, ForIn, LabelSym, LocalId, Stmt,
     StmtKind, TabId, UnOp, Value, flow,
 };
 use crate::flow::Flow;
@@ -1656,11 +1656,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.next();
                     Ok(None)
                 }
-                Tok::Foreach => {
-                    self.unsupported("a \"foreach\" statement");
-                    self.next();
-                    Ok(None)
-                }
+                Tok::Foreach => self.parse_foreach(),
                 Tok::Switch => self.parse_switch(),
                 Tok::Goto => self.parse_goto(),
                 Tok::Try => self.parse_try(),
@@ -1916,6 +1912,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         let mut init: Option<Expr> = None;
         let mut cond = None;
         let mut reinit = None;
+        let mut found_in = false;
         loop {
             let mut done = false;
             let mut expr = None;
@@ -1928,8 +1925,16 @@ impl<'p, 'a> Parser<'p, 'a> {
                         match self.next() {
                             Tok::Asi | Tok::Eq => expr = self.parse_local_initializer(local),
                             Tok::Sym if self.cur_is_sym(b"in") => {
-                                self.unsupported("a \"for\" over a collection");
                                 self.next();
+                                let lval = match local {
+                                    Some(local) => Expr::Local(local),
+                                    None => Expr::constant(Value::Nil),
+                                };
+                                expr = self.parse_for_in_clause(lval);
+                                found_in = true;
+                                if expr.is_none() {
+                                    done = true;
+                                }
                             }
                             _ => self.error_curtok(
                                 "initializer expected after local variable name in \"for\", but found \"%\"",
@@ -1947,6 +1952,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                         self.error("missing expression after comma in \"for\" initializer");
                     }
                 }
+                // With an `in` clause, there need be nothing more.
+                Tok::RPar if found_in => done = true,
                 Tok::RPar | Tok::LBrace | Tok::RBrace => {
                     self.error_curtok(MISSING_PART);
                     done = true;
@@ -1957,8 +1964,15 @@ impl<'p, 'a> Parser<'p, 'a> {
                         done = true;
                     }
                     if self.cur_is_sym(b"in") {
-                        self.unsupported("a \"for\" over a collection");
                         self.next();
+                        expr = match expr {
+                            Some(lval) => self.parse_for_in_clause(lval),
+                            None => None,
+                        };
+                        found_in = true;
+                        if expr.is_none() {
+                            done = true;
+                        }
                     }
                 }
             }
@@ -1976,6 +1990,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Comma => {
                     self.next();
                 }
+                Tok::RPar if found_in => break,
                 Tok::RPar | Tok::LBrace | Tok::RBrace => {
                     self.error_curtok(MISSING_PART);
                     break;
@@ -1985,6 +2000,12 @@ impl<'p, 'a> Parser<'p, 'a> {
                         "expected ',' or ';' in \"for\" initializer, but found \"%\"",
                     );
                     self.next();
+                    // At the end of the source this goes round for
+                    // ever; what stops the reference is its limit on
+                    // errors.
+                    if self.tok.gave_up() {
+                        return Err(Stop);
+                    }
                 }
             }
         }
@@ -2029,6 +2050,165 @@ impl<'p, 'a> Parser<'p, 'a> {
                 body,
                 symtab,
                 id,
+            },
+            file,
+            line,
+        }))
+    }
+
+    /// A local that the source has no name for.
+    fn hidden_local(&mut self, name: &[u8]) -> LocalId {
+        let var_num = self.alloc_local();
+        let (file, line) = self.tok.last_pos();
+        self.prog.locals.push(Local {
+            name: name.to_vec(),
+            is_param: false,
+            var_num,
+            is_list_param: false,
+            val_used: true,
+            val_assigned: true,
+            file,
+            line,
+        });
+        self.prog.locals.len() - 1
+    }
+
+    /// Read what follows `in` among a `for`'s initializers: a
+    /// collection, or a range `from..to` with an optional `step`.
+    fn parse_for_in_clause(&mut self, lval: Expr) -> Option<Expr> {
+        let expr = self.parse_asi_expr()?;
+        let for_in = if self.cur() == Tok::DotDot {
+            self.next();
+            let to = self.parse_asi_expr()?;
+            let step = if self.cur_is_sym(b"step") {
+                self.next();
+                self.parse_asi_expr()
+            } else {
+                None
+            };
+            // An end or a step that is not a constant is worked out
+            // once, and kept in a local.
+            let to_local = (!to.is_const()).then(|| self.hidden_local(b".to"));
+            let step_local = step
+                .as_ref()
+                .is_some_and(|step| !step.is_const())
+                .then(|| self.hidden_local(b".step"));
+            ForIn::Range {
+                lval,
+                from: expr,
+                to,
+                step,
+                to_local,
+                step_local,
+            }
+        } else {
+            ForIn::Coll {
+                lval,
+                expr,
+                iter_local: self.hidden_local(b".iter"),
+            }
+        };
+        Some(Expr::ForIn(Box::new(for_in)))
+    }
+
+    /// Read the list after `is in` or `not in`, from `in` on.
+    fn parse_inlist(&mut self) -> Option<Vec<Expr>> {
+        if self.next() == Tok::LPar {
+            self.next();
+        } else {
+            self.error_curtok("missing '(' after 'in' operator - found \"%\"");
+        }
+        let mut args = Vec::new();
+        loop {
+            if self.cur() == Tok::RPar {
+                break;
+            }
+            args.push(self.parse_asi_expr()?);
+            match self.cur() {
+                Tok::RPar => break,
+                Tok::Comma => {
+                    self.next();
+                }
+                Tok::Sem | Tok::LBrace | Tok::RBrace | Tok::DStrMid | Tok::DStrEnd => {
+                    self.error_curtok("expected ')' at end of 'in' list, but found \"%\"");
+                    return Some(args);
+                }
+                _ => {
+                    self.error_curtok("expected ',' or ')' in 'in' list, but found \"%\"");
+                    if self.cur() == Tok::Eof {
+                        return Some(args);
+                    }
+                }
+            }
+        }
+        self.next();
+        Some(args)
+    }
+
+    fn parse_foreach(&mut self) -> Parsed<Option<Stmt>> {
+        let (file, line) = self.tok.last_pos();
+        let scope = self.enter_scope();
+        if self.next() == Tok::LPar {
+            self.next();
+        } else {
+            self.error_curtok("expected '(' after \"foreach\", but found \"%\"");
+        }
+        match self.cur() {
+            Tok::Local => {
+                self.create_scope_local_symtab();
+                if self.next() == Tok::Sym {
+                    let name = self.cur_text();
+                    self.add_local(&name);
+                } else {
+                    self.error_curtok(
+                        "expected symbol name in local variable declaration, but found \"%\"",
+                    );
+                }
+            }
+            Tok::LPar | Tok::Sym => {}
+            _ => {
+                self.error_curtok("missing expression in \"foreach\" - found \"%\"");
+                return Ok(None);
+            }
+        }
+        let Some(iter) = self.parse_expr() else {
+            return Ok(None);
+        };
+        if self.cur_is_sym(b"in") {
+            self.next();
+        } else {
+            self.error_curtok("\"in\" required in \"foreach\" - found \"%\"");
+            match self.cur() {
+                Tok::LBrace | Tok::RBrace | Tok::Sem | Tok::Eof => return Ok(None),
+                Tok::RPar => {
+                    self.next();
+                }
+                _ => {}
+            }
+        }
+        let Some(coll) = self.parse_expr() else {
+            return Ok(None);
+        };
+        if self.cur() == Tok::RPar {
+            self.next();
+        } else {
+            self.error_curtok("missing ')' at end of \"foreach\" expression - found \"%\"");
+        }
+        let symtab = self.local_symtab;
+        let iter_local = self.hidden_local(b".iter");
+        let id = self.enclose(false);
+        let body = self.parse_stm(false, false);
+        self.enclosing.pop();
+        let body = body?.map(Box::new);
+        self.leave_scope(scope);
+        Ok(Some(Stmt {
+            kind: StmtKind::Foreach {
+                iter,
+                coll,
+                body,
+                symtab,
+                id,
+                iter_local,
             },
             file,
             line,
@@ -2227,7 +2407,16 @@ impl<'p, 'a> Parser<'p, 'a> {
             self.next();
             Some(stmt)
         } else {
-            self.error_curtok("label name expected after \"goto\", but found \"%\"");
+            // The reference crashes here, but at the end of the source,
+            // where it shows the token as nothing.
+            let found = if self.cur() == Tok::Eof {
+                String::new()
+            } else {
+                self.tok.cur_token_shown()
+            };
+            self.error(format!(
+                "label name expected after \"goto\", but found \"{found}\""
+            ));
             None
         };
         self.parse_req_sem()?;
@@ -2549,12 +2738,19 @@ impl<'p, 'a> Parser<'p, 'a> {
                 // `is in` and `not in` are tests of equality too. Neither
                 // word is a keyword.
                 if level == 6 && (self.cur_is_sym(b"is") || self.cur_is_sym(b"not")) {
+                    let not = self.cur_is_sym(b"not");
                     self.next();
                     if self.cur_is_sym(b"in") {
-                        self.unsupported("the \"is in\" operator");
-                    } else {
-                        self.tok.unget_token();
+                        let args = self.parse_inlist()?;
+                        lhs = Expr::IsIn {
+                            left: Box::new(lhs),
+                            args,
+                            not,
+                            hit: false,
+                        };
+                        continue;
                     }
+                    self.tok.unget_token();
                 }
                 return Some(lhs);
             };

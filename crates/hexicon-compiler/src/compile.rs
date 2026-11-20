@@ -2,7 +2,7 @@
 
 use crate::emit;
 use crate::image;
-use crate::parse::{Exports, Parser};
+use crate::parse::{Exports, Global, Parser};
 use crate::pp::{Diagnostic, Preprocessor, Severity, SourceFiles};
 
 /// What to compile, and how.
@@ -181,6 +181,20 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
                 crate::pp::show_name(&name)
             ),
         });
+    }
+    // A program has to have somewhere to start.
+    let has_main = matches!(
+        prog.globals.get(b"_main".as_slice()),
+        Some(Global::Func(func)) if generated.func_anchor.contains_key(func)
+    );
+    if !has_main && !prog.globals.contains_key(b"_main".as_slice()) {
+        compiled.diagnostics.push(Diagnostic {
+            file: String::new(),
+            line: 0,
+            severity: Severity::Error,
+            message: "function _main() is not defined".to_owned(),
+        });
+        return compiled;
     }
     for (severity, message) in emit::resolve_exports(&prog, &mut generated) {
         compiled.diagnostics.push(Diagnostic {

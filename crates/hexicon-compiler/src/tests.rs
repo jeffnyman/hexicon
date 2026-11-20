@@ -1310,3 +1310,94 @@ fn exports_come_first_among_the_names_the_image_gives() {
         ]
     );
 }
+
+const COLLECTION: &str = "intrinsic class Object 'root-object/030004' { ofKind(cls); }\n\
+     intrinsic class Collection 'collection/030000': Object { createIterator(); }\n";
+
+#[test]
+fn a_loop_over_a_collection_asks_it_for_an_iterator() {
+    let source = format!("{COLLECTION}_main(args) {{ foreach (local x in args) args = x; }}\n");
+    let compiled = compile_text(&source);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // Two locals: the variable, and one for the iterator.
+    assert_eq!(code[2..4], [2, 0]);
+    // The argument; its createIterator; the result, into local 1;
+    // iternext from local 1, or leave; into local 0
+    assert_eq!(code[10..12], [0x7c, 0x60]);
+    assert_eq!(code[14..16], [0xee, 1]);
+    assert_eq!(code[16..19], [0xa2, 1, 0]);
+    assert_eq!(code[21..23], [0xe0, 0]);
+
+    // Without the class that says what makes an iterator, there is no
+    // such loop.
+    assert_eq!(
+        compile_messages("_main(args) { foreach (local x in args) ; for (local y in args) ; }\n"),
+        [
+            "1: error: Container.createIterator is not defined - foreach..in is not valid",
+            "1: error: Container.createIterator is not defined - for..in is not valid",
+            "1: warning: value is assigned to local variable \"x\" but the value is never used",
+            "1: warning: value is assigned to local variable \"y\" but the value is never used",
+        ]
+    );
+}
+
+#[test]
+fn a_loop_over_a_range_counts() {
+    let compiled = compile_text("_main(args) { for (local i in 1..args step -2) args = i; }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // Two locals: the variable, and one for the end of the range,
+    // which is not a constant.
+    assert_eq!(code[2..4], [2, 0]);
+    // i = 1; the end, into local 1; and at the top the two are
+    // compared, to leave if i is the less, since the step is negative.
+    assert_eq!(code[10..12], [0xda, 0]);
+    assert!(code.windows(3).any(|bytes| bytes == [0x7c, 0xe0, 1]));
+    assert!(code[12..40].contains(&0x98));
+}
+
+#[test]
+fn a_test_for_being_among_some_values_compares_with_each() {
+    let compiled = compile_text("_main(args) { return args is in (1, 2); }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // the argument; dup; 1; je; dup; 2; je; discard; return nil,
+    // where the jump past the rest was; discard; return true
+    assert_eq!(
+        code(&image)[10..30],
+        [
+            0x7c, 0x88, 0x02, 0x94, 0x0d, 0, 0x88, 0x03, 2, 0x94, 0x07, 0, 0x89, 0x08, 0x50, 0xf2,
+            0xf2, 0x89, 0x52, 0x50,
+        ]
+    );
+    assert_eq!(
+        compile_messages("_main(args) { args is in 1; args not in (1 2); }\n"),
+        [
+            "1: error: missing '(' after 'in' operator - found \"1\"",
+            "1: error: expected ')' at end of 'in' list, but found \";\"",
+            "1: error: expected ',' or ')' in 'in' list, but found \"2\"",
+        ]
+    );
+}
+
+#[test]
+fn a_source_that_ends_in_a_for_header_stops_at_the_limit_on_errors() {
+    let messages = compile_messages("_main(a) { for (a x\n");
+    assert_eq!(messages.len(), 102);
+    assert!(messages[101].contains("fatal error: too many errors"));
+}

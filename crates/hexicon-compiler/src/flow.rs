@@ -103,7 +103,13 @@ impl Flow<'_> {
                     flow::RET_VOID
                 }
             }
-            StmtKind::For { cond, body, .. } => {
+            StmtKind::Foreach { body, .. } => match body {
+                Some(body) => (self.control_flow(body) | flow::NEXT) & !(flow::BREAK | flow::CONT),
+                None => flow::NEXT,
+            },
+            StmtKind::For {
+                init, cond, body, ..
+            } => {
                 let cond_const = cond.as_ref().and_then(|cond| cond.as_const());
                 if let (Some(value), Some(body)) = (cond_const, body) {
                     if !value.is_true() && !body.has_code_label() && !self.syntax_only {
@@ -126,6 +132,14 @@ impl Flow<'_> {
                     flags |= flow::NEXT;
                 }
                 if cond.is_some() && cond_const.is_none_or(|value| !value.is_true()) {
+                    flags |= flow::NEXT;
+                }
+                // A loop over a collection or a range ends.
+                let mut for_ins = Vec::new();
+                if let Some(init) = init {
+                    init.for_ins(&mut for_ins);
+                }
+                if !for_ins.is_empty() {
                     flags |= flow::NEXT;
                 }
                 flags & !(flow::BREAK | flow::CONT)

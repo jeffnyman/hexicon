@@ -40,9 +40,40 @@ longest(strings)
     return best;
 }
 
+// The numbers up to a limit that are not in a list, and their sum.
+missing(limit, taken)
+{
+    local sum = 0;
+    for (local n in 1..limit)
+    {
+        local found = nil;
+        foreach (local t in taken)
+        {
+            if (t == n)
+                found = true;
+        }
+        if (!found)
+        {
+            "<<n>> ";
+            sum += n;
+        }
+    }
+    return sum;
+}
+
 _main(args)
 {
     t3SetSay(say);
+    "Missing: <<missing(8, [2, 3, 5, 7])>> in all.\n";
+    "Counting down by threes:";
+    for (local n in 10..1 step -3)
+        " <<n>>";
+    ". Each part of the box:";
+    for (local part in box.parts)
+        " <<part>>";
+    ".\n";
+    "Three <<3 is in (1, 2, 3) ? 'is' : 'is not'>> among the first three,
+    and <<3 not in (4, 5) ? 'is not' : 'is'>> among the next two.\n";
     box.describe();
     pebble.describe();
     "\n";
