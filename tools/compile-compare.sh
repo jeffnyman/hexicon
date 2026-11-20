@@ -46,9 +46,13 @@ for file in "$@"; do
     --unspecified "$(native "$out/$name.skip")" "$src" 2>&1 \
     | tr -d '\r' > "$out/$name.hex.msg"
   # What the reference says besides the problems it finds: the steps of
-  # the build, each on a line starting with a tab, and the totals.
+  # the build, each on a line starting with a tab, and the totals. A
+  # message that names the object file the reference wrote gives the
+  # folder it is in; Hexicon, which writes none, gives the name alone.
   tr -d '\r' < "$out/$name.ref.log" \
-    | grep -v -e "^$tab" -e '^Errors: ' -e '^Warnings: ' > "$out/$name.ref.msg"
+    | grep -v -e "^$tab" -e '^Errors: ' -e '^Warnings: ' \
+    | sed 's|in object file ".*[\\/]\([^\\/"]*\.t3o\)"|in object file "\1"|' \
+    > "$out/$name.ref.msg"
   if ! diff "$out/$name.hex.msg" "$out/$name.ref.msg" > "$out/$name.msgdif"; then
     fail=$((fail + 1))
     echo "DIFF $file: messages ($(grep -c '^[<>]' "$out/$name.msgdif") lines)"

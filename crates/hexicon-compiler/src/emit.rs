@@ -48,6 +48,8 @@ pub(crate) struct GenObj {
     pub is_class: bool,
     pub superclasses: Vec<u32>,
     pub props: Vec<GenProp>,
+    /// It holds what the program adds to a built-in class.
+    pub icmod: bool,
 }
 
 /// A property of an object: its number, and its value as a kind and
@@ -127,6 +129,9 @@ pub(crate) struct Generated {
     pub static_inits: Vec<(u32, u16)>,
     /// The objects, in the order they were generated.
     pub objs: Vec<GenObj>,
+    /// For each built-in class in `metas`, the object that holds what
+    /// the program adds to it, or zero.
+    pub meta_mod_objs: Vec<u32>,
     /// The number the next property would get.
     pub next_prop_id: u16,
     /// The number each property has in the image, by the number it
@@ -275,10 +280,27 @@ pub(crate) fn resolve_exports(
 /// The functions that the code refers to but the program never defines,
 /// in the order the reference reports them: the order of its table of
 /// global names when it links.
+/// The functions `replace` or `modify` was used on before they were
+/// defined, in the order the reference comes to them when it puts the
+/// program together.
+pub(crate) fn early_redefs(prog: &Program) -> Vec<Vec<u8>> {
+    let mut funcs: Vec<&crate::parse::FuncSym> =
+        prog.funcs.iter().filter(|func| func.ext_redef).collect();
+    funcs.sort_by_key(|func| {
+        func.name
+            .iter()
+            .map(|&byte| usize::from(byte))
+            .sum::<usize>()
+            % LABEL_HASH_SIZE
+    });
+    funcs.into_iter().map(|func| func.name.clone()).collect()
+}
+
 pub(crate) fn unresolved_externs(prog: &Program, generated: &Generated) -> Vec<Vec<u8>> {
     let mut funcs: Vec<usize> = generated
         .fixups
         .iter()
+        .chain(&generated.static_fixups)
         .chain(&generated.const_fixups)
         .filter_map(|fixup| match fixup.target {
             Target::Func(func) if prog.funcs[func].body.is_none() => Some(func),
@@ -635,6 +657,17 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
             (entry.name.clone(), props, sym.map(|sym| sym.obj_id))
         })
         .collect();
+    out.meta_mod_objs = generator
+        .prog
+        .meta_table
+        .iter()
+        .map(|entry| {
+            entry
+                .sym
+                .and_then(|sym| generator.prog.metas[sym].mod_obj)
+                .unwrap_or(0)
+        })
+        .collect();
     for obj in &mut out.objs {
         for prop in &mut obj.props {
             prop.id = prop_ids[usize::from(prop.id)];
@@ -836,7 +869,9 @@ impl Gen<'_> {
                 Some(Global::Enum(sym)) => Expr::constant(Value::Enum(self.enum_ids[*sym])),
                 Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_)) | None => Expr::Sym(name),
             },
-            Expr::SelfRef | Expr::Inh | Expr::InhClass(_) | Expr::CtxEle(_) => expr,
+            Expr::SelfRef | Expr::Inh | Expr::InhClass(_) | Expr::CtxEle(_) | Expr::Replaced => {
+                expr
+            }
             Expr::IsIn {
                 left,
                 args,
@@ -1096,16 +1131,29 @@ impl Gen<'_> {
         bodies: &[(CodeBody, Option<usize>)],
         scopes: &mut Vec<Vec<TabId>>,
     ) {
-        let Some(sym) = def.sym else {
-            return;
+        // An object has a name, or at least a number.
+        let id = match (def.mod_id, def.sym) {
+            (Some(id), _) => id,
+            (None, Some(sym)) => self.prog.objs[sym].id,
+            (None, None) => return,
         };
+        if def.replaced {
+            return;
+        }
+        let sym = def.sym;
         (self.cur_file, self.cur_line) = (def.file, def.line);
+        // A definition that `modify` has put another in front of is an
+        // object of its own, and a class, whatever it was.
         let mut obj = GenObj {
-            id: self.prog.objs[sym].id,
-            is_class: def.is_class,
+            id,
+            is_class: def.is_class || (def.mod_id.is_some() && def.meta.is_none()),
             superclasses: Vec::new(),
             props: Vec::new(),
+            icmod: def.meta.is_some(),
         };
+        // And that object is the one superclass of the definition in
+        // front of it.
+        obj.superclasses.extend(def.mod_base);
         for name in &def.superclasses {
             match self.prog.globals.get(name) {
                 Some(Global::Obj(superclass)) => {
@@ -1118,7 +1166,9 @@ impl Gen<'_> {
                     ));
                 }
                 None => {
-                    let obj_name = show_name(&self.prog.objs[sym].name);
+                    let obj_name = sym.map_or_else(String::new, |sym| {
+                        show_name(&self.prog.objs[sym].name).to_string()
+                    });
                     self.error(format!(
                         "undefined symbol \"{}\" (used as superclass of \"{obj_name}\")",
                         show_name(name)
@@ -2800,8 +2850,63 @@ impl Gen<'_> {
         self.cg.write4(0);
     }
 
+    /// What `replaced` means where code is being generated: whether
+    /// it means anything, which body it is if that is known, and how
+    /// many arguments the function that has it takes. It means the
+    /// same in a nested function as in the function around it.
+    fn replaced_func(&self) -> (bool, Option<usize>, (usize, usize, bool)) {
+        const NONE: (bool, Option<usize>, (usize, usize, bool)) = (false, None, (0, 0, false));
+        let Some(mut closure) = self.closures.get(self.cur_body) else {
+            return NONE;
+        };
+        // Find the function this code is in, however deep.
+        if !closure.is_func {
+            let mut next = closure.enclosing;
+            loop {
+                let Some(body_ref) = next.map(|body| &self.prog.body_refs[body]) else {
+                    return NONE;
+                };
+                if let Some(body) = body_ref.func_body {
+                    closure = &self.closures[body];
+                    break;
+                }
+                next = body_ref.enclosing;
+            }
+        }
+        // A body its function's name has not been taken from goes by
+        // what the function modifies now, which a later `replace` or
+        // `modify` may have changed.
+        if let Some(func) = closure.func_id {
+            let func = &self.prog.funcs[func];
+            let base = func.mod_bases.first().copied();
+            return (base.is_some() || func.mod_extern, base, func.mod_proto);
+        }
+        (
+            closure.has_replaced,
+            closure.replaced_base,
+            closure.func_proto,
+        )
+    }
+
     fn gen_expr(&mut self, expr: &Expr, discard: bool, for_condition: bool) {
         match expr {
+            // The address of the function as it was before `modify`.
+            Expr::Replaced => {
+                let (available, base, _) = self.replaced_func();
+                if !available {
+                    self.error("'replaced' is not available in this context");
+                }
+                self.cg.write_op(Op::PushFnPtr);
+                if let Some(base) = base {
+                    self.out.fixups.push(Fixup {
+                        ofs: self.cg.ofs(),
+                        target: Target::Body(base),
+                    });
+                }
+                self.cg.write4(0);
+                self.cg.note_push();
+                let _ = (discard, for_condition);
+            }
             Expr::Const(value) => {
                 if discard {
                     return;
@@ -4336,6 +4441,44 @@ impl Gen<'_> {
                         argc
                     );
                     self.error(message);
+                }
+                if !discard {
+                    self.cg.write_op(Op::GetR0);
+                    self.cg.note_push();
+                }
+            }
+            Expr::Replaced => {
+                let (available, base, (min, opt, more)) = self.replaced_func();
+                if !available {
+                    self.error("'replaced' is not available in this context");
+                }
+                if varargs {
+                    self.cg.write_op(Op::VarArgc);
+                }
+                self.cg.write_op(Op::Call);
+                self.cg.write(argc as u8);
+                if let Some(base) = base {
+                    self.out.fixups.push(Fixup {
+                        ofs: self.cg.ofs(),
+                        target: Target::Body(base),
+                    });
+                }
+                self.cg.write4(0);
+                self.cg.note_pops(argc as i32);
+                self.post_call_cleanup(named);
+                // The function as it was takes what the function as it
+                // is takes; it has no name to give in the message.
+                if available && (argc < min || (!more && argc > min + opt)) {
+                    let desc = if more {
+                        format!("{min}+")
+                    } else if opt != 0 {
+                        format!("{min}-{}", min + opt)
+                    } else {
+                        min.to_string()
+                    };
+                    self.error(format!(
+                        "wrong number of arguments to function \"\": {desc} required, {argc} actual"
+                    ));
                 }
                 if !discard {
                     self.cg.write_op(Op::GetR0);

@@ -2284,6 +2284,190 @@ d: object p(x) = static 1;"""
 )
 
 
+# Second definitions: `replace` and `modify`, of functions, of objects,
+# and of the classes built in.
+programs["modify1"] = (
+    BUILTINS
+    + """
+f(x) { return x + 1; }
+g(x) { return x * 2; }
+h(x) { return 'h'; }
+replace f(x) { return x + 10; }
+modify g(x) { local r = replaced; return r(x) + replaced(x) + 100; }
+modify function h(x) { return replaced(x) + '!'; }
+replace function h(x) { return 'new h'; }
+q(x) { return 'q'; }
+modify q(x) { return ({: replaced(x) + '!' })(); }
+k(a, b?) { return a; }
+modify k(a, b?, c?) { return replaced(a) + replaced(a, 2) + replaced(a, [1]...); }
+v(a, ...) { return a; }
+modify v(a, [rest]) { return replaced(a, rest...) + replaced(a, n: 1); }
+_main(args)
+{
+    tadsSay(f(1)); tadsSay(g(1)); tadsSay(h(1)); tadsSay(k(1)); tadsSay(q(1)); tadsSay(v(1));
+}
+"""
+)
+
+programs["modify2"] = (
+    BUILTINS
+    + COLLECTION
+    + """
+class Base: object
+    name = 'base'
+    describe() { return 'I am ' + name; }
+;
+thing: Base
+    name = 'thing'
+    weight = 5
+    describe() { return inherited() + ', weight ' + weight; }
+;
+other: Base name = 'other';
+modify thing
+    weight = 7
+    color = 'red'
+    describe() { return inherited() + ', ' + color; }
+;
+object name = 'no name';
+modify thing
+    replace weight = 9
+    replace describe() { return 'replaced: ' + inherited(); }
+    size = static [weight]
+;
+modify Base
+    describe() { return '[' + inherited() + ']'; }
+    extra = 1
+;
+replace other: object name = 'replaced other' describe() { return name; };
+class Gone: object x = 1;
+replace class Gone: Base x = 2;
+aa: object v = 1;
+modify aa v = 2;
+modify aa { v = 3 w = 4 }
+replace aa: Base, Gone v = 5;
+modify aa v = 6;
+_main(args)
+{
+    tadsSay(thing.describe()); tadsSay(other.describe());
+    tadsSay(new Base().describe()); tadsSay(aa.v); tadsSay(thing.sourceTextOrder);
+    tadsSay(thing.ofKind(Base) ? 'y' : 'n'); tadsSay(Gone.x);
+}
+"""
+)
+
+programs["modify3"] = (
+    BUILTINS
+    + COLLECTION
+    + """
+modify List
+    second() { return self[2]; }
+    describe() { return 'a list'; }
+;
+f() { return 1; }
+modify Object
+    hello() { return 'hello from ' + name; }
+    name = 'something'
+    made = static f()
+;
+modify List
+    second() { return 'second: ' + inherited(); }
+    third = 3
+;
+thing: object name = 'thing';
+modify Collection count = 0;
+modify List;
+_main(args)
+{
+    local l = [1, 2, 3];
+    tadsSay(l.second()); tadsSay(l.describe()); tadsSay(thing.hello());
+    tadsSay(l.hello()); tadsSay(l.third); tadsSay(l.count);
+}
+"""
+)
+
+mistakes["e_modify1"] = (
+    BUILTINS
+    + """
+f() { }
+replace f(x) { }
+g() { }
+modify g(x) { }
+l() { }
+replace function l;
+replace ;
+replace 5;
+b: object;
+replace b() { }
+modify b() { }
+m() { }
+replace m: object;
+_main(args) { }"""
+)
+
+mistakes["e_modify2"] = (
+    BUILTINS
+    + """
+replace a: object;
+modify b x = 1;
+c: object;
+c: object;
+d: object replace x = 1;
+e: object;
+modify e replace x = 1 replace 5 = 2;
+modify 5 x = 1;
+g: object;
+replace g x = 1;
+h: object;
+modify h: object x = 1;
+enum i;
+modify i x = 1;
+j: object p = 1;
+modify j p = 2 p = 3;
+k: object x = static f() y = 1 z() { };
+f() { }
+modify k replace x = 2 replace z = 3 replace q = 4;
+_main(args) { }"""
+)
+
+mistakes["e_modify3"] = (
+    BUILTINS
+    + COLLECTION
+    + """
+modify List length() { return 1; };
+modify List length = 1 createIterator() { } ofKind = 2 x = 3;
+replace List: object;
+modify List: object x = 1;
+modify List replace x = 1;
+class List2: List;
+modify Nope x = 1;
+_main(args) { }"""
+)
+
+mistakes["e_modify7"] = (
+    BUILTINS
+    + """
+h() { return replaced(); }
+i() { return replaced; }
+a: object m() { return replaced(1); } p = (replaced);
+j(a) { }
+modify j(a) { return replaced() + replaced(1, 2); }
+k() { }
+modify k() { }
+replace k() { return replaced(); }
+n(x) { return 1; }
+modify n(x) { return ({: replaced(x) })(); }
+replace n(x) { return 2; }
+_main(args) { }"""
+)
+
+# `replace` and `modify` of a function before the function: the
+# reference finds it when it puts the program together, and each of
+# these is all it then says.
+mistakes["e_modify4"] = "replace f() { }\n_main(args) { }"
+mistakes["e_modify5"] = "modify f() { return replaced(); }\ng() { }\nmodify g() { }\n_main(args) { }"
+mistakes["e_modify6"] = "replace f() { }\nf() { }\nmodify a x = 1;\na: object;\n_main(args) { }"
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

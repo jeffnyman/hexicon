@@ -172,6 +172,9 @@ PROPS = [
 
 class Program:
     def __init__(self, rng):
+        # How many arguments `replaced` takes, in a function defined with
+        # `modify`; elsewhere there is no such thing.
+        self.replaced_argc = None
         self.rng = rng
         # Each function: name, number of parameters, whether it takes more.
         self.funcs = [("_main", 1, False)]
@@ -356,6 +359,14 @@ class Program:
             return self.anon_expr(scope, depth)
         if rng.random() < 0.03:
             return rng.choice(ENUMS)
+        # In a function defined with `modify`, the function as it was.
+        if self.replaced_argc is not None and rng.random() < 0.08:
+            if rng.random() < 0.15:
+                return "replaced"
+            args = ", ".join(
+                self.expr(scope, depth - 2) for _ in range(self.replaced_argc)
+            )
+            return f"replaced({args})"
         kind = rng.random()
         named = [obj[0] for obj in self.objs if obj[0]]
         if named and rng.random() < 0.04:
@@ -633,17 +644,28 @@ class Program:
         inner = self.block(scope, depth - 1, indent + 1, in_loop)
         return [pad + "{"] + inner + [pad + "}"]
 
-    def obj_def(self, name, is_class, supers):
-        """An object or a class, with its properties and methods."""
+    def obj_def(self, name, is_class, supers, redef=None):
+        """An object or a class, with its properties and methods.
+
+        With `redef`, it is a second definition of one there is: a
+        `replace`, which is a definition like the first, or a `modify`,
+        which has no superclasses.
+        """
         rng = self.rng
         head = "class " if is_class else ""
         if name:
             head += name + ": "
         head += ", ".join(supers) if supers else "object"
+        if redef == "modify":
+            head = "modify " + name
+        elif redef == "replace":
+            head = "replace " + head
         braces = rng.random() < 0.3
         lines = [head, "{"] if braces else [head]
         for prop in rng.sample(self.props, rng.randint(0, len(self.props))):
             kind = rng.random()
+            if redef == "modify" and rng.random() < 0.2:
+                prop = "replace " + prop
             if kind < 0.4:
                 lines.append(f"    {prop} = {self.constant()}")
             elif kind < 0.6:
@@ -809,6 +831,35 @@ class Program:
             place = self.rng.randint(place, len(parts))
             parts.insert(place, self.obj_def(name, is_class, supers))
             place += 1
+        # Second definitions come after all the first ones. A function
+        # gets at most one `modify`: the reference cannot put together
+        # a program that modifies one function twice in one file.
+        for name, argc, more in funcs:
+            if name == "_main" or self.rng.random() > 0.12:
+                continue
+            if self.rng.random() < 0.5:
+                self.replaced_argc = argc
+                body = self.function(name, argc, more)
+                self.replaced_argc = None
+                body[0] = "modify " + body[0]
+                parts.append(body)
+            if self.rng.random() < 0.5:
+                body = self.function(name, argc, more)
+                body[0] = "replace " + body[0]
+                parts.append(body)
+        for name, is_class, supers in self.objs:
+            if not name:
+                continue
+            while self.rng.random() < 0.12:
+                kind = "modify" if self.rng.random() < 0.7 else "replace"
+                parts.append(self.obj_def(name, is_class, supers, kind))
+        # And the program can add to the classes built in.
+        for name in ["List", "Object", "Collection"]:
+            if self.rng.random() < 0.06:
+                self.in_method = True
+                body = self.function(self.rng.choice(self.props), 1, False)
+                self.in_method = False
+                parts.append([f"modify {name}"] + ["    " + line for line in body] + [";"])
         for part in parts:
             lines += part
         enums = "enum red, green;\nenum token tokWord;\n"

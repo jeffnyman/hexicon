@@ -406,12 +406,21 @@ pub(crate) fn write_image(
 
     // The objects, all in one block. (The reference means to start a
     // new block when one is full, but never counts what it has put in.)
-    if !generated.objs.is_empty() {
+    // After them, in a block of their own, come the objects that hold
+    // what the program adds to built-in classes, which are of the
+    // seventh of the metaclasses every image has.
+    let (icmod_objs, plain_objs): (Vec<_>, Vec<_>) = std::mem::take(&mut generated.objs)
+        .into_iter()
+        .partition(|obj| obj.icmod);
+    for (metaclass, mut gen_objs) in [(0u16, plain_objs), (6u16, icmod_objs)] {
+        if gen_objs.is_empty() {
+            continue;
+        }
         let mut objs = Vec::new();
-        objs.extend_from_slice(&(generated.objs.len() as u16).to_le_bytes());
-        // They are of the first metaclass, and the block has no flags.
-        objs.extend_from_slice(&[0; 4]);
-        let mut gen_objs = std::mem::take(&mut generated.objs);
+        objs.extend_from_slice(&(gen_objs.len() as u16).to_le_bytes());
+        // The metaclass, and the block's flags, of which it has none.
+        objs.extend_from_slice(&metaclass.to_le_bytes());
+        objs.extend_from_slice(&[0; 2]);
         for obj in &mut gen_objs {
             obj.props.sort_by_key(|prop| prop.id);
             let size = 6 + 4 * obj.superclasses.len() + 7 * obj.props.len();
@@ -478,7 +487,8 @@ pub(crate) fn write_image(
             objs.extend_from_slice(&8u16.to_le_bytes());
             objs.extend_from_slice(&8u16.to_le_bytes());
             objs.extend_from_slice(&(meta as u16).to_le_bytes());
-            objs.extend_from_slice(&0u32.to_le_bytes());
+            let mod_obj = generated.meta_mod_objs.get(meta).copied().unwrap_or(0);
+            objs.extend_from_slice(&mod_obj.to_le_bytes());
         }
         writer.block(b"OBJS", true, &objs);
     }

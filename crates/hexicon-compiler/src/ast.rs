@@ -193,6 +193,9 @@ pub(crate) enum Expr {
     IfNil(Box<Expr>, Box<Expr>),
     /// A call, with its arguments in the order the source has them.
     Call(Box<Expr>, Vec<Arg>),
+    /// `replaced`: in a function defined with `modify`, the function
+    /// as it was before.
+    Replaced,
     /// A list with an element that is not a constant.
     List(Vec<Expr>),
     /// `a[b]`
@@ -562,6 +565,23 @@ pub(crate) struct CodeBody {
 /// each context it was given in a local of its own.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Closure {
+    /// The body is a function's, not a method's or an anonymous
+    /// function's.
+    pub is_func: bool,
+    /// The function was defined with `modify`, so `replaced` means
+    /// something in it: the body of the definition it modified, if
+    /// that is in the source.
+    pub has_replaced: bool,
+    pub replaced_base: Option<usize>,
+    /// The function whose name still means this body, or meant it
+    /// last: an index into the program's functions. A body that
+    /// `modify` has put another in front of has none. While a body has
+    /// one, `replaced` in it means what the function's latest `modify`
+    /// says, not what it meant when the body was read.
+    pub func_id: Option<usize>,
+    /// For a function's body: how many parameters it has to be given,
+    /// how many more it can be, and whether any number beyond that.
+    pub func_proto: (usize, usize, bool),
     /// The body makes a context for its own locals, and keeps it in
     /// this local; and how many elements it has.
     pub has_local_ctx: bool,

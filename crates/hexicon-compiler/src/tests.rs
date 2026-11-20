@@ -1651,3 +1651,142 @@ fn a_static_property_is_code_that_runs_before_the_program() {
         &[0x58, 0, 0, 0, 0, 0, 0xa5, 0xe7, prop[0], prop[1], 0x50]
     ));
 }
+
+/// The data of each of the image's blocks of the given kind.
+fn blocks<'i>(image: &'i [u8], kind: &[u8; 4]) -> Vec<&'i [u8]> {
+    let mut found = Vec::new();
+    let mut pos = 69;
+    while pos + 10 <= image.len() {
+        let size = u32::from_le_bytes(image[pos + 4..pos + 8].try_into().unwrap()) as usize;
+        if &image[pos..pos + 4] == kind {
+            found.push(&image[pos + 10..pos + 10 + size]);
+        }
+        pos += 10 + size;
+    }
+    found
+}
+
+#[test]
+fn modify_puts_a_function_in_front_of_the_one_there_was() {
+    let compiled = compile_text(
+        "f(x) { return x + 1; }\nmodify f(x) { return replaced(x) * 2; }\n\
+         g() { return 77; }\nreplace g() { return 88; }\n\
+         _main(args) { return f(1) + g(); }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // The first f is still at the start of the code, and the second
+    // calls it there.
+    assert_eq!(code[10..13], [0x7c, 0x2e, 0x50]);
+    assert!(has_bytes(code, &[0x7c, 0x58, 1, 0, 0, 0, 0]));
+    // Nothing is generated for the g that was replaced: no function
+    // returns 77.
+    assert!(has_bytes(code, &[0x03, 88, 0x50]));
+    assert!(!has_bytes(code, &[0x03, 77, 0x50]));
+}
+
+#[test]
+fn modify_leaves_the_object_there_was_as_a_class_behind_the_new_one() {
+    let compiled = compile_text("a: object v = 1;\nmodify a v = 2;\n_main(args) { return a.v; }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let objs = block(&image, b"OBJS");
+    // Two objects. The first definition has a number of its own, just
+    // before the number the name has, and is a class with two
+    // properties: v, and where it came in the source.
+    assert_eq!(objs[0..2], [2, 0]);
+    assert_eq!(objs[6..10], [1, 0, 0, 0]);
+    assert_eq!(objs[12..18], [0, 0, 2, 0, 1, 0]);
+    // The second has the first for its superclass, and one property.
+    let second = &objs[6 + 12 + 14..];
+    assert_eq!(second[0..4], [2, 0, 0, 0]);
+    assert_eq!(second[6..16], [1, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
+}
+
+#[test]
+fn modify_of_a_built_in_class_makes_objects_for_what_is_added() {
+    let compiled = compile_text(
+        "intrinsic class Object 'root-object/030004' { ofKind(cls); }\n\
+         modify Object hello = 7;\n_main(args) { }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let all = blocks(&image, b"OBJS");
+    // A block of two objects of the kind that adds to a built-in
+    // class: the one with the property, whose superclass is an empty
+    // one that comes after it.
+    let added = all
+        .iter()
+        .find(|objs| objs[2..4] == [6, 0])
+        .expect("a block of additions");
+    assert_eq!(added[0..2], [2, 0]);
+    assert_eq!(added[6..10], [3, 0, 0, 0]);
+    assert_eq!(added[12..16], [1, 0, 1, 0]);
+    assert_eq!(added[18..22], [2, 0, 0, 0]);
+    // And the object that stands for the class names the first of
+    // them.
+    let class = all.last().expect("the classes");
+    assert_eq!(class[6..10], [1, 0, 0, 0]);
+    assert_eq!(class[16..20], [3, 0, 0, 0]);
+}
+
+#[test]
+fn replace_and_modify_have_their_own_mistakes() {
+    assert_eq!(
+        compile_messages("replace a: object;\n_main(args) { }\n"),
+        ["1: error: replace/modify cannot be used with an object not previously defined"]
+    );
+    assert_eq!(
+        compile_messages("f() { return replaced(); }\n_main(args) { }\n"),
+        ["1: error: 'replaced' is not available in this context"]
+    );
+    // This one is found on the first reading, which ends the matter.
+    assert_eq!(
+        compile_messages("b: object replace x = 1;\n_main(args) { }\n"),
+        ["1: error: \"replace\" can be used with a property only in a \"modify\" object"]
+    );
+    // Used on a function before its definition, they are found out
+    // when the program is put together.
+    assert_eq!(
+        compile_messages("modify f() { }\n_main(args) { }\n"),
+        [
+            "0: error: modified or replaced function \"f\" found in object file \"main.t3o\" \
+             before original function definition was loaded"
+        ]
+    );
+}
+
+#[test]
+fn a_function_can_be_modified_more_than_once() {
+    // The reference cannot put such a program together; here each
+    // definition reaches the one before.
+    let compiled = compile_text(
+        "g(x) { return x * 2; }\nmodify g(x) { return replaced(x) + 1; }\n\
+         modify g(x) { return replaced(x) * 10; }\n_main(args) { return g(3); }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // Two calls with one argument to code with no name: the first
+    // definition, at the start of the code, and the second after it.
+    assert!(has_bytes(code, &[0x58, 1, 0, 0, 0, 0]));
+    let calls = code.windows(2).filter(|pair| *pair == [0x58, 1]).count();
+    assert_eq!(calls, 3);
+}

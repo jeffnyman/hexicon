@@ -115,6 +115,16 @@ pub(crate) struct FuncSym {
     pub has_proto: bool,
     /// Its definition: an index into [`Program::bodies`].
     pub body: Option<usize>,
+    /// The definitions `modify` has put this one in front of, the
+    /// latest first: indexes into [`Program::bodies`].
+    pub mod_bases: Vec<usize>,
+    /// `modify` was used on it when it had no definition yet in what
+    /// had been read, so what it modified is not in the source.
+    pub mod_extern: bool,
+    /// The parameters of the latest definition made with `modify`.
+    pub mod_proto: (usize, usize, bool),
+    /// `replace` or `modify` was used on it before its definition.
+    pub ext_redef: bool,
 }
 
 impl FuncSym {
@@ -160,6 +170,19 @@ pub(crate) struct ObjSym {
     pub is_class: bool,
     /// The names of its superclasses.
     pub sc_names: Vec<Vec<u8>>,
+    /// Its definition as it now stands: an index into
+    /// [`Program::objdefs`].
+    pub def: Option<usize>,
+    /// How many times `modify` has been applied to it, and the numbers
+    /// set aside for the definitions that were modified, the first
+    /// definition's first. Each `modify` leaves the definition before
+    /// it as an object of its own, with a number just before this
+    /// one's.
+    pub mod_count: usize,
+    pub base_ids: Vec<u32>,
+    /// It was made by a `replace` or `modify` of a name that was
+    /// nothing, on the first reading, which passes no such name on.
+    pub undefined_redef: bool,
 }
 
 /// A class built into the virtual machine, as the name the program
@@ -180,6 +203,18 @@ pub(crate) struct MetaSym {
     pub is_ext: bool,
     /// When the name was first met: see [`PropSym::seq`].
     pub seq: u32,
+    /// The built-in class it is declared to be a kind of: an index
+    /// into [`Program::metas`].
+    pub super_meta: Option<usize>,
+    /// How many times `modify` has been applied to it, and the numbers
+    /// set aside for the objects that hold what the program adds to
+    /// the class: one with nothing in it, and then one for each
+    /// `modify`, each the superclass of the next.
+    pub mod_count: usize,
+    pub mod_ids: Vec<u32>,
+    /// The latest of those objects, which is the one the class is told
+    /// about.
+    pub mod_obj: Option<u32>,
 }
 
 /// A built-in class the image depends on.
@@ -263,6 +298,22 @@ pub(crate) struct ObjDef {
     pub props: Vec<ObjProp>,
     pub file: usize,
     pub line: u32,
+    /// The definition is a `modify` of an earlier one, which is its
+    /// only superclass: that definition's number as an object, if it
+    /// has one, and its index in [`Program::objdefs`].
+    pub is_modify: bool,
+    pub mod_base: Option<u32>,
+    pub prev_def: Option<usize>,
+    /// A later `modify` took the object's name and number for a new
+    /// definition, and left this one as an object with this number.
+    pub mod_id: Option<u32>,
+    /// A later `replace` took its place, so nothing is generated for
+    /// it.
+    pub replaced: bool,
+    /// It is not an object of the program's but what the program adds
+    /// to a built-in class with `modify`: an index into
+    /// [`Program::metas`].
+    pub meta: Option<usize>,
 }
 
 /// A definition at the outermost level of the source that code or data
@@ -403,7 +454,7 @@ pub(crate) struct Program {
     pub exports: Vec<(Vec<u8>, Vec<u8>)>,
     /// The bodies of anonymous functions, in the order they were
     /// finished. They are generated after everything else.
-    pub nested: Vec<usize>,
+    pub nested: Vec<Top>,
     /// What bodies know of the bodies around them.
     pub body_refs: Vec<BodyRef>,
     /// The labels of the last function or method read.
@@ -415,6 +466,8 @@ pub(crate) struct Program {
 pub(crate) struct BodyRef {
     pub enclosing: Option<usize>,
     pub local_ctx_needs_full: bool,
+    /// For a function's body: its index in [`Program::bodies`].
+    pub func_body: Option<usize>,
 }
 
 impl Program {
@@ -509,6 +562,9 @@ impl Program {
             .map(|func| FuncSym {
                 is_extern: true,
                 body: None,
+                mod_bases: Vec::new(),
+                mod_extern: false,
+                ext_redef: false,
                 ..func.clone()
             })
             .collect();
@@ -518,9 +574,13 @@ impl Program {
         let mut objs: Vec<ObjSym> = self
             .objs
             .iter()
-            .filter(|obj| !obj.is_extern && self.globals.contains_key(&obj.name))
+            .filter(|obj| {
+                !obj.is_extern && !obj.undefined_redef && self.globals.contains_key(&obj.name)
+            })
             .map(|obj| ObjSym {
                 is_extern: true,
+                def: None,
+                base_ids: Vec::new(),
                 ..obj.clone()
             })
             .collect();
@@ -532,6 +592,9 @@ impl Program {
                 let sym = MetaSym {
                     is_ext: true,
                     props: Vec::new(),
+                    super_meta: None,
+                    mod_ids: Vec::new(),
+                    mod_obj: None,
                     ..meta.clone()
                 };
                 (sym, self.meta_table[meta.meta].name.clone())
@@ -723,6 +786,8 @@ pub(crate) struct Parser<'p, 'a> {
     /// The code body about to be read is a method's in an object
     /// definition.
     body_is_obj_prop: bool,
+    /// The property being read has `replace` before it.
+    prop_replace: bool,
     /// The labels of the function being read.
     labels: Vec<LabelSym>,
     /// The loops, `switch` statements, labeled statements, and `try`
@@ -871,9 +936,27 @@ impl<'p, 'a> Parser<'p, 'a> {
         let mut metas = known.metas;
         for (_, _, is_meta, index) in numbered {
             if is_meta {
-                metas[index].0.obj_id = prog.next_obj_id;
+                // The objects that hold what `modify` adds to the class
+                // come just after the object that stands for it.
+                let meta = &mut metas[index].0;
+                meta.obj_id = prog.next_obj_id;
+                if meta.mod_count != 0 {
+                    for _ in 0..=meta.mod_count {
+                        prog.next_obj_id += 1;
+                        meta.mod_ids.push(prog.next_obj_id);
+                    }
+                }
+                meta.mod_count = 0;
             } else {
-                objs[index].id = prog.next_obj_id;
+                // The definitions a `modify` set aside come just
+                // before the object, the oldest first.
+                let obj = &mut objs[index];
+                for _ in 0..obj.mod_count {
+                    obj.base_ids.push(prog.next_obj_id);
+                    prog.next_obj_id += 1;
+                }
+                obj.mod_count = 0;
+                obj.id = prog.next_obj_id;
             }
             prog.next_obj_id += 1;
         }
@@ -914,6 +997,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             cur_file: 0,
             cur_line: 0,
             body_is_obj_prop: false,
+            prop_replace: false,
             labels: Vec::new(),
             enclosing: Vec::new(),
             next_enclosure_id: 0,
@@ -1086,8 +1170,12 @@ impl<'p, 'a> Parser<'p, 'a> {
             let mut suppress_next_error = false;
             let result = match self.cur() {
                 Tok::Eof => break,
-                Tok::Function | Tok::Method => self.parse_function(true),
-                Tok::Sym => self.parse_object_or_func(suppress_error, &mut suppress_next_error),
+                Tok::Function | Tok::Method => self.parse_function(true, Redef::No),
+                Tok::Sym => {
+                    self.parse_object_or_func(Redef::No, suppress_error, &mut suppress_next_error)
+                }
+                Tok::Replace => self.parse_replace(),
+                Tok::Modify => self.parse_modify(),
                 Tok::Sem => {
                     self.next();
                     Ok(())
@@ -1095,7 +1183,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Intrinsic => self.parse_intrinsic(),
                 Tok::Class => {
                     self.next();
-                    self.parse_object(true)
+                    self.parse_object(true, Redef::No)
                 }
                 Tok::Object => {
                     if self.next() == Tok::Template {
@@ -1120,8 +1208,6 @@ impl<'p, 'a> Parser<'p, 'a> {
                 | Tok::Transient
                 | Tok::Plus
                 | Tok::Inc
-                | Tok::Replace
-                | Tok::Modify
                 | Tok::Dictionary
                 | Tok::Grammar => {
                     if !suppress_error {
@@ -1148,15 +1234,69 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
             suppress_error = suppress_next_error;
         }
-        // The anonymous functions come after everything else.
-        for body in std::mem::take(&mut self.prog.nested) {
-            self.prog.top.push(Top::Func(body));
+        // The anonymous functions come after everything else, and
+        // with them the empty objects that the additions to built-in
+        // classes start from.
+        for nested in std::mem::take(&mut self.prog.nested) {
+            self.prog.top.push(nested);
         }
         self.prog
     }
 
+    /// Read `replace` and the definition after it, which takes the
+    /// place of an earlier definition of the same function or object.
+    fn parse_replace(&mut self) -> Parsed<()> {
+        match self.next() {
+            Tok::Function | Tok::Method => self.parse_function(true, Redef::Replace),
+            Tok::Class => {
+                self.next();
+                self.parse_object(true, Redef::Replace)
+            }
+            Tok::Sym => self.parse_object_or_func(Redef::Replace, false, &mut false),
+            Tok::Grammar | Tok::Transient => {
+                let shown = self.tok.cur_token_shown();
+                self.unsupported(&format!(
+                    "\"replace\" of a definition starting with \"{shown}\""
+                ));
+                self.next();
+                Ok(())
+            }
+            _ => {
+                self.error_curtok(
+                    "expected \"function\" or object name after \"replace\", but found \"%\"",
+                );
+                self.next();
+                Ok(())
+            }
+        }
+    }
+
+    /// Read `modify` and the definition after it, which is added in
+    /// front of an earlier definition of the same function or object.
+    fn parse_modify(&mut self) -> Parsed<()> {
+        match self.next() {
+            Tok::Grammar => {
+                self.unsupported("\"modify\" of a definition starting with \"grammar\"");
+                self.next();
+                return Ok(());
+            }
+            Tok::Function | Tok::Method => return self.parse_function(true, Redef::Modify),
+            Tok::Sym => {
+                let is_lpar = self.next() == Tok::LPar;
+                self.tok.unget_token();
+                if is_lpar {
+                    return self.parse_function(false, Redef::Modify);
+                }
+            }
+            _ => {}
+        }
+        // Anything else is taken for an object's name, whatever it is.
+        self.parse_object(false, Redef::Modify)
+    }
+
     fn parse_object_or_func(
         &mut self,
+        redef: Redef,
         suppress_error: bool,
         suppress_next_error: &mut bool,
     ) -> Parsed<()> {
@@ -1164,7 +1304,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         match self.next() {
             Tok::LPar => {
                 self.tok.unget_token();
-                self.parse_function(false)
+                self.parse_function(false, redef)
             }
             Tok::Template if first == b"string" => self.parse_string_template(),
             Tok::Template => {
@@ -1174,7 +1314,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
             Tok::Colon => {
                 self.tok.unget_token();
-                self.parse_object(false)
+                self.parse_object(false, redef)
             }
             // A name that is an object's, with no colon after it,
             // starts an object without a name: the name is the
@@ -1185,6 +1325,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                 (Some(Global::Obj(_)), _) | (None, true)
             ) =>
             {
+                if redef == Redef::Replace {
+                    self.error("base class list required for object 'replace' definition");
+                }
                 self.tok.unget_token();
                 self.parse_anon_object()
             }
@@ -1198,7 +1341,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         }
     }
 
-    fn parse_function(&mut self, func_kw_present: bool) -> Parsed<()> {
+    fn parse_function(&mut self, func_kw_present: bool, redef: Redef) -> Parsed<()> {
         if func_kw_present {
             self.next();
         }
@@ -1220,10 +1363,14 @@ impl<'p, 'a> Parser<'p, 'a> {
                 return Ok(());
             }
         }
-        let Some((body, has_retval)) = self.parse_code_body(false, CbType::Normal, None, None)?
+        let body_ref = self.prog.body_refs.len();
+        let Some((mut body, has_retval)) =
+            self.parse_code_body(false, CbType::Normal, None, None)?
         else {
             return Ok(());
         };
+        body.closure.is_func = true;
+        body.closure.func_proto = (body.argc, body.opt_argc, body.varargs);
         self.prog.last_labels = std::rc::Rc::clone(&body.labels);
         let (argc, opt_argc, varargs) = (body.argc, body.opt_argc, body.varargs);
 
@@ -1256,12 +1403,12 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
             Some(Global::Func(id)) => {
                 let func = &self.prog.funcs[id];
-                let mut redef = !func.is_extern;
+                let mut clash = !func.is_extern && redef == Redef::No;
                 if func.has_proto {
-                    redef |= func.argc != argc || func.varargs != varargs;
+                    clash |= func.argc != argc || func.varargs != varargs;
                 }
-                if redef {
-                    let message = if func.is_extern {
+                if clash {
+                    let message = if func.is_extern || redef != Redef::No {
                         "function \"%\" has an incompatible previous declaration"
                     } else {
                         "function \"%\" is already defined"
@@ -1273,6 +1420,42 @@ impl<'p, 'a> Parser<'p, 'a> {
                         message.replacen('%', &Self::name(&name), 1),
                     );
                     return Ok(());
+                }
+                let was_extern = func.is_extern;
+                let old_body = func.body;
+                match redef {
+                    // Nothing is generated for the definition replaced,
+                    // nor for any that `modify` had put it in front of.
+                    Redef::Replace if !was_extern => {
+                        let func = &mut self.prog.funcs[id];
+                        let gone = std::mem::take(&mut func.mod_bases);
+                        if std::mem::take(&mut func.mod_extern) {
+                            func.ext_redef = true;
+                        }
+                        for old in old_body.into_iter().chain(gone) {
+                            self.prog.bodies[old].0.replaced = true;
+                        }
+                    }
+                    Redef::Replace => self.prog.funcs[id].ext_redef = true,
+                    // The definition there was stays, as what
+                    // `replaced` means in the new one. It is no longer
+                    // what the function's name means.
+                    Redef::Modify => {
+                        body.closure.has_replaced = true;
+                        let func = &mut self.prog.funcs[id];
+                        func.mod_proto = (argc, opt_argc, varargs);
+                        if let Some(old) = old_body {
+                            body.closure.replaced_base = Some(old);
+                            func.mod_bases.insert(0, old);
+                            let old = &mut self.prog.bodies[old];
+                            old.1 = None;
+                            old.0.closure.func_id = None;
+                        } else {
+                            func.mod_extern = true;
+                            func.ext_redef = true;
+                        }
+                    }
+                    _ => {}
                 }
                 self.prog.funcs[id].is_extern = false;
                 id
@@ -1287,12 +1470,25 @@ impl<'p, 'a> Parser<'p, 'a> {
                     is_extern: false,
                     has_proto: true,
                     body: None,
+                    mod_bases: Vec::new(),
+                    mod_extern: false,
+                    mod_proto: (0, 0, false),
+                    ext_redef: false,
                 });
                 let id = self.prog.funcs.len() - 1;
                 self.prog.globals.insert(name, Global::Func(id));
+                // There has to be something to replace or modify. The
+                // first reading does not mind.
+                if redef != Redef::No && !self.syntax_only {
+                    self.error(
+                        "\"replace\"/\"modify\" cannot be used with a function not previously defined",
+                    );
+                }
                 id
             }
         };
+        body.closure.func_id = Some(func_id);
+        self.prog.body_refs[body_ref].func_body = Some(self.prog.bodies.len());
         self.prog.funcs[func_id].body = Some(self.prog.bodies.len());
         self.prog.top.push(Top::Func(self.prog.bodies.len()));
         self.prog.bodies.push((body, Some(func_id)));
@@ -1377,6 +1573,10 @@ impl<'p, 'a> Parser<'p, 'a> {
                     is_extern: true,
                     has_proto: true,
                     body: None,
+                    mod_bases: Vec::new(),
+                    mod_extern: false,
+                    mod_proto: (0, 0, false),
+                    ext_redef: false,
                 });
                 self.prog
                     .globals
@@ -1696,7 +1896,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         }
         let index = self.prog.bodies.len();
         self.prog.bodies.push((body, None));
-        self.prog.nested.push(index);
+        self.prog.nested.push(Top::Func(index));
         Some(Expr::AnonFunc {
             body: index,
             has_retval,
@@ -1898,6 +2098,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         self.prog.body_refs[body_ref] = BodyRef {
             enclosing,
             local_ctx_needs_full: self.local_ctx_needs_full,
+            func_body: None,
         };
         Ok(Some((body, has_retval)))
     }
@@ -3772,11 +3973,14 @@ impl<'p, 'a> Parser<'p, 'a> {
                         self.tok.cur_token().int_val as i32,
                     )));
                 }
+                Tok::Replaced => {
+                    self.next();
+                    return Some(Expr::Replaced);
+                }
                 Tok::Float
                 | Tok::BigInt
                 | Tok::ReStr
                 | Tok::Object
-                | Tok::Replaced
                 | Tok::ArgCount
                 | Tok::Delegated => {
                     let shown = self.tok.cur_token_shown();
@@ -3844,6 +4048,10 @@ impl Parser<'_, '_> {
                             props: Vec::new(),
                             is_ext: false,
                             seq: self.prog.next_seq,
+                            super_meta: None,
+                            mod_count: 0,
+                            mod_ids: Vec::new(),
+                            mod_obj: None,
                         });
                         self.prog.next_seq += 1;
                         self.prog.next_obj_id += 1;
@@ -3882,7 +4090,11 @@ impl Parser<'_, '_> {
                     None => {
                         self.error_curtok("intrinsic class superclass \"%\" is not defined");
                     }
-                    Some(Global::Meta(_)) => {}
+                    Some(Global::Meta(super_meta)) => {
+                        if let Some(index) = sym {
+                            self.prog.metas[index].super_meta = Some(*super_meta);
+                        }
+                    }
                     Some(_) => self
                         .error_curtok("intrinsic class superclass \"%\" is not an intrinsic class"),
                 }
@@ -4259,11 +4471,96 @@ impl Parser<'_, '_> {
     }
 
     /// Read `name: superclasses properties ;`, from the name on.
-    fn parse_object(&mut self, is_class: bool) -> Parsed<()> {
+    fn parse_object(&mut self, mut is_class: bool, redef: Redef) -> Parsed<()> {
         let name = self.cur_text();
+        let mut modify = None;
         let sym = match self.prog.globals.get(&name).copied() {
+            Some(Global::Meta(meta)) if redef == Redef::Modify => {
+                // What the program adds to a built-in class is kept in
+                // objects of a kind of their own. The first is empty,
+                // and each `modify` makes another, whose superclass is
+                // the one before.
+                let done = self.prog.metas[meta].mod_count;
+                let id_for = |parser: &mut Self, place: usize| match parser.prog.metas[meta]
+                    .mod_ids
+                    .get(place)
+                {
+                    Some(id) => *id,
+                    None => {
+                        parser.prog.next_obj_id += 1;
+                        parser.prog.next_obj_id - 1
+                    }
+                };
+                let base = match self.prog.metas[meta].mod_obj {
+                    Some(base) => base,
+                    None => {
+                        let root = id_for(self, 0);
+                        let (file, line) = self.tok.last_pos();
+                        self.prog.nested.push(Top::Obj(self.prog.objdefs.len()));
+                        self.prog.objdefs.push(ObjDef {
+                            sym: None,
+                            is_class: false,
+                            superclasses: Vec::new(),
+                            props: Vec::new(),
+                            file,
+                            line,
+                            is_modify: false,
+                            mod_base: None,
+                            prev_def: None,
+                            mod_id: Some(root),
+                            replaced: false,
+                            meta: Some(meta),
+                        });
+                        root
+                    }
+                };
+                let id = id_for(self, done + 1);
+                let meta_sym = &mut self.prog.metas[meta];
+                meta_sym.mod_count += 1;
+                meta_sym.mod_obj = Some(id);
+                self.next();
+                return self.parse_object_body(
+                    None,
+                    is_class,
+                    false,
+                    Some((base, None)),
+                    Some((meta, id)),
+                );
+            }
+            Some(Global::Obj(obj)) if redef == Redef::Modify => {
+                // The definition there is becomes an object of its own,
+                // with a number of its own, and the only superclass of
+                // the new definition, which takes the name.
+                let sym = &mut self.prog.objs[obj];
+                let done = sym.mod_count;
+                sym.mod_count += 1;
+                sym.is_extern = false;
+                is_class = sym.is_class;
+                let prev = sym.def;
+                let base_id = match sym.base_ids.get(done) {
+                    Some(id) => *id,
+                    None => {
+                        self.prog.next_obj_id += 1;
+                        self.prog.next_obj_id - 1
+                    }
+                };
+                if let Some(prev) = prev {
+                    let prev = &mut self.prog.objdefs[prev];
+                    prev.mod_id = Some(base_id);
+                    is_class = prev.is_class;
+                }
+                modify = Some((base_id, prev));
+                Some(obj)
+            }
             Some(Global::Obj(obj)) if self.prog.objs[obj].is_extern => {
                 self.prog.objs[obj].is_extern = false;
+                Some(obj)
+            }
+            Some(Global::Obj(obj)) if redef == Redef::Replace => {
+                // Nothing is generated for the definition there was.
+                if let Some(def) = self.prog.objs[obj].def {
+                    self.prog.objdefs[def].replaced = true;
+                }
                 Some(obj)
             }
             Some(Global::Obj(_)) => {
@@ -4284,11 +4581,25 @@ impl Parser<'_, '_> {
                     is_extern: false,
                     is_class: false,
                     sc_names: Vec::new(),
+                    def: None,
+                    mod_count: 0,
+                    base_ids: Vec::new(),
+                    undefined_redef: redef != Redef::No,
                 });
                 self.prog.next_obj_id += 1;
                 self.prog
                     .globals
                     .insert(name, Global::Obj(self.prog.objs.len() - 1));
+                // There has to be something to replace or modify. The
+                // first reading does not mind.
+                if redef != Redef::No && !self.syntax_only {
+                    self.error(
+                        "replace/modify cannot be used with an object not previously defined",
+                    );
+                }
+                if redef == Redef::Modify {
+                    modify = Some((0, None));
+                }
                 Some(self.prog.objs.len() - 1)
             }
         };
@@ -4296,7 +4607,10 @@ impl Parser<'_, '_> {
             self.prog.objs[obj].is_class = true;
         }
         self.next();
-        self.parse_object_body(sym, is_class, false)
+        if redef == Redef::Modify && modify.is_none() {
+            modify = Some((0, None));
+        }
+        self.parse_object_body(sym, is_class, false, modify, None)
     }
 
     /// Read an object without a name: `superclasses properties ;`.
@@ -4307,9 +4621,13 @@ impl Parser<'_, '_> {
             is_extern: false,
             is_class: false,
             sc_names: Vec::new(),
+            def: None,
+            mod_count: 0,
+            base_ids: Vec::new(),
+            undefined_redef: false,
         });
         self.prog.next_obj_id += 1;
-        self.parse_object_body(Some(self.prog.objs.len() - 1), false, true)
+        self.parse_object_body(Some(self.prog.objs.len() - 1), false, true, None, None)
     }
 
     fn parse_object_body(
@@ -4317,10 +4635,12 @@ impl Parser<'_, '_> {
         sym: Option<usize>,
         is_class: bool,
         is_anon: bool,
+        modify: Option<(u32, Option<usize>)>,
+        meta: Option<(usize, u32)>,
     ) -> Parsed<()> {
         let old_self_valid = self.self_valid;
         self.self_valid = true;
-        let result = self.parse_object_body_in(sym, is_class, is_anon);
+        let result = self.parse_object_body_in(sym, is_class, is_anon, modify, meta);
         self.self_valid = old_self_valid;
         result
     }
@@ -4330,6 +4650,8 @@ impl Parser<'_, '_> {
         sym: Option<usize>,
         is_class: bool,
         is_anon: bool,
+        modify: Option<(u32, Option<usize>)>,
+        meta: Option<(usize, u32)>,
     ) -> Parsed<()> {
         let mut def = ObjDef {
             sym,
@@ -4338,22 +4660,37 @@ impl Parser<'_, '_> {
             props: Vec::new(),
             file: 0,
             line: 0,
+            is_modify: modify.is_some(),
+            mod_base: None,
+            prev_def: None,
+            mod_id: meta.map(|(_, id)| id),
+            replaced: false,
+            meta: meta.map(|(meta, _)| meta),
         };
         let (file, line) = self.tok.last_pos();
         (def.file, def.line) = (file, line);
-        if is_anon {
-            // The superclasses come first.
-        } else if self.cur() == Tok::Colon {
-            self.next();
+        if let Some((base_id, prev)) = modify {
+            // No superclasses are written: the definition modified is
+            // the one there is.
+            if base_id != 0 {
+                def.mod_base = Some(base_id);
+            }
+            def.prev_def = prev;
         } else {
-            self.error_curtok(
-                "expected ':' after object name in object definition, but found \"%\"",
-            );
+            if is_anon {
+                // The superclasses come first.
+            } else if self.cur() == Tok::Colon {
+                self.next();
+            } else {
+                self.error_curtok(
+                    "expected ':' after object name in object definition, but found \"%\"",
+                );
+            }
+            if let Some(obj) = sym {
+                self.prog.objs[obj].sc_names.clear();
+            }
+            self.parse_superclass_list(sym, &mut def);
         }
-        if let Some(obj) = sym {
-            self.prog.objs[obj].sc_names.clear();
-        }
-        self.parse_superclass_list(sym, &mut def);
 
         let mut braces = false;
         if self.cur() == Tok::LBrace {
@@ -4391,7 +4728,7 @@ impl Parser<'_, '_> {
 
         // An object that is not a class knows where it comes in the
         // source.
-        if !is_class {
+        if !is_class && modify.is_none() {
             let order = Expr::constant(Value::Int(self.src_order_idx));
             self.src_order_idx += 1;
             def.props.push(ObjProp {
@@ -4405,6 +4742,9 @@ impl Parser<'_, '_> {
         }
 
         self.parse_obj_prop_list(&mut def, braces, false)?;
+        if let Some(obj) = sym {
+            self.prog.objs[obj].def = Some(self.prog.objdefs.len());
+        }
         self.prog.top.push(Top::Obj(self.prog.objdefs.len()));
         self.prog.objdefs.push(def);
         Ok(())
@@ -4533,7 +4873,23 @@ impl Parser<'_, '_> {
                         return Ok(());
                     }
                 }
-                Tok::PropertySet | Tok::Operator | Tok::Replace => {
+                // `replace` before a property of a `modify` takes the
+                // property out of the definitions modified.
+                Tok::Replace => {
+                    if !def.is_modify {
+                        self.error(
+                            "\"replace\" can be used with a property only in a \"modify\" object",
+                        );
+                    }
+                    self.next();
+                    self.prop_replace = true;
+                    let ended = self.parse_obj_prop(def)?;
+                    self.prop_replace = false;
+                    if ended || one_prop {
+                        return Ok(());
+                    }
+                }
+                Tok::PropertySet | Tok::Operator => {
                     let shown = self.tok.cur_token_shown();
                     self.unsupported(&format!("\"{shown}\" in an object definition"));
                     self.next();
@@ -4606,6 +4962,12 @@ impl Parser<'_, '_> {
                     props: Vec::new(),
                     file,
                     line,
+                    is_modify: false,
+                    mod_base: None,
+                    prev_def: None,
+                    mod_id: None,
+                    replaced: false,
+                    meta: None,
                 };
                 self.parse_superclass_list(None, &mut nested);
                 if self.cur() == Tok::LBrace {
@@ -4747,6 +5109,38 @@ impl Parser<'_, '_> {
                 });
             }
             self.prog.bodies.push((body, None));
+        }
+
+        // What a built-in class does itself, or a class it is a kind
+        // of does, the program cannot do in its place.
+        if let (Some(meta), Some(new_prop)) = (def.meta, new_prop) {
+            let prop = def.props[new_prop].prop;
+            let mut cur = Some(meta);
+            while let Some(index) = cur {
+                let meta = &self.prog.metas[index];
+                let (native, super_meta) = (meta.props.contains(&prop), meta.super_meta);
+                if native {
+                    self.error(format!(
+                        "intrinsic class property \"{}\" cannot be modified",
+                        Self::name(&name)
+                    ));
+                }
+                cur = super_meta;
+            }
+        }
+
+        // With `replace`, the property goes from every definition this
+        // one modifies. The first reading leaves them be.
+        if let (true, Some(new_prop), false) = (self.prop_replace, new_prop, self.syntax_only) {
+            let prop = def.props[new_prop].prop;
+            let mut prev = def.prev_def;
+            while let Some(index) = prev {
+                let base = &mut self.prog.objdefs[index];
+                if let Some(at) = base.props.iter().position(|other| other.prop == prop) {
+                    base.props.remove(at);
+                }
+                prev = base.prev_def;
+            }
         }
 
         // A property the name already was can be here only once, but
@@ -5253,6 +5647,17 @@ impl Parser<'_, '_> {
         }
         (false, open_kw)
     }
+}
+
+/// Whether a definition is of something new, or of something there is
+/// already.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Redef {
+    No,
+    /// `replace`: the new definition takes the old one's place.
+    Replace,
+    /// `modify`: the new definition goes in front of the old one.
+    Modify,
 }
 
 /// What a parameter list says about a function.

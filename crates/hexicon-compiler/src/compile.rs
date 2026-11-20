@@ -172,6 +172,26 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
 
     // Putting the program together: everything it refers to has to be
     // in it.
+    // The reference finds this when it reads back the object file it
+    // has written for the source, and names the file. Hexicon writes no
+    // such file; it gives the name the file would have.
+    let object_file = {
+        let name = source.rsplit(['/', '\\']).next().unwrap_or(source);
+        let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+        format!("{stem}.t3o")
+    };
+    for name in emit::early_redefs(&prog) {
+        compiled.diagnostics.push(Diagnostic {
+            file: String::new(),
+            line: 0,
+            severity: Severity::Error,
+            message: format!(
+                "modified or replaced function \"{}\" found in object file \"{object_file}\" \
+                 before original function definition was loaded",
+                crate::pp::show_name(&name)
+            ),
+        });
+    }
     for name in emit::unresolved_externs(&prog, &generated) {
         compiled.diagnostics.push(Diagnostic {
             file: String::new(),
