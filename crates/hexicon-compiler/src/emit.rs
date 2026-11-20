@@ -50,6 +50,8 @@ pub(crate) struct GenObj {
     pub props: Vec<GenProp>,
     /// It holds what the program adds to a built-in class.
     pub icmod: bool,
+    /// It is not saved or restored with the rest.
+    pub transient: bool,
 }
 
 /// A property of an object: its number, and its value as a kind and
@@ -127,6 +129,9 @@ pub(crate) struct Generated {
     /// The properties that code is the value of: each an object's
     /// number and a property's.
     pub static_inits: Vec<(u32, u16)>,
+    /// The objects the code names that were not defined when it was
+    /// generated: indexes into the program's objects.
+    pub obj_refs: HashSet<usize>,
     /// The objects, in the order they were generated.
     pub objs: Vec<GenObj>,
     /// For each built-in class in `metas`, the object that holds what
@@ -283,17 +288,25 @@ pub(crate) fn resolve_exports(
 /// The functions `replace` or `modify` was used on before they were
 /// defined, in the order the reference comes to them when it puts the
 /// program together.
-pub(crate) fn early_redefs(prog: &Program) -> Vec<Vec<u8>> {
-    let mut funcs: Vec<&crate::parse::FuncSym> =
-        prog.funcs.iter().filter(|func| func.ext_redef).collect();
-    funcs.sort_by_key(|func| {
-        func.name
-            .iter()
-            .map(|&byte| usize::from(byte))
-            .sum::<usize>()
-            % LABEL_HASH_SIZE
-    });
-    funcs.into_iter().map(|func| func.name.clone()).collect()
+pub(crate) fn early_redefs(prog: &Program) -> Vec<(&'static str, Vec<u8>)> {
+    let funcs = prog
+        .funcs
+        .iter()
+        .filter(|func| func.ext_redef)
+        .map(|func| ("function", func.name.clone()));
+    let objs = prog
+        .objs
+        .iter()
+        .filter(|obj| obj.ext_redef)
+        .map(|obj| ("object", obj.name.clone()));
+    let mut found: Vec<(&'static str, Vec<u8>)> = funcs.chain(objs).collect();
+    found.sort_by_key(|(_, name)| name_chain(name));
+    found
+}
+
+/// Which chain of the reference's table of global names a name is in.
+fn name_chain(name: &[u8]) -> usize {
+    name.iter().map(|&byte| usize::from(byte)).sum::<usize>() % LABEL_HASH_SIZE
 }
 
 pub(crate) fn unresolved_externs(prog: &Program, generated: &Generated) -> Vec<Vec<u8>> {
@@ -309,18 +322,22 @@ pub(crate) fn unresolved_externs(prog: &Program, generated: &Generated) -> Vec<V
         .collect();
     funcs.sort_unstable();
     funcs.dedup();
-    funcs.sort_by_key(|&func| {
-        prog.funcs[func]
-            .name
-            .iter()
-            .map(|&byte| usize::from(byte))
-            .sum::<usize>()
-            % LABEL_HASH_SIZE
-    });
-    funcs
+    // And the objects `extern` declared that something uses and
+    // nothing defines.
+    let mut objs: Vec<usize> = generated
+        .obj_refs
+        .iter()
+        .copied()
+        .filter(|&obj| prog.objs[obj].is_extern)
+        .collect();
+    objs.sort_unstable();
+    let mut names: Vec<Vec<u8>> = funcs
         .into_iter()
         .map(|func| prog.funcs[func].name.clone())
-        .collect()
+        .chain(objs.into_iter().map(|obj| prog.objs[obj].name.clone()))
+        .collect();
+    names.sort_by_key(|name| name_chain(name));
+    names
 }
 
 /// Strings shorter than this are stored once however often they occur.
@@ -865,7 +882,12 @@ impl Gen<'_> {
             Expr::Const(_) | Expr::Local(_) | Expr::AnonFunc { .. } => expr,
             Expr::Sym(name) => match self.prog.globals.get(&name) {
                 Some(Global::Func(func)) => Expr::constant(Value::FuncPtr(*func)),
-                Some(Global::Obj(obj)) => Expr::constant(Value::Obj(self.prog.objs[*obj].id)),
+                Some(Global::Obj(obj)) => {
+                    if self.prog.objs[*obj].is_extern {
+                        self.out.obj_refs.insert(*obj);
+                    }
+                    Expr::constant(Value::Obj(self.prog.objs[*obj].id))
+                }
                 Some(Global::Enum(sym)) => Expr::constant(Value::Enum(self.enum_ids[*sym])),
                 Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_)) | None => Expr::Sym(name),
             },
@@ -1150,16 +1172,22 @@ impl Gen<'_> {
             superclasses: Vec::new(),
             props: Vec::new(),
             icmod: def.meta.is_some(),
+            transient: def.transient,
         };
         // And that object is the one superclass of the definition in
         // front of it.
         obj.superclasses.extend(def.mod_base);
+        let mut bad_sc = false;
         for name in &def.superclasses {
             match self.prog.globals.get(name) {
                 Some(Global::Obj(superclass)) => {
+                    if self.prog.objs[*superclass].is_extern {
+                        self.out.obj_refs.insert(*superclass);
+                    }
                     obj.superclasses.push(self.prog.objs[*superclass].id);
                 }
                 Some(_) => {
+                    bad_sc = true;
                     self.error(format!(
                         "invalid superclass \"{}\" - not an object",
                         show_name(name)
@@ -1169,12 +1197,22 @@ impl Gen<'_> {
                     let obj_name = sym.map_or_else(String::new, |sym| {
                         show_name(&self.prog.objs[sym].name).to_string()
                     });
+                    bad_sc = true;
                     self.error(format!(
                         "undefined symbol \"{}\" (used as superclass of \"{obj_name}\")",
                         show_name(name)
                     ));
                 }
             }
+        }
+        // Values no template had properties for are reported now, if
+        // the trouble was not with the classes.
+        if def.bad_template && !bad_sc {
+            self.error(if def.undesc_sc {
+                "cannot use template with an unimported extern class as superclass"
+            } else {
+                "object definition does not match any template"
+            });
         }
         // An object with several superclasses and no constructor is
         // given one that calls each superclass's.

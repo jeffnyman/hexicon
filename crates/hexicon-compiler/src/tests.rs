@@ -1790,3 +1790,85 @@ fn a_function_can_be_modified_more_than_once() {
     let calls = code.windows(2).filter(|pair| *pair == [0x58, 1]).count();
     assert_eq!(calls, 3);
 }
+
+#[test]
+fn a_template_gives_properties_to_the_values_an_object_starts_with() {
+    let compiled = compile_text(
+        "object template 'name' [items]? @where;\n\
+         a: object 'first' @nil;\nb: object 'second' [1, 2] @a;\n\
+         _main(args) { return a.name; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let objs = block(&image, b"OBJS");
+    // The first object has two properties from the template, and
+    // where it comes in the source; the second has the list as well.
+    assert_eq!(objs[0..2], [2, 0]);
+    assert_eq!(objs[14..16], [3, 0]);
+    let second = &objs[6 + 12 + 21..];
+    assert_eq!(second[8..10], [4, 0]);
+
+    // Values that fit no template are found out when the object is
+    // generated; a class that is only declared might have had one.
+    assert_eq!(
+        compile_messages(
+            "object template 'name';\nclass C: object;\nC template [items];\n\
+             a: object [1];\nb: C 'x' 'y';\nextern class E;\nc: E 'x';\n_main(args) { }\n"
+        ),
+        [
+            "4: error: object definition does not match any template",
+            "5: error: object definition does not match any template",
+            "7: error: cannot use template with an unimported extern class as superclass",
+        ]
+    );
+    let messages = compile_messages(
+        "object template 'a b' @5;
+_main(args) { }
+",
+    );
+    assert_eq!(
+        messages[..2],
+        [
+            "1: error: property name required in object template string - found 'a b'",
+            "1: error: property name required after \"@\" in object template - found \"5\"",
+        ]
+    );
+    assert!(messages[2].ends_with("error: empty template definition"));
+}
+
+#[test]
+fn extern_declares_and_transient_objects_go_in_a_block_of_their_own() {
+    let compiled = compile_text(
+        "extern function f(x);\nextern object later;\nextern object never;\n\
+         _main(args) { return f(later); }\nf(x) { return x; }\n\
+         later: object;\ntransient t: object;\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let all = blocks(&image, b"OBJS");
+    // Two blocks of one object each; the second says its objects are
+    // transient.
+    assert_eq!(all.len(), 2);
+    assert_eq!(all[0][0..6], [1, 0, 0, 0, 0, 0]);
+    assert_eq!(all[1][0..6], [1, 0, 0, 0, 2, 0]);
+
+    // What is declared and used has to be defined somewhere.
+    assert_eq!(
+        compile_messages(
+            "extern function f(x);\nextern object o;\nextern object unused;\n\
+             _main(args) { return f(o); }\n"
+        ),
+        [
+            "0: error: unresolved external reference \"f\"",
+            "0: error: unresolved external reference \"o\"",
+        ]
+    );
+}

@@ -170,6 +170,10 @@ pub(crate) struct ObjSym {
     pub is_class: bool,
     /// The names of its superclasses.
     pub sc_names: Vec<Vec<u8>>,
+    /// It is defined with `object` for its superclass.
+    pub sc_is_root: bool,
+    /// The templates defined for it (`Name template ...;`).
+    pub templates: Vec<Vec<TemplateItem>>,
     /// Its definition as it now stands: an index into
     /// [`Program::objdefs`].
     pub def: Option<usize>,
@@ -183,6 +187,10 @@ pub(crate) struct ObjSym {
     /// It was made by a `replace` or `modify` of a name that was
     /// nothing, on the first reading, which passes no such name on.
     pub undefined_redef: bool,
+    /// It has only been declared, with `extern`, and has no number.
+    pub declared_only: bool,
+    /// `replace` or `modify` was used on it before its definition.
+    pub ext_redef: bool,
 }
 
 /// A class built into the virtual machine, as the name the program
@@ -314,6 +322,35 @@ pub(crate) struct ObjDef {
     /// to a built-in class with `modify`: an index into
     /// [`Program::metas`].
     pub meta: Option<usize>,
+    /// It is not saved or restored with the rest (`transient`).
+    pub transient: bool,
+    /// It starts with values that no template gives properties to;
+    /// and that because one of its classes is only declared, so that
+    /// its templates cannot be known.
+    pub bad_template: bool,
+    pub undesc_sc: bool,
+}
+
+/// One value in an object template: the kind of token the value starts
+/// with, and the property it is for. `inherited` in a template, which
+/// stands for the templates of the class's superclasses, has no
+/// property.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TemplateItem {
+    pub prop: Option<usize>,
+    pub tok: Tok,
+    /// The next item is an alternative to this one (`'name' | "desc"`).
+    pub is_alt: bool,
+    /// The value can be left out (`'name'?`).
+    pub is_opt: bool,
+}
+
+/// A value at the start of an object definition, to be matched against
+/// the templates.
+struct TemplateInst {
+    def_tok: Tok,
+    value: Option<PropValue>,
+    prop: Option<usize>,
 }
 
 /// A definition at the outermost level of the source that code or data
@@ -414,6 +451,8 @@ pub(crate) struct Exports {
 /// A program as the parser leaves it.
 #[derive(Debug, Default)]
 pub(crate) struct Program {
+    /// The templates any object can use (`object template ...;`).
+    pub templates: Vec<Vec<TemplateItem>>,
     pub enums: Vec<EnumSym>,
     pub locals: Vec<Local>,
     pub tabs: Vec<LocalTab>,
@@ -559,8 +598,12 @@ impl Program {
             .funcs
             .iter()
             .filter(|func| !func.is_extern)
+            // The next reading takes what is known of each one's
+            // parameters for its whole declaration, even if all there
+            // was to go on was an `extern` that said nothing of them.
             .map(|func| FuncSym {
                 is_extern: true,
+                has_proto: true,
                 body: None,
                 mod_bases: Vec::new(),
                 mod_extern: false,
@@ -581,6 +624,8 @@ impl Program {
                 is_extern: true,
                 def: None,
                 base_ids: Vec::new(),
+                ext_redef: false,
+                templates: Vec::new(),
                 ..obj.clone()
             })
             .collect();
@@ -788,6 +833,8 @@ pub(crate) struct Parser<'p, 'a> {
     body_is_obj_prop: bool,
     /// The property being read has `replace` before it.
     prop_replace: bool,
+    /// The object about to be read has `transient` before it.
+    transient: bool,
     /// The labels of the function being read.
     labels: Vec<LabelSym>,
     /// The loops, `switch` statements, labeled statements, and `try`
@@ -998,6 +1045,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             cur_line: 0,
             body_is_obj_prop: false,
             prop_replace: false,
+            transient: false,
             labels: Vec::new(),
             enclosing: Vec::new(),
             next_enclosure_id: 0,
@@ -1187,9 +1235,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 }
                 Tok::Object => {
                     if self.next() == Tok::Template {
-                        self.unsupported("an object template");
-                        suppress_next_error = true;
-                        Ok(())
+                        self.parse_template_def(None)
                     } else {
                         self.tok.unget_token();
                         self.parse_anon_object()
@@ -1204,12 +1250,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.parse_export();
                     Ok(())
                 }
-                Tok::Extern
-                | Tok::Transient
-                | Tok::Plus
-                | Tok::Inc
-                | Tok::Dictionary
-                | Tok::Grammar => {
+                Tok::Extern => self.parse_extern(),
+                Tok::Transient => self.parse_transient(suppress_error, &mut suppress_next_error),
+                Tok::Plus | Tok::Inc | Tok::Dictionary | Tok::Grammar => {
                     if !suppress_error {
                         let shown = self.tok.cur_token_shown();
                         self.unsupported(&format!("a definition starting with \"{shown}\""));
@@ -1243,6 +1286,787 @@ impl<'p, 'a> Parser<'p, 'a> {
         self.prog
     }
 
+    /// Read an object template, from `template` on: `object template
+    /// 'name' "desc"? @location;` says that an object definition that
+    /// starts with values of those kinds means those properties by
+    /// them. With a class's name for `object`, the template is for
+    /// objects of that class.
+    fn parse_template_def(&mut self, class: Option<Vec<u8>>) -> Parsed<()> {
+        let mut class_sym = None;
+        if let Some(name) = class {
+            match self.prog.globals.get(&name).copied() {
+                Some(Global::Obj(obj)) => class_sym = Some(obj),
+                Some(_) => {
+                    self.error_curtok("symbol \"%\" is already defined - can't redefine as object");
+                }
+                None => {
+                    // A class there has been no word of yet.
+                    self.prog.objs.push(ObjSym {
+                        name: name.clone(),
+                        id: 0,
+                        is_extern: true,
+                        is_class: false,
+                        sc_names: Vec::new(),
+                        sc_is_root: false,
+                        templates: Vec::new(),
+                        def: None,
+                        mod_count: 0,
+                        base_ids: Vec::new(),
+                        undefined_redef: false,
+                        declared_only: true,
+                        ext_redef: false,
+                    });
+                    class_sym = Some(self.prog.objs.len() - 1);
+                    self.prog
+                        .globals
+                        .insert(name, Global::Obj(self.prog.objs.len() - 1));
+                }
+            }
+        }
+        self.next();
+
+        let mut items: Vec<TemplateItem> = Vec::new();
+        let mut alt_group_head: Option<usize> = None;
+        let mut found_inh = false;
+        let mut all_ok = true;
+        let mut done = false;
+        while !done {
+            let mut ok = true;
+            let def_tok = self.cur();
+            let mut is_inh = false;
+            let mut prop_name = Vec::new();
+            match def_tok {
+                Tok::Sem => {
+                    self.next();
+                    done = true;
+                }
+                Tok::Inherited => {
+                    is_inh = true;
+                    found_inh = true;
+                }
+                // A string stands for a value in quotes of its kind,
+                // and what is in the string is the property's name.
+                Tok::SStr | Tok::DStr => {
+                    prop_name = self.cur_text();
+                    let valid = prop_name
+                        .first()
+                        .is_some_and(|&c| crate::lex::is_syminit(c))
+                        && prop_name.iter().all(|&c| crate::lex::is_sym(c))
+                        && crate::lex::keyword(&prop_name).is_none();
+                    if !valid {
+                        let found = self.tok.cur_token_shown();
+                        self.error(format!(
+                            "property name required in object template string - found {found}"
+                        ));
+                        ok = false;
+                    }
+                }
+                Tok::LBrack => {
+                    if self.next() != Tok::Sym {
+                        let found = Self::name(&self.cur_text());
+                        self.error(format!(
+                            "property name required after \"[\" in object template - found \"{found}\""
+                        ));
+                        ok = false;
+                        if !matches!(
+                            self.cur(),
+                            Tok::Sem | Tok::Eof | Tok::LBrace | Tok::RBrace | Tok::RBrack
+                        ) {
+                            self.next();
+                        }
+                    } else {
+                        prop_name = self.cur_text();
+                        if self.next() != Tok::RBrack {
+                            self.error_curtok(
+                                "expected ']' after object template property name - found \"%\"",
+                            );
+                        }
+                    }
+                }
+                Tok::At
+                | Tok::Plus
+                | Tok::Minus
+                | Tok::Times
+                | Tok::Div
+                | Tok::Mod
+                | Tok::Arrow
+                | Tok::And
+                | Tok::Not
+                | Tok::BNot
+                | Tok::Comma => {
+                    if self.next() != Tok::Sym {
+                        let found = Self::name(&self.cur_text());
+                        self.error(format!(
+                            "property name required after \"{}\" in object template - found \"{found}\"",
+                            Self::template_op_text(def_tok)
+                        ));
+                        ok = false;
+                    }
+                    prop_name = self.cur_text();
+                }
+                Tok::LBrace | Tok::RBrace | Tok::Eof | Tok::Object => {
+                    self.error_curtok("unexpected token \"%\" in object template");
+                    done = true;
+                    ok = false;
+                }
+                _ => {
+                    self.error_curtok("unexpected token \"%\" in object template");
+                    self.next();
+                    ok = false;
+                }
+            }
+
+            // After the item: `?` if it can be left out, `|` if the
+            // next is an alternative to it.
+            let mut is_opt = false;
+            let mut is_alt = false;
+            if !done {
+                self.next();
+                if self.cur() == Tok::Question {
+                    is_opt = true;
+                    self.next();
+                }
+                if self.cur() == Tok::Or {
+                    is_alt = true;
+                    self.next();
+                }
+            }
+            // Alternatives are optional together or not at all.
+            if items.last().is_some_and(|tail| tail.is_alt) {
+                if is_opt {
+                    if let Some(head) = alt_group_head {
+                        for item in &mut items[head..] {
+                            item.is_opt = true;
+                        }
+                    }
+                }
+                if items.last().is_some_and(|tail| tail.is_opt) {
+                    is_opt = true;
+                }
+            }
+            if !ok {
+                all_ok = false;
+            }
+            if done || !ok {
+                continue;
+            }
+            let item = if is_inh {
+                Some(TemplateItem {
+                    prop: None,
+                    tok: Tok::Inherited,
+                    is_alt: false,
+                    is_opt: false,
+                })
+            } else {
+                // The name becomes a property's if it is nothing yet.
+                let prop = match self.prog.globals.get(&prop_name) {
+                    Some(Global::Prop(prop)) => Some(*prop),
+                    Some(_) => None,
+                    None => Some(self.prog.def_prop(&prop_name)),
+                };
+                match prop {
+                    None => {
+                        self.error(format!(
+                            "symbol \"{}\" in object template is not a property",
+                            Self::name(&prop_name)
+                        ));
+                        None
+                    }
+                    Some(prop) => {
+                        self.prog.props[prop].weak = false;
+                        // A property can only come twice as one of the
+                        // alternatives this one is among.
+                        for (index, earlier) in items.iter().enumerate() {
+                            if earlier.prop == Some(prop) {
+                                let ends = items[index..].iter().position(|item| !item.is_alt);
+                                if ends.is_some() {
+                                    self.error(format!(
+                                        "property \"{}\" duplicated in object template",
+                                        Self::name(&prop_name)
+                                    ));
+                                    break;
+                                }
+                            }
+                        }
+                        Some(TemplateItem {
+                            prop: Some(prop),
+                            tok: def_tok,
+                            is_alt,
+                            is_opt,
+                        })
+                    }
+                }
+            };
+            if let Some(item) = item {
+                if is_alt && !items.last().is_some_and(|tail| tail.is_alt) {
+                    alt_group_head = Some(items.len());
+                } else if !is_alt {
+                    alt_group_head = None;
+                }
+                items.push(item);
+            }
+        }
+        if items.is_empty() {
+            self.error("empty template definition");
+            all_ok = false;
+        }
+        if !all_ok {
+            return Ok(());
+        }
+        if !found_inh {
+            self.add_template_def(class_sym, items);
+            return Ok(());
+        }
+        // `inherited` stands for each template of the class's
+        // superclasses in turn, then each template any object can use,
+        // and then nothing: the template is defined once for each.
+        let mut inherited = Vec::new();
+        if let Some(class) = class_sym {
+            let mut seen = Vec::new();
+            self.build_super_template_list(class, &mut seen, 0);
+            for (obj, index) in seen {
+                inherited.push(Some(self.prog.objs[obj].templates[index].clone()));
+            }
+        }
+        inherited.extend(self.prog.templates.iter().cloned().map(Some));
+        inherited.push(None);
+        for sc_tpl in inherited {
+            let mut expanded = Vec::new();
+            for item in &items {
+                if item.tok != Tok::Inherited {
+                    expanded.push(item.clone());
+                } else if let Some(sc_tpl) = &sc_tpl {
+                    expanded.extend(sc_tpl.iter().cloned());
+                }
+            }
+            self.add_template_def(class_sym, expanded);
+        }
+        Ok(())
+    }
+
+    fn add_template_def(&mut self, class: Option<usize>, items: Vec<TemplateItem>) {
+        match class {
+            Some(class) => self.prog.objs[class].templates.push(items),
+            None => self.prog.templates.push(items),
+        }
+    }
+
+    /// The templates of a class's superclasses, and theirs, each once,
+    /// as an object and the template's place among that object's.
+    fn build_super_template_list(
+        &self,
+        class: usize,
+        list: &mut Vec<(usize, usize)>,
+        depth: usize,
+    ) {
+        if self.prog.objs[class].sc_is_root || depth > 256 {
+            return;
+        }
+        for name in &self.prog.objs[class].sc_names {
+            let Some(Global::Obj(sc)) = self.prog.globals.get(name).copied() else {
+                continue;
+            };
+            for index in 0..self.prog.objs[sc].templates.len() {
+                if !list.contains(&(sc, index)) {
+                    list.push((sc, index));
+                }
+            }
+            self.build_super_template_list(sc, list, depth + 1);
+        }
+    }
+
+    /// How an operator that starts a template value is written.
+    fn template_op_text(tok: Tok) -> &'static str {
+        match tok {
+            Tok::At => "@",
+            Tok::Plus => "+",
+            Tok::Minus => "-",
+            Tok::Times => "*",
+            Tok::Div => "/",
+            Tok::Mod => "%",
+            Tok::Arrow => "->",
+            Tok::And => "&",
+            Tok::Not => "!",
+            Tok::BNot => "~",
+            Tok::Comma => ",",
+            _ => "[",
+        }
+    }
+
+    /// Read the values an object definition starts with, if it starts
+    /// with any, and give them to the properties a template says they
+    /// are for: a template of one of the object's classes, or failing
+    /// that one any object can use.
+    fn parse_obj_template(&mut self, def: &mut ObjDef) -> Parsed<()> {
+        const STARTS: [Tok; 16] = [
+            Tok::SStr,
+            Tok::SStrStart,
+            Tok::DStr,
+            Tok::DStrStart,
+            Tok::LBrack,
+            Tok::At,
+            Tok::Plus,
+            Tok::Minus,
+            Tok::Times,
+            Tok::Div,
+            Tok::Mod,
+            Tok::Arrow,
+            Tok::And,
+            Tok::Not,
+            Tok::BNot,
+            Tok::Comma,
+        ];
+        if !STARTS.contains(&self.cur()) {
+            return Ok(());
+        }
+        let mut insts: Vec<TemplateInst> = Vec::new();
+        loop {
+            let (file, line) = self.tok.last_pos();
+            (self.cur_file, self.cur_line) = (file, line);
+            let mut def_tok = self.cur();
+            let saved = self.begin_prop_value();
+            let expr = match def_tok {
+                Tok::SStr => self.parse_primary(),
+                Tok::SStrStart => {
+                    def_tok = Tok::SStr;
+                    self.parse_primary()
+                }
+                Tok::DStr => self.parse_expr(),
+                Tok::DStrStart => {
+                    def_tok = Tok::DStr;
+                    self.parse_expr()
+                }
+                Tok::LBrack => self.parse_list(),
+                Tok::Eof => return Ok(()),
+                _ if STARTS.contains(&def_tok) => {
+                    self.next();
+                    self.parse_primary()
+                }
+                _ => {
+                    self.cur_code_body = saved;
+                    break;
+                }
+            };
+            let value = match expr {
+                Some(expr) => Some(self.finish_prop_value(expr, None, file, line, saved).0),
+                None => {
+                    self.cur_code_body = saved;
+                    None
+                }
+            };
+            insts.push(TemplateInst {
+                def_tok,
+                value,
+                prop: None,
+            });
+        }
+
+        // The classes' templates come first; a class that is only
+        // declared has templates nobody here knows, so none will do.
+        let mut undesc = false;
+        let mut found = self
+            .find_class_template(&def.superclasses, &mut insts, &mut undesc, 0)
+            .map(|(tpl, _)| tpl);
+        def.undesc_sc = undesc;
+        if found.is_none() && !undesc {
+            found = self
+                .prog
+                .templates
+                .iter()
+                .find(|tpl| Self::match_template(tpl, 0, &mut insts, 0))
+                .cloned();
+        }
+        let Some(tpl) = found else {
+            def.bad_template = true;
+            return Ok(());
+        };
+        Self::match_template(&tpl, 0, &mut insts, 0);
+        for inst in insts {
+            if let (Some(value), Some(prop)) = (inst.value, inst.prop) {
+                def.props.push(ObjProp {
+                    prop,
+                    value,
+                    overwritable: false,
+                    is_static: false,
+                    file: self.cur_file,
+                    line: self.cur_line,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Find the template for some values among those of the classes
+    /// named and of their superclasses: the template, and the class it
+    /// was found at. Of two classes with one each, the template of the
+    /// later class is taken only if that class is a kind of the
+    /// earlier.
+    fn find_class_template(
+        &self,
+        classes: &[Vec<u8>],
+        insts: &mut [TemplateInst],
+        undesc: &mut bool,
+        depth: usize,
+    ) -> Option<(Vec<TemplateItem>, Vec<u8>)> {
+        let mut best: Option<(Vec<TemplateItem>, Vec<u8>)> = None;
+        if depth > 256 {
+            return None;
+        }
+        for name in classes {
+            let Some(Global::Obj(sc)) = self.prog.globals.get(name).copied() else {
+                return None;
+            };
+            let sym = &self.prog.objs[sc];
+            let own = sym
+                .templates
+                .iter()
+                .find(|tpl| Self::match_template(tpl, 0, insts, 0));
+            let cur = match own {
+                Some(tpl) => Some((tpl.clone(), name.clone())),
+                None => {
+                    if sym.sc_names.is_empty() && !sym.sc_is_root {
+                        *undesc = true;
+                        return None;
+                    }
+                    let cur = self.find_class_template(&sym.sc_names, insts, undesc, depth + 1);
+                    if *undesc {
+                        return None;
+                    }
+                    cur
+                }
+            };
+            if let Some((tpl, def_sc)) = cur {
+                let better = match &best {
+                    None => true,
+                    Some((_, best_sc)) => self.is_subclass_of(&def_sc, best_sc, 0),
+                };
+                if better {
+                    best = Some((tpl, def_sc));
+                }
+            }
+        }
+        best
+    }
+
+    /// Whether a class is another, or a kind of it, going by names.
+    fn is_subclass_of(&self, class: &[u8], other: &[u8], depth: usize) -> bool {
+        if class == other {
+            return true;
+        }
+        let Some(Global::Obj(sym)) = self.prog.globals.get(class).copied() else {
+            return false;
+        };
+        depth <= 256
+            && self.prog.objs[sym]
+                .sc_names
+                .iter()
+                .any(|sc| self.is_subclass_of(sc, other, depth + 1))
+    }
+
+    /// Whether some values fit a template, from one of its items and
+    /// one of the values on. Each value that fits an item is noted as
+    /// being for the item's property; of alternatives that fit, the
+    /// last. The notes of a try that fails are left as they fell, as
+    /// in the reference, which is why a template that fits is gone
+    /// through once more at the end.
+    fn match_template(
+        items: &[TemplateItem],
+        mut item: usize,
+        insts: &mut [TemplateInst],
+        mut inst: usize,
+    ) -> bool {
+        while item < items.len() && inst < insts.len() {
+            let is_opt = items[item].is_opt;
+            let mut matched = false;
+            loop {
+                if items[item].tok == insts[inst].def_tok {
+                    matched = true;
+                    insts[inst].prop = items[item].prop;
+                }
+                if !items[item].is_alt || item + 1 == items.len() {
+                    break;
+                }
+                item += 1;
+            }
+            if is_opt {
+                if matched && Self::match_template(items, item + 1, insts, inst + 1) {
+                    return true;
+                }
+            } else {
+                if !matched {
+                    return false;
+                }
+                inst += 1;
+            }
+            item += 1;
+        }
+        while item < items.len() && items[item].is_opt {
+            item += 1;
+        }
+        item == items.len() && inst == insts.len()
+    }
+
+    /// Get ready to read a property's value, which is read as an
+    /// expression of its own, outside any function. What comes back is
+    /// to be handed to [`Parser::finish_prop_value`].
+    fn begin_prop_value(&mut self) -> Option<usize> {
+        let old_cur_code_body = self.cur_code_body;
+        self.clear_local_ctx();
+        self.cur_code_body = None;
+        self.local_symtab = None;
+        self.enclosing_local_symtab = None;
+        self.local_cnt = 0;
+        self.max_local_cnt = 0;
+        self.enclosing.clear();
+        old_cur_code_body
+    }
+
+    /// Make a property's value of the expression read for it, and say
+    /// whether it had to be made a method already: a value with an
+    /// anonymous function in it that uses `self` has to be one, to
+    /// make the context the function finds `self` in. `static_prop` is
+    /// the property, if the value is to be worked out once before the
+    /// program starts.
+    fn finish_prop_value(
+        &mut self,
+        expr: Expr,
+        static_prop: Option<usize>,
+        file: usize,
+        line: u32,
+        old_cur_code_body: Option<usize>,
+    ) -> (PropValue, bool) {
+        let has_local_ctx = self.has_local_ctx;
+        let value = if has_local_ctx {
+            let kind = if let Some(prop) = static_prop {
+                StmtKind::StaticPropInit(expr, prop)
+            } else if self.prog.has_return_value(&expr) {
+                StmtKind::Return(Some(expr))
+            } else {
+                StmtKind::Expr(expr)
+            };
+            // The reference takes the statement to be where the last
+            // statement read was, wherever that is; but it looks up the
+            // names in the value as the property's, and that is where
+            // what there is to say gets said.
+            let mut body = CodeBody {
+                lcltab: None,
+                stm: Stmt { kind, file, line },
+                argc: 0,
+                opt_argc: 0,
+                varargs: false,
+                varargs_list_local: None,
+                local_cnt: self.local_cnt,
+                self_valid: self.self_valid,
+                replaced: false,
+                labels: std::rc::Rc::default(),
+                end_file: file,
+                end_line: line,
+                closure: Closure {
+                    // The reference has the last body read as the one
+                    // this is in.
+                    enclosing: old_cur_code_body,
+                    wraps_prop_expr: true,
+                    ..Closure::default()
+                },
+            };
+            self.finish_local_ctx(&mut body, false);
+            body.closure.self_referenced = self.self_referenced;
+            body.closure.full_ctx_referenced = self.full_ctx_referenced;
+            body.closure.local_ctx_needs_self = self.local_ctx_needs_self;
+            body.closure.local_ctx_needs_full = self.local_ctx_needs_full;
+            self.prog.bodies.push((body, None));
+            PropValue::Method(self.prog.bodies.len() - 1)
+        } else {
+            PropValue::Expr(expr)
+        };
+        self.cur_code_body = old_cur_code_body;
+        (value, has_local_ctx)
+    }
+
+    /// Read `extern function name(params);`, `extern object name;` or
+    /// `extern class name;`: the name is that of something defined
+    /// somewhere else.
+    fn parse_extern(&mut self) -> Parsed<()> {
+        let is_class = match self.next() {
+            Tok::Function | Tok::Method => return self.parse_extern_function(),
+            Tok::Class => true,
+            Tok::Object => false,
+            _ => {
+                self.error_curtok("invalid \"extern\" type specifier \"%\"");
+                return self.skip_to_sem();
+            }
+        };
+        if self.next() != Tok::Sym {
+            self.error_curtok(
+                "expected object name symbol in \"extern\" statement but found \"%\"",
+            );
+            return self.skip_to_sem();
+        }
+        let name = self.cur_text();
+        match self.prog.globals.get(&name).copied() {
+            None => {
+                // It has no number until it is defined. One that never
+                // is can be named but not used.
+                self.prog.objs.push(ObjSym {
+                    name: name.clone(),
+                    id: 0,
+                    is_extern: true,
+                    is_class: false,
+                    sc_names: Vec::new(),
+                    sc_is_root: false,
+                    templates: Vec::new(),
+                    def: None,
+                    mod_count: 0,
+                    base_ids: Vec::new(),
+                    undefined_redef: false,
+                    declared_only: true,
+                    ext_redef: false,
+                });
+                self.prog
+                    .globals
+                    .insert(name, Global::Obj(self.prog.objs.len() - 1));
+            }
+            Some(Global::Obj(obj)) if self.prog.objs[obj].is_class == is_class => {}
+            Some(_) => {
+                self.error_curtok("object \"%\" is already defined - can't redefine as object");
+            }
+        }
+        self.next();
+        self.parse_req_sem()
+    }
+
+    /// Read the rest of `extern function name(params);`, from the
+    /// keyword on.
+    fn parse_extern_function(&mut self) -> Parsed<()> {
+        const NO_BODY: &str = "code body is not allowed in an \"extern function\" declaration";
+        if self.next() != Tok::Sym {
+            self.error_curtok("expected symbol after 'function', but found \"%\"");
+            return Ok(());
+        }
+        let name = self.cur_text();
+        let (sym_file, sym_line) = self.tok.last_pos();
+        let mut formals = Formals {
+            count_only: true,
+            ..Formals::default()
+        };
+        let mut has_proto = true;
+        match self.next() {
+            Tok::Sem => {
+                // Nothing is said of its parameters.
+                self.next();
+                has_proto = false;
+            }
+            Tok::LPar => {
+                self.next();
+                self.parse_formal_list(&mut formals)?;
+                if matches!(self.cur(), Tok::LBrace | Tok::Eq) {
+                    self.error(NO_BODY);
+                    self.parse_code_body(false, CbType::Normal, None, None)?;
+                    return Ok(());
+                }
+                self.parse_req_sem()?;
+            }
+            Tok::LBrace => {
+                self.error(NO_BODY);
+                self.parse_code_body(false, CbType::Normal, None, None)?;
+                return Ok(());
+            }
+            _ => {
+                self.error_curtok("expected ';', '(', or '{', but found \"%\"");
+                return Ok(());
+            }
+        }
+        if let Some(Global::Prop(prop)) = self.prog.globals.get(&name) {
+            if self.prog.props[*prop].weak {
+                self.prog.globals.remove(&name);
+            }
+        }
+        match self.prog.globals.get(&name).copied() {
+            Some(Global::Func(id)) => {
+                let func = &self.prog.funcs[id];
+                if has_proto
+                    && func.has_proto
+                    && (func.argc != formals.argc || func.varargs != formals.varargs)
+                {
+                    self.tok.log_at(
+                        sym_file,
+                        sym_line,
+                        Severity::Error,
+                        format!(
+                            "function \"{}\" has an incompatible previous declaration",
+                            Self::name(&name)
+                        ),
+                    );
+                }
+            }
+            Some(_) => {
+                self.tok.log_at(
+                    sym_file,
+                    sym_line,
+                    Severity::Error,
+                    format!(
+                        "symbol \"{}\" is already defined - can't redefine as function",
+                        Self::name(&name)
+                    ),
+                );
+            }
+            None => {
+                self.prog.funcs.push(FuncSym {
+                    name: name.clone(),
+                    argc: formals.argc,
+                    opt_argc: formals.opt_argc,
+                    varargs: formals.varargs,
+                    has_retval: true,
+                    is_extern: true,
+                    has_proto,
+                    body: None,
+                    mod_bases: Vec::new(),
+                    mod_extern: false,
+                    mod_proto: (0, 0, false),
+                    ext_redef: false,
+                });
+                self.prog
+                    .globals
+                    .insert(name, Global::Func(self.prog.funcs.len() - 1));
+            }
+        }
+        Ok(())
+    }
+
+    /// Read `transient` and the object definition after it. Such an
+    /// object is not saved or restored with the rest.
+    fn parse_transient(
+        &mut self,
+        suppress_error: bool,
+        suppress_next_error: &mut bool,
+    ) -> Parsed<()> {
+        self.transient = true;
+        let result = match self.next() {
+            Tok::Object => {
+                if self.next() == Tok::Template {
+                    self.transient = false;
+                    self.parse_template_def(None)
+                } else {
+                    self.tok.unget_token();
+                    self.parse_anon_object()
+                }
+            }
+            Tok::Sym => self.parse_object_or_func(Redef::No, suppress_error, suppress_next_error),
+            _ => {
+                // Whatever this is, it is passed over, and what comes
+                // after it is what gets the blame.
+                self.next();
+                if !suppress_error {
+                    self.error_curtok("expected function or object definition, but found \"%\"");
+                }
+                *suppress_next_error = true;
+                Ok(())
+            }
+        };
+        self.transient = false;
+        result
+    }
+
     /// Read `replace` and the definition after it, which takes the
     /// place of an earlier definition of the same function or object.
     fn parse_replace(&mut self) -> Parsed<()> {
@@ -1253,7 +2077,31 @@ impl<'p, 'a> Parser<'p, 'a> {
                 self.parse_object(true, Redef::Replace)
             }
             Tok::Sym => self.parse_object_or_func(Redef::Replace, false, &mut false),
-            Tok::Grammar | Tok::Transient => {
+            Tok::Transient => {
+                self.transient = true;
+                let result = match self.next() {
+                    Tok::Object => {
+                        if self.next() == Tok::Template {
+                            self.transient = false;
+                            self.parse_template_def(None)
+                        } else {
+                            self.tok.unget_token();
+                            self.parse_anon_object()
+                        }
+                    }
+                    Tok::Sym => self.parse_object_or_func(Redef::Replace, false, &mut false),
+                    _ => {
+                        self.next();
+                        self.error_curtok(
+                            "expected function or object definition, but found \"%\"",
+                        );
+                        Ok(())
+                    }
+                };
+                self.transient = false;
+                result
+            }
+            Tok::Grammar => {
                 let shown = self.tok.cur_token_shown();
                 self.unsupported(&format!(
                     "\"replace\" of a definition starting with \"{shown}\""
@@ -1303,14 +2151,21 @@ impl<'p, 'a> Parser<'p, 'a> {
         let first = self.cur_text();
         match self.next() {
             Tok::LPar => {
+                if std::mem::take(&mut self.transient) {
+                    self.error("'transient' is not allowed here");
+                }
                 self.tok.unget_token();
                 self.parse_function(false, redef)
             }
-            Tok::Template if first == b"string" => self.parse_string_template(),
             Tok::Template => {
-                self.unsupported("an object template");
-                *suppress_next_error = true;
-                Ok(())
+                if std::mem::take(&mut self.transient) {
+                    self.error("'transient' is not allowed here");
+                }
+                if first == b"string" {
+                    self.parse_string_template()
+                } else {
+                    self.parse_template_def(Some(first))
+                }
             }
             Tok::Colon => {
                 self.tok.unget_token();
@@ -4510,6 +5365,9 @@ impl Parser<'_, '_> {
                             mod_id: Some(root),
                             replaced: false,
                             meta: Some(meta),
+                            transient: false,
+                            bad_template: false,
+                            undesc_sc: false,
                         });
                         root
                     }
@@ -4534,7 +5392,9 @@ impl Parser<'_, '_> {
                 let sym = &mut self.prog.objs[obj];
                 let done = sym.mod_count;
                 sym.mod_count += 1;
-                sym.is_extern = false;
+                if std::mem::take(&mut sym.is_extern) {
+                    sym.ext_redef = true;
+                }
                 is_class = sym.is_class;
                 let prev = sym.def;
                 let base_id = match sym.base_ids.get(done) {
@@ -4553,7 +5413,16 @@ impl Parser<'_, '_> {
                 Some(obj)
             }
             Some(Global::Obj(obj)) if self.prog.objs[obj].is_extern => {
-                self.prog.objs[obj].is_extern = false;
+                let sym = &mut self.prog.objs[obj];
+                sym.is_extern = false;
+                if redef == Redef::Replace {
+                    sym.ext_redef = true;
+                }
+                // One that `extern` declared gets its number now.
+                if std::mem::take(&mut sym.declared_only) {
+                    sym.id = self.prog.next_obj_id;
+                    self.prog.next_obj_id += 1;
+                }
                 Some(obj)
             }
             Some(Global::Obj(obj)) if redef == Redef::Replace => {
@@ -4581,10 +5450,14 @@ impl Parser<'_, '_> {
                     is_extern: false,
                     is_class: false,
                     sc_names: Vec::new(),
+                    sc_is_root: false,
+                    templates: Vec::new(),
                     def: None,
                     mod_count: 0,
                     base_ids: Vec::new(),
                     undefined_redef: redef != Redef::No,
+                    declared_only: false,
+                    ext_redef: false,
                 });
                 self.prog.next_obj_id += 1;
                 self.prog
@@ -4621,10 +5494,14 @@ impl Parser<'_, '_> {
             is_extern: false,
             is_class: false,
             sc_names: Vec::new(),
+            sc_is_root: false,
+            templates: Vec::new(),
             def: None,
             mod_count: 0,
             base_ids: Vec::new(),
             undefined_redef: false,
+            declared_only: false,
+            ext_redef: false,
         });
         self.prog.next_obj_id += 1;
         self.parse_object_body(Some(self.prog.objs.len() - 1), false, true, None, None)
@@ -4666,7 +5543,14 @@ impl Parser<'_, '_> {
             mod_id: meta.map(|(_, id)| id),
             replaced: false,
             meta: meta.map(|(meta, _)| meta),
+            transient: std::mem::take(&mut self.transient),
+            bad_template: false,
+            undesc_sc: false,
         };
+        // A `modify` is transient if what it modifies is.
+        if let Some((_, Some(prev))) = modify {
+            def.transient = self.prog.objdefs[prev].transient;
+        }
         let (file, line) = self.tok.last_pos();
         (def.file, def.line) = (file, line);
         if let Some((base_id, prev)) = modify {
@@ -4699,28 +5583,7 @@ impl Parser<'_, '_> {
         }
         // Values with no property names: the object's classes say, in
         // templates, which properties they are for.
-        if matches!(
-            self.cur(),
-            Tok::SStr
-                | Tok::SStrStart
-                | Tok::DStr
-                | Tok::DStrStart
-                | Tok::LBrack
-                | Tok::At
-                | Tok::Plus
-                | Tok::Minus
-                | Tok::Times
-                | Tok::Div
-                | Tok::Mod
-                | Tok::Arrow
-                | Tok::And
-                | Tok::Not
-                | Tok::BNot
-                | Tok::Comma
-        ) {
-            self.unsupported("an object definition that uses a template");
-            self.next();
-        }
+        self.parse_obj_template(&mut def)?;
         if !braces && self.cur() == Tok::LBrace {
             braces = true;
             self.next();
@@ -4785,6 +5648,9 @@ impl Parser<'_, '_> {
                         self.error(
                             "superclasses cannot be specified with \"object\" as the base class",
                         );
+                    }
+                    if let Some(obj) = sym {
+                        self.prog.objs[obj].sc_is_root = true;
                     }
                     self.next();
                     return;
@@ -4968,6 +5834,9 @@ impl Parser<'_, '_> {
                     mod_id: None,
                     replaced: false,
                     meta: None,
+                    transient: false,
+                    bad_template: false,
+                    undesc_sc: false,
                 };
                 self.parse_superclass_list(None, &mut nested);
                 if self.cur() == Tok::LBrace {
@@ -5011,69 +5880,15 @@ impl Parser<'_, '_> {
             if is_static {
                 self.next();
             }
-            // The value is read as an expression of its own, outside
-            // any function.
-            let old_cur_code_body = self.cur_code_body;
-            self.clear_local_ctx();
-            self.cur_code_body = None;
-            self.local_symtab = None;
-            self.enclosing_local_symtab = None;
-            self.local_cnt = 0;
-            self.max_local_cnt = 0;
-            self.enclosing.clear();
+            let saved = self.begin_prop_value();
             // A value that cannot be read ends the reading of the whole
             // source.
             let Some(expr) = self.parse_expr() else {
                 return Err(Stop);
             };
-            // A value with an anonymous function in it that uses `self`
-            // has to be a method, to make the context the function
-            // finds `self` in.
-            let has_local_ctx = self.has_local_ctx;
-            let value = if has_local_ctx {
-                let kind = if let (true, Some(prop)) = (is_static, prop) {
-                    StmtKind::StaticPropInit(expr, prop)
-                } else if self.prog.has_return_value(&expr) {
-                    StmtKind::Return(Some(expr))
-                } else {
-                    StmtKind::Expr(expr)
-                };
-                // The reference takes the statement to be where the
-                // last statement read was, wherever that is; but it
-                // looks up the names in the value as the property's,
-                // and that is where what there is to say gets said.
-                let mut body = CodeBody {
-                    lcltab: None,
-                    stm: Stmt { kind, file, line },
-                    argc: 0,
-                    opt_argc: 0,
-                    varargs: false,
-                    varargs_list_local: None,
-                    local_cnt: self.local_cnt,
-                    self_valid: self.self_valid,
-                    replaced: false,
-                    labels: std::rc::Rc::default(),
-                    end_file: file,
-                    end_line: line,
-                    closure: Closure {
-                        // The reference has the last body read as the
-                        // one this is in.
-                        enclosing: old_cur_code_body,
-                        wraps_prop_expr: true,
-                        ..Closure::default()
-                    },
-                };
-                self.finish_local_ctx(&mut body, false);
-                body.closure.self_referenced = self.self_referenced;
-                body.closure.full_ctx_referenced = self.full_ctx_referenced;
-                body.closure.local_ctx_needs_self = self.local_ctx_needs_self;
-                body.closure.local_ctx_needs_full = self.local_ctx_needs_full;
-                self.prog.bodies.push((body, None));
-                PropValue::Method(self.prog.bodies.len() - 1)
-            } else {
-                PropValue::Expr(expr)
-            };
-            self.cur_code_body = old_cur_code_body;
+            let static_prop = if is_static { prop } else { None };
+            let (value, has_local_ctx) =
+                self.finish_prop_value(expr, static_prop, file, line, saved);
             if let Some(prop) = prop {
                 new_prop = Some(def.props.len());
                 // The reference forgets that the property is static when

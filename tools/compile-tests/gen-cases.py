@@ -2468,6 +2468,206 @@ mistakes["e_modify5"] = "modify f() { return replaced(); }\ng() { }\nmodify g() 
 mistakes["e_modify6"] = "replace f() { }\nf() { }\nmodify a x = 1;\na: object;\n_main(args) { }"
 
 
+# Names declared before they are defined, and objects that are not
+# saved.
+programs["extern1"] = (
+    BUILTINS
+    + """
+extern function f(x);
+extern function g;
+extern method m2(a, b?);
+extern object later;
+extern class Cls;
+extern object never;
+extern class NeverCls;
+extern function unused(a, b, ...);
+_main(args) { tadsSay(f(1)); tadsSay(g()); tadsSay(later.name); tadsSay(new Cls().name); }
+f(x) { return x + 1; }
+g() { return 'g'; }
+later: Cls name = 'later';
+class Cls: object name = 'cls';
+object name = 'anon';
+transient t1: object name = 't1';
+transient Cls name = 'anon transient';
+t2: object;
+transient object name = 'x';
+modify t1 extra = 1;
+replace transient t2: Cls;
+extern object later;
+extern class Cls;
+extern function f(y);
+"""
+)
+
+mistakes["e_extern1"] = (
+    BUILTINS
+    + """
+extern;
+extern foo;
+extern object;
+extern object 5;
+extern function;
+extern function f1(x) { }
+extern function f2 { }
+f4(x) { }
+extern function f4(x, y);
+extern function f5(x);
+f5(x, y) { }
+a1: object;
+extern class a1;
+class a2: object;
+extern object a2;
+extern function a2;
+f6() { }
+extern object f6;
+transient f7() { }
+transient;
+transient 5;
+_main(args) { }"""
+)
+
+# What `extern` declares and nothing defines: found when the program is
+# put together, if anything uses it.
+mistakes["e_extern2"] = (
+    BUILTINS
+    + """
+extern function f(x);
+extern function g(a, b?, ...);
+extern object o;
+extern class C;
+extern object unused;
+x: C;
+_main(args) { g(1, 2, 3, 4); return [f(1), o, new C()]; }"""
+)
+
+mistakes["e_extern3"] = "extern object o;\nmodify o x = 1;\nextern object p;\nreplace p: object;\n_main(args) { }"
+mistakes["e_extern4"] = "extern function g;\ng(a, b) { return a; }\n_main(args) { g(1, 2); }"
+
+# Object templates.
+programs["template1"] = (
+    BUILTINS
+    + """
+object template 'name' "desc"?;
+object template 'name' @location "desc"?;
+object template [items];
+class Thing: object
+    name = 'thing' location = nil desc = "nothing special" items = []
+    show() { tadsSay(name); tadsSay(':'); desc; tadsSay(location == nil ? '-' : location.name); }
+;
+Thing template 'name' 'vocab' @location? "desc"?;
+Thing template +weight 'name' | "desc";
+Thing template ->dest 'name';
+class Room: Thing dest = nil;
+Room template 'name' "desc" ->dest?;
+Room template [exits] inherited;
+hall: Room 'Hall' "A long hall." ->kitchen;
+kitchen: Room [1, 2, 3] 'Kitchen' "A kitchen. <<name>> it is." exits2 = 1;
+lamp: Thing 'lamp' 'brass lamp' @hall "It is <<weight>> heavy." weight = 3;
+Thing 'coin' 'gold coin' @kitchen;
+Thing +5 "a five";
+Thing +6 'six';
+box: Thing { 'box' 'wooden box' weight = 9 }
+bag: Thing 'bag' 'cloth bag' { weight = 1 };
+object 'plain' "A plain object.";
+object [1, 2];
+door: Thing ->hall 'door';
+r3: Room [4, 5] 'Cellar' 'cellar vocab' @hall "Dark.";
+fn: Thing 'fn' 'a function' @({: self }) "Says <<{: name }()>>.";
+transient Thing 'gone' 'not saved';
+say(val) { tadsSay(val); }
+_main(args)
+{
+    t3SetSay(say);
+    hall.show(); kitchen.show(); lamp.show(); box.show(); bag.show(); door.show(); r3.show();
+    tadsSay(hall.dest.name); tadsSay(lamp.vocab); tadsSay(r3.vocab);
+}
+"""
+)
+
+programs["template2"] = (
+    BUILTINS
+    + """
+class A: object;
+class B: object;
+A template 'a';
+B template 'b';
+AB: A, B 'x';
+BA: B, A 'x';
+class A2: A;
+A2 template 'a2';
+X: A, A2 'x';
+Y: A2, A 'x';
+Z: B, A2 'z';
+class C: A;
+C template inherited "c";
+C template [d] inherited @e;
+C 'x' "y";
+C [1] 'x' @nil;
+C [1] @nil;
+object template +f;
+C template inherited -g;
+C +1 -2;
+C -2;
+C 'x' -2;
+object template 'h' | "i" | [j]? @k;
+object 'x' @nil;
+object @nil;
+object [1] @nil;
+object template 'l' ->m +n -o *p /q %r &s !t ~u ,v [w] "y";
+object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+object template 'aa' 'bb'? 'cc';
+object 'x' 'y';
+object 'x' 'y' 'z';
+Later 'x';
+class Later: A;
+transient object template 'tt' 'uu' 'vv' 'ww';
+_main(args) { return AB.a + BA.b; }
+"""
+)
+
+mistakes["e_template1"] = (
+    BUILTINS
+    + """
+object template;
+object template 'a b';
+object template 'if';
+object template [5];
+object template [a;
+object template @;
+object template @5 'x';
+object template 'a' 'a';
+object template 'a' | "a" | [a];
+object template 'a' | "a" 'a';
+object template foo;
+f() { }
+object template 'f';
+f template 'a';
+object template 'c' | ;
+object template 'a' ? | "b" ?;
+string template 'a';
+object template 'a' { }
+_main(args) { }"""
+)
+
+mistakes["e_template2"] = (
+    BUILTINS
+    + """
+object 'x';
+class C: object;
+C template 'a';
+C "d";
+object template 'a' "b";
+object 'x' a = 'y';
+object 'x' 'y';
+object "x" + 5;
+extern class E;
+E 'x';
+E2: E 'y';
+class D: Nope 'x';
+_main(args) { }"""
+)
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

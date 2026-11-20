@@ -660,6 +660,22 @@ class Program:
             head = "modify " + name
         elif redef == "replace":
             head = "replace " + head
+        elif not is_class and rng.random() < 0.08:
+            head = "transient " + head
+        # Values for the template every program declares: a name, and
+        # perhaps a description and a place. Now and then they fit no
+        # template.
+        if redef != "modify" and rng.random() < 0.2:
+            head += f" '{rng.choice(WORDS)}'"
+            if rng.random() < 0.5:
+                self.in_method = True
+                head += f' "{self.embedded(list(self.props), 2, chr(34))}"'
+                self.in_method = False
+            if rng.random() < 0.4:
+                named = [obj[0] for obj in self.objs if obj[0]]
+                head += " @" + rng.choice(named + ["nil", "(1 + 2)"])
+            if rng.random() < 0.05:
+                head += " [1, 2]"
         braces = rng.random() < 0.3
         lines = [head, "{"] if braces else [head]
         for prop in rng.sample(self.props, rng.randint(0, len(self.props))):
@@ -863,7 +879,25 @@ class Program:
         for part in parts:
             lines += part
         enums = "enum red, green;\nenum token tokWord;\n"
-        return PRELUDE + enums + "\n".join(lines) + "\n"
+        # Declarations ahead of the definitions, some of things the
+        # program never defines or uses; and the templates.
+        ahead = []
+        for name, argc, more in funcs:
+            if self.rng.random() < 0.1:
+                params = [f"a{index}" for index in range(argc)] + (["..."] if more else [])
+                ahead.append(f"extern function {name}({', '.join(params)});")
+        for name, is_class, _ in self.objs:
+            if name and self.rng.random() < 0.1:
+                ahead.append(f"extern {'class' if is_class else 'object'} {name};")
+        if self.rng.random() < 0.1:
+            ahead.append("extern object neverDefined;")
+        if self.rng.random() < 0.1:
+            ahead.append("extern function neverCalled(a, b?);")
+        ahead.append("object template 'tname' \"tdesc\"? @tloc?;")
+        for name, is_class, _ in self.objs:
+            if name and is_class and self.rng.random() < 0.3:
+                ahead.append(f"{name} template 'tname' inherited [tlist]?;")
+        return PRELUDE + enums + "\n".join(ahead + lines) + "\n"
 
 
 def main():

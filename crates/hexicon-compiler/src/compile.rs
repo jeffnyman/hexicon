@@ -180,14 +180,14 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
         let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
         format!("{stem}.t3o")
     };
-    for name in emit::early_redefs(&prog) {
+    for (kind, name) in emit::early_redefs(&prog) {
         compiled.diagnostics.push(Diagnostic {
             file: String::new(),
             line: 0,
             severity: Severity::Error,
             message: format!(
-                "modified or replaced function \"{}\" found in object file \"{object_file}\" \
-                 before original function definition was loaded",
+                "modified or replaced {kind} \"{}\" found in object file \"{object_file}\" \
+                 before original {kind} definition was loaded",
                 crate::pp::show_name(&name)
             ),
         });

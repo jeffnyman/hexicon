@@ -409,18 +409,22 @@ pub(crate) fn write_image(
     // After them, in a block of their own, come the objects that hold
     // what the program adds to built-in classes, which are of the
     // seventh of the metaclasses every image has.
-    let (icmod_objs, plain_objs): (Vec<_>, Vec<_>) = std::mem::take(&mut generated.objs)
-        .into_iter()
-        .partition(|obj| obj.icmod);
-    for (metaclass, mut gen_objs) in [(0u16, plain_objs), (6u16, icmod_objs)] {
+    // Of each kind, the transient ones are in a block after the rest,
+    // which says that is what they are.
+    let mut kinds: [Vec<crate::emit::GenObj>; 4] = Default::default();
+    for obj in std::mem::take(&mut generated.objs) {
+        kinds[2 * usize::from(obj.icmod) + usize::from(obj.transient)].push(obj);
+    }
+    for (kind, mut gen_objs) in kinds.into_iter().enumerate() {
         if gen_objs.is_empty() {
             continue;
         }
+        let metaclass: u16 = if kind >= 2 { 6 } else { 0 };
+        let flags: u16 = if kind % 2 == 1 { 2 } else { 0 };
         let mut objs = Vec::new();
         objs.extend_from_slice(&(gen_objs.len() as u16).to_le_bytes());
-        // The metaclass, and the block's flags, of which it has none.
         objs.extend_from_slice(&metaclass.to_le_bytes());
-        objs.extend_from_slice(&[0; 2]);
+        objs.extend_from_slice(&flags.to_le_bytes());
         for obj in &mut gen_objs {
             obj.props.sort_by_key(|prop| prop.id);
             let size = 6 + 4 * obj.superclasses.len() + 7 * obj.props.len();
