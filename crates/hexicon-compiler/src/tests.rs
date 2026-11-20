@@ -2116,3 +2116,64 @@ fn a_regular_expression_is_an_object_that_points_at_its_text() {
     assert_eq!(objs[6..13], [1, 0, 0, 0, 5, 0, 8]);
     assert!(String::from_utf8_lossy(&image).contains("regex-pattern/000000"));
 }
+
+#[test]
+fn a_list_of_keys_and_values_is_a_lookup_table() {
+    let compiled = compile_text("_main(args) { return [1 -> 2, 3 -> 4, * -> 5]; }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // A list of the five values is made when the program runs, though
+    // all are constants, and then a table is made of the list.
+    assert!(has_bytes(code, &[0xC0, 5, 1, 0x8B, 0xC0, 1, 7]));
+
+    // Every pair has to have its arrow, and the default comes last.
+    assert_eq!(
+        compile_messages(
+            "_main(args)\n{\n    local a = [1, 2 -> 3];\n    local b = [1 -> 2, 3];\n\
+             local c = [1 -> 2 -> 3];\n    local d = [* -> 1, 2 -> 3];\n    return [a, b, c, d];\n}\n"
+        ),
+        [
+            "3: error: unexpected -> found in list (after 2nd element)",
+            "4: error: missing -> in 2nd element in LookupTable list",
+            "5: error: misplaced -> in LookupTable list after 1st element - expected comma",
+            "6: error: LookupTable list must end after default *-> value, but found \",\"",
+        ]
+    );
+}
+
+#[test]
+fn a_choice_in_a_string_gets_an_object_to_do_the_choosing() {
+    let compiled = compile_text(
+        "class OneOfIndexGen: object getNextIndex() { return 1; };\n\
+         _main(args) { return 'a <<one of>>b<<or>>c<<or>>d<<cycling>> e'; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let objs = block(&image, b"OBJS");
+    // The class, and an object of it with two properties: how many
+    // alternatives there are, and how to choose.
+    assert_eq!(objs[0..2], [2, 0]);
+    let chooser = &objs[6 + 6 + 13..];
+    assert_eq!(chooser[0..4], [2, 0, 0, 0]);
+    assert_eq!(chooser[6..12], [1, 0, 2, 0, 0, 0]);
+    assert_eq!(chooser[12..16], [1, 0, 0, 0]);
+    assert_eq!(chooser[18..23], [7, 3, 0, 0, 0]);
+
+    // The object has to be asked with a property.
+    assert_eq!(
+        compile_messages(
+            "class OneOfIndexGen: object;\ngetNextIndex() { }\n\
+             _main(args) { return 'a <<one of>>b<<or>>c<<stopping>>'; }\n"
+        ),
+        ["3: error: <<one of>> requires getNextIndex to be defined as a property"]
+    );
+}

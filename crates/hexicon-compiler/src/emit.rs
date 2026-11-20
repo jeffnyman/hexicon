@@ -92,6 +92,7 @@ mod datatype {
 const METACLASS_LIST: u8 = 1;
 const METACLASS_VECTOR: u8 = 4;
 const METACLASS_ANON_FN: u8 = 5;
+const METACLASS_LOOKUP_TABLE: u8 = 7;
 /// The place in a context of the `self` of the method it was made in.
 const CTX_METHOD_CTX: u8 = 1;
 /// Which part of what a function knows about its call is the function
@@ -998,12 +999,12 @@ impl Gen<'_> {
             }
             Expr::DStr(_) => expr,
             Expr::DStrEmbed(sub) => Expr::DStrEmbed(Box::new(self.fold_expr(*sub))),
-            Expr::OneOf(dbl, elements) => {
+            Expr::OneOf(dbl, elements, state) => {
                 let elements = elements
                     .into_iter()
                     .map(|element| self.fold_expr(element))
                     .collect();
-                Expr::OneOf(dbl, elements)
+                Expr::OneOf(dbl, elements, state)
             }
             Expr::List(elements) => {
                 let elements = elements
@@ -1015,6 +1016,19 @@ impl Gen<'_> {
                 } else {
                     Expr::list(elements)
                 }
+            }
+            Expr::Lookup(list) => {
+                // The list stays one to make when the program runs.
+                let list = match *list {
+                    Expr::List(elements) => Expr::List(
+                        elements
+                            .into_iter()
+                            .map(|element| self.fold_expr(element))
+                            .collect(),
+                    ),
+                    other => self.fold_expr(other),
+                };
+                Expr::Lookup(Box::new(list))
             }
             Expr::Index(left, index) => {
                 let left = self.fold_expr(*left);
@@ -3254,10 +3268,8 @@ impl Gen<'_> {
                     self.cg.note_pop();
                 }
             }
-            Expr::OneOf(..) => {
-                // The parser has reported that this needs a class the
-                // program does not have, so nothing is generated.
-                self.error("<<one of>> requires class OneOfIndexGen to be defined in the program");
+            Expr::OneOf(_, elements, state) => {
+                self.gen_one_of(elements, *state, discard, for_condition)
             }
             Expr::List(elements) => {
                 // The elements, last first, and then a list made of
@@ -3276,6 +3288,19 @@ impl Gen<'_> {
                 }
                 self.cg.note_pops(elements.len() as i32);
                 if !discard {
+                    self.cg.write_op(Op::GetR0);
+                    self.cg.note_push();
+                }
+            }
+            Expr::Lookup(list) => {
+                // The list of keys and values, and then, if the table
+                // is wanted, a table made of it.
+                self.gen_expr(list, discard, false);
+                if !discard {
+                    self.cg.write_op(Op::New1);
+                    self.cg.write(1);
+                    self.cg.write(METACLASS_LOOKUP_TABLE);
+                    self.cg.note_pop();
                     self.cg.write_op(Op::GetR0);
                     self.cg.note_push();
                 }
@@ -4243,6 +4268,80 @@ impl Gen<'_> {
         if self.undefined_names.insert(name.to_vec()) {
             self.error(format!("undefined symbol \"{}\"", show_name(name)));
         }
+    }
+
+    /// Generate a choice among alternatives in a string. The object
+    /// the compiler defined for it is asked which one, by number.
+    fn gen_one_of(
+        &mut self,
+        elements: &[Expr],
+        state: Option<u32>,
+        discard: bool,
+        for_condition: bool,
+    ) {
+        const GET_NEXT: &[u8] = b"getNextIndex";
+        let prop = match self.prog.globals.get(GET_NEXT).copied() {
+            Some(Global::Prop(prop)) => prop,
+            None => self.prog.def_prop(GET_NEXT),
+            Some(_) => {
+                self.error("<<one of>> requires getNextIndex to be defined as a property");
+                return;
+            }
+        };
+        // Without the object, the parser has said why.
+        let Some(state) = state else {
+            return;
+        };
+        let state = Expr::constant(Value::Obj(state));
+        let get_next = Expr::constant(Value::Prop(self.prog.props[prop].id));
+        let no_args = || CallArgs {
+            argc: 0,
+            varargs: false,
+            named: None,
+        };
+        if elements.iter().all(Expr::is_const) {
+            // Constants: a list of them, indexed by the number.
+            let list = Expr::list(elements.to_vec());
+            self.gen_expr(&list, false, false);
+            self.gen_member(&state, &get_next, false, no_args(), false);
+            self.cg.write_op(Op::Index);
+            self.cg.note_pop();
+            return;
+        }
+        // Otherwise a switch on the number, with a case for each
+        // alternative that does what the alternative says.
+        self.gen_member(&state, &get_next, false, no_args(), false);
+        self.cg.write_op(Op::Switch);
+        self.cg.write2(elements.len() as u16);
+        self.cg.note_pop();
+        let table = self.cg.ofs();
+        for index in 1..=elements.len() {
+            self.cg.write(datatype::INT);
+            self.cg.write4(index as u32);
+            self.cg.write2(0);
+        }
+        let default_slot = self.cg.ofs();
+        self.cg.write2(0);
+        let end_lbl = self.cg.new_label();
+        for (index, element) in elements.iter().enumerate() {
+            let slot = table + 7 * index + 5;
+            let jump = self.cg.ofs() - slot;
+            self.cg.write2_at(slot, jump as u16);
+            self.gen_expr(element, discard, for_condition);
+            self.cg.write_jump(Op::Jmp, end_lbl);
+            // Only one of them will have left a value.
+            if !discard {
+                self.cg.note_pop();
+            }
+        }
+        // No such alternative: nil.
+        let jump = self.cg.ofs() - default_slot;
+        self.cg.write2_at(default_slot, jump as u16);
+        if !discard {
+            self.cg.write_op(Op::PushNil);
+            self.cg.note_push();
+        }
+        self.cg.def_label(end_lbl);
     }
 
     fn gen_unary(&mut self, opc: Op, sub: &Expr, discard: bool, for_condition: bool) {

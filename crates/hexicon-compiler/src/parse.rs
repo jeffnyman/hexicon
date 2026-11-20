@@ -601,7 +601,7 @@ impl Program {
                 self.has_return_value(first) || self.has_return_value(second)
             }
             Expr::DStr(_) | Expr::DStrEmbed(_) => false,
-            Expr::OneOf(dbl, _) => !dbl,
+            Expr::OneOf(dbl, ..) => !dbl,
             _ => true,
         }
     }
@@ -965,6 +965,23 @@ const ONE_OF_ENDINGS: [&str; 12] = [
     "stopping",
 ];
 
+/// What each of them tells the object that does the choosing, in the
+/// same order.
+const ONE_OF_ATTRS: [&str; 12] = [
+    "rand",
+    "seq,rand",
+    "rand-norpt",
+    "seq,rand-norpt",
+    "rand,stop",
+    "rand-wt",
+    "shuffle",
+    "seq,shuffle",
+    "shuffle2",
+    "seq,shuffle2",
+    "seq",
+    "seq,stop",
+];
+
 /// What a `switch` learns from its body as the body is read.
 #[derive(Default)]
 struct SwitchInfo {
@@ -1150,6 +1167,19 @@ impl<'p, 'a> Parser<'p, 'a> {
     fn unsupported(&mut self, what: &str) {
         self.tok
             .log_error(format!("{what} is not supported by this compiler yet"));
+    }
+
+    /// A count as a message shows a place in a row: 1st, 2nd, 3rd, 4th,
+    /// 11th, 21st.
+    fn ordinal(count: usize) -> String {
+        let suffix = match (count % 100, count % 10) {
+            (10..=20, _) => "th",
+            (_, 1) => "st",
+            (_, 2) => "nd",
+            (_, 3) => "rd",
+            _ => "th",
+        };
+        format!("{count}{suffix}")
     }
 
     /// A name as a message shows it.
@@ -4665,6 +4695,12 @@ impl<'p, 'a> Parser<'p, 'a> {
         const MISSING_RBRACK: &str = "expected ']' or a list element, but found \"%\"";
         self.next();
         let mut elements = Vec::new();
+        // With `->` between a key and its value, the list is a lookup
+        // table's, and every pair has to have one. `* -> value` at the
+        // end is what the table gives for a key it does not have.
+        let mut is_lookup = false;
+        let mut at_default = false;
+        let nil = || Expr::constant(Value::Nil);
         'list: loop {
             match self.cur() {
                 Tok::RBrack => {
@@ -4679,12 +4715,46 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.error("found extraneous ')' in list; ignored");
                     self.next();
                 }
+                Tok::Times => {
+                    if self.next() == Tok::Arrow {
+                        self.next();
+                        if !is_lookup && !elements.is_empty() {
+                            self.error(format!(
+                                "unexpected -> found in list (after {} element)",
+                                Self::ordinal(elements.len())
+                            ));
+                        } else {
+                            is_lookup = true;
+                            at_default = true;
+                        }
+                    } else {
+                        self.tok.unget_token();
+                    }
+                }
                 _ => {}
             }
             elements.push(self.parse_asi_expr()?);
+            if at_default && self.cur() != Tok::RBrack {
+                self.error_curtok(
+                    "LookupTable list must end after default *-> value, but found \"%\"",
+                );
+                at_default = false;
+                // More pairs, it seems: a value to keep them in step.
+                if self.cur() == Tok::Comma {
+                    elements.push(nil());
+                }
+            }
             match self.cur() {
                 Tok::Comma => {
                     self.next();
+                    // A key with no value.
+                    if is_lookup && elements.len() % 2 != 0 {
+                        self.error(format!(
+                            "missing -> in {} element in LookupTable list",
+                            Self::ordinal(elements.len().div_ceil(2))
+                        ));
+                        elements.push(nil());
+                    }
                     if self.cur() == Tok::RBrack {
                         self.error(
                             "extra list element expected after comma, but found end of list",
@@ -4693,11 +4763,32 @@ impl<'p, 'a> Parser<'p, 'a> {
                     }
                 }
                 Tok::Arrow => {
-                    self.unsupported("a lookup table list");
                     self.next();
+                    if elements.len() == 1 {
+                        is_lookup = true;
+                    } else if !is_lookup {
+                        self.error(format!(
+                            "unexpected -> found in list (after {} element)",
+                            Self::ordinal(elements.len())
+                        ));
+                    } else if elements.len() % 2 == 0 {
+                        // A value with no key.
+                        self.error(format!(
+                            "misplaced -> in LookupTable list after {} element - \
+                             expected comma",
+                            Self::ordinal(elements.len() / 2)
+                        ));
+                        elements.push(nil());
+                    }
                 }
                 Tok::RBrack => {
                     self.next();
+                    if is_lookup && elements.len() % 2 != 0 && !at_default {
+                        self.error(format!(
+                            "missing -> in {} element in LookupTable list",
+                            Self::ordinal(elements.len().div_ceil(2))
+                        ));
+                    }
                     break;
                 }
                 Tok::Eof | Tok::LBrace | Tok::RBrace | Tok::Sem | Tok::DStrMid | Tok::DStrEnd => {
@@ -4710,7 +4801,13 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
         }
         self.prog.max_list_cnt = self.prog.max_list_cnt.max(elements.len());
-        Some(Expr::list(elements))
+        // A lookup table's list is made when the program runs, even if
+        // everything in it is a constant.
+        Some(if is_lookup {
+            Expr::Lookup(Box::new(Expr::List(elements)))
+        } else {
+            Expr::list(elements)
+        })
     }
 
     /// Read a call's arguments. The current token is the opening
@@ -6887,10 +6984,17 @@ impl Parser<'_, '_> {
         }
         // If what follows is not one of the endings, it is for whatever
         // this is inside of.
-        if !ONE_OF_ENDINGS.iter().any(|ending| self.embed_match(ending)) {
-            self.embed_unget(0);
-        }
-        Some(self.oneof_node(dbl, elements))
+        let ending = ONE_OF_ENDINGS
+            .iter()
+            .position(|ending| self.embed_match(ending));
+        let attrs = match ending {
+            Some(ending) => ONE_OF_ATTRS[ending],
+            None => {
+                self.embed_unget(0);
+                "rand"
+            }
+        };
+        Some(self.oneof_node(dbl, elements, attrs))
     }
 
     /// Read `<<first time>>...<<only>>`: text for the first time only,
@@ -6912,16 +7016,70 @@ impl Parser<'_, '_> {
             self.embed_unget(0);
         }
         let nothing = Expr::constant(Value::SStr(Vec::new()));
-        Some(self.oneof_node(dbl, vec![element, nothing]))
+        Some(self.oneof_node(dbl, vec![element, nothing], "seq,stop"))
     }
 
-    /// A choice among alternatives keeps its state in an object of the
-    /// class `OneOfIndexGen`, and there are no objects yet.
-    fn oneof_node(&mut self, dbl: bool, elements: Vec<Expr>) -> Expr {
-        if !self.syntax_only {
-            self.error("<<one of>> requires class OneOfIndexGen to be defined in the program");
+    /// A choice among alternatives is made by an object the compiler
+    /// defines for it: one with no name, of the class `OneOfIndexGen`,
+    /// which the program has to have, that is told how many
+    /// alternatives there are and how to choose. The first reading
+    /// defines nothing.
+    fn oneof_node(&mut self, dbl: bool, elements: Vec<Expr>, attrs: &str) -> Expr {
+        const CLASS: &[u8] = b"OneOfIndexGen";
+        if self.syntax_only {
+            return Expr::OneOf(dbl, elements, None);
         }
-        Expr::OneOf(dbl, elements)
+        if !matches!(self.prog.globals.get(CLASS), Some(Global::Obj(_))) {
+            self.error("<<one of>> requires class OneOfIndexGen to be defined in the program");
+            return Expr::OneOf(dbl, elements, None);
+        }
+        let obj = self.new_anon_obj();
+        let (file, line) = self.tok.last_pos();
+        let mut def = ObjDef {
+            sym: Some(obj),
+            is_class: false,
+            superclasses: vec![CLASS.to_vec()],
+            props: Vec::new(),
+            file,
+            line,
+            is_modify: false,
+            mod_base: None,
+            prev_def: None,
+            mod_id: None,
+            replaced: false,
+            meta: None,
+            transient: false,
+            bad_template: false,
+            undesc_sc: false,
+        };
+        let values = [
+            (&b"numItems"[..], Value::Int(elements.len() as i32)),
+            (&b"listAttrs"[..], Value::SStr(attrs.as_bytes().to_vec())),
+        ];
+        for (name, value) in values {
+            // A name that is something else is passed over.
+            let prop = match self.prog.globals.get(name).copied() {
+                Some(Global::Prop(prop)) => {
+                    self.prog.props[prop].weak = false;
+                    prop
+                }
+                None => self.prog.def_prop(name),
+                Some(_) => continue,
+            };
+            def.props.push(ObjProp {
+                prop,
+                value: PropValue::Expr(Expr::constant(value)),
+                overwritable: false,
+                is_static: false,
+                file,
+                line,
+            });
+        }
+        // It is generated after everything at the outermost level.
+        self.prog.objs[obj].def = Some(self.prog.objdefs.len());
+        self.prog.nested.push(Top::Obj(self.prog.objdefs.len()));
+        self.prog.objdefs.push(def);
+        Expr::OneOf(dbl, elements, Some(self.prog.objs[obj].id))
     }
 
     /// Whether what comes next ends a construct this is inside of. The

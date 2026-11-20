@@ -217,6 +217,10 @@ pub(crate) enum Expr {
     ArgCount,
     /// A list with an element that is not a constant.
     List(Vec<Expr>),
+    /// A list of keys and values (`[key -> value, * -> default]`): a
+    /// lookup table made, when the program runs, from the list inside,
+    /// which has the keys and values in turn and the default last.
+    Lookup(Box<Expr>),
     /// `a[b]`
     Index(Box<Expr>, Box<Expr>),
     /// A string in double quotes: text to display.
@@ -226,7 +230,7 @@ pub(crate) enum Expr {
     DStrEmbed(Box<Expr>),
     /// `<<one of>>` in a string: the alternatives. The flag is for a
     /// string in double quotes.
-    OneOf(bool, Vec<Expr>),
+    OneOf(bool, Vec<Expr>, Option<u32>),
     /// `self`
     SelfRef,
     /// An anonymous function: its body, as an index into the program's

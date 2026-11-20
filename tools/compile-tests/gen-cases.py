@@ -3053,6 +3053,120 @@ mistakes["e_float1"] = """_main(args)
 """
 
 
+# Lists of keys and values, which are lookup tables.
+programs["lookup1"] = """#include <lookup.h>
+#include <tads.h>
+obj: object
+    tab = ['a' -> 1, 'b' -> 2]
+    deflt = [1 -> 'one', * -> 'other']
+    only = [* -> 0]
+    nested = [[1 -> 2], ['k' -> ['x' -> 'y']]]
+    m(k) { return [k -> k * 2, k + 1 -> [k]]; }
+;
+f(x) { return x; }
+_main(args)
+{
+    local t = ['one' -> 1, 'two' -> 2, 'three' -> f(3), * -> -1];
+    tadsSay(t['one']); tadsSay(t['three']); tadsSay(t['nine']); tadsSay(obj.tab['b']); tadsSay(obj.deflt[7]);
+    tadsSay(obj.only[1]); tadsSay(obj.nested[2]['k']['x']); tadsSay(obj.m(4)[5][1]); tadsSay('\\n');
+    [1 -> f(2)];
+    ['a' -> 1];
+    local e = [ ];
+    local u = [f(1) -> f(2), * -> f(3)];
+    tadsSay(u[1]); tadsSay(u[9]); tadsSay(e.length());
+    tadsSay([1 -> 2].ofKind(LookupTable) ? ' table' : ' list'); tadsSay(['a' -> 'b']['a']); tadsSay('\\n');
+}
+"""
+
+mistakes["e_lookup1"] = """_main(args)
+{
+    local a = [1, 2 -> 3];
+    local b = [1 -> 2, 3];
+    local c = [1 -> 2, 3, 4 -> 5];
+    local d = [1 -> 2 -> 3];
+    local e = [1 -> 2, * -> 3, 4 -> 5];
+    local f = [1, * -> 2];
+    local g = [* -> 1, 2];
+    local h = [1 -> ];
+    local i = [-> 1];
+    local j = [1 -> 2,];
+    local k = [* 2];
+    local l = [1 -> 2, 3 -> 4 -> 5, 6];
+    local m = [1 -> 2 3 -> 4];
+    local n = [* -> 1 -> 2];
+    local o = [1 -> 2, * -> 3;
+    return [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o] + [1 -> 2] - [3 -> 4] + [1 -> 2][1];
+}
+"""
+
+# A choice among alternatives in a string.
+programs["oneof1"] = (
+    BUILTINS
+    + """
+say(val) { tadsSay(val); }
+class OneOfIndexGen: object
+    numItems = 1
+    listAttrs = ''
+    idx = 0
+    getNextIndex()
+    {
+        if (listAttrs == 'seq,stop')
+            return idx < numItems ? ++idx : numItems;
+        idx = idx % numItems + 1;
+        return idx;
+    }
+;
+obj: object
+    name = 'obj'
+    desc = "It is <<one of>>red<<or>>green<<or>>blue<<cycling>>. "
+    text = 'A <<one of>>big<<or>>small<<stopping>> thing'
+    mixed = 'The <<one of>><<name>><<or>>other<<shuffled>> one'
+    once = "<<first time>>Hello! <<only>>Again. "
+    deep = "<<one of>>a<<one of>>1<<or>>2<<cycling>><<or>>b<<if name == 'obj'>>!<<end>><<at random>> "
+;
+_main(args)
+{
+    t3SetSay(say);
+    obj.desc; obj.desc; obj.desc; obj.desc; say('\\n');
+    say(obj.text); say(obj.text); say(obj.text); say('\\n');
+    say(obj.mixed); say(obj.mixed); say('\\n');
+    obj.once; obj.once; obj.deep; obj.deep; obj.deep; say('\\n');
+    local s = 'x<<one of>>1<<or>>2<<or>>3<<then at random>>y';
+    "<<one of>>p<<or>>q<<sticky random>> <<s>> <<one of>>only<<purely at random>>\\n";
+}
+"""
+)
+
+programs["oneof2"] = """extern class OneOfIndexGen;
+_main(args)
+{
+    return 'x<<one of>>1<<or>>2<<cycling>>y';
+}
+class OneOfIndexGen: object;
+f() { return "<<one of>>a<<or>><<one of>>b<<or>>c<<half shuffled>><<then purely at random>>"; }
+"""
+
+mistakes["e_oneof1"] = """_main(args)
+{
+    local a = 'x<<one of>>1<<or>>2<<cycling>>y';
+    "<<one of>>p<<or>>q<<stopping>>";
+    "<<first time>>p<<only>>";
+    return a;
+}
+"""
+
+mistakes["e_oneof2"] = """class OneOfIndexGen: object;
+getNextIndex() { }
+numItems() { }
+_main(args)
+{
+    local a = 'x<<one of>>1<<or>>2<<cycling>>y';
+    "<<one of>>p<<or>>q<<stopping>>";
+    return a;
+}
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

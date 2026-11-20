@@ -1,0 +1,74 @@
+// A program to run: lists of keys and values, which are lookup tables,
+// and strings that say something different each time.
+#include <systype.h>
+#include <tadsgen.h>
+#include <tadsio.h>
+#include <t3.h>
+#include <lookup.h>
+
+say(val) { tadsSay(val); }
+
+// Results go one to a line.
+line(val) { tadsSay(toString(val)); tadsSay('\n'); }
+
+// A string with `<<one of>>` in it gets an object of this class from
+// the compiler, which sets the two properties: how many alternatives
+// there are, and how the source said to choose among them. The system
+// library has a class that can choose at random; this one only goes
+// through them in order, and either stops at the last or starts again.
+class OneOfIndexGen: object
+    numItems = 1
+    listAttrs = ''
+    last = 0
+    getNextIndex()
+    {
+        if (last < numItems)
+            ++last;
+        else if (listAttrs != 'seq,stop')
+            last = 1;
+        return last;
+    }
+;
+
+door: object
+    name = 'door'
+
+    // `key -> value` pairs make a lookup table, and `* -> value` at
+    // the end is what the table gives for a key it does not have.
+    sounds = ['open' -> 'creak', 'close' -> 'thud', * -> 'silence']
+    sizes = [1 -> 'small', 2 -> 'large']
+
+    // A different word each time, round and round.
+    desc = "The <<name>> is <<one of>>red<<or>>green<<or>>blue<<cycling>>. "
+
+    // The alternatives can have expressions in them, and the last one
+    // can be the one that stays.
+    knock = 'You knock <<one of>>once<<or>>twice<<or>>until your
+        <<one of>>hand<<or>>fist<<cycling>> hurts<<stopping>>.'
+
+    // Said in full the first time only.
+    greet = "<<first time>>The <<name>> has a brass plate. <<only>>It says KEEP OUT. "
+;
+
+_main(args)
+{
+    t3SetSay(say);
+    line(door.sounds['open']);
+    line(door.sounds['lock']);
+    line(door.sizes[2]);
+    line(door.sizes[3] == nil ? 'no such size' : 'a size');
+    line(door.sounds.ofKind(LookupTable) ? 'a table' : 'a list');
+
+    // The keys and values can be worked out when the program runs.
+    local key = 'k' + 1;
+    local tab = [key -> key.length(), 'other' -> [1, 2, 3]];
+    line(tab['k1'] + tab['other'].length());
+
+    door.desc; door.desc; door.desc; door.desc; say('\n');
+    line(door.knock);
+    line(door.knock);
+    line(door.knock);
+    line(door.knock);
+    door.greet; say('\n');
+    door.greet; say('\n');
+}

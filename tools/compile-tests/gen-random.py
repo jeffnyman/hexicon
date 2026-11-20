@@ -148,6 +148,22 @@ TEMPLATES = [
     ("<<the * thing>>", 1, "the {} thing"),
     ("<<big *>>", 1, "big {}"),
 ]
+# How a choice among alternatives in a string can end.
+ONE_OF_ENDINGS = [
+    "",
+    "<<purely at random>>",
+    "<<then purely at random>>",
+    "<<at random>>",
+    "<<then at random>>",
+    "<<sticky random>>",
+    "<<as decreasingly likely outcomes>>",
+    "<<shuffled>>",
+    "<<then shuffled>>",
+    "<<half shuffled>>",
+    "<<then half shuffled>>",
+    "<<cycling>>",
+    "<<stopping>>",
+]
 # The operators a method can stand for, each with how many parameters
 # the method has.
 OPERATORS = [
@@ -295,6 +311,25 @@ class Program:
                         ]
                     )
                 )
+            elif kind < 0.96 and nested < 2:
+                # A choice among alternatives, each a string like this
+                # one, and perhaps how to choose.
+                if rng.random() < 0.2:
+                    parts.append("<<first time>>")
+                    parts.append(self.embedded(scope, depth - 1, quote, nested + 1))
+                    parts.append(rng.choice(["<<only>>", "<<only>>", ""]))
+                else:
+                    parts.append("<<one of>>")
+                    parts.append(self.embedded(scope, depth - 1, quote, nested + 1))
+                    while rng.random() < 0.6:
+                        parts.append(rng.choice(["<<or>>", "<<or>>", "<<||>>"]))
+                        if rng.random() < 0.5:
+                            parts.append(rng.choice(WORDS))
+                        else:
+                            parts.append(
+                                self.embedded(scope, depth - 1, quote, nested + 1)
+                            )
+                    parts.append(rng.choice(ONE_OF_ENDINGS))
         parts.append(rng.choice(WORDS))
         return "".join(parts)
 
@@ -378,6 +413,18 @@ class Program:
         if kind < 0.65:
             return rng.choice(["nil", "true"])
         if kind < 0.7:
+            # A list; now and then one of keys and values, which is a
+            # lookup table, not always put together right.
+            if rng.random() < 0.15:
+                pairs = [
+                    f"{self.constant()} -> {self.constant()}"
+                    for _ in range(rng.randint(1, 3))
+                ]
+                if rng.random() < 0.3:
+                    pairs.append(f"* -> {self.constant()}")
+                if rng.random() < 0.1:
+                    pairs.insert(rng.randint(0, len(pairs)), self.constant())
+                return "[" + ", ".join(pairs) + "]"
             return (
                 "[" + ", ".join(self.constant() for _ in range(rng.randint(0, 3))) + "]"
             )
@@ -1024,6 +1071,12 @@ class Program:
         if self.rng.random() < 0.1:
             ahead.append("extern function neverCalled(a, b?);")
         ahead.append("object template 'tname' \"tdesc\"? @tloc?;")
+        # The class a choice among alternatives in a string needs.
+        if self.rng.random() < 0.6:
+            ahead.append(
+                "class OneOfIndexGen: object numItems = 1 listAttrs = ''"
+                " getNextIndex() { return 1; };"
+            )
         # The property a `+` sign before an object gives a value to.
         if self.rng.random() < 0.8:
             ahead.append(f"+ property {self.rng.choice(self.props + ['tloc'])};")
