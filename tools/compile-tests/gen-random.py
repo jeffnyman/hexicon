@@ -662,6 +662,10 @@ class Program:
             head = "replace " + head
         elif not is_class and rng.random() < 0.08:
             head = "transient " + head
+        # Inside the object before it that has one `+` sign fewer, if
+        # there is one.
+        if redef is None and rng.random() < 0.15:
+            head = "+" * rng.randint(1, 3) + " " + head
         # Values for the template every program declares: a name, and
         # perhaps a description and a place. Now and then they fit no
         # template.
@@ -679,9 +683,15 @@ class Program:
         braces = rng.random() < 0.3
         lines = [head, "{"] if braces else [head]
         for prop in rng.sample(self.props, rng.randint(0, len(self.props))):
+            if rng.random() < 0.06:
+                lines += ["    " + line for line in self.propset(2, None)]
+                continue
             kind = rng.random()
             if redef == "modify" and rng.random() < 0.2:
                 prop = "replace " + prop
+            if rng.random() < 0.08:
+                lines += ["    " + line for line in self.nested_obj(prop, 2)]
+                continue
             if kind < 0.4:
                 lines.append(f"    {prop} = {self.constant()}")
             elif kind < 0.6:
@@ -708,6 +718,66 @@ class Program:
             self.in_method = False
             lines += ["    " + line for line in body if "return " not in line]
         lines.append("}" if braces else ";")
+        return lines
+
+    def nested_obj(self, prop, depth):
+        """A property whose value is an object written in place."""
+        rng = self.rng
+        classes = [obj[0] for obj in self.objs if obj[0] and obj[1]]
+        head = f"{prop}: {rng.choice(classes + ['object'])}"
+        if rng.random() < 0.2:
+            head += f" '{rng.choice(WORDS)}'"
+        # Without braces it is not one.
+        if rng.random() < 0.04:
+            return [f"{head} {rng.choice(self.props)} = 1"]
+        lines = [head, "{"]
+        for inner in rng.sample(self.props, rng.randint(0, min(3, len(self.props)))):
+            kind = rng.random()
+            if depth and kind < 0.2:
+                lines += ["    " + line for line in self.nested_obj(inner, depth - 1)]
+            elif kind < 0.24:
+                lines.append("    lexicalParent = nil")
+            elif kind < 0.5:
+                self.in_method = True
+                body = self.function(inner, rng.randint(0, 2), False)
+                self.in_method = False
+                lines += ["    " + line for line in body]
+            else:
+                lines.append(f"    {inner} = {self.constant()}")
+        lines.append("}")
+        return lines
+
+    def propset(self, depth, values_only):
+        """A group of properties with a pattern for their names.
+
+        A group with parameters has no methods, nor do the groups inside
+        it: the reference stops with a memory fault on a method that
+        gets parameters from its group.
+        """
+        rng = self.rng
+        pattern = rng.choice(["ver*", "*Take", "do*It", "*", "x*y"])
+        if rng.random() < 0.04:
+            pattern = rng.choice(["nostar", "*a*", "9*", "a b*", ""])
+        head = f"propertyset '{pattern}'"
+        if values_only is None:
+            values_only = rng.random() < 0.3
+        if values_only and rng.random() < 0.7:
+            head += " " + rng.choice(["(actor, *)", "(*)", "(a, *, b)", "(a, b)", "(a *)"])
+        lines = [head, "{"]
+        for prop in rng.sample(self.props, rng.randint(0, min(3, len(self.props)))):
+            kind = rng.random()
+            if depth and kind < 0.15:
+                lines += ["    " + line for line in self.propset(depth - 1, values_only)]
+            elif kind < 0.25:
+                lines += ["    " + line for line in self.nested_obj(prop, 1)]
+            elif kind < 0.5 and not values_only:
+                self.in_method = True
+                body = self.function(prop, rng.randint(0, 2), False)
+                self.in_method = False
+                lines += ["    " + line for line in body]
+            else:
+                lines.append(f"    {prop} = {self.constant()}")
+        lines.append("}")
         return lines
 
     def anon_expr(self, scope, depth):
@@ -894,6 +964,9 @@ class Program:
         if self.rng.random() < 0.1:
             ahead.append("extern function neverCalled(a, b?);")
         ahead.append("object template 'tname' \"tdesc\"? @tloc?;")
+        # The property a `+` sign before an object gives a value to.
+        if self.rng.random() < 0.8:
+            ahead.append(f"+ property {self.rng.choice(self.props + ['tloc'])};")
         for name, is_class, _ in self.objs:
             if name and is_class and self.rng.random() < 0.3:
                 ahead.append(f"{name} template 'tname' inherited [tlist]?;")

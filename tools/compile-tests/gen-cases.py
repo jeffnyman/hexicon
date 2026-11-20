@@ -2668,6 +2668,184 @@ _main(args) { }"""
 )
 
 
+# Objects inside objects: `+` signs before a definition.
+programs["plus1"] = (
+    BUILTINS
+    + """
++ property location;
+class Thing: object name = 'thing' location = nil;
+hall: Thing;
++ table: Thing;
+++ cup: Thing;
+++ Thing name = 'anon';
++++ lid: Thing;
++ chair: Thing location = cup;
++ class Furniture: Thing;
+++ onFurn: Thing;
+class Plain: Thing;
++ afterClass: Thing;
++ transient ghost: Thing;
++ transient Thing;
++ object name = 'x';
+modify table extra = 1;
+++ underModify: Thing;
++ besideModify: Thing;
+x2: Thing;
+modify Thing more = 2;
++ y2: Thing;
+replace cup: Thing;
++++ z: Thing;
+++++ deep: Thing;
++ property loc2;
++ w: Thing;
+object template 'name' @location;
++ Thing 'tpl' @hall;
++ both: Thing 'tpl' @hall loc2 = 5;
+modify Object objExtra = 1;
++ underMeta: Thing;
++ Thing { name = 'braces' }
+++ last: Thing;
+_main(args) { tadsSay(lid.location.name); tadsSay(underModify.location.extra); tadsSay(last.loc2.name); }
+"""
+)
+
+mistakes["e_plus1"] = """+ a: object;
++ property;
++ property 5;
++ property 6
++ property f;
+f() { }
++ b: object;
++ property loc;
+x: object;
++++ y: object;
++ 5;
+++ property loc;
++ class;
++ transient class C2: object;
++ modify x;
++ c: object
++ d: object;
+_main(args) { }
+"""
+
+mistakes["e_plus2"] = """+ property loc;
+x: object;
++ replace x: object;
+++ function g() { }
++ x: object;
++ x 'a';
++ +;
++ property loc, loc2;
++ y: object + z: object;
+_main(args) { }
+"""
+
+# An object as the value of a property.
+programs["nested1"] = (
+    BUILTINS
+    + """
+class Thing: object name = 'thing';
+class Thing2: object;
+object template 'name';
+a: Thing
+  inner: Thing { name = 'inner' deep: Thing { name = 'deep' m() { return lexicalParent; } } }
+  other: object { }
+  tpl: Thing 'tname' { x = 1 }
+  tpl2: Thing { 'tname2' x = 2 }
+  fn = ({: self })
+  list = [1, 2]
+  two: Thing, Thing2 { f() { return ({: lexicalParent.name }); } }
+  lexicalParent = 77
+;
+modify a n2: Thing { } replace inner: Thing { name = 'replaced' };
+modify Object helper: object { v = 1 };
+class C: object sub: Thing { };
+b: Thing { nested: Thing { } }
+transient t: Thing sub: Thing { };
+_main(args) { tadsSay(a.inner.name); tadsSay(a.tpl.lexicalParent.name); tadsSay(a.two.f()()); tadsSay(b.helper.v); }
+"""
+)
+
+mistakes["e_nested1"] = """a: object
+  lexicalParent = 1
+  n: object { lexicalParent = 2 }
+  m: object { x = 1 x = 2 }
+  k: Undefined { }
+  f: object { y }
+  g: f2 { }
+  h: 5 { }
+;
+f2() { }
+_main(args) { }
+"""
+
+mistakes["e_nested2"] = """b: object
+  n: object x = 1;
+b2: object
+  n2: object;
+c: object
+  n: object { p: object q = 1 }
+;
+d: object
+  c: object { };
+e: object
+  n: object { p: object { r: object s = 2 } t = 3 } u = 4
+;
+_main(args) { }
+"""
+
+# Groups of properties that share a pattern for their names.
+programs["propset1"] = (
+    BUILTINS
+    + """
+a: object
+  propertyset 'ver*Take' { Dobj = 1 Iobj() { return 2; } Sub: object { z = 3 propertyset 'in*' { ner = 9 } } ; ; propertyset 'x*' { A = 4 B(q) { return q; } } C = 5 }
+  propertyset '*' { plain = 1 }
+  propertyset '*Only' { }
+  propertyset 'pre*' (who, *) { V = 6 }
+  after = 5
+;
+b: object { propertyset 'p*' { q = 1 } r = 2 }
+class K: object propertyset 'k*' { m { return 1; } n(a, b?, [c]) { return a; } };
+modify a propertyset 'ver*Take' { replace Dobj = 10 };
+_main(args) { tadsSay(a.verDobjTake + a.verIobjTake() + a.verxATake + a.verxBTake(5) + a.verCTake + a.verSubTake.inner + a.plain + a.preV + b.pq); }
+"""
+)
+
+mistakes["e_propset1"] = """a: object
+  propertyset 5 { }
+  propertyset 'no star' { x = 1 }
+  propertyset '**' { y = 1 }
+  propertyset '5*' { z = 1 }
+  propertyset '' { z0 = 1 }
+  propertyset 'a*' ( { }
+  propertyset 'b*' (x y, , *) { }
+  propertyset 'c*' (x,) { }
+  propertyset 'd*' (*, *) { }
+  propertyset 'e*' w = 1 }
+  propertyset 'g*' { x = 2 x = 3 }
+  propertyset 'h*' { ; class
+;
+b: object
+  propertyset;
+c: object { propertyset 'a*' { x = 1 } 
+_main(args) { }
+"""
+
+mistakes["e_propset2"] = """a: object
+  propertyset 'a*' { propertyset 'b*' { propertyset 'c*' { propertyset 'd*' { propertyset 'e*' { propertyset 'f*' {
+  propertyset 'g*' { propertyset 'h*' { propertyset 'i*' { propertyset 'j*' { propertyset 'k*' { propertyset 'l*' {
+    deep = 1
+  } } } } } } } } } } } }
+  propertyset 'abcdefghijklmnopqrstuvwxyz*abcdefghijklmnopqrstuvwxyz' { propertyset 'abcdefghijklmnopqrstuvwxyz*' { long = 1 } }
+  propertyset 'q*' { f: object { } g: a { } h }
+;
+f() { }
+_main(args) { }
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

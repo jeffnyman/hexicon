@@ -1872,3 +1872,113 @@ fn extern_declares_and_transient_objects_go_in_a_block_of_their_own() {
         ]
     );
 }
+
+#[test]
+fn plus_signs_put_an_object_in_the_one_before_with_one_fewer() {
+    let compiled = compile_text(
+        "+ property loc;\na: object;\n+ b: object;\n++ c: object;\n+ d: object loc = c;\n\
+         _main(args) { return c.loc; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let objs = block(&image, b"OBJS");
+    // Four objects; the second has two properties: where it comes in
+    // the source, and the first object.
+    assert_eq!(objs[0..2], [4, 0]);
+    let second = &objs[6 + 6 + 13..];
+    assert_eq!(second[0..4], [2, 0, 0, 0]);
+    assert_eq!(second[8..10], [2, 0]);
+    assert_eq!(second[21..26], [5, 1, 0, 0, 0]);
+    // The last says where it is itself: in the third.
+    let last = &objs[6 + 6 + 13 + 2 * 26..];
+    assert_eq!(last[0..4], [4, 0, 0, 0]);
+    assert_eq!(last[21..26], [5, 3, 0, 0, 0]);
+
+    // There has to be a property for it, and an object to be in.
+    assert_eq!(
+        compile_messages("a: object;\n+ b: object;\n_main(args) { }\n"),
+        ["2: error: too many '+' signs in object definition - location not defined"]
+    );
+    assert_eq!(
+        compile_messages("+ property loc;\na: object;\n+++ b: object;\n+ property 5;\n"),
+        [
+            "3: error: too many '+' signs in object definition - location not defined",
+            "4: error: symbol expected after '+ property', but found \"5\" instead",
+        ]
+    );
+}
+
+#[test]
+fn an_object_can_be_the_value_of_a_property_of_another() {
+    let compiled = compile_text(
+        "a: object\n    inner: object { v = 1 }\n;\n\
+         _main(args) { return a.inner.lexicalParent; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let objs = block(&image, b"OBJS");
+    // Two objects. The outer one has the inner one for a property;
+    // the inner one has three properties, the first of them the outer
+    // one.
+    assert_eq!(objs[0..2], [2, 0]);
+    assert_eq!(objs[6..10], [1, 0, 0, 0]);
+    assert_eq!(objs[14..16], [2, 0]);
+    assert_eq!(objs[27..32], [5, 2, 0, 0, 0]);
+    let inner = &objs[6 + 6 + 20..];
+    assert_eq!(inner[0..4], [2, 0, 0, 0]);
+    assert_eq!(inner[8..10], [3, 0]);
+    assert_eq!(inner[12..19], [6, 0, 5, 1, 0, 0, 0]);
+
+    // It has to be in braces, and cannot say what it is written in.
+    assert_eq!(
+        compile_messages(
+            "a: object\n    lexicalParent = 1\n    n: object { lexicalParent = 2 }\n;\n\
+             b: object\n    n: object v = 1;\n_main(args) { }\n"
+        ),
+        [
+            "3: error: property \"lexicalParent\" already defined in object",
+            "6: error: unterminated object definition",
+        ]
+    );
+}
+
+#[test]
+fn a_propertyset_gives_its_properties_a_pattern_for_their_names_and_parameters() {
+    // The same object written out in full makes the same image.
+    let grouped = compile_text(
+        "a: object\n    propertyset 'ver*Take' (actor, *, extra) {\n\
+         Dobj(x) { return actor + x + extra; }\n        Iobj { return actor; }\n\
+         val = 7\n        propertyset 'x*' (*, last) { A(q) { return q + last; } }\n    }\n;\n\
+         _main(args) { return a.verDobjTake(1, 2, 3) + a.vervalTake; }\n",
+    );
+    let written_out = compile_text(
+        "a: object\n    verDobjTake(actor, x, extra) { return actor + x + extra; }\n\
+         verIobjTake(actor, extra) { return actor; }\n    vervalTake = 7\n\
+         verxATake(actor, q, last, extra) { return q + last; }\n;\n\
+         _main(args) { return a.verDobjTake(1, 2, 3) + a.vervalTake; }\n",
+    );
+    assert!(grouped.diagnostics.is_empty(), "{:?}", grouped.diagnostics);
+    assert!(grouped.image.is_some());
+    assert_eq!(grouped.image, written_out.image);
+
+    assert_eq!(
+        compile_messages(
+            "a: object\n    propertyset 'no star' { x = 1 }\n    propertyset 5 { }\n\
+             propertyset 'a*' (x, y) { }\n    propertyset 'b*' w = 1 }\n;\n_main(args) { }\n"
+        ),
+        [
+            "2: error: propertyset pattern string \"'no star'\" is invalid",
+            "3: error: expected property name pattern string after 'propertyset' - found \"5\"",
+            "4: error: invalid formal parameters in propertyset definition",
+            "5: error: missing open brace '{' in propertyset definition - found \"w\"",
+        ]
+    );
+}

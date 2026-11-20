@@ -420,8 +420,24 @@ pub(crate) const SPECIAL_PROPS: [&str; 25] = [
     "operator []",
     "operator []=",
 ];
-/// Which of them is `sourceTextOrder`.
+/// Which of them is `sourceTextOrder`, and which `lexicalParent`.
 const SRC_ORDER_PROP: usize = 6;
+const LEXICAL_PARENT_PROP: usize = 5;
+
+/// How deep `propertyset` can be inside `propertyset`.
+const MAX_PROPSET_DEPTH: usize = 10;
+
+/// The longest a name can be.
+const TOK_SYM_MAX_LEN: usize = 80;
+
+/// A `propertyset` being read: the pattern its properties' names go
+/// into in place of the `*`, and the tokens of its parameter list,
+/// where `*` stands for each method's own parameters.
+#[derive(Debug, Default)]
+struct PropSet {
+    pattern: Vec<u8>,
+    params: Vec<SrcToken>,
+}
 
 /// How many chains the reference's table of global names has. A name's
 /// chain is the sum of its bytes, and a chain has its newest name
@@ -835,6 +851,27 @@ pub(crate) struct Parser<'p, 'a> {
     prop_replace: bool,
     /// The object about to be read has `transient` before it.
     transient: bool,
+    /// The property `+` before an object gives a value to
+    /// (`+ property location;`).
+    plus_prop: Option<usize>,
+    /// For each number of `+` signs, the last definition that had so
+    /// many: an index into [`Program::objdefs`].
+    plus_stack: Vec<Option<usize>>,
+    /// How many `+` signs the object about to be read has before it.
+    plus_cnt: usize,
+    /// The object about to be read is the value of a property of
+    /// another; and where its definition was put, once it is read.
+    obj_nested: bool,
+    nested_def: Option<usize>,
+    /// The definition being read was found to have ended without
+    /// saying so; and where its property being read started, which is
+    /// where that is reported.
+    unterm: bool,
+    term_pos: (usize, u32),
+    /// The `propertyset` groups being read, the outermost first, and
+    /// how many are open, which can be more than are kept.
+    propsets: Vec<PropSet>,
+    propset_depth: usize,
     /// The labels of the function being read.
     labels: Vec<LabelSym>,
     /// The loops, `switch` statements, labeled statements, and `try`
@@ -1046,6 +1083,15 @@ impl<'p, 'a> Parser<'p, 'a> {
             body_is_obj_prop: false,
             prop_replace: false,
             transient: false,
+            plus_prop: None,
+            plus_stack: Vec::new(),
+            plus_cnt: 0,
+            obj_nested: false,
+            nested_def: None,
+            unterm: false,
+            term_pos: (0, 0),
+            propsets: Vec::new(),
+            propset_depth: 0,
             labels: Vec::new(),
             enclosing: Vec::new(),
             next_enclosure_id: 0,
@@ -1252,7 +1298,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                 }
                 Tok::Extern => self.parse_extern(),
                 Tok::Transient => self.parse_transient(suppress_error, &mut suppress_next_error),
-                Tok::Plus | Tok::Inc | Tok::Dictionary | Tok::Grammar => {
+                Tok::Plus | Tok::Inc => self.parse_plus_object(),
+                Tok::Dictionary | Tok::Grammar => {
                     if !suppress_error {
                         let shown = self.tok.cur_token_shown();
                         self.unsupported(&format!("a definition starting with \"{shown}\""));
@@ -5488,6 +5535,64 @@ impl Parser<'_, '_> {
 
     /// Read an object without a name: `superclasses properties ;`.
     fn parse_anon_object(&mut self) -> Parsed<()> {
+        let obj = self.new_anon_obj();
+        self.parse_object_body(Some(obj), false, true, None, None)
+    }
+
+    /// Read an object that starts with `+` signs, which say what it is
+    /// in: the last object with one sign fewer. Or `+ property name;`,
+    /// which says which property that is the value of.
+    fn parse_plus_object(&mut self) -> Parsed<()> {
+        let mut cnt = 0;
+        while matches!(self.cur(), Tok::Plus | Tok::Inc) {
+            cnt += if self.cur() == Tok::Inc { 2 } else { 1 };
+            self.next();
+        }
+        if cnt == 1 && self.cur() == Tok::Property {
+            if self.next() == Tok::Sym {
+                let name = self.cur_text();
+                self.plus_prop = self.look_up_prop(&name);
+                self.next();
+            } else {
+                self.error_curtok("symbol expected after '+ property', but found \"%\" instead");
+                if self.cur() != Tok::Sem {
+                    self.next();
+                }
+            }
+            return self.parse_req_sem();
+        }
+        let mut is_class = false;
+        if self.cur() == Tok::Class {
+            self.next();
+            is_class = true;
+        } else if self.cur() == Tok::Transient {
+            self.next();
+            self.transient = true;
+        }
+        // A name with no colon after it is a class's, and the object
+        // has no name.
+        let anon = match self.cur() {
+            Tok::Sym => {
+                let after = self.next();
+                self.tok.unget_token();
+                after != Tok::Colon
+            }
+            Tok::Object => true,
+            _ => false,
+        };
+        self.plus_cnt = cnt;
+        let result = if anon {
+            self.parse_anon_object()
+        } else {
+            self.parse_object(is_class, Redef::No)
+        };
+        self.plus_cnt = 0;
+        self.transient = false;
+        result
+    }
+
+    /// Make the object a definition without a name defines.
+    fn new_anon_obj(&mut self) -> usize {
         self.prog.objs.push(ObjSym {
             name: b".anon".to_vec(),
             id: self.prog.next_obj_id,
@@ -5504,7 +5609,7 @@ impl Parser<'_, '_> {
             ext_redef: false,
         });
         self.prog.next_obj_id += 1;
-        self.parse_object_body(Some(self.prog.objs.len() - 1), false, true, None, None)
+        self.prog.objs.len() - 1
     }
 
     fn parse_object_body(
@@ -5530,6 +5635,11 @@ impl Parser<'_, '_> {
         modify: Option<(u32, Option<usize>)>,
         meta: Option<(usize, u32)>,
     ) -> Parsed<()> {
+        let plus_cnt = std::mem::take(&mut self.plus_cnt);
+        let is_nested = std::mem::take(&mut self.obj_nested);
+        if !is_nested {
+            self.unterm = false;
+        }
         let mut def = ObjDef {
             sym,
             is_class,
@@ -5576,6 +5686,31 @@ impl Parser<'_, '_> {
             self.parse_superclass_list(sym, &mut def);
         }
 
+        // With `+` signs, the object is in the last one that had one
+        // sign fewer.
+        if plus_cnt != 0 {
+            let loc = self.plus_stack.get(plus_cnt - 1).copied().flatten();
+            match (self.plus_prop, loc) {
+                (Some(prop), Some(loc)) => {
+                    // That definition's number: its own if a `modify`
+                    // has taken its name since.
+                    let loc = &self.prog.objdefs[loc];
+                    let id = loc.mod_id.or(loc.sym.map(|obj| self.prog.objs[obj].id));
+                    if let Some(id) = id {
+                        def.props.push(ObjProp {
+                            prop,
+                            value: PropValue::Expr(Expr::constant(Value::Obj(id))),
+                            overwritable: true,
+                            is_static: false,
+                            file,
+                            line,
+                        });
+                    }
+                }
+                _ => self.error("too many '+' signs in object definition - location not defined"),
+            }
+        }
+
         let mut braces = false;
         if self.cur() == Tok::LBrace {
             self.next();
@@ -5587,6 +5722,19 @@ impl Parser<'_, '_> {
         if !braces && self.cur() == Tok::LBrace {
             braces = true;
             self.next();
+        }
+        // An object that is a property's value has to be in braces.
+        // Without them it is taken to be the next definition, the one
+        // being read having ended without saying so.
+        if is_nested && !braces {
+            let (file, line) = self.term_pos;
+            self.tok.log_at(
+                file,
+                line,
+                Severity::Error,
+                "unterminated object definition".to_owned(),
+            );
+            self.unterm = true;
         }
 
         // An object that is not a class knows where it comes in the
@@ -5604,9 +5752,30 @@ impl Parser<'_, '_> {
             });
         }
 
-        self.parse_obj_prop_list(&mut def, braces, false)?;
+        self.parse_obj_prop_list(&mut def, braces, is_nested)?;
+        if is_nested {
+            // The object it is in puts it with the definitions that
+            // are generated after the rest, unless it turned out not
+            // to be one.
+            if !self.unterm {
+                if let Some(obj) = sym {
+                    self.prog.objs[obj].def = Some(self.prog.objdefs.len());
+                }
+                self.nested_def = Some(self.prog.objdefs.len());
+                self.prog.objdefs.push(def);
+            }
+            return Ok(());
+        }
         if let Some(obj) = sym {
             self.prog.objs[obj].def = Some(self.prog.objdefs.len());
+        }
+        // The next object with one `+` sign more is in this one. A
+        // class counts only if it has `+` signs itself.
+        if !is_class || plus_cnt != 0 {
+            if self.plus_stack.len() <= plus_cnt {
+                self.plus_stack.resize(plus_cnt + 1, None);
+            }
+            self.plus_stack[plus_cnt] = Some(self.prog.objdefs.len());
         }
         self.prog.top.push(Top::Obj(self.prog.objdefs.len()));
         self.prog.objdefs.push(def);
@@ -5667,28 +5836,42 @@ impl Parser<'_, '_> {
 
     /// Read an object's properties, up to the semicolon that ends the
     /// definition, or the closing brace if it has braces.
-    ///
-    /// With `one_prop`, the list is what follows a definition found to
-    /// have ended without saying so, and reading stops after the first
-    /// property, as the reference's does: it goes by a flag that was
-    /// set when the missing end was noticed.
     fn parse_obj_prop_list(
         &mut self,
         def: &mut ObjDef,
         braces: bool,
-        one_prop: bool,
+        is_nested: bool,
     ) -> Parsed<()> {
-        let missing_end = if braces {
-            "missing right brace at end of object definition - found \"%\""
-        } else {
-            "missing semicolon at end of object definition - found \"%\""
-        };
+        // The groups of properties open around this object, if it is a
+        // property's value, are nothing to it.
+        let outer_sets = std::mem::take(&mut self.propsets);
+        let outer_depth = std::mem::take(&mut self.propset_depth);
+        let result = self.parse_obj_prop_list_in(def, braces, is_nested);
+        self.propsets = outer_sets;
+        self.propset_depth = outer_depth;
+        result
+    }
+
+    fn parse_obj_prop_list_in(
+        &mut self,
+        def: &mut ObjDef,
+        braces: bool,
+        is_nested: bool,
+    ) -> Parsed<()> {
+        const REQ_RBRACE: &str = "missing right brace at end of object definition - found \"%\"";
+        const REQ_SEM: &str = "missing semicolon at end of object definition - found \"%\"";
         loop {
+            let missing_end = if braces || self.propset_depth != 0 {
+                REQ_RBRACE
+            } else {
+                REQ_SEM
+            };
             match self.cur() {
+                Tok::PropertySet => self.parse_propertyset()?,
                 Tok::Sem => {
                     // Inside braces a semicolon is an empty property.
                     self.next();
-                    if !braces {
+                    if !braces && self.propset_depth == 0 {
                         return Ok(());
                     }
                 }
@@ -5735,7 +5918,11 @@ impl Parser<'_, '_> {
                         self.error_curtok(missing_end);
                         return Ok(());
                     }
-                    if self.parse_obj_prop(def)? || one_prop {
+                    if !is_nested {
+                        self.term_pos = self.tok.last_pos();
+                    }
+                    self.parse_obj_prop(def, is_nested)?;
+                    if self.unterm {
                         return Ok(());
                     }
                 }
@@ -5748,16 +5935,26 @@ impl Parser<'_, '_> {
                         );
                     }
                     self.next();
+                    if !is_nested {
+                        self.term_pos = self.tok.last_pos();
+                    }
                     self.prop_replace = true;
-                    let ended = self.parse_obj_prop(def)?;
+                    let result = self.parse_obj_prop(def, is_nested);
                     self.prop_replace = false;
-                    if ended || one_prop {
+                    result?;
+                    if self.unterm {
                         return Ok(());
                     }
                 }
-                Tok::PropertySet | Tok::Operator => {
+                Tok::Operator => {
                     let shown = self.tok.cur_token_shown();
                     self.unsupported(&format!("\"{shown}\" in an object definition"));
+                    self.next();
+                }
+                // The end of a group of properties, if one is open.
+                Tok::RBrace if self.propset_depth != 0 => {
+                    self.propset_depth -= 1;
+                    self.propsets.truncate(self.propset_depth);
                     self.next();
                 }
                 Tok::RBrace if braces => {
@@ -5778,13 +5975,219 @@ impl Parser<'_, '_> {
         }
     }
 
-    /// Read one property of an object, from its name on. Returns
-    /// whether the definition turned out to have ended without saying
-    /// so, with the next definition starting here.
-    fn parse_obj_prop(&mut self, def: &mut ObjDef) -> Parsed<bool> {
+    /// Read the start of a group of properties, up to its opening
+    /// brace: `propertyset 'pattern*' (params, *) {`. Each property in
+    /// the group has the name the pattern makes of the name it is
+    /// written with, and each method the group's parameters around its
+    /// own.
+    fn parse_propertyset(&mut self) -> Parsed<()> {
+        // A group too deep is read, and that is all.
+        let kept = self.propset_depth < MAX_PROPSET_DEPTH;
+        if self.propset_depth == MAX_PROPSET_DEPTH {
+            self.error("'propertyset' nesting is too deep");
+        }
+        self.propset_depth += 1;
+        let mut set = PropSet::default();
+        if self.next() == Tok::SStr {
+            set.pattern = self.cur_text();
+            // The characters of a name, and one `*`.
+            let stars = set.pattern.iter().filter(|&&c| c == b'*').count();
+            let bad = set
+                .pattern
+                .iter()
+                .any(|&c| c != b'*' && !crate::lex::is_sym(c));
+            let bad_first = set
+                .pattern
+                .first()
+                .is_some_and(|&c| c != b'*' && !crate::lex::is_syminit(c));
+            if stars != 1 || bad || bad_first {
+                self.error_curtok("propertyset pattern string \"%\" is invalid");
+            }
+        } else {
+            self.error_curtok(
+                "expected property name pattern string after 'propertyset' - found \"%\"",
+            );
+        }
+        if self.next() == Tok::LPar {
+            self.next();
+            // What came last: nothing, a parameter, or a comma.
+            let mut state = 0;
+            let mut stars = 0;
+            loop {
+                match self.cur() {
+                    Tok::LBrace | Tok::RBrace | Tok::Sem => {
+                        self.error_curtok(
+                            "missing right parenthesis ')' at end of formal parameter list - \
+                             found \"%\"",
+                        );
+                        break;
+                    }
+                    Tok::RPar => {
+                        if state == 2 {
+                            self.error("missing parameter name at end of formal parameter list");
+                        }
+                        self.next();
+                        break;
+                    }
+                    Tok::Sym | Tok::Times => {
+                        if state == 1 {
+                            self.error_curtok(
+                                "expected a comma in formal parameter list, but found \"%\"",
+                            );
+                        }
+                        state = 1;
+                        if self.cur() == Tok::Times {
+                            stars += 1;
+                        }
+                        set.params.push(self.tok.cur_token().clone());
+                        self.next();
+                    }
+                    Tok::Comma if state == 1 => {
+                        state = 2;
+                        set.params.push(self.tok.cur_token().clone());
+                        self.next();
+                    }
+                    _ => {
+                        self.error_curtok(if state == 1 {
+                            "expected a comma in formal parameter list, but found \"%\""
+                        } else {
+                            "expected a symbol in formal parameter list, but found \"%\""
+                        });
+                        self.next();
+                        // At the end of the source this goes round for
+                        // ever; what stops the reference is its limit
+                        // on errors.
+                        if self.tok.gave_up() {
+                            return Err(Stop);
+                        }
+                    }
+                }
+            }
+            if stars != 1 {
+                self.error("invalid formal parameters in propertyset definition");
+            }
+        }
+        if self.cur() == Tok::LBrace {
+            self.next();
+        } else {
+            self.error_curtok("missing open brace '{' in propertyset definition - found \"%\"");
+        }
+        if kept {
+            self.propsets.push(set);
+        }
+        Ok(())
+    }
+
+    /// The name a property written inside groups of properties has:
+    /// each group's pattern with the name so far in place of its `*`,
+    /// the innermost group's first.
+    fn propset_name(&mut self, mut name: Vec<u8>) -> Vec<u8> {
+        for index in (0..self.propsets.len()).rev() {
+            let pattern = &self.propsets[index].pattern;
+            if name.len() + pattern.len() > TOK_SYM_MAX_LEN {
+                self.error("expanded property name in propertyset is too long");
+                break;
+            }
+            let star = pattern.iter().position(|&c| c == b'*');
+            let (before, after) = match star {
+                Some(star) => (&pattern[..star], &pattern[star + 1..]),
+                None => (&pattern[..], &pattern[..0]),
+            };
+            name = [before, &name, after].concat();
+        }
+        name
+    }
+
+    /// Put the parameters the open groups of properties give a method
+    /// around the method's own, which are about to be read: what each
+    /// group has before its `*`, the outermost group's first; the
+    /// method's own; and what each has after its `*`, the innermost
+    /// group's first.
+    ///
+    /// The reference builds this list in a variable of a function that
+    /// has returned by the time the list is read, and stops with a
+    /// memory fault.
+    fn insert_propset_params(&mut self) {
+        if self.propsets.iter().all(|set| set.params.is_empty()) {
+            return;
+        }
+        let split = |set: &PropSet| -> (Vec<SrcToken>, Vec<SrcToken>) {
+            let params = &set.params;
+            let star = params.iter().position(|token| token.typ == Tok::Times);
+            let Some(star) = star else {
+                return (params.clone(), Vec::new());
+            };
+            let mut before = params[..star].to_vec();
+            if before.last().is_some_and(|token| token.typ == Tok::Comma) {
+                before.pop();
+            }
+            let mut after = params[star + 1..].to_vec();
+            if after.first().is_some_and(|token| token.typ == Tok::Comma) {
+                after.remove(0);
+            }
+            (before, after)
+        };
+        let mut pieces = Vec::new();
+        let mut tail = Vec::new();
+        for set in &self.propsets {
+            let (before, after) = split(set);
+            pieces.push(before);
+            tail.push(after);
+        }
+        // The method's own, if it has any.
+        let mut own = Vec::new();
+        if self.cur() == Tok::LPar {
+            let mut depth = 0;
+            loop {
+                match self.next() {
+                    Tok::Eof => break,
+                    Tok::LPar => depth += 1,
+                    Tok::RPar if depth == 0 => {
+                        self.next();
+                        break;
+                    }
+                    Tok::RPar => depth -= 1,
+                    _ => {}
+                }
+                own.push(self.tok.cur_token().clone());
+            }
+        }
+        pieces.push(own);
+        pieces.extend(tail.into_iter().rev());
+
+        let token = |typ: Tok, text: &[u8]| {
+            let mut token = SrcToken::new(typ);
+            token.text = text.to_vec();
+            token
+        };
+        let mut list = vec![token(Tok::LPar, b"(")];
+        for piece in pieces.into_iter().filter(|piece| !piece.is_empty()) {
+            if list.len() > 1 {
+                list.push(token(Tok::Comma, b","));
+            }
+            list.extend(piece);
+        }
+        list.push(token(Tok::RPar, b")"));
+        // The list goes in front of the token that came after the
+        // method's own.
+        let current = self.tok.cur_token().clone();
+        self.tok.push_token(current);
+        for token in list.into_iter().rev() {
+            self.tok.push_token(token);
+        }
+        self.next();
+    }
+
+    /// Read one property of an object, from its name on. If the
+    /// definition turns out to have ended without saying so, with the
+    /// next definition starting here, that is noted.
+    fn parse_obj_prop(&mut self, def: &mut ObjDef, obj_is_nested: bool) -> Parsed<()> {
         let (file, line) = self.tok.last_pos();
         (self.cur_file, self.cur_line) = (file, line);
-        let name = self.cur_text();
+        let mut name = self.cur_text();
+        if self.propset_depth != 0 {
+            name = self.propset_name(name);
+        }
         let existing = self.prog.globals.get(&name).copied();
         let mut new_prop = None;
         let mut is_value = false;
@@ -5804,55 +6207,61 @@ impl Parser<'_, '_> {
                 no_value = true;
             }
             Tok::Colon => {
+                let (term_file, term_line) = self.term_pos;
                 if matches!(existing, Some(Global::Obj(_))) {
                     // `name:` where the name is an object's: the next
                     // definition, this one's end having been left out.
                     self.tok.log_at(
-                        file,
-                        line,
+                        term_file,
+                        term_line,
                         Severity::Error,
                         "unterminated object definition".to_owned(),
                     );
                     self.tok.unget_token();
-                    return Ok(true);
+                    self.unterm = true;
+                    return Ok(());
                 }
-                // An object of its own as the property's value. It
-                // has to be in braces; without them, this is taken to
-                // be the next definition, this one's end having been
-                // left out, and is read as that.
+                // An object of its own as the property's value, in
+                // braces: `name: Class { ... }`.
                 self.next();
-                let mut nested = ObjDef {
-                    sym: None,
-                    is_class: false,
-                    superclasses: Vec::new(),
-                    props: Vec::new(),
-                    file,
-                    line,
-                    is_modify: false,
-                    mod_base: None,
-                    prev_def: None,
-                    mod_id: None,
-                    replaced: false,
-                    meta: None,
-                    transient: false,
-                    bad_template: false,
-                    undesc_sc: false,
-                };
-                self.parse_superclass_list(None, &mut nested);
-                if self.cur() == Tok::LBrace {
-                    self.unsupported("an object nested in an object definition");
-                    self.next();
-                    self.parse_obj_prop_list(&mut nested, true, false)?;
-                    return Ok(false);
+                let obj = self.new_anon_obj();
+                let replace = std::mem::take(&mut self.prop_replace);
+                self.obj_nested = true;
+                self.nested_def = None;
+                self.parse_object_body(Some(obj), false, true, None, None)?;
+                self.prop_replace = replace;
+                // It was the next definition after all, and the name
+                // perhaps that definition's.
+                if self.unterm {
+                    return Ok(());
                 }
-                self.tok.log_at(
+                let Some(nested) = self.nested_def.take() else {
+                    return Err(Stop);
+                };
+                if let Some(prop) = self.look_up_prop(&name) {
+                    let id = self.prog.objs[obj].id;
+                    new_prop = Some(def.props.len());
+                    def.props.push(ObjProp {
+                        prop,
+                        value: PropValue::Expr(Expr::constant(Value::Obj(id))),
+                        overwritable: false,
+                        is_static: false,
+                        file,
+                        line,
+                    });
+                }
+                // The object knows which object it is written in.
+                let parent = def.sym.map(|obj| self.prog.objs[obj].id).or(def.mod_id);
+                self.prog.objdefs[nested].props.push(ObjProp {
+                    prop: LEXICAL_PARENT_PROP,
+                    value: PropValue::Expr(Expr::constant(Value::Obj(parent.unwrap_or(0)))),
+                    overwritable: false,
+                    is_static: false,
                     file,
                     line,
-                    Severity::Error,
-                    "unterminated object definition".to_owned(),
-                );
-                self.parse_obj_prop_list(&mut nested, false, true)?;
-                return Ok(true);
+                });
+                self.prog.nested.push(Top::Obj(nested));
+                no_value = true;
             }
             Tok::Eq => {
                 self.next();
@@ -5903,9 +6312,12 @@ impl Parser<'_, '_> {
                 });
             }
         } else {
+            if self.propset_depth != 0 {
+                self.insert_propset_params();
+            }
             self.body_is_obj_prop = true;
             let Some((body, _)) = self.parse_code_body(true, CbType::Normal, None, None)? else {
-                return Ok(false);
+                return Ok(());
             };
             self.prog.last_labels = std::rc::Rc::clone(&body.labels);
             self.self_valid = true;
@@ -5959,8 +6371,15 @@ impl Parser<'_, '_> {
         }
 
         // A property the name already was can be here only once, but
-        // that the source's value replaces one the compiler put in.
-        if let Some(Global::Prop(prop)) = existing {
+        // that the source's value replaces one the compiler put in. An
+        // object that is a property's value cannot say what it is
+        // written in: the compiler does.
+        if obj_is_nested && existing == Some(Global::Prop(LEXICAL_PARENT_PROP)) {
+            self.error(format!(
+                "property \"{}\" already defined in object",
+                Self::name(&name)
+            ));
+        } else if let Some(Global::Prop(prop)) = existing {
             let earlier = def
                 .props
                 .iter()
@@ -5977,7 +6396,7 @@ impl Parser<'_, '_> {
                 }
             }
         }
-        Ok(false)
+        Ok(())
     }
 }
 

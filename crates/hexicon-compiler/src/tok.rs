@@ -31,7 +31,7 @@ pub struct SrcToken {
 }
 
 impl SrcToken {
-    pub(super) fn new(typ: Tok) -> Self {
+    pub(crate) fn new(typ: Tok) -> Self {
         Self {
             typ,
             text: Vec::new(),

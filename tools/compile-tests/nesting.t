@@ -1,0 +1,106 @@
+// A program to run: objects put inside one another with `+` signs,
+// objects written in place as the values of properties, and groups of
+// properties that share a pattern for their names.
+#include <systype.h>
+#include <tadsgen.h>
+#include <tadsio.h>
+#include <t3.h>
+
+say(val) { tadsSay(val); }
+
+// Results go one to a line.
+line(val) { tadsSay(val); tadsSay('\n'); }
+
+class Thing: object
+    name = 'thing'
+    location = nil
+
+    // How many things this one is inside of.
+    depth() { return location == nil ? 0 : location.depth() + 1; }
+;
+
+object template 'name';
+
+// A `+` sign before an object puts it in the last object that had one
+// sign fewer; this says which property that is.
++ property location;
+
+house: Thing 'house';
++ hall: Thing 'hall';
+++ table: Thing 'table';
++++ vase: Thing 'vase';
+++++ Thing 'flower';
+++ rug: Thing 'rug';
++ kitchen: Thing 'kitchen';
+++ stove: Thing 'stove';
+
+// A value written out takes the place of the one the sign gives.
+++ cat: Thing 'cat' location = rug;
+
+garden: Thing 'garden';
++ shed: Thing 'shed';
+
+// A property whose value is an object written in place. Each such
+// object knows which object it is written in, as `lexicalParent`.
+desk: Thing 'desk'
+    drawer: Thing 'drawer'
+    {
+        contents = ['pen', 'ink']
+        lock: Thing 'lock' { isLocked = true }
+        describe() { return name + ' of the ' + lexicalParent.name; }
+    }
+    lamp: object { lit = nil }
+;
+
+// A group of properties: each has the name the pattern makes of the
+// name it is written with.
+door: Thing 'door'
+    isOpen = nil
+    propertyset 'verify*' {
+        Open { return isOpen ? 'already open' : 'ok'; }
+        Close { return isOpen ? 'ok' : 'already closed'; }
+    }
+    propertyset 'action*' {
+        Open { isOpen = true; return 'opened'; }
+        Close { isOpen = nil; return 'closed'; }
+
+        // Groups nest, the inner pattern being applied first.
+        propertyset '*Quietly' {
+            Open { isOpen = true; return 'eased open'; }
+        }
+    }
+;
+
+where(thing)
+{
+    say(thing.name);
+    say(thing.location == nil ? ' is nowhere' : ' is in the ' + thing.location.name);
+    say(', ');
+    say(thing.depth());
+    say(' deep\n');
+}
+
+_main(args)
+{
+    t3SetSay(say);
+    where(house);
+    where(hall);
+    where(table);
+    where(vase);
+    where(vase.location.location);
+    where(rug);
+    where(stove);
+    where(cat);
+    where(shed);
+    line(desk.drawer.describe());
+    line(desk.drawer.lock.lexicalParent.name);
+    line(desk.drawer.lock.lexicalParent.lexicalParent.name);
+    line(desk.drawer.contents.length());
+    line(desk.lamp.lit == nil ? 'the lamp is out' : 'the lamp is lit');
+    line(door.verifyOpen());
+    line(door.actionOpen());
+    line(door.verifyOpen());
+    line(door.actionClose());
+    line(door.verifyClose());
+    line(door.actionOpenQuietly());
+}
