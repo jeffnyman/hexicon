@@ -40,6 +40,9 @@ NAMES = [
     "xx",
     "k9",
 ]
+# Names for parameters passed by name: none of them a local's, since a
+# parameter defined twice brings the reference down.
+NAMED = ["nm0", "nm1", "opt"]
 BINARY = [
     "+",
     "-",
@@ -74,6 +77,16 @@ PRELUDE = """intrinsic 't3vm/010006'
 {
     t3RunGC();
     t3SetSay(val);
+    t3GetVMVsn();
+    t3GetVMID();
+    t3GetVMBanner();
+    t3GetVMPreinitMode();
+    t3DebugTrace(mode, ...);
+    t3GetGlobalSymbols(which?);
+    t3AllocProp();
+    t3GetStackTrace(level?, flags?);
+    t3GetNamedArg(name, defval?);
+    t3GetNamedArgList();
 }
 intrinsic 'tads-gen/030008'
 {
@@ -283,6 +296,14 @@ class Program:
             return f"{obj}.({self.expr(scope, depth - 1)})"
         return f"{obj}.{rng.choice(self.props)}"
 
+    def named_args(self, args, scope, depth):
+        """Now and then, put arguments passed by name among a call's."""
+        rng = self.rng
+        if rng.random() < 0.12:
+            for name in rng.sample(NAMED, rng.randint(1, 2)):
+                value = self.expr(scope, depth - 2)
+                args.insert(rng.randint(0, len(args)), f"{name}: {value}")
+
     def constant(self):
         rng = self.rng
         kind = rng.random()
@@ -414,8 +435,9 @@ class Program:
         if kind < 0.79:
             name, argc, more = rng.choice(self.funcs[1:])
             count = argc + (rng.randint(0, 2) if more else 0)
-            args = ", ".join(self.expr(scope, depth - 2) for _ in range(count))
-            return f"{name}({args})"
+            args = [self.expr(scope, depth - 2) for _ in range(count)]
+            self.named_args(args, scope, depth)
+            return f"{name}({', '.join(args)})"
         if kind < 0.81:
             return (
                 f"({self.expr(scope, depth - 1)} ? {self.expr(scope, depth - 1)}"
@@ -708,8 +730,34 @@ class Program:
         return [pad + head] + self.body(inner, depth - 1, indent, 2)
 
     def function(self, name, argc, more):
+        rng = self.rng
         params = [f"p{index}" for index in range(argc)]
         scope = list(params)
+        # Parameters that can be left out, and parameters passed by
+        # name. A default value can use the parameters before it.
+        if rng.random() < 0.2:
+            for index in range(rng.randint(1, 2)):
+                param = f"q{index}"
+                kind = rng.random()
+                if kind < 0.4:
+                    params.append(f"{param}?")
+                else:
+                    params.append(f"{param} = {self.expr(scope, 2)}")
+                scope.append(param)
+        if rng.random() < 0.2:
+            for param in rng.sample(NAMED, rng.randint(1, 2)):
+                at = rng.randint(0, len(params))
+                kind = rng.random()
+                if kind < 0.3:
+                    text = f"{param}:"
+                elif kind < 0.5:
+                    text = f"{param}:?"
+                elif kind < 0.75:
+                    text = f"{param}: = {self.constant()}"
+                else:
+                    text = f"{param}: = {self.expr(scope[:at], 2)}"
+                params.insert(at, text)
+                scope.insert(at, param)
         if more:
             if self.rng.random() < 0.5:
                 params.append("...")

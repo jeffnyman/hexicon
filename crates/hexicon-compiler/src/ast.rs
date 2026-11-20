@@ -167,6 +167,9 @@ pub(crate) struct Arg {
     /// The argument is a list to be passed as that many arguments
     /// (`f(lst...)`).
     pub varargs: bool,
+    /// The argument is passed by name (`f(count: 3)`), and this is the
+    /// name.
+    pub name: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -64,6 +64,7 @@ impl Preprocessor<'_> {
         self.prv = self.cur.clone();
         if self.gave_up {
             self.cur = SrcToken::new(Tok::Eof);
+            self.cur.int_val = self.last_int_val;
             return Tok::Eof;
         }
         if let Some(token) = self.pushed.pop() {
@@ -81,6 +82,7 @@ impl Preprocessor<'_> {
             let at_directive_end = at(self.token_buf(), self.p) == lex::END_PP_LINE;
             if at_directive_end || self.read_line_pp() {
                 self.cur = SrcToken::new(Tok::Eof);
+                self.cur.int_val = self.last_int_val;
                 return Tok::Eof;
             }
         }
@@ -133,11 +135,11 @@ impl Preprocessor<'_> {
         }
     }
 
-    fn make_token(&self, typ: Tok, text: Vec<u8>, int_val: u32) -> SrcToken {
+    fn make_token(&self, typ: Tok, text: Vec<u8>) -> SrcToken {
         SrcToken {
             typ,
             text,
-            int_val,
+            int_val: self.last_int_val,
             file: self.last_desc.unwrap_or(0),
             line: self.last_line,
         }
@@ -198,7 +200,10 @@ impl Preprocessor<'_> {
                 }
                 _ => {}
             }
-            self.cur = self.make_token(typ, text, tok.int_val);
+            if typ == Tok::Int {
+                self.last_int_val = tok.int_val;
+            }
+            self.cur = self.make_token(typ, text);
             return typ;
         }
     }
@@ -278,7 +283,7 @@ impl Preprocessor<'_> {
                         show_name(shown.as_bytes())
                     ),
                 );
-                self.cur = self.make_token(typ, dst, 0);
+                self.cur = self.make_token(typ, dst);
                 return typ;
             }
             if cur == b'\\' {
@@ -308,7 +313,7 @@ impl Preprocessor<'_> {
                             q += 1;
                         }
                     }
-                    let token = self.make_token(Tok::FmtSpec, spec, 0);
+                    let token = self.make_token(Tok::FmtSpec, spec);
                     self.pushed.push(token);
                 }
                 if !self.main_ec.start_expr(qu, triple) {
@@ -323,7 +328,7 @@ impl Preprocessor<'_> {
             p += 1;
         }
         self.p = p;
-        self.cur = self.make_token(typ, dst, 0);
+        self.cur = self.make_token(typ, dst);
         typ
     }
 }

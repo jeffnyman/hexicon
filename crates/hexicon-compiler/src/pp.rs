@@ -286,6 +286,9 @@ pub struct Preprocessor<'a> {
 
     last_desc: Option<usize>,
     last_line: u32,
+    /// The value of the last integer token read. The reference never
+    /// clears a token's integer value, so every token after has it.
+    last_int_val: u32,
     appended_desc: Option<usize>,
     appended_line: u32,
 
@@ -346,6 +349,7 @@ impl<'a> Preprocessor<'a> {
             if_false_level: 0,
             last_desc: None,
             last_line: 0,
+            last_int_val: 0,
             appended_desc: None,
             appended_line: 0,
             expand_stack: Vec::new(),

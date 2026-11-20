@@ -288,6 +288,7 @@ Findings from milestone 2 that later milestones depend on:
 - Object IDs for new objects come off a free list that starts at the top of the newest 4,096-entry page. Hexicon reproduces the order, but not the exact sequence of temporary objects the reference VM allocates, so IDs can still differ. Nothing found so far makes that visible to a program other than the test-only `t3test` functions.
 - Intrinsic class methods are found through the property lists in the image's metaclass table, and an intrinsic class inherits the methods of the one it derives from (a list has `createIterator` from Collection).
 - The console drops newlines that follow a newline, and anything that would start the output with a blank line. Blank lines have to be asked for.
+- The text a value is given when nothing better is known, `object#12`, `property#5`, `function#1f`, `enum#3` or `builtin#1.2`, has a null character at its end: the reference counts the byte that ends the text it formats as part of the string. A program can see it, in the string's length or when the text is joined to more. Hexicon's strings have it too. (Found when one of the compiler's test programs printed an object.)
 
 Findings from milestone 1 that later milestones depend on:
 

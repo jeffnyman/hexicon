@@ -1,0 +1,154 @@
+// A program to run: parameters that can be left out, parameters passed
+// by name, and the calls that pass them.
+#include <systype.h>
+#include <tadsgen.h>
+#include <tadsio.h>
+#include <t3.h>
+
+say(val) { tadsSay(val); }
+
+// Results go three to a line, so that the output fits on one screen and
+// an interpreter does not stop to ask for a key.
+out: object count = 0;
+line(val) { tadsSay(val); tadsSay(++out.count % 3 == 0 ? '\n' : ' | '); }
+
+// What the virtual machine throws when a program does something it
+// cannot.
+class RuntimeError: object
+    construct(errno, ...) { errno_ = errno; }
+    errno_ = 0
+    exceptionMessage = nil
+;
+export RuntimeError;
+export exceptionMessage;
+
+// What a value looks like, nil and lists included.
+show(val)
+{
+    if (val == nil)
+        return 'nil';
+    if (dataType(val) == TypeList)
+    {
+        local text = '[';
+        for (local i = 1 ; i <= val.length() ; ++i)
+            text += (i > 1 ? ', ' : '') + show(val[i]);
+        return text + ']';
+    }
+    return toString(val);
+}
+
+// Left out, an optional parameter is nil, or its default value.
+pair(a, b?) { return [a, b]; }
+plus(a, b = 5) { return a + b; }
+
+// A default value can use the parameters before it, and is only worked
+// out when it is needed.
+chain(a, b = a * 2, c = b + 1) { return [a, b, c]; }
+noisy(a = (say('[default] '), 1)) { return a; }
+
+// The rest of the arguments. The list starts after the parameters that
+// have to be there, so an argument for an optional one is in it too.
+rest(a, b = 'b', [others]) { return [a, b, others]; }
+
+// Passed by name: one that must be there, one that need not be, and
+// two with default values.
+area(width:, height:) { return width * height; }
+label(text, prefix:?, suffix: = '.', loud: = (say('[loud default] '), nil))
+{
+    local result = (prefix == nil ? '' : prefix) + text + suffix;
+    return loud ? result.toUpper() : result;
+}
+
+// A parameter passed by name is there for every function the call
+// leads to, not just the one called.
+inner() { return t3GetNamedArg('depth', 0); }
+middle() { return inner(); }
+outer(depth:?) { return [depth, middle()]; }
+
+class Shape: object
+    construct(name, sides: = 4, color:?)
+    {
+        self.name = name;
+        self.sides = sides;
+        self.color = color;
+    }
+    name = nil
+    sides = nil
+    color = nil
+    describe(prefix = 'a ', plural: = nil)
+    {
+        return prefix + (color == nil ? '' : color + ' ') + name
+            + (plural ? 's' : '') + ' with ' + sides + ' sides';
+    }
+    // A default value sees the object the method is called on.
+    twice(n = sides) { return n * 2; }
+;
+
+class Triangle: Shape
+    construct(color:?) { inherited('triangle', sides: 3, color: color); }
+    describe(prefix = 'one ', plural: = nil)
+    {
+        return inherited(prefix, plural: plural) + '!';
+    }
+;
+
+_main(args)
+{
+    line(show(pair(1)));
+    line(show(pair(1, 2)));
+    line(show(plus(1)));
+    line(show(plus(1, 2)));
+    line(show(chain(1)));
+    line(show(chain(1, 7)));
+    line(show(chain(1, 7, 9)));
+    line(show(noisy()));
+    line(show(noisy(2)));
+    line(show(rest(1)));
+    line(show(rest(1, 2)));
+    line(show(rest(1, 2, 3, 4)));
+
+    line(show(area(width: 3, height: 4)));
+    line(show(area(height: 4, width: 5)));
+    line(label('plain'));
+    line(label('both', prefix: '> ', suffix: '!'));
+    line(label(suffix: '?', 'named first'));
+    line(label('loud', loud: true));
+    line(show(outer()));
+    line(show(outer(depth: 3)));
+
+    // One that must be there and is not is an error when it is asked
+    // for.
+    try
+    {
+        area(width: 3);
+    }
+    catch (RuntimeError e)
+    {
+        line('missing: error ' + e.errno_);
+    }
+
+    local square = new Shape('square');
+    local red = new Shape('pentagon', color: 'red', sides: 5);
+    local tri = new Triangle(color: 'blue');
+    line(square.describe());
+    line(red.describe('the ', plural: true));
+    line(tri.describe());
+    line(tri.describe(plural: true));
+    line(show(square.twice()));
+    line(show(square.twice(10)));
+
+    // Anonymous functions take them too.
+    local add = {a, b = 10: a + b};
+    local scale = function(value, by: = 2) { return value * by; };
+    line(show(add(1)));
+    line(show(add(1, 2)));
+    line(show(scale(4)));
+    line(show(scale(4, by: 5)));
+
+    // Through a pointer, and with a list spread into arguments.
+    local fn = &describe;
+    line(red.(fn)('some ', plural: true));
+    local more = [2, 3, 4];
+    line(show(rest(1, more..., 5)));
+    line(show(label(more.length() > 2 ? 'long' : 'short', prefix: show(more) + ' ')));
+}

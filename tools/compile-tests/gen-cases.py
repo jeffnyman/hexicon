@@ -1969,6 +1969,195 @@ mistakes["e_anon10"] = """_main(args)
 """
 
 
+# Optional parameters, parameters passed by name, and the calls that pass
+# them.
+programs["param1"] = (
+    BUILTINS
+    + """
+f(a, b?) { return [a, b]; }
+g(a, b = 5) { return a + b; }
+h(a, b = a * 2, c = b + 1) { return [a, b, c]; }
+k(a?, b?, c?) { return a; }
+_main(args)
+{
+    f(1); f(1, 2); g(1); g(1, 2); h(1); h(1, 7); h(1, 7, 9); k(); k(1, 2, 3);
+}
+"""
+)
+
+programs["param2"] = (
+    BUILTINS
+    + """
+f(a, n:) { return a + n; }
+g(n:?) { return n; }
+h(n: = 4) { return n; }
+k(n: = tadsSay('x')) { return n; }
+m(x:, y:, abc:, zz:?) { return x; }
+_main(args)
+{
+    f(1, n: 2); f(n: 2, 5); g(); g(n: 3); h(); h(n: 1); k(n: 6); k();
+    m(x: 1, y: 2, abc: 3);
+    m(abc: 3, y: 2, x: 1, zz: 0);
+}
+"""
+)
+
+programs["param3"] = (
+    BUILTINS
+    + """
+obj: object
+    m(a, b = name, c: = 3, d:?) { return [a, b, c, d]; }
+    name = 'nm'
+    p(x) { return m(x, d: 1, c: 2); }
+    q() { return self.m(1, 2, d: 4); }
+    r(pp) { return self.(pp)(1, d: 4) + inherited.m(2, c: 1) + inherited(c: 2); }
+    s(pp) { return obj.(pp)(d: 4) + other.m(c: 1) + inherited other.m(d: 2) + name(d: 1); }
+    t(pp) { return pp.name(d: 4) + pp.(pp)(c: 1) + inherited.(pp)(d: 2) + self.(pp)(d: 1); }
+;
+other: obj
+    m(a, b?, zz: = nil, [rest]) { return inherited(a, b, zz: 5, rest...); }
+;
+_main(args)
+{
+    local o = obj;
+    obj.m(1); o.m(1, c: 9); o.p(2);
+    new obj(a: 1);
+    new transient obj(1, a: 1, b: 2);
+    toString(5, radix: 2);
+    args(n: 1, o.m(n: 2, 3, c: args(4, n: 5)));
+    args(a: 1, [1, 2]..., b: 2);
+}
+"""
+)
+
+programs["param4"] = (
+    BUILTINS
+    + """
+obj1: object pp = 1;
+h(a = [1, 2], b = obj1, c = &pp, d = obj1 == obj1, e = 1 + 2, ff = nil ? 1 : 2,
+  g1 = [obj1, 1], h1 = h, i1 = !obj1, j1 = obj1.pp, k1 = [1, 2][1], l1 = (nil ?? obj1))
+{
+    return a;
+}
+k(a: = 1 + 2, b: = obj1, c: = 'str', d: = [1], e: = -1, ff: = [obj1], g1: = h, h1: = &pp,
+  i1: = nil, j1: = true)
+{
+    return a;
+}
+_main(args) { h(); k(); }
+"""
+)
+
+programs["param5"] = (
+    BUILTINS
+    + """
+f(a = 1, b: = 2)
+{
+    local g = {: a + b};
+    return g();
+}
+h(a?, b?)
+{
+    return ({x = a: x + b});
+}
+k(a?, b = 1) { }
+m(a?, [rest]) { return rest; }
+n(a = 1, ...) { return a; }
+o(a:?, [rest]) { return rest; }
+_main(args)
+{
+    f(); f(3, b: 4); h(1, 2)(); h(1, 2)(5);
+    local f1 = {a, b = 3: a + b};
+    local g1 = function(a, n: = 2) { return a + n; };
+    local h1 = method(a: = self, b?) { return a; };
+    local k1 = {a = 1, b?, c: = 2, d:: a};
+    f1(1); g1(1, n: 5); h1(); k1(d: 1);
+    m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
+}
+"""
+)
+
+programs["param6"] = (
+    BUILTINS
+    + """
+// Optional parameters with nothing else, enough of them that their
+// locals pass the instructions with a local's number built in.
+f(a?, b?, c?, d?, e?, g?, h?, i?) { return i; }
+class A: object
+    construct(a = 1, b: = 2) { x = a + b; }
+    x = nil
+;
+// A try of the function's own after one the compiler makes.
+g(a: = f())
+{
+    try { return a; } catch (A e) { return e; } finally { f(); }
+}
+_main(args)
+{
+    f(1, 2, 3, 4, 5, 6, 7, 8);
+    new A(); new A(1); new A(b: 3);
+    g();
+    "<<f(1)>> and <<g(a: 1)>>";
+}
+"""
+)
+
+mistakes["e_param1"] = (
+    BUILTINS
+    + """
+f(a?, b) { }
+k(c = , d) { }
+n(e?: , g) { }
+h(i = 3 j) { }
+h2(k2: = ) { }
+h3(l3 ? m3) { }
+h4(n4 = 1 ?) { }
+h5(o5:: p5) { }
+p(a?) { }
+_main(args)
+{
+    p(a: 1...);
+    p(1, 2, a: );
+    p(1, 2, 3, 4);
+    p(a: 1, a: 2, 3, 4);
+    tadsSay(a: 1);
+    tadsSay(1, a: [1,2]...);
+    p(x: "dstr");
+    p("dstr", y: 1);
+    local y = {a: , b:: a + b};
+    local z = {a?, b = 2: a};
+    local w = {a:?, b: a};
+}"""
+)
+
+mistakes["e_param2"] = """intrinsic 'tads-io/030007' { tadsSay(val, ...); }
+f(a?) { }
+k(x)
+{
+    x++;
+    return x;
+}
+g(a:) { }
+obj: object
+  m(a?) { }
+  p = (nosuch1 + 1)
+  n(b: = 3) {
+     tadsSay(1);
+  }
+  q(b?) { }
+;
+h(c?) { }
+_main(args) { f(); g(a: 1); }"""
+
+
+# A missing operand is taken to be the last number read: here 5, which
+# is no index of the list.
+mistakes["e_param3"] = """_main(args)
+{
+    local a = [1, 2][2];
+    local b = [1, 5]["""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

@@ -680,7 +680,12 @@ impl Vm {
                 return Ok((result, text.to_vec().into()));
             }
         }
-        let text: std::rc::Rc<[u8]> = fallback.into_bytes().into();
+        // The reference counts the byte that ends the text it formats as
+        // part of the string, so the string has a null character at its
+        // end. A program can see that, in the string's length for one.
+        let mut bytes = fallback.into_bytes();
+        bytes.push(0);
+        let text: std::rc::Rc<[u8]> = bytes.into();
         Ok((self.new_string(text.clone()), text))
     }
 

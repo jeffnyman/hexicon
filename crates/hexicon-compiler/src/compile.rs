@@ -152,8 +152,9 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
 
     let mut generated = emit::generate(&mut prog);
     for diagnostic in std::mem::take(&mut generated.diagnostics) {
-        // A problem that is nowhere in particular has no file.
-        let file = if diagnostic.file == usize::MAX {
+        // A problem that is nowhere in particular has no file. Nor has
+        // one found before any statement was come to.
+        let file = if diagnostic.file == usize::MAX || diagnostic.line == 0 {
             String::new()
         } else {
             pp.file_name(diagnostic.file).to_owned()

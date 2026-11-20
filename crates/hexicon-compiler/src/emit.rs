@@ -352,6 +352,16 @@ struct ExcEntry {
     handler_ofs: usize,
 }
 
+/// What a call passes: how many arguments by position, whether any of
+/// them is a list to be spread into arguments, and, if any are passed
+/// by name, which of the function's lists of such names is theirs.
+#[derive(Clone, Copy, Default)]
+struct CallArgs {
+    argc: usize,
+    varargs: bool,
+    named: Option<usize>,
+}
+
 struct Gen<'p> {
     prog: &'p mut Program,
     cg: CodeGen,
@@ -371,6 +381,15 @@ struct Gen<'p> {
     last_labels: Rc<Vec<LabelSym>>,
     goto_labels: Vec<Option<Label>>,
     exc_table: Vec<ExcEntry>,
+    /// The names of the arguments passed by name in each call of the
+    /// function being generated that has any, and the tables of names
+    /// to be written after the function's code: a label for each, and
+    /// which call's names.
+    named_lists: Vec<Vec<Vec<u8>>>,
+    named_tabs: Vec<(Label, usize)>,
+    /// Names are being looked up in an expression, and nothing else
+    /// done to it.
+    resolve_only: bool,
     /// How many locals the function has. Generating its code can add to
     /// what the parser counted.
     local_cnt: usize,
@@ -424,6 +443,9 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         last_labels: Rc::default(),
         goto_labels: Vec::new(),
         exc_table: Vec::new(),
+        named_lists: Vec::new(),
+        named_tabs: Vec::new(),
+        resolve_only: false,
         local_cnt: 0,
         fin_ret_lcl: None,
         cur_file: 0,
@@ -527,6 +549,9 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         .iter()
         .map(|(body, _)| body.closure.clone())
         .collect();
+    // Nothing has a place yet: what there is to say about the start of
+    // a function is said of wherever the last thing generated was.
+    (generator.cur_file, generator.cur_line) = (usize::MAX, 0);
     let mut scopes = Vec::new();
     for item in &top {
         if generator.gave_up.is_some() {
@@ -639,7 +664,8 @@ impl Gen<'_> {
             if local.ctx_orig.is_some() {
                 continue;
             }
-            let param = local.is_param || local.is_list_param;
+            let param =
+                local.is_param || local.is_list_param || local.is_opt_param || local.is_named_param;
             let name = show_name(&local.name);
             let message = if !local.val_used && !local.val_assigned && !param {
                 format!("local variable \"{name}\" is never used")
@@ -794,7 +820,7 @@ impl Gen<'_> {
                 // never finds one. So the test is left for when the
                 // program runs, unless the list is empty, when a
                 // constant is in it for certain not.
-                if args.is_empty() {
+                if args.is_empty() && !self.resolve_only {
                     if let Expr::Const(mut value) = left {
                         value.set_bool(not);
                         return Expr::Const(value);
@@ -861,6 +887,7 @@ impl Gen<'_> {
                         .map(|arg| Arg {
                             expr: self.fold_expr(arg.expr),
                             varargs: arg.varargs,
+                            name: arg.name,
                         })
                         .collect()
                 });
@@ -885,11 +912,18 @@ impl Gen<'_> {
                     .into_iter()
                     .map(|element| self.fold_expr(element))
                     .collect();
-                Expr::list(elements)
+                if self.resolve_only {
+                    Expr::List(elements)
+                } else {
+                    Expr::list(elements)
+                }
             }
             Expr::Index(left, index) => {
                 let left = self.fold_expr(*left);
                 let index = self.fold_expr(*index);
+                if self.resolve_only {
+                    return Expr::Index(Box::new(left), Box::new(index));
+                }
                 let mut errors = Vec::new();
                 let folded = fold::subscript(&left, &index, &mut errors);
                 for message in errors {
@@ -899,7 +933,7 @@ impl Gen<'_> {
             }
             Expr::Unary(op, sub) => {
                 let sub = self.fold_expr(*sub);
-                if op == UnOp::Not {
+                if op == UnOp::Not && !self.resolve_only {
                     match fold::not(sub) {
                         Ok(folded) => folded,
                         Err(sub) => Expr::Unary(op, Box::new(sub)),
@@ -923,7 +957,7 @@ impl Gen<'_> {
                         | BinOp::And
                         | BinOp::Or
                 );
-                if !again {
+                if !again || self.resolve_only {
                     return Expr::Binary(op, Box::new(left), Box::new(right));
                 }
                 let mut errors = Vec::new();
@@ -950,6 +984,9 @@ impl Gen<'_> {
                 let first = self.fold_expr(*first);
                 let second = self.fold_expr(*second);
                 let third = self.fold_expr(*third);
+                if self.resolve_only {
+                    return Expr::If(Box::new(first), Box::new(second), Box::new(third));
+                }
                 match first.as_const().map(ConstVal::is_true) {
                     Some(true) => second,
                     Some(false) => third,
@@ -959,6 +996,9 @@ impl Gen<'_> {
             Expr::IfNil(first, second) => {
                 let first = self.fold_expr(*first);
                 let second = self.fold_expr(*second);
+                if self.resolve_only {
+                    return Expr::IfNil(Box::new(first), Box::new(second));
+                }
                 match first.as_const() {
                     Some(value) if value.value == Value::Nil => second,
                     Some(_) => first,
@@ -972,6 +1012,7 @@ impl Gen<'_> {
                     .map(|arg| Arg {
                         expr: self.fold_expr(arg.expr),
                         varargs: arg.varargs,
+                        name: arg.name,
                     })
                     .collect();
                 Expr::Call(func, args)
@@ -1177,6 +1218,8 @@ impl Gen<'_> {
         self.labels = Rc::clone(&body.labels);
         self.goto_labels = vec![None; body.labels.len()];
         self.exc_table.clear();
+        self.named_lists.clear();
+        self.named_tabs.clear();
         self.local_cnt = body.local_cnt;
         self.fin_ret_lcl = None;
         self.method_ofs = self.cg.ofs();
@@ -1240,6 +1283,35 @@ impl Gen<'_> {
             self.cg.write(body.argc as u8);
             self.cg.note_push();
             self.gen_setlcl(local);
+        }
+
+        // Parameters passed by name and optional parameters are locals,
+        // filled in here. Those with default values come last, in the
+        // order they were written, since one's value can use another;
+        // the rest are in the order of the table of locals.
+        if let Some(lcltab) = body.lcltab {
+            let mut with_defval = Vec::new();
+            for id in enum_order(&self.prog.tabs[lcltab], &self.prog.locals) {
+                let local = &self.prog.locals[id];
+                if local.is_param {
+                    continue;
+                }
+                if local.defval.is_some() {
+                    with_defval.push(id);
+                } else if local.is_named_param {
+                    self.gen_named_param(id);
+                } else if local.is_opt_param {
+                    self.gen_opt_positional(id);
+                }
+            }
+            with_defval.sort_by_key(|&id| self.prog.locals[id].defval_seqno);
+            for id in with_defval {
+                if self.prog.locals[id].is_named_param {
+                    self.gen_named_param(id);
+                } else {
+                    self.gen_opt_positional(id);
+                }
+            }
         }
 
         // A nested function keeps in locals the contexts it was made
@@ -1311,6 +1383,31 @@ impl Gen<'_> {
             } else {
                 self.cg.write_op(Op::RetNil);
             }
+        }
+        // The names of arguments passed by name, for each call that
+        // has any, the latest call first.
+        for (label, list) in std::mem::take(&mut self.named_tabs).into_iter().rev() {
+            let names = std::mem::take(&mut self.named_lists[list]);
+            self.cg.def_label(label);
+            self.cg.write_op(Op::NamedArgTab);
+            let start = self.cg.ofs();
+            self.cg.write2(0);
+            self.cg.write2(names.len() as u16);
+            // Where each name starts, and where the last one ends.
+            let index = self.cg.ofs();
+            for _ in 0..=names.len() {
+                self.cg.write2(0);
+            }
+            for (at, name) in names.iter().enumerate() {
+                self.cg
+                    .write2_at(index + 2 * at, (self.cg.ofs() - index) as u16);
+                for &byte in name {
+                    self.cg.write(byte);
+                }
+            }
+            self.cg
+                .write2_at(index + 2 * names.len(), (self.cg.ofs() - index) as u16);
+            self.cg.write2_at(start, (self.cg.ofs() - start - 2) as u16);
         }
         if self.errors == 0 {
             self.remove_jumps_to_jumps(code_start);
@@ -2650,7 +2747,9 @@ impl Gen<'_> {
                     self.gen_addr(sub);
                 }
             }
-            Expr::New(sub, transient) => self.gen_new(sub, *transient, discard, 0, false, false),
+            Expr::New(sub, transient) => {
+                self.gen_new(sub, *transient, discard, CallArgs::default(), false)
+            }
             Expr::AnonFunc { body, .. } => {
                 if discard {
                     return;
@@ -2791,16 +2890,16 @@ impl Gen<'_> {
                 prop_is_expr,
                 args,
             } => {
-                let (argc, varargs) = match args {
-                    Some(args) => (args.len(), self.gen_arglist(args)),
-                    None => (0, false),
+                let args = match args {
+                    Some(args) => self.gen_arglist(args),
+                    None => CallArgs::default(),
                 };
-                self.gen_member(obj, prop, *prop_is_expr, argc, varargs, discard);
+                self.gen_member(obj, prop, *prop_is_expr, args, discard);
             }
             // A built-in function named without parentheses is called
             // with no arguments.
             Expr::Sym(name) => match self.implied_global(name) {
-                Some(Global::Bif(bif)) => self.gen_bif_call(bif, discard, 0, false),
+                Some(Global::Bif(bif)) => self.gen_bif_call(bif, discard, 0, false, None),
                 Some(Global::Prop(prop)) => self.gen_prop_self(prop, discard),
                 // A built-in class: the object that stands for it,
                 // which the reference pushes wanted or not.
@@ -2969,8 +3068,12 @@ impl Gen<'_> {
                 self.def_label_pos(lbl_end);
             }
             Expr::Call(func, args) => {
-                let varargs = self.gen_arglist(args);
-                self.gen_call(func, discard, args.len(), varargs);
+                let CallArgs {
+                    argc,
+                    varargs,
+                    named,
+                } = self.gen_arglist(args);
+                self.gen_call(func, discard, argc, varargs, named);
             }
         }
     }
@@ -3017,7 +3120,7 @@ impl Gen<'_> {
             return;
         };
         let prop = Expr::constant(Value::Prop(self.prog.props[prop].id));
-        self.gen_member(coll, &prop, false, 0, false, false);
+        self.gen_member(coll, &prop, false, CallArgs::default(), false);
         self.gen_setlcl_stk(local, false);
     }
 
@@ -3201,10 +3304,14 @@ impl Gen<'_> {
         sub: &Expr,
         transient: bool,
         discard: bool,
-        argc: usize,
-        varargs: bool,
+        args: CallArgs,
         from_call: bool,
     ) {
+        let CallArgs {
+            argc,
+            varargs,
+            named,
+        } = args;
         const INVALID: &str = "cannot apply operator 'new' to this expression";
         let obj = match sub {
             Expr::Call(func, args) => {
@@ -3212,8 +3319,8 @@ impl Gen<'_> {
                     self.error(INVALID);
                     return;
                 }
-                let varargs = self.gen_arglist(args);
-                self.gen_new(func, transient, discard, args.len(), varargs, true);
+                let args = self.gen_arglist(args);
+                self.gen_new(func, transient, discard, args, true);
                 return;
             }
             Expr::Const(ConstVal {
@@ -3240,6 +3347,7 @@ impl Gen<'_> {
                             self.cg.write2(index as u16);
                         }
                         self.cg.note_pops(argc as i32);
+                        self.post_call_cleanup(named);
                         if !discard {
                             self.cg.write_op(Op::GetR0);
                             self.cg.note_push();
@@ -3271,6 +3379,7 @@ impl Gen<'_> {
         self.cg.write(argc as u8 + 1);
         self.cg.write(0);
         self.cg.note_pops(argc as i32 + 1);
+        self.post_call_cleanup(named);
         if !discard {
             self.cg.write_op(Op::GetR0);
             self.cg.note_push();
@@ -3386,10 +3495,14 @@ impl Gen<'_> {
         obj: &Expr,
         prop: &Expr,
         is_expr: bool,
-        argc: usize,
-        varargs: bool,
+        args: CallArgs,
         discard: bool,
     ) {
+        let CallArgs {
+            argc,
+            varargs,
+            named,
+        } = args;
         match obj {
             Expr::Inh => {
                 self.need_self();
@@ -3556,6 +3669,7 @@ impl Gen<'_> {
                 self.gen_member_rhs(prop, is_expr, argc, varargs);
             }
         }
+        self.post_call_cleanup(named);
         if !discard {
             self.cg.write_op(Op::GetR0);
             self.cg.note_push();
@@ -3877,13 +3991,39 @@ impl Gen<'_> {
 
     // ---- calls ----
 
-    /// Push a call's arguments, last first. True if any of them is a
-    /// list to be spread into arguments.
-    fn gen_arglist(&mut self, args: &[Arg]) -> bool {
+    /// Push a call's arguments, last first.
+    fn gen_arglist(&mut self, args: &[Arg]) -> CallArgs {
         let varargs = args.iter().any(|arg| arg.varargs);
-        let fixed_cnt = args.iter().filter(|arg| !arg.varargs).count();
+        let argc = args.iter().filter(|arg| arg.name.is_none()).count();
+        let fixed_cnt = args
+            .iter()
+            .filter(|arg| !arg.varargs && arg.name.is_none())
+            .count();
+        // Arguments passed by name go on the stack first, under the
+        // others.
+        let names: Vec<Vec<u8>> = args
+            .iter()
+            .rev()
+            .filter(|arg| !arg.varargs)
+            .filter_map(|arg| arg.name.clone())
+            .collect();
+        let named = (!names.is_empty()).then(|| {
+            for arg in args.iter().rev().filter(|arg| arg.name.is_some()) {
+                self.gen_expr(&arg.expr, false, false);
+                if arg.varargs {
+                    self.cg.write_op(Op::MakeLstPar);
+                    self.cg.note_push();
+                    self.cg.note_pop();
+                }
+            }
+            self.named_lists.push(names);
+            self.named_lists.len() - 1
+        });
         let mut pushed_varargs_counter = false;
         for (index, arg) in args.iter().enumerate().rev() {
+            if arg.name.is_some() {
+                continue;
+            }
             let depth = self.cg.sp_depth();
             if arg.varargs && !pushed_varargs_counter {
                 // The count starts at the number of plain arguments; the
@@ -3902,13 +4042,145 @@ impl Gen<'_> {
                 self.cg.write_op(Op::Swap);
             }
             if self.cg.sp_depth() <= depth {
-                self.error(format!("argument expression {} yields no value", index + 1));
+                // The reference counts down from the number passed by
+                // position, over all of them.
+                let number = argc as i64 - (args.len() - 1 - index) as i64;
+                self.error(format!("argument expression {number} yields no value"));
             }
         }
-        varargs
+        CallArgs {
+            argc,
+            varargs,
+            named,
+        }
     }
 
-    fn gen_call(&mut self, func: &Expr, discard: bool, argc: usize, varargs: bool) {
+    /// After a call's instruction: say where the names of the
+    /// arguments passed by name are, which also takes those arguments
+    /// off the stack.
+    fn post_call_cleanup(&mut self, named: Option<usize>) {
+        let Some(list) = named else {
+            return;
+        };
+        let cnt = self.named_lists[list].len();
+        let label = self.cg.new_label();
+        self.named_tabs.push((label, list));
+        self.cg.write_op(Op::NamedArgPtr);
+        self.cg.write(cnt as u8);
+        self.cg.write_label_ofs(label);
+        self.cg.note_pops(cnt as i32);
+    }
+
+    /// Call a function the compiler itself needs, which a system
+    /// header has to have declared.
+    fn call_internal_bif(&mut self, name: &[u8], what: &str, argc: usize) {
+        match self.prog.globals.get(name).copied() {
+            None => self.error(format!(
+                "{what} require support function \"{}\", which is undefined",
+                show_name(name)
+            )),
+            Some(Global::Func(func)) => {
+                let func = Expr::constant(Value::FuncPtr(func));
+                self.gen_call(&func, false, argc, false, None);
+            }
+            Some(Global::Obj(_)) => {}
+            Some(_) => self.gen_call(&Expr::Sym(name.to_vec()), false, argc, false, None),
+        }
+    }
+
+    /// Generate a parameter's default value. The names in it are
+    /// looked up now, but it is not folded, as other expressions are.
+    fn gen_defval(&mut self, id: LocalId) {
+        let Some(expr) = self.prog.locals[id].defval.clone() else {
+            return;
+        };
+        self.resolve_only = true;
+        let expr = self.fold_expr(expr);
+        self.resolve_only = false;
+        self.gen_expr(&expr, false, false);
+    }
+
+    /// Fill in an optional parameter: the argument if there is one,
+    /// and otherwise its default value, or nothing, which leaves it
+    /// nil.
+    fn gen_opt_positional(&mut self, id: LocalId) {
+        let number = self.prog.locals[id].param_index as i32 + 1;
+        let has_defval = self.prog.locals[id].defval.is_some();
+        self.gen_int(number);
+        self.cg.write_op(Op::GetArgc);
+        self.cg.note_push();
+        let not_found = self.cg.new_label();
+        self.cg.write_jump(Op::Jgt, not_found);
+        self.cg.note_pops(2);
+        self.gen_int(number);
+        self.call_internal_bif(b"getArg", "optional parameters", 1);
+        if has_defval {
+            let assign = self.cg.new_label();
+            self.cg.write_jump(Op::Jmp, assign);
+            self.cg.def_label(not_found);
+            self.gen_defval(id);
+            self.cg.def_label(assign);
+            self.cg.note_pop();
+        }
+        self.gen_local_asi(id, true, 1, AsiOp::Simple, None, false);
+        if !has_defval {
+            self.cg.def_label(not_found);
+        }
+    }
+
+    /// Fill in a parameter passed by name.
+    fn gen_named_param(&mut self, id: LocalId) {
+        const WHAT: &str = "named parameters";
+        let local = &self.prog.locals[id];
+        let name = local.name.clone();
+        if local.defval.is_none() {
+            // Without the argument, an optional one is nil, and one
+            // that is not optional is an error when the program runs.
+            let mut argc = 1;
+            if local.is_opt_param {
+                self.cg.write_op(Op::PushNil);
+                self.cg.note_push();
+                argc += 1;
+            }
+            self.gen_str(&name);
+            self.call_internal_bif(b"t3GetNamedArg", WHAT, argc);
+        } else if local.defval_is_const {
+            self.gen_defval(id);
+            self.gen_str(&name);
+            self.call_internal_bif(b"t3GetNamedArg", WHAT, 2);
+        } else {
+            // The default value is only worked out if it is needed:
+            // ask for the argument, and catch the error if it is not
+            // there.
+            let start_ofs = self.rel_ofs();
+            self.gen_str(&name);
+            self.call_internal_bif(b"t3GetNamedArg", WHAT, 1);
+            let end_ofs = self.rel_ofs() - 1;
+            let assign = self.gen_jump_ahead(Op::Jmp);
+            self.cg.note_pop();
+            self.exc_table.push(ExcEntry {
+                start_ofs,
+                end_ofs,
+                class: 0,
+                handler_ofs: self.rel_ofs(),
+            });
+            self.cg.note_push();
+            self.cg.write_op(Op::Disc);
+            self.cg.note_pop();
+            self.gen_defval(id);
+            self.def_label_pos(assign);
+        }
+        self.gen_local_asi(id, true, 1, AsiOp::Simple, None, false);
+    }
+
+    fn gen_call(
+        &mut self,
+        func: &Expr,
+        discard: bool,
+        argc: usize,
+        varargs: bool,
+        named: Option<usize>,
+    ) {
         match func {
             Expr::Const(ConstVal {
                 value: Value::FuncPtr(id),
@@ -3929,6 +4201,7 @@ impl Gen<'_> {
                 self.cg.write(argc as u8);
                 self.gen_func_ref(id);
                 self.cg.note_pops(argc as i32);
+                self.post_call_cleanup(named);
                 let func = &self.prog.funcs[id];
                 if !func.argc_ok(argc) {
                     let message = format!(
@@ -3948,7 +4221,7 @@ impl Gen<'_> {
                 self.error("this constant expression cannot be called as a function");
             }
             Expr::Sym(name) => match self.implied_global(name) {
-                Some(Global::Bif(bif)) => self.gen_bif_call(bif, discard, argc, varargs),
+                Some(Global::Bif(bif)) => self.gen_bif_call(bif, discard, argc, varargs, named),
                 Some(Global::Prop(prop)) => {
                     // A property of `self`, as a method.
                     if !self.self_available {
@@ -3967,6 +4240,7 @@ impl Gen<'_> {
                     }
                     self.write_prop_id(id);
                     self.cg.note_pops(argc as i32);
+                    self.post_call_cleanup(named);
                     if !discard {
                         self.cg.write_op(Op::GetR0);
                         self.cg.note_push();
@@ -3990,6 +4264,7 @@ impl Gen<'_> {
                 self.cg.write_op(Op::PtrCall);
                 self.cg.write(argc as u8);
                 self.cg.note_pops(argc as i32 + 1);
+                self.post_call_cleanup(named);
                 if !discard {
                     self.cg.write_op(Op::GetR0);
                     self.cg.note_push();
@@ -3999,7 +4274,14 @@ impl Gen<'_> {
     }
 
     /// Call a function built into the virtual machine.
-    fn gen_bif_call(&mut self, bif: usize, discard: bool, argc: usize, varargs: bool) {
+    fn gen_bif_call(
+        &mut self,
+        bif: usize,
+        discard: bool,
+        argc: usize,
+        varargs: bool,
+        named: Option<usize>,
+    ) {
         let BifSym {
             name,
             set,
@@ -4041,6 +4323,7 @@ impl Gen<'_> {
             self.cg.write(set as u8);
         }
         self.cg.note_pops(argc as i32);
+        self.post_call_cleanup(named);
         if !discard {
             self.cg.write_op(Op::GetR0);
             self.cg.note_push();

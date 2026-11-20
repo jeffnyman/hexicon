@@ -1501,3 +1501,94 @@ fn a_short_anonymous_function_has_its_own_mistakes() {
         ]
     );
 }
+
+/// The declarations of the built-in functions that optional and named
+/// parameters are filled in with.
+const PARAM_SUPPORT: &str = "intrinsic 't3vm/010006' { t3RunGC(); t3SetSay(val); t3GetVMVsn(); \
+    t3GetVMID(); t3GetVMBanner(); t3GetVMPreinitMode(); t3DebugTrace(mode, ...); \
+    t3GetGlobalSymbols(which?); t3AllocProp(); t3GetStackTrace(level?, flags?); \
+    t3GetNamedArg(name, defval?); t3GetNamedArgList(); }\n\
+    intrinsic 'tads-gen/030008' { dataType(val); getArg(idx); }\n";
+
+#[test]
+fn an_optional_parameter_is_a_local_filled_in_at_the_start() {
+    let source =
+        format!("{PARAM_SUPPORT}f(a, b = a + 2) {{ return b; }}\n_main(args) {{ return f(1); }}\n");
+    let compiled = compile_text(&source);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // One parameter that has to be there, one more that can be, and a
+    // local for it.
+    assert_eq!(code[0..4], [1, 1, 1, 0]);
+    // If there is a second argument, it is fetched with getArg(2);
+    // otherwise the default value is worked out. Either is stored.
+    assert_eq!(
+        code[10..31],
+        [
+            0x03, 2, 0x87, 0x96, 11, 0, // if 2 > the argument count, go on
+            0x03, 2, 0xb2, 1, 1, 0x8b, // getArg(2)
+            0x91, 6, 0, // and skip
+            0x7c, 0x03, 2, 0x22, // a + 2
+            0xe0, 0, // b = whichever
+        ]
+    );
+}
+
+#[test]
+fn a_named_parameter_is_asked_for_by_name() {
+    let source = format!(
+        "{PARAM_SUPPORT}f(n:, m: = 3) {{ return n + m; }}\n\
+         _main(args) {{ return f(m: 1, n: 2); }}\n"
+    );
+    let compiled = compile_text(&source);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // No parameters as the machine counts them, and two locals.
+    assert_eq!(code[0..4], [0, 0, 2, 0]);
+    // t3GetNamedArg('n'), and t3GetNamedArg('m', 3).
+    assert_eq!(code[10], 0x05);
+    assert_eq!(code[15..20], [0xb1, 1, 10, 0xee, 0]);
+    assert_eq!(code[20..23], [0x03, 3, 0x05]);
+    assert_eq!(code[27..32], [0xb1, 2, 10, 0xee, 1]);
+    // The call passes no arguments by position. After it comes where
+    // the names are, which are after the function's code: how many
+    // bytes, how many names, where each starts and the last ends, and
+    // the names, last argument first.
+    assert!(has_bytes(code, &[0x03, 2, 0x02, 0x58, 0]));
+    assert!(has_bytes(code, &[0x56, 2, 3, 0]));
+    assert!(has_bytes(
+        code,
+        &[0x57, 10, 0, 2, 0, 6, 0, 7, 0, 8, 0, b'n', b'm']
+    ));
+}
+
+#[test]
+fn optional_and_named_parameters_have_their_own_mistakes() {
+    let source = format!(
+        "{PARAM_SUPPORT}f(a?, b) {{ }}\ng(a?) {{ }}\n\
+         _main(args)\n{{\n    g(1, 2);\n    g(a: [1]...);\n}}\n"
+    );
+    assert_eq!(
+        compile_messages(&source),
+        [
+            "3: error: parameter 'b' must be optional because it follows an optional parameter",
+            "8: error: a pass-by-name argument value cannot use an ellipsis '...'",
+        ]
+    );
+    // Without the functions that fill them in, they cannot be used. No
+    // statement has been come to, so the message has no place.
+    assert_eq!(
+        compile_messages("f(a?) { }\n_main(args) { }\n"),
+        ["0: error: optional parameters require support function \"getArg\", which is undefined"]
+    );
+}

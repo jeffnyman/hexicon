@@ -47,6 +47,23 @@ pub(crate) struct Local {
     pub ctx_arr_idx: usize,
     /// The name has been looked up.
     pub referenced: bool,
+    /// It is a parameter passed by name (`f(count:)`). Such a parameter
+    /// and an optional one are locals, which the function fills in as
+    /// it starts.
+    pub is_named_param: bool,
+    /// It is a parameter that can be left out (`f(count?)`,
+    /// `f(count = 1)`).
+    pub is_opt_param: bool,
+    /// For a parameter passed by position, its place in the list, from
+    /// zero.
+    pub param_index: usize,
+    /// The value an optional parameter has when it is left out, and
+    /// whether that was a constant as written.
+    pub defval: Option<Expr>,
+    pub defval_is_const: bool,
+    /// Where its default value comes among the default values of the
+    /// list.
+    pub defval_seqno: usize,
 }
 
 /// The locals of one scope.
@@ -1860,7 +1877,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             lcltab: self.local_symtab,
             stm,
             argc: formals.argc,
-            opt_argc: 0,
+            opt_argc: formals.opt_argc,
             varargs: formals.varargs,
             varargs_list_local: formals.varargs_list_local,
             local_cnt: self.max_local_cnt,
@@ -1973,52 +1990,73 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Sym => {
                     let name = self.cur_text();
                     self.next();
+                    if !formals.count_only
+                        && formals.typed_ok
+                        && self.cur() == Tok::Sym
+                        && !self.cur_is_sym(b"multimethod")
+                    {
+                        self.unsupported("a parameter with a type");
+                    }
+                    // A colon after the name makes it a parameter
+                    // passed by name.
                     let mut named = false;
-                    if formals.count_only {
-                        // A parameter of a built-in function: it can be
-                        // named, and it can be optional.
-                        if self.cur() == Tok::Colon {
-                            named = true;
+                    if self.cur() == Tok::Colon {
+                        named = true;
+                        if formals.short_form {
+                            // Here the colon names the parameter only
+                            // if more of the list follows; otherwise
+                            // it ends the list.
+                            if !matches!(self.next(), Tok::Comma | Tok::Colon) {
+                                named = false;
+                                self.tok.unget_token();
+                            }
+                        } else {
                             self.next();
                         }
-                        let suffix = self.cur();
-                        let optional = matches!(suffix, Tok::Question | Tok::Eq);
-                        if optional {
-                            if !named {
-                                formals.opt_argc += 1;
-                            }
-                            self.next();
-                            if suffix == Tok::Eq {
-                                self.parse_asi_expr();
-                            }
+                    }
+                    // `?` after it makes it optional, and so does a
+                    // default value.
+                    let suffix = self.cur();
+                    let optional = matches!(suffix, Tok::Question | Tok::Eq);
+                    let mut defval = None;
+                    if optional {
+                        if !named {
+                            formals.opt_argc += 1;
                         }
-                        if formals.opt_argc != 0 && !optional && !named {
-                            self.error(format!(
-                                "parameter '{}' must be optional because it follows an optional parameter",
-                                String::from_utf8_lossy(&name)
-                            ));
+                        self.next();
+                        if suffix == Tok::Eq {
+                            defval = self.parse_asi_expr();
                         }
-                    } else {
-                        match self.cur() {
-                            Tok::Colon if formals.short_form => {
-                                // The colon names the parameter only if
-                                // more of the list follows; otherwise it
-                                // ends the list.
-                                if matches!(self.next(), Tok::Comma | Tok::Colon) {
-                                    self.unsupported("a named parameter");
-                                } else {
-                                    self.tok.unget_token();
+                    }
+                    if formals.opt_argc != 0 && !optional && !named {
+                        self.error(format!(
+                            "parameter '{}' must be optional because it follows an optional parameter",
+                            String::from_utf8_lossy(&name)
+                        ));
+                    }
+                    if !formals.count_only {
+                        self.create_scope_local_symtab();
+                        if named || optional {
+                            // Not a parameter the caller's arguments
+                            // fill in: a local, set by code at the
+                            // start of the function.
+                            if let Some(id) = self.add_local(&name) {
+                                let local = &mut self.prog.locals[id];
+                                local.is_named_param = named;
+                                local.is_opt_param = optional;
+                                if !named {
+                                    local.param_index = formals.argc;
+                                }
+                                if let Some(defval) = defval {
+                                    local.defval_is_const = defval.is_const();
+                                    local.defval = Some(defval);
+                                    local.defval_seqno = formals.defval_cnt;
+                                    formals.defval_cnt += 1;
                                 }
                             }
-                            Tok::Colon => self.unsupported("a named parameter"),
-                            Tok::Question | Tok::Eq => self.unsupported("an optional parameter"),
-                            Tok::Sym if formals.typed_ok && !self.cur_is_sym(b"multimethod") => {
-                                self.unsupported("a parameter with a type");
-                            }
-                            _ => {}
+                        } else {
+                            self.add_local_entry(&name, true, formals.argc);
                         }
-                        self.create_scope_local_symtab();
-                        self.add_local_entry(&name, true, formals.argc);
                     }
                     if !named {
                         formals.argc += 1;
@@ -3506,9 +3544,12 @@ impl<'p, 'a> Parser<'p, 'a> {
             if self.cur() == Tok::RPar {
                 break;
             }
+            // `name: value` passes the value by name.
+            let mut name = None;
             if self.cur() == Tok::Sym {
+                let text = self.cur_text();
                 if self.next() == Tok::Colon {
-                    self.unsupported("a named argument");
+                    name = Some(text);
                     self.next();
                 } else {
                     self.tok.unget_token();
@@ -3518,8 +3559,12 @@ impl<'p, 'a> Parser<'p, 'a> {
             let mut arg = Arg {
                 expr,
                 varargs: false,
+                name,
             };
             if self.cur() == Tok::Ellipsis {
+                if arg.name.is_some() {
+                    self.error("a pass-by-name argument value cannot use an ellipsis '...'");
+                }
                 self.next();
                 arg.varargs = true;
             }
@@ -3552,7 +3597,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 self.unsupported(&format!("\"{}\"", Self::name(name)));
             }
         }
-        if args.len() > 127 {
+        if args.iter().filter(|arg| arg.name.is_none()).count() > 127 {
             self.error("function call argument list exceeds machine limit (maximum 127)");
         }
         Some(Expr::Call(Box::new(lhs), args))
@@ -4379,6 +4424,7 @@ impl Parser<'_, '_> {
     /// so, with the next definition starting here.
     fn parse_obj_prop(&mut self, def: &mut ObjDef) -> Parsed<bool> {
         let (file, line) = self.tok.last_pos();
+        (self.cur_file, self.cur_line) = (file, line);
         let name = self.cur_text();
         let existing = self.prog.globals.get(&name).copied();
         let mut new_prop = None;
@@ -4544,12 +4590,15 @@ impl Parser<'_, '_> {
             self.self_valid = true;
             if let Some(prop) = prop {
                 new_prop = Some(def.props.len());
+                // The method is taken to be where the last statement
+                // read started: the last one in its body, if it has
+                // any.
                 def.props.push(ObjProp {
                     prop,
                     value: PropValue::Method(self.prog.bodies.len()),
                     overwritable: false,
-                    file,
-                    line,
+                    file: self.cur_file,
+                    line: self.cur_line,
                 });
             }
             self.prog.bodies.push((body, None));
@@ -4802,10 +4851,12 @@ impl Parser<'_, '_> {
                         let fmt = Arg {
                             expr: Expr::constant(Value::SStr(fmt.text)),
                             varargs: false,
+                            name: None,
                         };
                         let arg = Arg {
                             expr,
                             varargs: false,
+                            name: None,
                         };
                         Expr::Call(Box::new(Expr::Sym(b"sprintf".to_vec())), vec![fmt, arg])
                     }
@@ -4891,6 +4942,7 @@ impl Parser<'_, '_> {
                 args.push(Arg {
                     expr,
                     varargs: false,
+                    name: None,
                 });
             }
             return Some(Expr::Call(Box::new(func), args));
@@ -5072,4 +5124,6 @@ struct Formals {
     opt_argc: usize,
     varargs: bool,
     varargs_list_local: Option<LocalId>,
+    /// How many default values the list has had.
+    defval_cnt: usize,
 }
