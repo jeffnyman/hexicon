@@ -26,6 +26,8 @@ pub(crate) enum Value {
     List(Vec<ConstVal>),
     /// An object, by its number.
     Obj(u32),
+    /// A property, by the number it has while compiling.
+    Prop(u16),
 }
 
 /// A constant in an expression.
@@ -200,6 +202,21 @@ pub(crate) enum Expr {
     OneOf(bool, Vec<Expr>),
     /// `self`
     SelfRef,
+    /// `&x`: the address of what a name stands for.
+    Addr(Box<Expr>),
+    /// `new Class(args)`, or `new transient Class(args)`. What is made
+    /// is the operand, which is a call if there are arguments.
+    New(Box<Expr>, bool),
+    /// `inherited`, which is only ever the left side of a member
+    /// expression: the method being overridden, in whichever
+    /// superclass has it.
+    Inh,
+    /// `inherited Class`: the same, in a named superclass.
+    InhClass(Vec<u8>),
+    /// Something about the method that is running: 1 for
+    /// `targetprop`, 2 for `targetobj`, 3 for `definingobj`, 4 for
+    /// `invokee`.
+    CtxEle(u8),
     /// `obj.prop`, or with arguments `obj.prop(args)`. The property is
     /// a name, or with `prop_is_expr` an expression in parentheses
     /// whose value says which property.

@@ -137,6 +137,10 @@ pub(crate) struct PropSym {
     /// it has in the image is given when everything is known: see
     /// [`Program::final_prop_ids`].
     pub id: u16,
+    /// The name is a property's only because its address was taken
+    /// (`&name`) when it was nothing else. A function defined with the
+    /// name afterward takes the name over.
+    pub weak: bool,
 }
 
 /// The value an object definition gives a property.
@@ -244,7 +248,9 @@ pub(crate) fn global_hash(name: &[u8]) -> usize {
 pub(crate) struct Exports {
     pub funcs: Vec<FuncSym>,
     pub objs: Vec<ObjSym>,
-    pub props: Vec<Vec<u8>>,
+    /// Each with whether it is a property only for want of anything
+    /// else (see [`PropSym::weak`]).
+    pub props: Vec<(Vec<u8>, bool)>,
 }
 
 /// A program as the parser leaves it.
@@ -313,8 +319,10 @@ impl Program {
         let props = self
             .props
             .iter()
+            .enumerate()
             .skip(SPECIAL_PROPS.len())
-            .map(|prop| prop.name.clone())
+            .filter(|(index, prop)| self.globals.get(&prop.name) == Some(&Global::Prop(*index)))
+            .map(|(_, prop)| (prop.name.clone(), prop.weak))
             .collect();
         Exports { funcs, objs, props }
     }
@@ -326,9 +334,16 @@ impl Program {
     /// the last reading of the source, newest first, and then those of
     /// the reading before, oldest first. The properties every program
     /// has keep their numbers.
-    pub(crate) fn final_prop_ids(&self) -> Vec<u16> {
+    ///
+    /// A name that stopped being a property gets no number. The second
+    /// value is the number the next property would get.
+    pub(crate) fn final_prop_ids(&self) -> (Vec<u16>, u16) {
         let special = SPECIAL_PROPS.len();
-        let mut order: Vec<usize> = (special..self.props.len()).collect();
+        let mut order: Vec<usize> = (special..self.props.len())
+            .filter(|index| {
+                self.globals.get(&self.props[*index].name) == Some(&Global::Prop(*index))
+            })
+            .collect();
         order.sort_by_key(|&index| {
             let new = index >= self.known_prop_cnt;
             let within = if new { usize::MAX - index } else { index };
@@ -337,10 +352,11 @@ impl Program {
         // Indexed by the compile-time number, which starts at 1.
         let mut ids: Vec<u16> = (0..=special as u16).collect();
         ids.resize(self.props.len() + 1, 0);
+        let next = (special + 1 + order.len()) as u16;
         for (place, index) in order.into_iter().enumerate() {
             ids[usize::from(self.props[index].id)] = (special + 1 + place) as u16;
         }
-        ids
+        (ids, next)
     }
 
     /// Give a property name a number, if it is not a property already.
@@ -348,6 +364,7 @@ impl Program {
         self.props.push(PropSym {
             name: name.to_vec(),
             id: self.next_prop_id,
+            weak: false,
         });
         self.next_prop_id += 1;
         self.globals
@@ -482,9 +499,10 @@ impl<'p, 'a> Parser<'p, 'a> {
                 .insert(obj.name.clone(), Global::Obj(prog.objs.len()));
             prog.objs.push(obj);
         }
-        for name in known.props {
+        for (name, weak) in known.props {
             if !prog.globals.contains_key(&name) {
-                prog.def_prop(&name);
+                let prop = prog.def_prop(&name);
+                prog.props[prop].weak = weak;
             }
         }
         prog.known_prop_cnt = prog.props.len();
@@ -793,6 +811,13 @@ impl<'p, 'a> Parser<'p, 'a> {
         };
         let (argc, opt_argc, varargs) = (body.argc, body.opt_argc, body.varargs);
 
+        // A name that is a property only because its address was
+        // taken is the function's now.
+        if let Some(Global::Prop(prop)) = self.prog.globals.get(&name) {
+            if self.prog.props[*prop].weak {
+                self.prog.globals.remove(&name);
+            }
+        }
         let existing = self.prog.globals.get(&name).copied();
         let func_id = match existing {
             Some(Global::Bif(_) | Global::Obj(_) | Global::Prop(_)) => {
@@ -2362,9 +2387,8 @@ impl<'p, 'a> Parser<'p, 'a> {
         let op = self.cur();
         match op {
             Tok::And => {
-                self.unsupported("the address operator");
                 self.next();
-                self.parse_unary()
+                self.parse_addr()
             }
             Tok::Delete => {
                 self.unsupported("\"delete\"");
@@ -2620,6 +2644,41 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.next();
                     return Some(Expr::SelfRef);
                 }
+                Tok::TargetProp => {
+                    self.next();
+                    return Some(Expr::CtxEle(1));
+                }
+                Tok::TargetObj => {
+                    self.next();
+                    return Some(Expr::CtxEle(2));
+                }
+                Tok::DefiningObj => {
+                    self.next();
+                    return Some(Expr::CtxEle(3));
+                }
+                Tok::Invokee => {
+                    self.next();
+                    return Some(Expr::CtxEle(4));
+                }
+                Tok::Inherited => return self.parse_inherited(),
+                Tok::New => {
+                    let transient = match self.next() {
+                        Tok::Function | Tok::Method => {
+                            self.unsupported("an anonymous function");
+                            return Some(Expr::constant(Value::Nil));
+                        }
+                        Tok::Transient => {
+                            self.next();
+                            true
+                        }
+                        _ => false,
+                    };
+                    let mut sub = self.parse_primary()?;
+                    if self.cur() == Tok::LPar {
+                        sub = self.parse_call(sub)?;
+                    }
+                    return Some(Expr::New(Box::new(sub), transient));
+                }
                 Tok::DStrStart => return self.parse_embedding(true),
                 Tok::SStrStart => return self.parse_embedding(false),
                 Tok::LBrack => return self.parse_list(),
@@ -2657,14 +2716,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                 | Tok::Method
                 | Tok::Function
                 | Tok::Object
-                | Tok::New
                 | Tok::Replaced
-                | Tok::TargetProp
-                | Tok::TargetObj
-                | Tok::DefiningObj
-                | Tok::Invokee
                 | Tok::ArgCount
-                | Tok::Inherited
                 | Tok::Delegated => {
                     let shown = self.tok.cur_token_shown();
                     self.unsupported(&format!("\"{shown}\" in an expression"));
@@ -2690,7 +2743,64 @@ impl Parser<'_, '_> {
     /// Read `.prop` after an expression, with arguments if there are
     /// any. The property is a name, or an expression in parentheses
     /// that says which property.
+    /// Read `&name`, from after the `&`.
+    fn parse_addr(&mut self) -> Option<Expr> {
+        let sub = if self.cur() == Tok::Sym {
+            // A name whose address is taken is a property's, if it is
+            // nothing else, but one that a function can still claim.
+            let name = self.cur_text();
+            if !self.prog.globals.contains_key(&name) {
+                let prop = self.prog.def_prop(&name);
+                self.prog.props[prop].weak = true;
+            }
+            self.next();
+            Expr::Sym(name)
+        } else if self.cur() == Tok::Operator {
+            self.unsupported("the address of an operator");
+            self.next();
+            return Some(Expr::constant(Value::Nil));
+        } else {
+            self.parse_unary()?
+        };
+        if !matches!(sub, Expr::Sym(_)) {
+            self.error("invalid address expression - can't apply '&' operator");
+        }
+        Some(Expr::Addr(Box::new(sub)))
+    }
+
+    /// Read `inherited`, which is followed by `.prop` or stands for
+    /// the method being overridden, and can name a superclass first.
+    fn parse_inherited(&mut self) -> Option<Expr> {
+        let lhs = match self.next() {
+            Tok::Sym => {
+                let name = self.cur_text();
+                self.next();
+                Expr::InhClass(name)
+            }
+            Tok::Lt => {
+                self.unsupported("\"inherited\" with a list of types");
+                return Some(Expr::constant(Value::Nil));
+            }
+            _ => Expr::Inh,
+        };
+        self.parse_member(lhs)
+    }
+
     fn parse_member(&mut self, lhs: Expr) -> Option<Expr> {
+        if self.cur() != Tok::Dot {
+            // `inherited(args)`: the property is the one being run.
+            let args = if self.cur() == Tok::LPar {
+                Some(self.parse_arg_list()?)
+            } else {
+                None
+            };
+            return Some(Expr::Member {
+                obj: Box::new(lhs),
+                prop: Box::new(Expr::CtxEle(1)),
+                prop_is_expr: true,
+                args,
+            });
+        }
         self.next();
         let mut prop_is_expr = false;
         let prop = match self.cur() {
@@ -2715,9 +2825,9 @@ impl Parser<'_, '_> {
                 prop
             }
             Tok::TargetProp => {
-                self.unsupported("\"targetprop\" in an expression");
                 self.next();
-                return Some(lhs);
+                prop_is_expr = true;
+                Expr::CtxEle(1)
             }
             _ => {
                 self.error_curtok(
@@ -2744,7 +2854,10 @@ impl Parser<'_, '_> {
     /// that is nothing yet becomes a property.
     fn look_up_prop(&mut self, name: &[u8]) -> Option<usize> {
         match self.prog.globals.get(name) {
-            Some(Global::Prop(prop)) => Some(*prop),
+            Some(Global::Prop(prop)) => {
+                self.prog.props[*prop].weak = false;
+                Some(*prop)
+            }
             Some(_) => {
                 self.error(format!(
                     "symbol \"{}\" is already defined - can't redefine as property",

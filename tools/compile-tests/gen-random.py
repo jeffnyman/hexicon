@@ -18,13 +18,58 @@ import os
 import random
 import sys
 
-NAMES = ["a", "b", "c", "i", "n", "x", "y", "ab", "ba", "tmp", "count", "total",
-         "index", "value", "result", "flag", "left", "right", "xx", "k9"]
-BINARY = ["+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>", ">>>",
-          "==", "!=", "<", "<=", ">", ">=", "&&", "||"]
+NAMES = [
+    "a",
+    "b",
+    "c",
+    "i",
+    "n",
+    "x",
+    "y",
+    "ab",
+    "ba",
+    "tmp",
+    "count",
+    "total",
+    "index",
+    "value",
+    "result",
+    "flag",
+    "left",
+    "right",
+    "xx",
+    "k9",
+]
+BINARY = [
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "&",
+    "|",
+    "^",
+    "<<",
+    ">>",
+    ">>>",
+    "==",
+    "!=",
+    "<",
+    "<=",
+    ">",
+    ">=",
+    "&&",
+    "||",
+]
 # Built-in functions to call: name, fewest arguments, most.
-BUILTINS = [("tadsSay", 1, 3), ("toString", 1, 3), ("dataType", 1, 1),
-            ("max", 1, 4), ("getArg", 1, 1), ("t3RunGC", 0, 0)]
+BUILTINS = [
+    ("tadsSay", 1, 3),
+    ("toString", 1, 3),
+    ("dataType", 1, 1),
+    ("max", 1, 4),
+    ("getArg", 1, 1),
+    ("t3RunGC", 0, 0),
+]
 PRELUDE = """intrinsic 't3vm/010006'
 {
     t3RunGC();
@@ -65,14 +110,32 @@ intrinsic 'tads-io/030007'
 ASSIGN = ["=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ">>>="]
 # String templates a program can have: the definition, the function's
 # number of parameters, and how an expression is written to use it.
-TEMPLATES = [("<<* in words>>", 1, "{} in words"), ("<<bold>>", 0, "bold"),
-             ("<<the * thing>>", 1, "the {} thing"), ("<<big *>>", 1, "big {}")]
+TEMPLATES = [
+    ("<<* in words>>", 1, "{} in words"),
+    ("<<bold>>", 0, "bold"),
+    ("<<the * thing>>", 1, "the {} thing"),
+    ("<<big *>>", 1, "big {}"),
+]
 WORDS = ["", "", "a", "one two", " and ", ". ", "x", "It\\'s ", "\\n", "%"]
 FORMATS = ["%d", "%5d", "%s", "%x", "%-3s", "%05.2f", "%c"]
 # Names for properties. Some have the same letters as others, which puts
 # them in the same chain of the reference's table of names.
-PROPS = ["name", "size", "ab1", "ba1", "weight", "owner", "abc2", "cab2", "bca2",
-         "describe", "count1", "total", "next1", "value1"]
+PROPS = [
+    "name",
+    "size",
+    "ab1",
+    "ba1",
+    "weight",
+    "owner",
+    "abc2",
+    "cab2",
+    "bca2",
+    "describe",
+    "count1",
+    "total",
+    "next1",
+    "value1",
+]
 
 
 class Program:
@@ -99,7 +162,9 @@ class Program:
                 if rng.random() < 0.1 and not is_class:
                     name = None
                 earlier = [obj[0] for obj in self.objs if obj[0]]
-                supers = rng.sample(earlier, min(len(earlier), rng.choice([0, 1, 1, 2])))
+                supers = rng.sample(
+                    earlier, min(len(earlier), rng.choice([0, 1, 1, 2]))
+                )
                 self.objs.append((name, is_class, supers))
         # The properties the program's source mentions.
         self.props = rng.sample(PROPS, rng.randint(2, 8))
@@ -151,7 +216,9 @@ class Program:
                 parts.append(self.embedded(scope, depth - 1, quote, nested + 1))
                 while rng.random() < 0.3:
                     other = rng.choice(["else if", "else unless", "otherwise if"])
-                    parts.append(f"<<{other} {self.embedded_expr(scope, depth, True)}>>")
+                    parts.append(
+                        f"<<{other} {self.embedded_expr(scope, depth, True)}>>"
+                    )
                     parts.append(self.embedded(scope, depth - 1, quote, nested + 1))
                 if rng.random() < 0.5:
                     parts.append(rng.choice(["<<else>>", "<<otherwise>>"]))
@@ -161,8 +228,18 @@ class Program:
             elif kind < 0.9:
                 parts.append("<<>>")
             elif kind < 0.91:
-                parts.append(rng.choice(["<<one of>>a<<or>>b<<stopping>>", "<<first time>>a<<only>>",
-                                         "<<end>>", "<<else>>", "<<or>>", "<<only>>"]))
+                parts.append(
+                    rng.choice(
+                        [
+                            "<<one of>>a<<or>>b<<stopping>>",
+                            "<<first time>>a<<only>>",
+                            "<<end>>",
+                            "<<else>>",
+                            "<<or>>",
+                            "<<only>>",
+                        ]
+                    )
+                )
         parts.append(rng.choice(WORDS))
         return "".join(parts)
 
@@ -193,14 +270,37 @@ class Program:
         rng = self.rng
         kind = rng.random()
         if kind < 0.55:
-            return str(rng.choice([0, 1, 2, 3, 7, 100, 126, 127, 128, 255, 256, 1000,
-                                   65536, 2147483647, rng.randint(0, 300)]))
+            return str(
+                rng.choice(
+                    [
+                        0,
+                        1,
+                        2,
+                        3,
+                        7,
+                        100,
+                        126,
+                        127,
+                        128,
+                        255,
+                        256,
+                        1000,
+                        65536,
+                        2147483647,
+                        rng.randint(0, 300),
+                    ]
+                )
+            )
         if kind < 0.65:
             return rng.choice(["nil", "true"])
         if kind < 0.7:
-            return "[" + ", ".join(self.constant() for _ in range(rng.randint(0, 3))) + "]"
+            return (
+                "[" + ", ".join(self.constant() for _ in range(rng.randint(0, 3))) + "]"
+            )
         if kind < 0.87:
-            return "'" + rng.choice(["", "a", "abc", "hello", "x y", "one", "two"]) + "'"
+            return (
+                "'" + rng.choice(["", "a", "abc", "hello", "x y", "one", "two"]) + "'"
+            )
         named = [obj[0] for obj in self.objs if obj[0]]
         if kind < 0.93 and named:
             return rng.choice(named)
@@ -213,13 +313,52 @@ class Program:
                 return rng.choice(scope)
             return self.constant()
         kind = rng.random()
+        named = [obj[0] for obj in self.objs if obj[0]]
+        if named and rng.random() < 0.04:
+            # A new object, or the address of a property.
+            if rng.random() < 0.5:
+                return "&" + rng.choice(self.props + PROPS[:3])
+            count = rng.choice([None, 0, 1, 2])
+            args = (
+                ""
+                if count is None
+                else (
+                    "("
+                    + ", ".join(self.expr(scope, depth - 2) for _ in range(count))
+                    + ")"
+                )
+            )
+            return f"new {rng.choice(['', '', 'transient '])}{rng.choice(named)}{args}"
         if self.objs and rng.random() < 0.15:
             # A property, a call to a method, or in a method a property
             # of the object itself by its name alone.
-            if self.in_method and rng.random() < 0.3:
+            if self.in_method and rng.random() < 0.15:
+                # What this method overrides, or something about it.
+                text = rng.choice(
+                    [
+                        "inherited",
+                        "inherited",
+                        "targetprop",
+                        "targetobj",
+                        "definingobj",
+                        "inherited." + rng.choice(self.props),
+                    ]
+                    + ["inherited " + name for name in named[:1]]
+                )
+                if text.startswith("inherited"):
+                    count = rng.randint(0, 2)
+                    text += (
+                        "("
+                        + ", ".join(self.expr(scope, depth - 2) for _ in range(count))
+                        + ")"
+                    )
+                    return text
+            elif self.in_method and rng.random() < 0.3:
                 text = rng.choice(self.props + ["self"])
             else:
                 text = self.member(scope, depth)
+            if text.isalnum() and text not in PROPS:
+                return text
             if text != "self" and rng.random() < 0.3:
                 count = rng.randint(0, 2)
                 args = ", ".join(self.expr(scope, depth - 2) for _ in range(count))
@@ -242,12 +381,15 @@ class Program:
             return rng.choice(["!", "-", "~", "+"]) + self.operand(scope, depth - 1)
         if kind < 0.69:
             name, fewest, most = rng.choice(BUILTINS)
-            args = ", ".join(self.expr(scope, depth - 2)
-                             for _ in range(rng.randint(fewest, most)))
+            args = ", ".join(
+                self.expr(scope, depth - 2) for _ in range(rng.randint(fewest, most))
+            )
             return f"{name}({args})"
         if kind < 0.72:
             count = rng.randint(1, 3)
-            return "[" + ", ".join(self.expr(scope, depth - 2) for _ in range(count)) + "]"
+            return (
+                "[" + ", ".join(self.expr(scope, depth - 2) for _ in range(count)) + "]"
+            )
         if kind < 0.75:
             return f"{self.operand(scope, depth - 1)}[{self.expr(scope, depth - 2)}]"
         if kind < 0.79:
@@ -256,8 +398,10 @@ class Program:
             args = ", ".join(self.expr(scope, depth - 2) for _ in range(count))
             return f"{name}({args})"
         if kind < 0.83:
-            return (f"({self.expr(scope, depth - 1)} ? {self.expr(scope, depth - 1)}"
-                    f" : {self.expr(scope, depth - 1)})")
+            return (
+                f"({self.expr(scope, depth - 1)} ? {self.expr(scope, depth - 1)}"
+                f" : {self.expr(scope, depth - 1)})"
+            )
         if kind < 0.87:
             return f"({self.expr(scope, depth - 1)} ?? {self.expr(scope, depth - 1)})"
         if kind < 0.89:
@@ -274,7 +418,9 @@ class Program:
                     target += f"[{self.expr(scope, depth - 2)}]"
             if rng.random() < 0.5:
                 return f"({target} {self.pick(ASSIGN)} {self.expr(scope, depth - 1)})"
-            return rng.choice([f"{target}++", f"{target}--", f"++{target}", f"--{target}"])
+            return rng.choice(
+                [f"{target}++", f"{target}--", f"++{target}", f"--{target}"]
+            )
         return f"({self.expr(scope, depth - 1)}, {self.expr(scope, depth - 1)})"
 
     def operand(self, scope, depth):
@@ -328,7 +474,10 @@ class Program:
         if kind < 0.7:
             return [f"{pad}{self.expr(scope, 3)};"]
         if kind < 0.8 and in_loop:
-            return [pad + rng.choice(["break;", "continue;"] if in_loop == 2 else ["break;"])]
+            return [
+                pad
+                + rng.choice(["break;", "continue;"] if in_loop == 2 else ["break;"])
+            ]
         if kind < 0.83:
             # A label for this is chosen once the whole function is
             # written, so that the jump can go forward.
@@ -367,11 +516,15 @@ class Program:
                 lines += [pad + "else"] + self.body(scope, depth, indent, in_loop)
             return lines
         if kind < 0.78:
-            return ([f"{pad}while ({self.expr(scope, 3)})"]
-                    + self.body(scope, depth, indent, 2))
+            return [f"{pad}while ({self.expr(scope, 3)})"] + self.body(
+                scope, depth, indent, 2
+            )
         if kind < 0.84:
-            return ([pad + "do"] + self.body(scope, depth, indent, 2)
-                    + [f"{pad}while ({self.expr(scope, 3)});"])
+            return (
+                [pad + "do"]
+                + self.body(scope, depth, indent, 2)
+                + [f"{pad}while ({self.expr(scope, 3)});"]
+            )
         if kind < 0.90:
             inner = list(scope)
             init = ""
@@ -383,8 +536,9 @@ class Program:
                 init = f"{rng.choice(scope)} = {self.expr(scope, 2)}"
             cond = self.expr(inner, 2) if rng.random() < 0.8 else ""
             step = self.expr(inner, 2) if rng.random() < 0.8 else ""
-            return ([f"{pad}for ({init} ; {cond} ; {step})"]
-                    + self.body(inner, depth, indent, 2))
+            return [f"{pad}for ({init} ; {cond} ; {step})"] + self.body(
+                inner, depth, indent, 2
+            )
         if kind < 0.93:
             lines = [f"{pad}switch ({self.expr(scope, 2)})", pad + "{"]
             default_at = rng.randint(0, 5)
@@ -409,7 +563,9 @@ class Program:
                 lines.append(f"{pad}catch ({rng.choice(named)} {var})")
                 lines += self.block_in_braces(scope + [var], depth, indent, in_loop)
             if catches == 0 or rng.random() < 0.5:
-                lines += [pad + "finally"] + self.block_in_braces(scope, depth, indent, in_loop)
+                lines += [pad + "finally"] + self.block_in_braces(
+                    scope, depth, indent, in_loop
+                )
             return lines
         if kind < 0.98:
             name = f"L{len(self.labels)}"
@@ -442,7 +598,9 @@ class Program:
                 self.in_method = False
             elif kind < 0.7:
                 self.in_method = True
-                lines.append(f"    {prop} = \"{self.embedded(list(self.props), 2, chr(34))}\"")
+                lines.append(
+                    f'    {prop} = "{self.embedded(list(self.props), 2, chr(34))}"'
+                )
                 self.in_method = False
             else:
                 self.in_method = True
@@ -517,7 +675,9 @@ def main():
     os.makedirs(folder, exist_ok=True)
     for index in range(count):
         rng = random.Random(seed * 100000 + index)
-        with open(os.path.join(folder, f"r{seed}_{index:04}.t"), "w", newline="\n") as out:
+        with open(
+            os.path.join(folder, f"r{seed}_{index:04}.t"), "w", newline="\n"
+        ) as out:
             out.write(Program(rng).text())
 
 

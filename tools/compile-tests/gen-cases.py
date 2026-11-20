@@ -189,7 +189,9 @@ programs["ppif"] = (
 # Strings that decide the size of the constant pool's pages.
 programs["str1000"] = "_main(args) { return '" + "x" * 1000 + "'; }\n"
 programs["str1100"] = "_main(args) { return '" + "y" * 1100 + "'; }\n"
-programs["str5000"] = "_main(args) { return '" + "z" * 5000 + "' + '" + "w" * 3000 + "'; }\n"
+programs["str5000"] = (
+    "_main(args) { return '" + "z" * 5000 + "' + '" + "w" * 3000 + "'; }\n"
+)
 programs["str20000"] = "_main(args) { return '" + "v" * 20000 + "'; }\n"
 programs["strmany"] = (
     "_main(args)\n{\n"
@@ -219,7 +221,9 @@ programs["longname"] = (
     "_main(args)\n{\n    local " + "n" * 80 + " = 1;\n    local " + "m" * 81 + " = 2;\n"
     "    return " + "n" * 80 + " + " + "m" * 81 + ";\n}\n"
 )
-programs["main_last"] = "a() { return 1; }\nb() { return 2; }\n_main(args) { return a() + b(); }\n"
+programs["main_last"] = (
+    "a() { return 1; }\nb() { return 2; }\n_main(args) { return a() + b(); }\n"
+)
 programs["recursion"] = (
     "_main(args) { return _main(args) + f(args); }\n"
     "f(x) { return x ? f(x - 1) : _main(x); }\n"
@@ -231,16 +235,18 @@ programs["hex"] = "_main(args) { return 0x10 + 0xFF + 010 + 0 + 0x0 + 00; }\n"
 programs["mulover"] = "_main(args) { return 65536 * 65536 + 100000 * 100000; }\n"
 
 
-
 def adds(count):
     return "".join(f"    x += {i * 1000 + 300};\n" for i in range(count))
 
 
 # Functions longer than a page of code, and enough code for several pages.
 programs["big"] = (
-    "_main(args)\n{\n    local x = 0;\n" + adds(400)
+    "_main(args)\n{\n    local x = 0;\n"
+    + adds(400)
     + "    return x + f1(1) + f2(2) + f3(3) + last('s');\n}\n"
-    + "".join(f"f{k}(x)\n{{\n" + adds(150 * k) + "    return x;\n}\n" for k in (1, 2, 3))
+    + "".join(
+        f"f{k}(x)\n{{\n" + adds(150 * k) + "    return x;\n}\n" for k in (1, 2, 3)
+    )
     + "last(s) { return s + 'tail'; }\n"
 )
 
@@ -291,7 +297,9 @@ intrinsic 'tads-io/030007'
 }
 """
 
-programs["bif1"] = BUILTINS + """
+programs["bif1"] = (
+    BUILTINS
+    + """
 _main(args)
 {
     tadsSay('hello\n');
@@ -307,6 +315,7 @@ _main(args)
     return getArg(1) + rand(10);
 }
 """
+)
 
 # Sets declared more than once, with and without versions. (A set first
 # declared without a version and then with one is not here: the
@@ -329,11 +338,14 @@ _main(args)
 # A big set. (Calling a function numbered above 255 is not here: the
 # reference crashes.)
 programs["bif3"] = (
-    "intrinsic 'many/1'\n{\n" + "".join(f"    fn{i}();\n" for i in range(300))
+    "intrinsic 'many/1'\n{\n"
+    + "".join(f"    fn{i}();\n" for i in range(300))
     + "}\n_main(args) { return fn0() + fn255(); }\n"
 )
 
-programs["dstr1"] = BUILTINS + """
+programs["dstr1"] = (
+    BUILTINS
+    + """
 _main(args)
 {
     "Hello, world!\n";
@@ -347,6 +359,7 @@ _main(args)
     "";
 }
 """
+)
 
 programs["list1"] = """
 f(a, b)
@@ -424,12 +437,15 @@ _main(args) { return f(1, 2, 3); }
 # Lists that decide the size of the constant pool's pages, and one too
 # long for the short instruction that makes a list.
 programs["list3"] = (
-    "_main(args)\n{\n    local big = [" + ", ".join(str(i) for i in range(600))
-    + "];\n    local dyn = [args, " + ", ".join(str(i) for i in range(300))
+    "_main(args)\n{\n    local big = ["
+    + ", ".join(str(i) for i in range(600))
+    + "];\n    local dyn = [args, "
+    + ", ".join(str(i) for i in range(300))
     + "];\n    return big + dyn;\n}\n"
 )
 programs["list4"] = (
-    "_main(args)\n{\n    local dyn = [args, " + ", ".join(str(i) for i in range(900))
+    "_main(args)\n{\n    local dyn = [args, "
+    + ", ".join(str(i) for i in range(900))
     + "];\n    return dyn;\n}\n"
 )
 
@@ -711,7 +727,9 @@ _main(args)
 }
 """
 
-programs["embed4"] = SPRINTF + """
+programs["embed4"] = (
+    SPRINTF
+    + """
 _main(args)
 {
     "<<%d args>> <<%5.2f args + 1>><<%s 'x' >><<% d 5>><<%-5.2f 1>><<%% 3>>";
@@ -722,6 +740,7 @@ _main(args)
     return s + sprintf;
 }
 """
+)
 
 programs["embed5"] = """
 string template <<* in words>> spell;
@@ -999,6 +1018,50 @@ away:
 }
 """
 
+programs["inh1"] = """
+class A: object
+    name = 'a'
+    m(x) { return x; }
+    construct(n) { name = n; }
+;
+class B: A
+    m(x) { return inherited(x) + inherited.m(x) + inherited A.m(x) + inherited.name; }
+    n([x]) { return inherited(x...) + inherited.m(x...) + inherited A.(x)(x...) + inherited.(x)(1); }
+    o() { inherited; inherited(); inherited.o; inherited A; inherited A(); return inherited A.o; }
+    construct(n) { inherited(n); }
+    p() { return [targetprop, targetobj, definingobj, invokee, self.targetprop, self.targetprop(1)]; }
+    q(x) { return x.targetprop + inherited.targetprop + inherited A.targetprop(1); }
+;
+_main(args)
+{
+    local b = new B('x');
+    local c = new A(args...);
+    local d = new transient B(1, 2);
+    new B;
+    return [b, c, d, new A, new A(), new transient A];
+}
+"""
+
+programs["addr1"] = """
+a: object x = 1 y = &x z = [&x, &w, &a, &_main] m() { return &q; };
+f() { }
+_main(args)
+{
+    local p = &x;
+    local l = [&x, &y, &nosuchprop, &f, &a];
+    switch (p) { case &x: return 1; case &y: return 2; }
+    if (&x == &y) return 3;
+    if (&x == &x) return 4;
+    return a.(p) + a.(&x) + args.(&w)(1) + (&x) + l;
+}
+"""
+
+programs["addr2"] = """
+_main(args) { local x = &later; local y = &ab; local z = &neverDefined; local w = &ba; return [x, y, z, w]; }
+later() { }
+a: object ba = 1 ab = 2;
+"""
+
 mistakes = {
     "e_undef": "_main(args) { return undefinedThing; }",
     "e_undefcall": "_main(args) { return undefinedFunc(1); }",
@@ -1094,9 +1157,9 @@ mistakes = {
     "e_bif6": "intrinsic 'x' { f(a?, b); } _main(args) { }",
     "e_bif7": "intrinsic 'x' { f();",
     "e_bif9": "intrinsic 'x' { f(); } f() { } _main(args) { return f(); }",
-    "e_dstr1": "_main(args) { local a = \"text\"; return a; }",
-    "e_dstr2": "_main(args) { return \"text\"; }",
-    "e_dstr3": "f(x) { } _main(args) { f(\"text\"); }",
+    "e_dstr1": '_main(args) { local a = "text"; return a; }',
+    "e_dstr2": '_main(args) { return "text"; }',
+    "e_dstr3": 'f(x) { } _main(args) { f("text"); }',
     "e_list1": "_main(args) { return [1, 2; }",
     "e_list2": "_main(args) { return [1 2]; }",
     "e_list3": "_main(args) { return [1, ]; }",
@@ -1179,37 +1242,37 @@ mistakes = {
     "w_throw1": "_main(args) { throw args; args = 1; }",
     "w_throw2": "_main(args) { if (args) throw args; else return 1; }",
     "w_argnoval": "f() { } g(a) { } _main(args) { g(f()); }",
-    "e_emb1": "_main(args) { \"a<<args b>>c\"; }",
-    "e_emb2": "_main(args) { \"a<<1 +>>c\"; }",
-    "e_emb3": "_main(args) { \"a<<(1>>b\"; }",
+    "e_emb1": '_main(args) { "a<<args b>>c"; }',
+    "e_emb2": '_main(args) { "a<<1 +>>c"; }',
+    "e_emb3": '_main(args) { "a<<(1>>b"; }',
     "e_emb4": "_main(args) { \"a<<1;>>b\"; local s = 'a<<args args>>b'; }",
-    "e_emb5": "_main(args) { local x = \"a<<args>>b\"; x = \"a<<args>>\"; }",
-    "e_emb6": "_main(args) { local y = (\"<<args>>b\", 1); local z = args ? \"a<<1>>\" : \"b\"; }",
-    "e_emb7": "_main(args) { \"<<args>>\" + 1; \"<<args>>\"(1); }",
-    "e_emb8": "_main(args) { \"a<<else>>b\"; }",
-    "e_emb9": "_main(args) { \"<<else if args>>x\"; \"a<<else unless 1>>b\"; }",
-    "e_emb10": "_main(args) { \"<<if>>a<<end>>\"; \"<<unless>>b\"; }",
-    "e_emb11": "_main(args) { \"<<if args>>a<<else>>b<<else>>c<<end>>\"; }",
-    "e_emb12": "_main(args) { \"<<if args>>a<<or>>b<<end>>c<<only>>d<<stopping>>e<<at random>>f\"; }",
-    "e_emb13": "_main(args) { \"<<one of>>a<<or>>b<<at random>>\"; }",
+    "e_emb5": '_main(args) { local x = "a<<args>>b"; x = "a<<args>>"; }',
+    "e_emb6": '_main(args) { local y = ("<<args>>b", 1); local z = args ? "a<<1>>" : "b"; }',
+    "e_emb7": '_main(args) { "<<args>>" + 1; "<<args>>"(1); }',
+    "e_emb8": '_main(args) { "a<<else>>b"; }',
+    "e_emb9": '_main(args) { "<<else if args>>x"; "a<<else unless 1>>b"; }',
+    "e_emb10": '_main(args) { "<<if>>a<<end>>"; "<<unless>>b"; }',
+    "e_emb11": '_main(args) { "<<if args>>a<<else>>b<<else>>c<<end>>"; }',
+    "e_emb12": '_main(args) { "<<if args>>a<<or>>b<<end>>c<<only>>d<<stopping>>e<<at random>>f"; }',
+    "e_emb13": '_main(args) { "<<one of>>a<<or>>b<<at random>>"; }',
     "e_emb14": "_main(args) { \"<<first time>>a<<only>>\"; local s = 'x<<one of>>a<<or>>b<<cycling>>'; }",
-    "e_emb15": "_main(args) { \"<<one of>>a<<or>>b<<or>><<if args>>c<<end>><<stopping>>\"; }",
-    "e_emb16": "_main(args) { \"<<one of>>a<<||>>b<<then purely at random>>c<<one of>>d<<first time>>e\"; }",
-    "e_emb17": "_main(args) { \"<<one of>>a<<if args>>b<<or>>c<<end>>d<<as decreasingly likely outcomes>>\"; }",
-    "e_emb18": "_main(args) { \"<<%d>>\"; }",
-    "e_emb19": "_main(args) { \"<<%>>\"; }",
-    "e_emb20": "_main(args) { \"<<%d args>>\"; }",
-    "e_emb21": "_main(args) { \"a<<args>>b\" ; \"a<<args>>b",
-    "e_emb22": "_main(args) { \"a<<args; \"b\"; }",
-    "e_emb23": "_main(args) { \"a<<args}\nf() { \"x<<1 2>>y<<3>>z<<4 5\"; }",
-    "e_emb24": "_main(args) { \"<<\nargs +\n1 +\n>>\n\"; \"<<args>>\n<<args args>>\nz\"; }",
-    "e_emb25": "_main(args) { \"<<if args>>a<<end\"; }",
+    "e_emb15": '_main(args) { "<<one of>>a<<or>>b<<or>><<if args>>c<<end>><<stopping>>"; }',
+    "e_emb16": '_main(args) { "<<one of>>a<<||>>b<<then purely at random>>c<<one of>>d<<first time>>e"; }',
+    "e_emb17": '_main(args) { "<<one of>>a<<if args>>b<<or>>c<<end>>d<<as decreasingly likely outcomes>>"; }',
+    "e_emb18": '_main(args) { "<<%d>>"; }',
+    "e_emb19": '_main(args) { "<<%>>"; }',
+    "e_emb20": '_main(args) { "<<%d args>>"; }',
+    "e_emb21": '_main(args) { "a<<args>>b" ; "a<<args>>b',
+    "e_emb22": '_main(args) { "a<<args; "b"; }',
+    "e_emb23": '_main(args) { "a<<args}\nf() { "x<<1 2>>y<<3>>z<<4 5"; }',
+    "e_emb24": '_main(args) { "<<\nargs +\n1 +\n>>\n"; "<<args>>\n<<args args>>\nz"; }',
+    "e_emb25": '_main(args) { "<<if args>>a<<end"; }',
     "e_emb26": "_main(args) { 'a<<if args>>b<<else'; 'c<<end>>'; }",
-    "e_emb27": "_main(args) { \"<<nosuch>><<end>><<or>>\"; }",
+    "e_emb27": '_main(args) { "<<nosuch>><<end>><<or>>"; }',
     "e_emb28": "_main(args) { local s = '<<\"a\">>'; return s; }",
     "e_emb29": "_main(args) { \"<<if args>>x<<else>>y<<end>><<end>>\"; return 'a<<}>>'; }",
-    "e_emb30": "_main(args) { \"<<[>>\"; \"<<)>>\"; \"<<(>>\"; \"<<]>>\"; }",
-    "e_tpl1": "string template <<* in words>> spell;\n_main(args) { \"<<args in words>>\"; }",
+    "e_emb30": '_main(args) { "<<[>>"; "<<)>>"; "<<(>>"; "<<]>>"; }',
+    "e_tpl1": 'string template <<* in words>> spell;\n_main(args) { "<<args in words>>"; }',
     "e_tpl2": "string template <<the * of *>> bad;\n_main(args) { }",
     "e_tpl3": "nope() { }\nstring template <<nope2>> nope;\n_main(args) { }",
     "e_tpl4": "string template <<* in words>> spell;\nspell(x, y) { return x; }\n_main(args) { }",
@@ -1218,14 +1281,14 @@ mistakes = {
     "e_tpl7": "string template <<a b>> 3;\n_main(args) { }",
     "e_tpl8": "string template <<q>> _main;\n_main(args) { }",
     "e_tpl9": "string template <<a>> fa;\n_main(args) { fa(1); undefinedthing(); }",
-    "e_tpl10": "string template <<p>> ab;\nstring template <<q>> ba;\nstring template <<r>> zz;\nstring template <<s>> aa;\nstring template <<t *>> cab;\nstring template <<u>> bca;\n_main(args) { \"<<s>><<r>><<q>><<p>><<u>><<t 1>>\"; }",
+    "e_tpl10": 'string template <<p>> ab;\nstring template <<q>> ba;\nstring template <<r>> zz;\nstring template <<s>> aa;\nstring template <<t *>> cab;\nstring template <<u>> bca;\n_main(args) { "<<s>><<r>><<q>><<p>><<u>><<t 1>>"; }',
     "e_tpl11": "f(x) { return x; }\nstring template <<a *>> f;\nstring template <<b>> f;\nstring template <<c *>> g;\ng() { return 1; }\nstring template <<d *>> h;\nh(...) { }\nstring template <<e *>> k;\nk(a, b) { }\n_main(args) { }",
     "e_tpl12": "string template <<a>> fa;\n_main(args) { return fa; }",
     "e_tpl13": "string template <<a>> fa;\n_main(args) { return [fa, 1]; }",
     "e_tpl15": "string template;\nstring template <<a>>;\n_main(args) { }",
     "e_tpl16": "string template <<a>> fa\n_main(args) { }",
     "e_undef1": "_main(args) { nosuch; nosuch; nosuch(); nosuch = 1; other; return nosuch + other; }",
-    "e_undef2": "f() { nosuch(); } g() { \"<<nosuch>>\"; }\n_main(args) { nosuch; try { } catch (nosuch e) { } }",
+    "e_undef2": 'f() { nosuch(); } g() { "<<nosuch>>"; }\n_main(args) { nosuch; try { } catch (nosuch e) { } }',
     "e_undef3": "_main(args) { try { } catch (nosuch e) { } try { } catch (nosuch e) { } nosuch = 1; }",
     "e_obj1": "a: object\n    x = 1\n    x = 2\n    y = 3\n    sourceTextOrder = 9\n;\na: object;\nf() { }\nf: object;\ng: object z = 1;\ng() { }\n_main: object;\n_main(args) { }",
     "e_obj2": "a object x = 1;\nb: x = 1;\ne: e;\nf: g;\ng: f;\nh: object x 1 y = ; z ;\n_main(args) { }",
@@ -1257,14 +1320,26 @@ mistakes = {
     "e_unres1": "_main(args) { if (true) args = 1; else { a: args = 2; } goto a; }",
     "e_unres2": "f(x) { if (nil) { b: x = 1; } if (x) goto b; goto b; }\n_main(args) { if (true) args = 1; else { a: args = 2; } if (args) goto a; return f(args); }",
     "e_unres3": "f(x) { unused: if (nil) { b: x = 1; } if (x) goto b; local q; }\ng(x) { if (nil) { c: while (x) { if (x) break; x = 2; } } other: goto c; }\nh(x) { try { if (nil) { d: x = 1; } } finally { x = 2; } goto d; }\n_main(args) { return f(args) + g(args) + h(args) + nosuch; }",
+    "e_addr1": "f() { }\n_main(args) { local q; return [&q, &args, &1, &(f), &tadsSay, &'x', & &f, &(args)]; }",
+    "e_addr2": "_main(args) { return &later; }\nlater: object;",
+    "e_addr3": "a: object x = &y;\ny() { }\nz: object w = &y;\n_main(args) { return a.x; }",
+    "e_new1": "f() { }\na: object;\n_main(args) { new f; new f(); new 1; new args; new args(1); new (a); new nosuch; new nosuch(1); new a()(); new [1]; }",
+    "e_inh1": "f() { }\na: object;\n_main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }",
+    "e_inh2": "f() { }\na: object m() { inherited f.x; inherited nosuch.x(1); return inherited.; };\n_main(args) { }",
 }
 
 # The compiler gives up after a hundred errors, whether it finds them
 # reading the source, working out constants, or generating code.
-mistakes["e_many1"] = "f() { local q; }\n_main(args) {\n" + "".join(
-    f"  u{n}();\n" for n in range(120)) + "}\ng() { local r; }\n\n"
-mistakes["e_many2"] = "f() { local q; }\n_main(args) {\n" + "".join(
-    f"  u{n}();\n" for n in range(100)) + "}\ng() { local r; }"
+mistakes["e_many1"] = (
+    "f() { local q; }\n_main(args) {\n"
+    + "".join(f"  u{n}();\n" for n in range(120))
+    + "}\ng() { local r; }\n\n"
+)
+mistakes["e_many2"] = (
+    "f() { local q; }\n_main(args) {\n"
+    + "".join(f"  u{n}();\n" for n in range(100))
+    + "}\ng() { local r; }"
+)
 mistakes["e_many6"] = "_main(args) {\n" + "  u();\n" * 150 + "}"
 mistakes["e_many3"] = "_main(args) {\n" + "  1 2;\n" * 150 + "}"
 mistakes["e_many4"] = "_main(args) {\n" + "  [1][2];\n" * 101 + "}"
@@ -1279,10 +1354,14 @@ def main():
     for name, text in programs.items():
         if "_main" not in text:
             text += "_main(args) { return 1; }\n"
-        with open(os.path.join(folder, name + ".t"), "w", newline="\n", encoding="utf-8") as out:
+        with open(
+            os.path.join(folder, name + ".t"), "w", newline="\n", encoding="utf-8"
+        ) as out:
             out.write(text.lstrip("\n"))
     for name, text in mistakes.items():
-        with open(os.path.join(folder, name + ".t"), "w", newline="\n", encoding="utf-8") as out:
+        with open(
+            os.path.join(folder, name + ".t"), "w", newline="\n", encoding="utf-8"
+        ) as out:
             out.write(text + "\n")
     print(f"{len(programs) + len(mistakes)} programs in {folder}")
 

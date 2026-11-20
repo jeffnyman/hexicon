@@ -71,6 +71,7 @@ mod datatype {
     pub(super) const NIL: u8 = 1;
     pub(super) const TRUE: u8 = 2;
     pub(super) const OBJ: u8 = 5;
+    pub(super) const PROP: u8 = 6;
     pub(super) const INT: u8 = 7;
     pub(super) const SSTRING: u8 = 8;
     pub(super) const DSTRING: u8 = 9;
@@ -105,8 +106,13 @@ pub(crate) struct Generated {
     pub objs: Vec<GenObj>,
     /// The number the next property would get.
     pub next_prop_id: u16,
-    /// Where in the code there are property numbers.
+    /// Where in the code there are property numbers, and where in the
+    /// constants.
     pub prop_fixups: Vec<usize>,
+    pub const_prop_fixups: Vec<usize>,
+    /// Places in the constants where two bytes are written that mean
+    /// nothing.
+    pub const_unspecified2: Vec<usize>,
     /// The constants: strings, each with its length before it.
     pub consts: Vec<u8>,
     pub const_anchors: Vec<Anchor>,
@@ -398,8 +404,8 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         generator.out.diagnostics.truncate(count);
     }
     generator.finish_local_names();
-    generator.out.next_prop_id = generator.prog.next_prop_id;
-    let prop_ids = generator.prog.final_prop_ids();
+    let (prop_ids, next_prop_id) = generator.prog.final_prop_ids();
+    generator.out.next_prop_id = next_prop_id;
     let mut out = generator.out;
     out.code = generator.cg.code;
     // Properties get the numbers they have in the image.
@@ -407,9 +413,16 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         let id = u16::from_le_bytes([out.code[ofs], out.code[ofs + 1]]);
         out.code[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
     }
+    for &ofs in &out.const_prop_fixups {
+        let id = u16::from_le_bytes([out.consts[ofs], out.consts[ofs + 1]]);
+        out.consts[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
+    }
     for obj in &mut out.objs {
         for prop in &mut obj.props {
             prop.id = prop_ids[usize::from(prop.id)];
+            if prop.kind == datatype::PROP {
+                prop.value = u32::from(prop_ids[prop.value as usize]);
+            }
         }
     }
     prog.bodies = bodies;
@@ -589,7 +602,19 @@ impl Gen<'_> {
                 Some(Global::Obj(obj)) => Expr::constant(Value::Obj(self.prog.objs[*obj].id)),
                 Some(Global::Bif(_) | Global::Prop(_)) | None => Expr::Sym(name),
             },
-            Expr::SelfRef => expr,
+            Expr::SelfRef | Expr::Inh | Expr::InhClass(_) | Expr::CtxEle(_) => expr,
+            // The address of a property is a constant. What else a
+            // name might be the address of is left for the generator.
+            Expr::Addr(sub) => match &*sub {
+                Expr::Sym(name) => match self.prog.globals.get(name) {
+                    Some(Global::Prop(prop)) => {
+                        Expr::constant(Value::Prop(self.prog.props[*prop].id))
+                    }
+                    _ => Expr::Addr(sub),
+                },
+                _ => Expr::Addr(sub),
+            },
+            Expr::New(sub, transient) => Expr::New(Box::new(self.fold_expr(*sub)), transient),
             Expr::Member {
                 obj,
                 prop,
@@ -830,7 +855,11 @@ impl Gen<'_> {
                 local_cnt: 1,
                 self_valid: true,
                 replaced: false,
-                labels: Rc::default(),
+                // The reference gives this body the table of labels the
+                // parser was last using, which is the last function's;
+                // so a label there that nothing refers to is reported
+                // again.
+                labels: Rc::clone(&self.last_labels),
                 end_file: def.file,
                 end_line: def.line,
             }
@@ -852,6 +881,7 @@ impl Gen<'_> {
                     Value::True => (datatype::TRUE, 0, None),
                     Value::Int(int) => (datatype::INT, *int as u32, None),
                     Value::Obj(obj) => (datatype::OBJ, *obj, None),
+                    Value::Prop(prop) => (datatype::PROP, u32::from(*prop), None),
                     Value::SStr(text) => (datatype::SSTRING, 0, Some(self.const_str_target(text))),
                     Value::List(elements) => {
                         let before = self.out.fixups.len();
@@ -1772,6 +1802,13 @@ impl Gen<'_> {
                 (datatype::FUNCPTR, 0)
             }
             Value::Obj(obj) => (datatype::OBJ, *obj),
+            Value::Prop(prop) => {
+                // A property's number is two bytes; the other two are
+                // as the reference's memory had them.
+                self.out.prop_fixups.push(ofs + 1);
+                self.out.unspecified.push(ofs + 3);
+                (datatype::PROP, u32::from(*prop))
+            }
         };
         if matches!(value.value, Value::Nil | Value::True) {
             // The reference writes the kind and leaves the rest as its
@@ -2164,6 +2201,11 @@ impl Gen<'_> {
                     (datatype::FUNCPTR, 0)
                 }
                 Value::Obj(obj) => (datatype::OBJ, *obj),
+                Value::Prop(prop) => {
+                    self.out.const_prop_fixups.push(at + 1);
+                    self.out.const_unspecified2.push(at + 3);
+                    (datatype::PROP, u32::from(*prop))
+                }
             };
             if matches!(element.value, Value::Nil | Value::True) {
                 // The reference writes the kind and leaves the rest as
@@ -2230,8 +2272,36 @@ impl Gen<'_> {
                         self.cg.write_op(Op::PushObj);
                         self.cg.write4(*obj);
                     }
+                    Value::Prop(prop) => {
+                        self.cg.write_op(Op::PushPropId);
+                        self.write_prop_id(*prop);
+                    }
                 }
                 self.cg.note_push();
+            }
+            Expr::Addr(sub) => {
+                if !discard {
+                    self.gen_addr(sub);
+                }
+            }
+            Expr::New(sub, transient) => self.gen_new(sub, *transient, discard, 0, false, false),
+            Expr::Inh | Expr::InhClass(_) => {
+                self.error("\"inherited\" cannot be generated on its own");
+            }
+            Expr::CtxEle(which) => {
+                if !self.self_available {
+                    match which {
+                        1 => self.error("'targetprop' is not available in this context"),
+                        2 => self.error("'targetobj' is not available in this context"),
+                        3 => self.error("'definingobj' is not available in this context"),
+                        _ => {}
+                    }
+                }
+                if !discard {
+                    self.cg.write_op(Op::PushCtxEle);
+                    self.cg.write(*which);
+                    self.cg.note_push();
+                }
             }
             Expr::SelfRef => {
                 self.need_self();
@@ -2477,6 +2547,101 @@ impl Gen<'_> {
         self.cg.write2(id);
     }
 
+    /// Push the address of what a name stands for.
+    fn gen_addr(&mut self, sub: &Expr) {
+        let Expr::Sym(name) = sub else {
+            return;
+        };
+        // A name that is nothing yet is a property's.
+        let global = match self.prog.globals.get(name) {
+            Some(global) => *global,
+            None => Global::Prop(self.prog.def_prop(name)),
+        };
+        match global {
+            Global::Prop(prop) => {
+                self.prog.props[prop].weak = false;
+                self.cg.write_op(Op::PushPropId);
+                self.write_prop_id(self.prog.props[prop].id);
+                self.cg.note_push();
+            }
+            Global::Obj(obj) => {
+                self.cg.write_op(Op::PushObj);
+                self.cg.write4(self.prog.objs[obj].id);
+                self.cg.note_push();
+            }
+            Global::Func(func) => {
+                self.cg.write_op(Op::PushFnPtr);
+                self.gen_func_ref(func);
+                self.cg.note_push();
+            }
+            Global::Bif(_) => {
+                self.error(format!("cannot take address of \"{}\"", show_name(name)));
+            }
+        }
+    }
+
+    /// Generate `new` of an operand. A call there is the class with
+    /// the constructor's arguments; `from_call` says the operand was
+    /// what such a call calls.
+    fn gen_new(
+        &mut self,
+        sub: &Expr,
+        transient: bool,
+        discard: bool,
+        argc: usize,
+        varargs: bool,
+        from_call: bool,
+    ) {
+        const INVALID: &str = "cannot apply operator 'new' to this expression";
+        let obj = match sub {
+            Expr::Call(func, args) => {
+                if from_call {
+                    self.error(INVALID);
+                    return;
+                }
+                let varargs = self.gen_arglist(args);
+                self.gen_new(func, transient, discard, args.len(), varargs, true);
+                return;
+            }
+            Expr::Const(ConstVal {
+                value: Value::Obj(obj),
+                ..
+            }) => *obj,
+            Expr::Sym(name) => {
+                if self.prog.globals.contains_key(name) {
+                    self.error(INVALID);
+                } else {
+                    self.undefined(name);
+                }
+                return;
+            }
+            _ => {
+                self.error(INVALID);
+                return;
+            }
+        };
+        self.cg.write_op(Op::PushObj);
+        self.cg.write4(obj);
+        self.cg.note_push();
+        if argc > 126 {
+            self.error("'new' argument list exceeds machine limit (maximum 126)");
+        }
+        if varargs {
+            self.cg.write_op(Op::Swap);
+            self.cg.write_op(Op::Inc);
+            self.cg.write_op(Op::VarArgc);
+        }
+        self.cg
+            .write_op(if transient { Op::TrNew1 } else { Op::New1 });
+        self.cg.write(argc as u8 + 1);
+        self.cg.write(0);
+        self.cg.note_pops(argc as i32 + 1);
+        if !discard {
+            self.cg.write_op(Op::GetR0);
+            self.cg.note_push();
+        }
+    }
+
     /// Whether a constant is a list as the source wrote it, whatever
     /// value it has now.
     fn is_list_node(value: &ConstVal) -> bool {
@@ -2526,6 +2691,10 @@ impl Gen<'_> {
     fn gen_propid(&mut self, prop: &Expr, is_expr: bool, check_only: bool) -> Option<u16> {
         let name = match prop {
             Expr::Sym(name) => name,
+            Expr::Const(ConstVal {
+                value: Value::Prop(prop),
+                ..
+            }) => return Some(*prop),
             // A constant list is still a list to the reference, and is
             // generated like any expression.
             Expr::Const(value) if !Self::is_list_node(value) => {
@@ -2587,6 +2756,67 @@ impl Gen<'_> {
         discard: bool,
     ) {
         match obj {
+            Expr::Inh => {
+                self.need_self();
+                match self.gen_propid(prop, is_expr, false) {
+                    Some(id) => {
+                        if varargs {
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::Inherit);
+                        self.cg.write(argc as u8);
+                        self.write_prop_id(id);
+                        self.cg.note_pops(argc as i32);
+                    }
+                    None => {
+                        if varargs {
+                            self.cg.write_op(Op::Swap);
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::PtrInherit);
+                        self.cg.write(argc as u8);
+                        self.cg.note_pops(argc as i32 + 1);
+                    }
+                }
+            }
+            Expr::InhClass(name) => {
+                self.need_self();
+                let class = match self.prog.globals.get(name).copied() {
+                    Some(Global::Obj(class)) => self.prog.objs[class].id,
+                    other => {
+                        if other.is_none() {
+                            self.undefined(name);
+                        }
+                        self.error(format!(
+                            "illegal 'inherited' - \"{}\" is not a class",
+                            show_name(name)
+                        ));
+                        return;
+                    }
+                };
+                match self.gen_propid(prop, is_expr, false) {
+                    Some(id) => {
+                        if varargs {
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::ExpInherit);
+                        self.cg.write(argc as u8);
+                        self.write_prop_id(id);
+                        self.cg.write4(class);
+                        self.cg.note_pops(argc as i32);
+                    }
+                    None => {
+                        if varargs {
+                            self.cg.write_op(Op::Swap);
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::PtrExpInherit);
+                        self.cg.write(argc as u8);
+                        self.cg.write4(class);
+                        self.cg.note_pops(argc as i32 + 1);
+                    }
+                }
+            }
             Expr::SelfRef => {
                 self.need_self();
                 match self.gen_propid(prop, is_expr, false) {
@@ -2650,7 +2880,7 @@ impl Gen<'_> {
                 }
             },
             Expr::Const(ConstVal {
-                value: Value::Nil | Value::True | Value::Int(_) | Value::FuncPtr(_),
+                value: Value::Nil | Value::True | Value::Int(_) | Value::FuncPtr(_) | Value::Prop(_),
                 ..
             }) => {
                 self.error("illegal expression - left of '.' is not an object");

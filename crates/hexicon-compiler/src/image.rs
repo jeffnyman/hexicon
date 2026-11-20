@@ -340,6 +340,14 @@ pub(crate) fn write_image(
         let (_, file_ofs) = writer.item_ofs[first_const_item + index];
         unspecified.push((file_ofs + ofs - generated.const_anchors[index].ofs, 4));
     }
+    for ofs in &generated.const_unspecified2 {
+        let index = generated
+            .const_anchors
+            .partition_point(|anchor| anchor.ofs <= *ofs)
+            - 1;
+        let (_, file_ofs) = writer.item_ofs[first_const_item + index];
+        unspecified.push((file_ofs + ofs - generated.const_anchors[index].ofs, 2));
+    }
 
     // The objects, all in one block. (The reference means to start a
     // new block when one is full, but never counts what it has put in.)
@@ -379,6 +387,10 @@ pub(crate) fn write_image(
                         }
                     }
                 };
+                if prop.kind == 6 {
+                    // A property's number is two bytes of the four.
+                    unspecified.push((writer.out.len() + 10 + objs.len() + 2, 2));
+                }
                 if prop.kind <= 2 {
                     // Nil and true have no value, and the reference
                     // leaves the room for one as its memory had it.

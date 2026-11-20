@@ -1146,3 +1146,90 @@ fn a_jump_to_a_label_in_code_that_was_left_out_cannot_be_compiled() {
         ]
     );
 }
+
+#[test]
+fn new_makes_an_object_of_a_class() {
+    let compiled = compile_text("class A: object;\n_main(args) { return new A(args, 2); }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // 2; the argument; the class; new, with three things on the stack,
+    // of the first metaclass; return the result
+    assert_eq!(
+        code(&image)[10..22],
+        [0x03, 2, 0x7c, 0x07, 1, 0, 0, 0, 0xc0, 3, 0, 0x54]
+    );
+    assert_eq!(
+        compile_messages("f() { }\n_main(args) { new f(); new args; new nosuch; }\n"),
+        [
+            "2: error: cannot apply operator 'new' to this expression",
+            "2: error: cannot apply operator 'new' to this expression",
+            "2: error: undefined symbol \"nosuch\"",
+        ]
+    );
+}
+
+#[test]
+fn inherited_calls_what_a_method_overrides() {
+    let compiled = compile_text(
+        "class A: object m(x) { return x; };\n\
+         class B: A m(x) { return inherited(x) + inherited A.m(x); };\n\
+         _main(args) { }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // In B.m: the argument; which property this is; ptrinherit with
+    // one argument; the result
+    let start = code
+        .windows(4)
+        .position(|bytes| bytes == [0x7c, 0x8e, 1, 0x73])
+        .expect("inherited through the property being run");
+    assert_eq!(code[start + 4..start + 6], [1, 0x8b]);
+    // and then the argument; expinherit, one argument, of class A
+    assert_eq!(code[start + 6..start + 9], [0x7c, 0x74, 1]);
+    assert_eq!(code[start + 11..start + 15], [1, 0, 0, 0]);
+
+    assert_eq!(
+        compile_messages("a: object;\n_main(args) { inherited.x; inherited a.x; targetprop; }\n"),
+        [
+            "2: error: 'self' is not valid in this context",
+            "2: warning: undefined symbol \"x\" - assuming this is a property name",
+            "2: error: 'self' is not valid in this context",
+            "2: error: 'targetprop' is not available in this context",
+        ]
+    );
+}
+
+#[test]
+fn the_address_of_a_property_is_a_constant() {
+    let compiled = compile_text(
+        "a: object x = 1 y = &x;\n_main(args) { switch (args) { case &x: return a.(&y); } return &x; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // The switch has one case, a property.
+    assert_eq!(code[10..15], [0x7c, 0x90, 1, 0, 6]);
+    // A name whose address is taken becomes a property unless a
+    // function claims it afterward.
+    assert_eq!(
+        compile_messages("_main(args) { return [&later, &never]; }\nlater() { }\n"),
+        [] as [&str; 0]
+    );
+    assert_eq!(
+        compile_messages("_main(args) { local q; return [&q, &1]; }\n"),
+        ["1: error: invalid address expression - can't apply '&' operator",]
+    );
+}

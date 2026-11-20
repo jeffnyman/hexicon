@@ -88,6 +88,17 @@ pub(crate) fn binary(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String
         },
         BinOp::Gt | BinOp::Ge | BinOp::Lt | BinOp::Le => relation(op, left, right, errors),
         BinOp::Eq | BinOp::Ne => {
+            // Two addresses of names are the same if the names are. The
+            // reference tells by the names alone, before it knows what
+            // they are names of.
+            if let (Expr::Addr(left_sub), Expr::Addr(right_sub)) = (&left, &right) {
+                if let (Expr::Sym(left_name), Expr::Sym(right_name)) = (&**left_sub, &**right_sub) {
+                    let equal = left_name == right_name;
+                    let mut result = ConstVal::new(Value::Nil);
+                    result.set_bool(equal == (op == BinOp::Eq));
+                    return Folded::Yes(Expr::Const(result));
+                }
+            }
             if !both_const(&left, &right) {
                 return Folded::No(left, right);
             }
@@ -271,7 +282,7 @@ fn as_text(value: &Value) -> Option<Vec<u8>> {
         Value::True => b"true".to_vec(),
         Value::Int(int) => int.to_string().into_bytes(),
         Value::SStr(text) => text.clone(),
-        Value::FuncPtr(_) | Value::List(_) | Value::Obj(_) => return None,
+        Value::FuncPtr(_) | Value::List(_) | Value::Obj(_) | Value::Prop(_) => return None,
     })
 }
 
