@@ -54,8 +54,6 @@ const EXPORTED_PROPS: [(&str, u16); 20] = [
     ("operator []", 24),
     ("operator []=", 25),
 ];
-/// The first property number the program's own properties would get.
-const LAST_PROP: u16 = 26;
 
 /// Where the items of a stream go in a pool.
 struct Layout {
@@ -174,6 +172,14 @@ fn items<'s>(stream: &'s [u8], anchors: &[Anchor], addrs: &[usize]) -> Vec<(usiz
         .collect()
 }
 
+/// The address of a function's code, if the function is defined.
+fn func_anchor_addr(generated: &Generated, code_addrs: &[usize], func: usize) -> Option<usize> {
+    generated
+        .func_anchor
+        .get(&func)
+        .map(|anchor| code_addrs[*anchor])
+}
+
 /// An image, and the parts of it that mean nothing.
 pub(crate) struct Image {
     pub bytes: Vec<u8>,
@@ -220,6 +226,7 @@ pub(crate) fn write_image(
         fixups,
         const_fixups,
         func_anchor,
+        body_anchor,
         ..
     } = &mut generated;
     for (stream, fixups) in [(code, &*fixups), (consts, &*const_fixups)] {
@@ -235,6 +242,7 @@ pub(crate) fn write_image(
                     }
                 },
                 Target::Const(anchor) => const_addrs[*anchor],
+                Target::Body(body) => code_addrs[body_anchor[body]],
             };
             stream[fixup.ofs..fixup.ofs + 4].copy_from_slice(&(addr as u32).to_le_bytes());
         }
@@ -246,7 +254,7 @@ pub(crate) fn write_image(
             Some(anchor) => code_addrs[*anchor],
             None => return Err("function _main() is not defined".to_owned()),
         },
-        Some(Global::Bif(_)) => return Err("_main is not a function".to_owned()),
+        Some(_) => return Err("_main is not a function".to_owned()),
         None => return Err("function _main() is not defined".to_owned()),
     };
 
@@ -274,7 +282,7 @@ pub(crate) fn write_image(
     // The symbols the virtual machine looks up by name.
     let mut symd = Vec::new();
     symd.extend_from_slice(&((EXPORTED_PROPS.len() + 1) as u16).to_le_bytes());
-    let props = std::iter::once(("LastProp", LAST_PROP)).chain(EXPORTED_PROPS);
+    let props = std::iter::once(("LastProp", generated.next_prop_id)).chain(EXPORTED_PROPS);
     for (name, prop) in props {
         symd.push(6);
         symd.extend_from_slice(&prop.to_le_bytes());
@@ -331,6 +339,55 @@ pub(crate) fn write_image(
             - 1;
         let (_, file_ofs) = writer.item_ofs[first_const_item + index];
         unspecified.push((file_ofs + ofs - generated.const_anchors[index].ofs, 4));
+    }
+
+    // The objects, all in one block. (The reference means to start a
+    // new block when one is full, but never counts what it has put in.)
+    if !generated.objs.is_empty() {
+        let mut objs = Vec::new();
+        objs.extend_from_slice(&(generated.objs.len() as u16).to_le_bytes());
+        // They are of the first metaclass, and the block has no flags.
+        objs.extend_from_slice(&[0; 4]);
+        let mut gen_objs = std::mem::take(&mut generated.objs);
+        for obj in &mut gen_objs {
+            obj.props.sort_by_key(|prop| prop.id);
+            let size = 6 + 4 * obj.superclasses.len() + 7 * obj.props.len();
+            objs.extend_from_slice(&obj.id.to_le_bytes());
+            objs.extend_from_slice(&(size as u16).to_le_bytes());
+            objs.extend_from_slice(&(obj.superclasses.len() as u16).to_le_bytes());
+            objs.extend_from_slice(&(obj.props.len() as u16).to_le_bytes());
+            objs.extend_from_slice(&u16::from(obj.is_class).to_le_bytes());
+            for superclass in &obj.superclasses {
+                objs.extend_from_slice(&superclass.to_le_bytes());
+            }
+            for prop in &obj.props {
+                objs.extend_from_slice(&prop.id.to_le_bytes());
+                objs.push(prop.kind);
+                let value = match &prop.target {
+                    None => prop.value,
+                    Some(Target::Const(anchor)) => const_addrs[*anchor] as u32,
+                    Some(Target::Body(body)) => code_addrs[generated.body_anchor[body]] as u32,
+                    Some(Target::Func(func)) => {
+                        match func_anchor_addr(&generated, &code_addrs, *func) {
+                            Some(addr) => addr as u32,
+                            None => {
+                                return Err(format!(
+                                    "function \"{}\" is declared but not defined",
+                                    String::from_utf8_lossy(&prog.funcs[*func].name)
+                                ));
+                            }
+                        }
+                    }
+                };
+                if prop.kind <= 2 {
+                    // Nil and true have no value, and the reference
+                    // leaves the room for one as its memory had it.
+                    unspecified.push((writer.out.len() + 10 + objs.len(), 4));
+                }
+                objs.extend_from_slice(&value.to_le_bytes());
+            }
+        }
+        writer.block(b"OBJS", true, &objs);
     }
 
     // Where the code that runs before the program starts is, and the

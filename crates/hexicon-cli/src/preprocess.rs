@@ -69,6 +69,10 @@ fn report(pp: &mut Preprocessor<'_>, out: &mut impl std::io::Write) -> bool {
                 failed = true;
                 "fatal error"
             }
+            Severity::Internal => {
+                failed = true;
+                "internal error"
+            }
             Severity::Warning => "warning",
             Severity::Message => {
                 let _ = writeln!(out, "{}", problem.message);

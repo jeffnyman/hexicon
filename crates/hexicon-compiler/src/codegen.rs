@@ -185,6 +185,16 @@ impl CodeGen {
         self.clear_peephole();
     }
 
+    /// How many jumps have been written to labels that were never
+    /// placed. They are forgotten, so that each is counted once.
+    pub(crate) fn take_unresolved(&mut self) -> usize {
+        self.labels
+            .iter_mut()
+            .filter(|label| label.pos.is_none())
+            .map(|label| std::mem::take(&mut label.fixups).len())
+            .sum()
+    }
+
     /// Write a jump's operand: the distance from the operand to the
     /// label.
     pub(crate) fn write_label_ofs(&mut self, label: Label) {
@@ -211,6 +221,40 @@ impl CodeGen {
 
     /// Write an instruction's opcode, combining it with the instruction
     /// before where the two together have a shorter form.
+    /// Write a call to a property of the value on the stack, but for
+    /// the property's number, which the caller writes next. If the
+    /// value was just pushed from a local, the push and the call are
+    /// one instruction.
+    pub(crate) fn write_callprop(&mut self, argc: usize, varargs: bool) {
+        let last = self.last_op;
+        let short = (Op::GetLclN0 as u8..=Op::GetLclN5 as u8).contains(&last);
+        if last == Op::GetLcl1 as u8 || short {
+            let local = if short {
+                self.dec_ofs(1);
+                last - Op::GetLclN0 as u8
+            } else {
+                let local = self.code[self.ofs() - 1];
+                self.dec_ofs(2);
+                local
+            };
+            self.last_op = self.second_last_op;
+            self.second_last_op = NOP;
+            if varargs {
+                self.write_op(Op::VarArgc);
+            }
+            self.write_op(Op::CallPropLcl1);
+            self.write(argc as u8);
+            self.write(local);
+        } else {
+            if varargs {
+                self.write_op(Op::VarArgc);
+            }
+            self.write_op(Op::CallProp);
+            self.write(argc as u8);
+        }
+        self.note_pops(argc as i32 + 1);
+    }
+
     pub(crate) fn write_op(&mut self, op: Op) {
         let mut opc = op as u8;
         self.write(opc);

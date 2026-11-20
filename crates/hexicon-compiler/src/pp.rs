@@ -65,6 +65,10 @@ pub enum Severity {
     /// The compiler has given up: nothing is read or reported after
     /// this.
     Fatal,
+    /// The compiler could not do what the source asks, and the program
+    /// cannot be compiled, though the source may have nothing wrong
+    /// with it that the language forbids.
+    Internal,
 }
 
 /// How many errors are reported before the compiler gives up.

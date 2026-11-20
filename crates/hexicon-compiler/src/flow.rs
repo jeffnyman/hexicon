@@ -249,6 +249,7 @@ impl Flow<'_> {
                 flags | fin_flags
             }
             StmtKind::Throw(_) => flow::THROW,
+            StmtKind::ImplicitCtor(_) => flow::NEXT,
             StmtKind::Null | StmtKind::Expr(_) => flow::NEXT,
         }
     }

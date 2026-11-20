@@ -24,6 +24,8 @@ pub(crate) enum Value {
     FuncPtr(usize),
     /// A list all of whose elements are constants.
     List(Vec<ConstVal>),
+    /// An object, by its number.
+    Obj(u32),
 }
 
 /// A constant in an expression.
@@ -196,6 +198,17 @@ pub(crate) enum Expr {
     /// `<<one of>>` in a string: the alternatives. The flag is for a
     /// string in double quotes.
     OneOf(bool, Vec<Expr>),
+    /// `self`
+    SelfRef,
+    /// `obj.prop`, or with arguments `obj.prop(args)`. The property is
+    /// a name, or with `prop_is_expr` an expression in parentheses
+    /// whose value says which property.
+    Member {
+        obj: Box<Expr>,
+        prop: Box<Expr>,
+        prop_is_expr: bool,
+        args: Option<Vec<Arg>>,
+    },
 }
 
 impl Expr {
@@ -242,7 +255,10 @@ impl Expr {
     /// Whether the expression can be assigned to, as far as the parser
     /// can tell.
     pub(crate) fn check_lvalue(&self) -> bool {
-        matches!(self, Self::Sym(_) | Self::Local(_) | Self::Index(..))
+        matches!(
+            self,
+            Self::Sym(_) | Self::Local(_) | Self::Index(..) | Self::Member { args: None, .. }
+        )
     }
 
     /// A list of these elements: a constant if they all are.
@@ -285,6 +301,11 @@ pub(crate) struct Stmt {
 pub(crate) enum StmtKind {
     /// Nothing: what an empty block holds.
     Null,
+    /// The body of the constructor the compiler gives an object with
+    /// several superclasses and no constructor of its own: it passes
+    /// its arguments to each superclass's constructor. These are the
+    /// superclasses' numbers.
+    ImplicitCtor(Vec<u32>),
     /// A block.
     Comp {
         stmts: Vec<Stmt>,
@@ -429,6 +450,8 @@ pub(crate) struct CodeBody {
     /// (`f(a, [rest])`), if there is one.
     pub varargs_list_local: Option<LocalId>,
     pub local_cnt: usize,
+    /// The code is a method's: it has a `self`.
+    pub self_valid: bool,
     /// Another definition has replaced this one, and no code is
     /// generated for it.
     pub replaced: bool,

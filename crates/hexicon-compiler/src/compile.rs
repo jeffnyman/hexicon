@@ -2,7 +2,7 @@
 
 use crate::emit;
 use crate::image;
-use crate::parse::Parser;
+use crate::parse::{Exports, Parser};
 use crate::pp::{Diagnostic, Preprocessor, Severity, SourceFiles};
 
 /// What to compile, and how.
@@ -57,9 +57,12 @@ pub struct Compiled {
 const TOOL_DATA: [u8; 4] = *b"hxcn";
 
 fn has_errors(diagnostics: &[Diagnostic]) -> bool {
-    diagnostics
-        .iter()
-        .any(|diagnostic| matches!(diagnostic.severity, Severity::Error | Severity::Fatal))
+    diagnostics.iter().any(|diagnostic| {
+        matches!(
+            diagnostic.severity,
+            Severity::Error | Severity::Fatal | Severity::Internal
+        )
+    })
 }
 
 fn start<'a>(
@@ -118,7 +121,7 @@ fn start<'a>(
 pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptions) -> Compiled {
     let mut compiled = Compiled::default();
 
-    let known_funcs = {
+    let known = {
         let mut pp = match start(files, source, options) {
             Ok(pp) => pp,
             Err(diagnostic) => {
@@ -126,12 +129,12 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
                 return compiled;
             }
         };
-        let prog = Parser::new(&mut pp, true, Vec::new()).parse_top();
+        let prog = Parser::new(&mut pp, true, Exports::default()).parse_top();
         compiled.diagnostics = pp.take_diagnostics();
         if has_errors(&compiled.diagnostics) {
             return compiled;
         }
-        prog.exported_funcs()
+        prog.exports()
     };
 
     let mut pp = match start(files, source, options) {
@@ -141,7 +144,7 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
             return compiled;
         }
     };
-    let mut prog = Parser::new(&mut pp, false, known_funcs).parse_top();
+    let mut prog = Parser::new(&mut pp, false, known).parse_top();
     compiled.diagnostics.append(&mut pp.take_diagnostics());
     if has_errors(&compiled.diagnostics) {
         return compiled;
@@ -149,8 +152,14 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
 
     let mut generated = emit::generate(&mut prog);
     for diagnostic in std::mem::take(&mut generated.diagnostics) {
+        // A problem that is nowhere in particular has no file.
+        let file = if diagnostic.file == usize::MAX {
+            String::new()
+        } else {
+            pp.file_name(diagnostic.file).to_owned()
+        };
         compiled.diagnostics.push(Diagnostic {
-            file: pp.file_name(diagnostic.file).to_owned(),
+            file,
             line: diagnostic.line,
             severity: diagnostic.severity,
             message: diagnostic.message,

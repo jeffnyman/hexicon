@@ -124,6 +124,13 @@ pub(crate) fn binary(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String
                         .retain(|element| !removed.iter().any(|gone| gone.value == element.value));
                 }
                 Folded::Yes(Expr::Const(result))
+            } else if matches!(
+                left.as_const().map(|value| &value.value),
+                Some(Value::Obj(_))
+            ) {
+                // What subtracting from an object does is the object's
+                // to say.
+                Folded::No(left, right)
             } else {
                 errors.push("incompatible constant types for two-operand '-' operator".into());
                 Folded::No(left, right)
@@ -264,7 +271,7 @@ fn as_text(value: &Value) -> Option<Vec<u8>> {
         Value::True => b"true".to_vec(),
         Value::Int(int) => int.to_string().into_bytes(),
         Value::SStr(text) => text.clone(),
-        Value::FuncPtr(_) | Value::List(_) => return None,
+        Value::FuncPtr(_) | Value::List(_) | Value::Obj(_) => return None,
     })
 }
 
@@ -311,6 +318,14 @@ fn add(left: Expr, right: Expr, errors: &mut Vec<String>) -> Folded {
         value.value = Value::SStr(text);
         return Folded::Yes(Expr::Const(value));
     }
+    // What adding to an object does is the object's to say, when the
+    // program runs.
+    if matches!(
+        left.as_const().map(|value| &value.value),
+        Some(Value::Obj(_))
+    ) {
+        return Folded::No(left, right);
+    }
     errors.push("incompatible constant types for two-operand '+' operator".into());
     Folded::No(left, right)
 }
@@ -343,7 +358,7 @@ pub(crate) fn subscript(left: &Expr, index: &Expr, errors: &mut Vec<String>) -> 
                 }
             }
         }
-        Value::SStr(_) | Value::FuncPtr(_) => None,
+        Value::SStr(_) | Value::FuncPtr(_) | Value::Obj(_) => None,
         _ => {
             errors.push("invalid indexed type in constant expression - list required".into());
             None

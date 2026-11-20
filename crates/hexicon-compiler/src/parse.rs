@@ -116,6 +116,73 @@ pub(crate) struct BifSym {
     pub varargs: bool,
 }
 
+/// An object, as a name.
+#[derive(Debug, Clone)]
+pub(crate) struct ObjSym {
+    pub name: Vec<u8>,
+    /// The object's number in the program.
+    pub id: u32,
+    /// It is known of but not defined yet in what has been read.
+    pub is_extern: bool,
+    pub is_class: bool,
+    /// The names of its superclasses.
+    pub sc_names: Vec<Vec<u8>>,
+}
+
+/// A property, as a name.
+#[derive(Debug, Clone)]
+pub(crate) struct PropSym {
+    pub name: Vec<u8>,
+    /// The property's number while the program is compiled. The number
+    /// it has in the image is given when everything is known: see
+    /// [`Program::final_prop_ids`].
+    pub id: u16,
+}
+
+/// The value an object definition gives a property.
+#[derive(Debug)]
+pub(crate) enum PropValue {
+    Expr(Expr),
+    /// A method: an index into [`Program::bodies`].
+    Method(usize),
+}
+
+/// A property in an object definition.
+#[derive(Debug)]
+pub(crate) struct ObjProp {
+    /// An index into [`Program::props`].
+    pub prop: usize,
+    pub value: PropValue,
+    /// The compiler put it there, and the source can give the property
+    /// a value of its own.
+    pub overwritable: bool,
+    pub file: usize,
+    pub line: u32,
+}
+
+/// An object definition.
+#[derive(Debug)]
+pub(crate) struct ObjDef {
+    /// The object defined: an index into [`Program::objs`]. There is
+    /// none if the name could not be an object's.
+    pub sym: Option<usize>,
+    pub is_class: bool,
+    pub superclasses: Vec<Vec<u8>>,
+    pub props: Vec<ObjProp>,
+    pub file: usize,
+    pub line: u32,
+}
+
+/// A definition at the outermost level of the source that code or data
+/// is generated for.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Top {
+    /// A function: an index into [`Program::bodies`].
+    Func(usize),
+    /// An object: an index into [`Program::objdefs`].
+    Obj(usize),
+}
+
 /// What a name means at the outermost level of the program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Global {
@@ -123,6 +190,61 @@ pub(crate) enum Global {
     Func(usize),
     /// An index into [`Program::bifs`].
     Bif(usize),
+    /// An index into [`Program::objs`].
+    Obj(usize),
+    /// An index into [`Program::props`].
+    Prop(usize),
+}
+
+/// The properties every program has, in the order of their numbers,
+/// which start at 1.
+pub(crate) const SPECIAL_PROPS: [&str; 25] = [
+    "construct",
+    "finalize",
+    "grammarInfo",
+    "grammarTag",
+    "miscVocab",
+    "lexicalParent",
+    "sourceTextOrder",
+    "sourceTextGroup",
+    "sourceTextGroupName",
+    "sourceTextGroupOrder",
+    "operator +",
+    "operator -",
+    "operator *",
+    "operator /",
+    "operator %",
+    "operator ^",
+    "operator <<",
+    "operator >>",
+    "operator >>>",
+    "operator ~",
+    "operator |",
+    "operator &",
+    "operator negate",
+    "operator []",
+    "operator []=",
+];
+/// Which of them is `sourceTextOrder`.
+const SRC_ORDER_PROP: usize = 6;
+
+/// How many chains the reference's table of global names has. A name's
+/// chain is the sum of its bytes, and a chain has its newest name
+/// first.
+pub(crate) const GLOBAL_HASH_SIZE: usize = 512;
+
+pub(crate) fn global_hash(name: &[u8]) -> usize {
+    name.iter().map(|&byte| usize::from(byte)).sum::<usize>() % GLOBAL_HASH_SIZE
+}
+
+/// What one reading of the source passes on to the next: the names it
+/// defined, in the order the reference writes them to its symbol file,
+/// which is the order of its table of global names.
+#[derive(Debug, Default)]
+pub(crate) struct Exports {
+    pub funcs: Vec<FuncSym>,
+    pub objs: Vec<ObjSym>,
+    pub props: Vec<Vec<u8>>,
 }
 
 /// A program as the parser leaves it.
@@ -138,17 +260,35 @@ pub(crate) struct Program {
     /// The number of elements in the longest list in the source.
     pub max_list_cnt: usize,
     pub globals: HashMap<Vec<u8>, Global>,
-    /// The function bodies, in the order the source has them, each with
-    /// the function it defines.
-    pub bodies: Vec<(CodeBody, usize)>,
+    /// The bodies of functions and methods, in the order the source has
+    /// them, each with the function it defines if it is a function's.
+    pub bodies: Vec<(CodeBody, Option<usize>)>,
+    pub objs: Vec<ObjSym>,
+    pub props: Vec<PropSym>,
+    pub objdefs: Vec<ObjDef>,
+    /// The functions and objects in the order the source defines them,
+    /// which is the order they are generated in.
+    pub top: Vec<Top>,
+    /// The number the next object gets, and the next property.
+    pub next_obj_id: u32,
+    pub next_prop_id: u16,
+    /// For each statement that jumps have to know about, by its
+    /// number, the one it is directly inside of as the parser saw it.
+    /// A `catch` block is outside its `try` there.
+    pub enclosure_parents: HashMap<usize, Option<usize>>,
+    /// How many of the properties were known before this reading of
+    /// the source started: the ones every program has, and the ones
+    /// the reading before found.
+    pub known_prop_cnt: usize,
 }
 
 impl Program {
-    /// The functions as another reading of the same source should see
-    /// them before it starts: known, but not yet defined. A function
-    /// that was only ever declared is not passed on.
-    pub(crate) fn exported_funcs(&self) -> Vec<FuncSym> {
-        self.funcs
+    /// The names as another reading of the same source should see them
+    /// before it starts: known, but not yet defined. A function or
+    /// object that was only ever declared is not passed on.
+    pub(crate) fn exports(&self) -> Exports {
+        let funcs = self
+            .funcs
             .iter()
             .filter(|func| !func.is_extern)
             .map(|func| FuncSym {
@@ -156,7 +296,63 @@ impl Program {
                 body: None,
                 ..func.clone()
             })
-            .collect()
+            .collect();
+        // Objects are numbered in the order of the table of global
+        // names as it is when the program is put together; in a chain
+        // of that table, they are in the order they were defined.
+        let mut objs: Vec<ObjSym> = self
+            .objs
+            .iter()
+            .filter(|obj| !obj.is_extern && self.globals.contains_key(&obj.name))
+            .map(|obj| ObjSym {
+                is_extern: true,
+                ..obj.clone()
+            })
+            .collect();
+        objs.sort_by_key(|obj| global_hash(&obj.name));
+        let props = self
+            .props
+            .iter()
+            .skip(SPECIAL_PROPS.len())
+            .map(|prop| prop.name.clone())
+            .collect();
+        Exports { funcs, objs, props }
+    }
+
+    /// The number each property has in the image, by the number it had
+    /// while compiling. The reference numbers properties when it puts
+    /// the program together, in the order of its table of global names
+    /// then: chain by chain, and in a chain the properties first met on
+    /// the last reading of the source, newest first, and then those of
+    /// the reading before, oldest first. The properties every program
+    /// has keep their numbers.
+    pub(crate) fn final_prop_ids(&self) -> Vec<u16> {
+        let special = SPECIAL_PROPS.len();
+        let mut order: Vec<usize> = (special..self.props.len()).collect();
+        order.sort_by_key(|&index| {
+            let new = index >= self.known_prop_cnt;
+            let within = if new { usize::MAX - index } else { index };
+            (global_hash(&self.props[index].name), !new, within)
+        });
+        // Indexed by the compile-time number, which starts at 1.
+        let mut ids: Vec<u16> = (0..=special as u16).collect();
+        ids.resize(self.props.len() + 1, 0);
+        for (place, index) in order.into_iter().enumerate() {
+            ids[usize::from(self.props[index].id)] = (special + 1 + place) as u16;
+        }
+        ids
+    }
+
+    /// Give a property name a number, if it is not a property already.
+    pub(crate) fn def_prop(&mut self, name: &[u8]) -> usize {
+        self.props.push(PropSym {
+            name: name.to_vec(),
+            id: self.next_prop_id,
+        });
+        self.next_prop_id += 1;
+        self.globals
+            .insert(name.to_vec(), Global::Prop(self.props.len() - 1));
+        self.props.len() - 1
     }
 }
 
@@ -195,6 +391,12 @@ pub(crate) struct Parser<'p, 'a> {
     embed_toks: Vec<SrcToken>,
     /// The string templates, in the order they were defined.
     str_templates: Vec<StrTemplate>,
+    /// The code being read is a method's or a property's: it has a
+    /// `self`.
+    self_valid: bool,
+    /// The number the next object that is not a class gets for its
+    /// place in the source.
+    src_order_idx: i32,
 }
 
 /// A string template: an embedded expression made of these tokens is a
@@ -259,17 +461,33 @@ type Parsed<T> = Result<T, Stop>;
 pub(crate) struct Stop;
 
 impl<'p, 'a> Parser<'p, 'a> {
-    pub(crate) fn new(
-        tok: &'p mut Preprocessor<'a>,
-        syntax_only: bool,
-        known_funcs: Vec<FuncSym>,
-    ) -> Self {
-        let mut prog = Program::default();
-        for func in known_funcs {
+    pub(crate) fn new(tok: &'p mut Preprocessor<'a>, syntax_only: bool, known: Exports) -> Self {
+        let mut prog = Program {
+            next_obj_id: 1,
+            next_prop_id: 1,
+            ..Program::default()
+        };
+        for name in SPECIAL_PROPS {
+            prog.def_prop(name.as_bytes());
+        }
+        for func in known.funcs {
             prog.globals
                 .insert(func.name.clone(), Global::Func(prog.funcs.len()));
             prog.funcs.push(func);
         }
+        for mut obj in known.objs {
+            obj.id = prog.next_obj_id;
+            prog.next_obj_id += 1;
+            prog.globals
+                .insert(obj.name.clone(), Global::Obj(prog.objs.len()));
+            prog.objs.push(obj);
+        }
+        for name in known.props {
+            if !prog.globals.contains_key(&name) {
+                prog.def_prop(&name);
+            }
+        }
+        prog.known_prop_cnt = prog.props.len();
         Self {
             tok,
             syntax_only,
@@ -286,6 +504,8 @@ impl<'p, 'a> Parser<'p, 'a> {
             switches: Vec::new(),
             embed_toks: Vec::new(),
             str_templates: Vec::new(),
+            self_valid: false,
+            src_order_idx: 1,
         }
     }
 
@@ -451,12 +671,24 @@ impl<'p, 'a> Parser<'p, 'a> {
                     Ok(())
                 }
                 Tok::Intrinsic => self.parse_intrinsic(),
+                Tok::Class => {
+                    self.next();
+                    self.parse_object(true)
+                }
+                Tok::Object => {
+                    if self.next() == Tok::Template {
+                        self.unsupported("an object template");
+                        suppress_next_error = true;
+                        Ok(())
+                    } else {
+                        self.tok.unget_token();
+                        self.parse_anon_object()
+                    }
+                }
                 Tok::Extern
                 | Tok::Transient
-                | Tok::Object
                 | Tok::Plus
                 | Tok::Inc
-                | Tok::Class
                 | Tok::Replace
                 | Tok::Modify
                 | Tok::Property
@@ -509,9 +741,20 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Ok(())
             }
             Tok::Colon => {
-                self.unsupported("an object definition");
-                *suppress_next_error = true;
-                Ok(())
+                self.tok.unget_token();
+                self.parse_object(false)
+            }
+            // A name that is an object's, with no colon after it,
+            // starts an object without a name: the name is the
+            // object's superclass. On the first reading, a name not
+            // defined yet is taken to be an object's.
+            _ if matches!(
+                (self.prog.globals.get(&first), self.syntax_only),
+                (Some(Global::Obj(_)), _) | (None, true)
+            ) =>
+            {
+                self.tok.unget_token();
+                self.parse_anon_object()
             }
             _ => {
                 if !suppress_error {
@@ -545,14 +788,14 @@ impl<'p, 'a> Parser<'p, 'a> {
                 return Ok(());
             }
         }
-        let Some((body, has_retval)) = self.parse_code_body()? else {
+        let Some((body, has_retval)) = self.parse_code_body(false)? else {
             return Ok(());
         };
         let (argc, opt_argc, varargs) = (body.argc, body.opt_argc, body.varargs);
 
         let existing = self.prog.globals.get(&name).copied();
         let func_id = match existing {
-            Some(Global::Bif(_)) => {
+            Some(Global::Bif(_) | Global::Obj(_) | Global::Prop(_)) => {
                 self.tok.log_at(
                     sym_file,
                     sym_line,
@@ -604,7 +847,8 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
         };
         self.prog.funcs[func_id].body = Some(self.prog.bodies.len());
-        self.prog.bodies.push((body, func_id));
+        self.prog.top.push(Top::Func(self.prog.bodies.len()));
+        self.prog.bodies.push((body, Some(func_id)));
         Ok(())
     }
 
@@ -667,7 +911,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     ));
                 }
             }
-            Some(Global::Bif(_)) => {
+            Some(_) => {
                 // The reference takes whatever has the name to be a
                 // function, and reads what is not there.
                 self.error(format!(
@@ -821,7 +1065,8 @@ impl<'p, 'a> Parser<'p, 'a> {
 
     /// Read a function's parameters and body. Nothing comes back if the
     /// body could not be made sense of.
-    fn parse_code_body(&mut self) -> Parsed<Option<(CodeBody, bool)>> {
+    fn parse_code_body(&mut self, self_valid: bool) -> Parsed<Option<(CodeBody, bool)>> {
+        self.self_valid = self_valid;
         self.local_symtab = None;
         self.enclosing_local_symtab = None;
         self.local_cnt = 0;
@@ -888,6 +1133,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             varargs: formals.varargs,
             varargs_list_local: formals.varargs_list_local,
             local_cnt: self.max_local_cnt,
+            self_valid: self.self_valid,
             replaced: false,
             labels: std::rc::Rc::new(std::mem::take(&mut self.labels)),
             end_file,
@@ -1770,6 +2016,10 @@ impl<'p, 'a> Parser<'p, 'a> {
     /// been read.
     fn enclose(&mut self, is_finally: bool) -> usize {
         self.next_enclosure_id += 1;
+        let parent = self.enclosing.last().map(|enclosure| enclosure.id);
+        self.prog
+            .enclosure_parents
+            .insert(self.next_enclosure_id, parent);
         self.enclosing.push(Enclosure {
             id: self.next_enclosure_id,
             is_finally,
@@ -2199,11 +2449,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             match self.cur() {
                 Tok::LPar => sub = self.parse_call(sub)?,
                 Tok::LBrack => sub = self.parse_subscript(sub)?,
-                Tok::Dot => {
-                    self.unsupported("a property or method reference");
-                    self.next();
-                    return Some(sub);
-                }
+                Tok::Dot => sub = self.parse_member(sub)?,
                 Tok::Inc => {
                     self.next();
                     sub = self.parse_inc_dec(AsiOp::PostInc, sub);
@@ -2370,6 +2616,10 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.next();
                     return Some(Expr::DStr(text));
                 }
+                Tok::SelfKw => {
+                    self.next();
+                    return Some(Expr::SelfRef);
+                }
                 Tok::DStrStart => return self.parse_embedding(true),
                 Tok::SStrStart => return self.parse_embedding(false),
                 Tok::LBrack => return self.parse_list(),
@@ -2408,7 +2658,6 @@ impl<'p, 'a> Parser<'p, 'a> {
                 | Tok::Function
                 | Tok::Object
                 | Tok::New
-                | Tok::SelfKw
                 | Tok::Replaced
                 | Tok::TargetProp
                 | Tok::TargetObj
@@ -2433,6 +2682,539 @@ impl<'p, 'a> Parser<'p, 'a> {
             self.next();
             return Some(Expr::constant(value));
         }
+    }
+}
+
+// ---- objects ----
+impl Parser<'_, '_> {
+    /// Read `.prop` after an expression, with arguments if there are
+    /// any. The property is a name, or an expression in parentheses
+    /// that says which property.
+    fn parse_member(&mut self, lhs: Expr) -> Option<Expr> {
+        self.next();
+        let mut prop_is_expr = false;
+        let prop = match self.cur() {
+            Tok::Sym => {
+                // The name is a property's, whatever locals there are.
+                let name = self.cur_text();
+                self.next();
+                Expr::Sym(name)
+            }
+            Tok::LPar => {
+                self.next();
+                prop_is_expr = true;
+                let prop = self.parse_expr()?;
+                if self.cur() == Tok::RPar {
+                    self.next();
+                } else {
+                    self.error_curtok("expected ')' but found \"%\"");
+                    if matches!(self.cur(), Tok::Sem | Tok::Eof) {
+                        return Some(lhs);
+                    }
+                }
+                prop
+            }
+            Tok::TargetProp => {
+                self.unsupported("\"targetprop\" in an expression");
+                self.next();
+                return Some(lhs);
+            }
+            _ => {
+                self.error_curtok(
+                    "expected property name or parenthesized expression after '.', found \"%\"",
+                );
+                self.next();
+                return Some(lhs);
+            }
+        };
+        let args = if self.cur() == Tok::LPar {
+            Some(self.parse_arg_list()?)
+        } else {
+            None
+        };
+        Some(Expr::Member {
+            obj: Box::new(lhs),
+            prop: Box::new(prop),
+            prop_is_expr,
+            args,
+        })
+    }
+
+    /// The property a name stands for in an object definition. A name
+    /// that is nothing yet becomes a property.
+    fn look_up_prop(&mut self, name: &[u8]) -> Option<usize> {
+        match self.prog.globals.get(name) {
+            Some(Global::Prop(prop)) => Some(*prop),
+            Some(_) => {
+                self.error(format!(
+                    "symbol \"{}\" is already defined - can't redefine as property",
+                    Self::name(name)
+                ));
+                None
+            }
+            None => Some(self.prog.def_prop(name)),
+        }
+    }
+
+    /// Whether an object has another among its superclasses, however
+    /// far up.
+    fn has_superclass(&self, obj: usize, other: usize, depth: usize) -> bool {
+        if depth > 100 {
+            return false;
+        }
+        self.prog.objs[obj].sc_names.iter().any(|name| {
+            matches!(self.prog.globals.get(name), Some(Global::Obj(sc))
+                if *sc == other || self.has_superclass(*sc, other, depth + 1))
+        })
+    }
+
+    /// Read `name: superclasses properties ;`, from the name on.
+    fn parse_object(&mut self, is_class: bool) -> Parsed<()> {
+        let name = self.cur_text();
+        let sym = match self.prog.globals.get(&name).copied() {
+            Some(Global::Obj(obj)) if self.prog.objs[obj].is_extern => {
+                self.prog.objs[obj].is_extern = false;
+                Some(obj)
+            }
+            Some(Global::Obj(_)) => {
+                self.error(format!(
+                    "object \"{}\" is already defined - can't redefine as object",
+                    Self::name(&name)
+                ));
+                None
+            }
+            Some(_) => {
+                self.error_curtok("symbol \"%\" is already defined - can't redefine as object");
+                None
+            }
+            None => {
+                self.prog.objs.push(ObjSym {
+                    name: name.clone(),
+                    id: self.prog.next_obj_id,
+                    is_extern: false,
+                    is_class: false,
+                    sc_names: Vec::new(),
+                });
+                self.prog.next_obj_id += 1;
+                self.prog
+                    .globals
+                    .insert(name, Global::Obj(self.prog.objs.len() - 1));
+                Some(self.prog.objs.len() - 1)
+            }
+        };
+        if let (true, Some(obj)) = (is_class, sym) {
+            self.prog.objs[obj].is_class = true;
+        }
+        self.next();
+        self.parse_object_body(sym, is_class, false)
+    }
+
+    /// Read an object without a name: `superclasses properties ;`.
+    fn parse_anon_object(&mut self) -> Parsed<()> {
+        self.prog.objs.push(ObjSym {
+            name: b".anon".to_vec(),
+            id: self.prog.next_obj_id,
+            is_extern: false,
+            is_class: false,
+            sc_names: Vec::new(),
+        });
+        self.prog.next_obj_id += 1;
+        self.parse_object_body(Some(self.prog.objs.len() - 1), false, true)
+    }
+
+    fn parse_object_body(
+        &mut self,
+        sym: Option<usize>,
+        is_class: bool,
+        is_anon: bool,
+    ) -> Parsed<()> {
+        let old_self_valid = self.self_valid;
+        self.self_valid = true;
+        let result = self.parse_object_body_in(sym, is_class, is_anon);
+        self.self_valid = old_self_valid;
+        result
+    }
+
+    fn parse_object_body_in(
+        &mut self,
+        sym: Option<usize>,
+        is_class: bool,
+        is_anon: bool,
+    ) -> Parsed<()> {
+        let mut def = ObjDef {
+            sym,
+            is_class,
+            superclasses: Vec::new(),
+            props: Vec::new(),
+            file: 0,
+            line: 0,
+        };
+        let (file, line) = self.tok.last_pos();
+        (def.file, def.line) = (file, line);
+        if is_anon {
+            // The superclasses come first.
+        } else if self.cur() == Tok::Colon {
+            self.next();
+        } else {
+            self.error_curtok(
+                "expected ':' after object name in object definition, but found \"%\"",
+            );
+        }
+        if let Some(obj) = sym {
+            self.prog.objs[obj].sc_names.clear();
+        }
+        self.parse_superclass_list(sym, &mut def);
+
+        let mut braces = false;
+        if self.cur() == Tok::LBrace {
+            self.next();
+            braces = true;
+        }
+        // Values with no property names: the object's classes say, in
+        // templates, which properties they are for.
+        if matches!(
+            self.cur(),
+            Tok::SStr
+                | Tok::SStrStart
+                | Tok::DStr
+                | Tok::DStrStart
+                | Tok::LBrack
+                | Tok::At
+                | Tok::Plus
+                | Tok::Minus
+                | Tok::Times
+                | Tok::Div
+                | Tok::Mod
+                | Tok::Arrow
+                | Tok::And
+                | Tok::Not
+                | Tok::BNot
+                | Tok::Comma
+        ) {
+            self.unsupported("an object definition that uses a template");
+            self.next();
+        }
+        if !braces && self.cur() == Tok::LBrace {
+            braces = true;
+            self.next();
+        }
+
+        // An object that is not a class knows where it comes in the
+        // source.
+        if !is_class {
+            let order = Expr::constant(Value::Int(self.src_order_idx));
+            self.src_order_idx += 1;
+            def.props.push(ObjProp {
+                prop: SRC_ORDER_PROP,
+                value: PropValue::Expr(order),
+                overwritable: true,
+                file,
+                line,
+            });
+        }
+
+        self.parse_obj_prop_list(&mut def, braces, false)?;
+        self.prog.top.push(Top::Obj(self.prog.objdefs.len()));
+        self.prog.objdefs.push(def);
+        Ok(())
+    }
+
+    fn parse_superclass_list(&mut self, sym: Option<usize>, def: &mut ObjDef) {
+        loop {
+            match self.cur() {
+                Tok::Sym => {
+                    let name = self.cur_text();
+                    let circular = match (self.prog.globals.get(&name), sym) {
+                        (Some(Global::Obj(sc)), Some(obj)) => {
+                            *sc == obj || self.has_superclass(*sc, obj, 0)
+                        }
+                        _ => false,
+                    };
+                    if circular {
+                        let obj_name = sym.map(|obj| self.prog.objs[obj].name.clone());
+                        self.error(format!(
+                            "circular class definition: {} is a subclass of {}",
+                            Self::name(&name),
+                            Self::name(&obj_name.unwrap_or_default())
+                        ));
+                    } else {
+                        if let Some(obj) = sym {
+                            self.prog.objs[obj].sc_names.push(name.clone());
+                        }
+                        def.superclasses.push(name);
+                    }
+                    if self.next() == Tok::Comma {
+                        self.next();
+                    } else {
+                        return;
+                    }
+                }
+                Tok::Object => {
+                    if !def.superclasses.is_empty() {
+                        self.error(
+                            "superclasses cannot be specified with \"object\" as the base class",
+                        );
+                    }
+                    self.next();
+                    return;
+                }
+                _ => {
+                    self.error_curtok(
+                        "expected superclass name in object definition, but found \"%\"",
+                    );
+                    return;
+                }
+            }
+        }
+    }
+
+    /// Read an object's properties, up to the semicolon that ends the
+    /// definition, or the closing brace if it has braces.
+    ///
+    /// With `one_prop`, the list is what follows a definition found to
+    /// have ended without saying so, and reading stops after the first
+    /// property, as the reference's does: it goes by a flag that was
+    /// set when the missing end was noticed.
+    fn parse_obj_prop_list(
+        &mut self,
+        def: &mut ObjDef,
+        braces: bool,
+        one_prop: bool,
+    ) -> Parsed<()> {
+        let missing_end = if braces {
+            "missing right brace at end of object definition - found \"%\""
+        } else {
+            "missing semicolon at end of object definition - found \"%\""
+        };
+        loop {
+            match self.cur() {
+                Tok::Sem => {
+                    // Inside braces a semicolon is an empty property.
+                    self.next();
+                    if !braces {
+                        return Ok(());
+                    }
+                }
+                // These start another definition, so this one's end
+                // must have been left out.
+                Tok::Class
+                | Tok::Extern
+                | Tok::Modify
+                | Tok::Dictionary
+                | Tok::Property
+                | Tok::Plus
+                | Tok::Inc
+                | Tok::Intrinsic
+                | Tok::Object
+                | Tok::Grammar
+                | Tok::Enum => {
+                    self.error_curtok(missing_end);
+                    return Ok(());
+                }
+                Tok::Sym => {
+                    // A name and then something a template value could
+                    // start with: if the name is an object's, it is
+                    // probably the start of the next definition.
+                    let after = self.next();
+                    self.tok.unget_token();
+                    if matches!(
+                        after,
+                        Tok::Sym
+                            | Tok::At
+                            | Tok::Plus
+                            | Tok::Minus
+                            | Tok::Times
+                            | Tok::Div
+                            | Tok::Mod
+                            | Tok::Arrow
+                            | Tok::And
+                            | Tok::Not
+                            | Tok::BNot
+                            | Tok::Comma
+                    ) && matches!(
+                        self.prog.globals.get(&self.cur_text()),
+                        Some(Global::Obj(_))
+                    ) {
+                        self.error_curtok(missing_end);
+                        return Ok(());
+                    }
+                    if self.parse_obj_prop(def)? || one_prop {
+                        return Ok(());
+                    }
+                }
+                Tok::PropertySet | Tok::Operator | Tok::Replace => {
+                    let shown = self.tok.cur_token_shown();
+                    self.unsupported(&format!("\"{shown}\" in an object definition"));
+                    self.next();
+                }
+                Tok::RBrace if braces => {
+                    self.next();
+                    return Ok(());
+                }
+                _ => {
+                    let found = Self::name(&self.cur_text());
+                    self.error(format!(
+                        "expected property name in object definition, but found \"{found}\""
+                    ));
+                    self.next();
+                    if self.cur() == Tok::Eof {
+                        return Err(Stop);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Read one property of an object, from its name on. Returns
+    /// whether the definition turned out to have ended without saying
+    /// so, with the next definition starting here.
+    fn parse_obj_prop(&mut self, def: &mut ObjDef) -> Parsed<bool> {
+        let (file, line) = self.tok.last_pos();
+        let name = self.cur_text();
+        let existing = self.prog.globals.get(&name).copied();
+        let mut new_prop = None;
+        let mut is_value = false;
+        let mut no_value = false;
+        match self.next() {
+            Tok::LPar | Tok::LBrace => {}
+            Tok::Sem | Tok::RBrace | Tok::RPar | Tok::RBrack | Tok::Comma => {
+                let found = Self::name(&self.cur_text());
+                self.error(format!(
+                    "expected property value or method after property name \"{}\", \
+                     but found \"{found}\"",
+                    Self::name(&name)
+                ));
+                if self.cur() != Tok::Sem {
+                    self.next();
+                }
+                no_value = true;
+            }
+            Tok::Colon => {
+                if matches!(existing, Some(Global::Obj(_))) {
+                    // `name:` where the name is an object's: the next
+                    // definition, this one's end having been left out.
+                    self.tok.log_at(
+                        file,
+                        line,
+                        Severity::Error,
+                        "unterminated object definition".to_owned(),
+                    );
+                    self.tok.unget_token();
+                    return Ok(true);
+                }
+                // An object of its own as the property's value. It
+                // has to be in braces; without them, this is taken to
+                // be the next definition, this one's end having been
+                // left out, and is read as that.
+                self.next();
+                let mut nested = ObjDef {
+                    sym: None,
+                    is_class: false,
+                    superclasses: Vec::new(),
+                    props: Vec::new(),
+                    file,
+                    line,
+                };
+                self.parse_superclass_list(None, &mut nested);
+                if self.cur() == Tok::LBrace {
+                    self.unsupported("an object nested in an object definition");
+                    self.next();
+                    self.parse_obj_prop_list(&mut nested, true, false)?;
+                    return Ok(false);
+                }
+                self.tok.log_at(
+                    file,
+                    line,
+                    Severity::Error,
+                    "unterminated object definition".to_owned(),
+                );
+                self.parse_obj_prop_list(&mut nested, false, true)?;
+                return Ok(true);
+            }
+            Tok::Eq => {
+                self.next();
+                if self.cur() == Tok::LBrace {
+                    self.error("'=' is not allowed with a method definition");
+                } else {
+                    is_value = true;
+                }
+            }
+            _ => {
+                self.error_curtok("'=' required between property name and value - found \"%\"");
+                is_value = true;
+            }
+        }
+
+        let prop = if no_value {
+            None
+        } else {
+            self.look_up_prop(&name)
+        };
+        if no_value {
+            // Nothing to read; but the name is still checked below.
+        } else if is_value {
+            if self.cur() == Tok::Static {
+                self.unsupported("a static property");
+                self.next();
+            }
+            // The value is read as an expression of its own, outside
+            // any function.
+            self.local_symtab = None;
+            self.enclosing_local_symtab = None;
+            self.local_cnt = 0;
+            self.max_local_cnt = 0;
+            self.enclosing.clear();
+            let Some(expr) = self.parse_expr() else {
+                return Ok(false);
+            };
+            if let Some(prop) = prop {
+                new_prop = Some(def.props.len());
+                def.props.push(ObjProp {
+                    prop,
+                    value: PropValue::Expr(expr),
+                    overwritable: false,
+                    file,
+                    line,
+                });
+            }
+        } else {
+            let Some((body, _)) = self.parse_code_body(true)? else {
+                return Ok(false);
+            };
+            self.self_valid = true;
+            if let Some(prop) = prop {
+                new_prop = Some(def.props.len());
+                def.props.push(ObjProp {
+                    prop,
+                    value: PropValue::Method(self.prog.bodies.len()),
+                    overwritable: false,
+                    file,
+                    line,
+                });
+            }
+            self.prog.bodies.push((body, None));
+        }
+
+        // A property the name already was can be here only once, but
+        // that the source's value replaces one the compiler put in.
+        if let Some(Global::Prop(prop)) = existing {
+            let earlier = def
+                .props
+                .iter()
+                .enumerate()
+                .position(|(index, other)| Some(index) != new_prop && other.prop == prop);
+            if let Some(earlier) = earlier {
+                if def.props[earlier].overwritable {
+                    def.props.remove(earlier);
+                } else {
+                    self.error(format!(
+                        "property \"{}\" already defined in object",
+                        Self::name(&name)
+                    ));
+                }
+            }
+        }
+        Ok(false)
     }
 }
 

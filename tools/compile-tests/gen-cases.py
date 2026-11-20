@@ -764,6 +764,241 @@ string template <<f g h i j>> later;
 _main(args) { local q = 'x<<d>>'; return q; }
 """
 
+programs["obj1"] = """
+class Animal: object
+    name = 'animal'
+    legs = 4
+    describe() { return name + ' has ' + legs; }
+    speak(what) { "<<name>> says <<what>>"; }
+;
+dog: Animal
+    name = 'dog'
+    owner = nil
+    bark() { speak('woof'); return self.describe(); }
+;
+cat: Animal { name = 'cat' lives = 9 friend = dog }
+_main(args) { dog.bark(); cat.speak('meow'); return cat.friend.name; }
+"""
+
+programs["obj2"] = """
+box: object
+    contents = [1, 2, 'three']
+    desc = "A box. "
+    size = 2 + 3
+    total = (size * 2)
+    label = 'box ' + 'one'
+    open = true
+    check() { size = 5; self.size += 1; total++; return open; }
+;
+_main(args)
+{
+    box.size = 3; box.size += 2; box.total++; --box.size;
+    local b = box; b.size = 1; b.size *= 2; b.check();
+    return b.contents;
+}
+"""
+
+programs["obj3"] = """
+class Base: object
+    v = 1
+;
+Base
+    v = 2
+;
+object
+    v = 3
+;
+Base v = 4;
+class C: object;
+C x = 1;
+C { y = 2 }
+object { z = 3 };
+a: object { x = 1; y = 2; m() { } };
+b: object { x = 1 }
+c: object
+{
+    x = 1
+}
+"""
+
+programs["obj4"] = """
+a: object
+    f(x) { return x.name; }
+    g(x, p) { return x.(p); }
+    h(x) { return x.name(1, 2); }
+    i(x, p) { return x.(p)(3); }
+    j() { return self.(name); }
+    k(p) { self.(p) = 1; self.(p) += 2; a.(p) = 3; a.(p)++; }
+    l(x, p) { x.(p) = 1; x.(p) -= 2; x.name = 3; x.name /= 4; return x.name++; }
+    m(x) { local y = x.name; y.name.name = x; x.name.name(1).name += 1; return y.(x).(y); }
+    n(x...) { return self.m(x...) + m(x...) + a.m(x...) + x.m(x...) + x.(m)(x...) + self.(x)(x...) + a.(x)(x...); }
+    o(x) { ++self.name; self.name--; name += 1; --name; x.(name)--; return self.name(1) + name(2, 3); }
+    name = 'a'
+;
+_main(args)
+{
+    args.x.y.z = 1; args[1].x = 2; args.x[1] = 3; args.x[1].y++;
+    return a.f(a) + a.g(a, 1) + args.length() + args.length;
+}
+"""
+
+programs["obj5"] = """
+a: object
+    m() { return undefinedProp + other(1) ; }
+    n() { newProp = 1; return self; }
+;
+f() { return a.neverDefined; }
+_main(args) { a.alsoNew = 1; a.callIt(1, 2); return f(); }
+"""
+
+programs["obj6"] = """
+class A: object a = 1;
+class B: object b = 2;
+c: A, B c = 3;
+d: A, B construct(x) { c = x; } ;
+class E: A, B;
+A, B, E;
+f: A, B construct() { if (a) return; b = 1; };
+g: object construct(x, y) { a = x; b = y; };
+"""
+
+programs["obj7"] = """
+class Err: object msg = 'err';
+class Other: Err;
+f(x)
+{
+    try { throw x; }
+    catch (Err e) { return e.msg; }
+    catch (Other o) { return o; }
+    finally { "done"; }
+}
+_main(args) { try { f(1); } catch (Err e) { } }
+"""
+
+programs["obj8"] = """
+a: object x = 1;
+b: object x = 2;
+_main(args)
+{
+    local l = [a, b, a.x];
+    if (a == b) return 1;
+    if (a == a) return 2;
+    if (a != nil) return [a] + b;
+    switch (args) { case a: return 3; case b: return 4; }
+    return a + 1 + l + (a - 1) + 'x' + a + (a ? 1 : 2) + (a && b) + !a;
+}
+"""
+
+programs["obj9"] = """
+ab: object ab1 = 1 ba1 = 2 x = 3;
+ba: object;
+cab: object;
+bca: object bac = 1 cab1 = 2 abc = 3;
+acb: object;
+f(o) { o.bca1 = 1; o.acb1 = 2; o.cba1 = 3; o.x1 = 4; return o.y1 + o.abc + o.ba1; }
+g(o) { return o.b1ca + o.a1bc + o.c1ab + o.ab1 + o.abc; }
+_main(args) { return [ab, ba, cab, bca, acb]; }
+"""
+
+programs["obj10"] = """
+a: object
+    x = 1
+    m() { return 1; }
+    o { return 3; }
+    p(a, b) { return a + b; }
+    q = (1, 2)
+    r = [x, 1]
+    s = self
+    t = "<<x>>"
+    u = 'a<<x>>'
+    v = (x = 2)
+    w = nil
+    y = true
+    z = [nil, true, a, [a]]
+    aa = "plain"
+    bb = (m(), p(1, 2))
+    cc = a
+    dd = a.x
+    ee = (self.x ? 'yes' : 'no')
+    ff = [1, 2][1]
+    gg = -1
+    hh = 'a' + 1
+    ii = _main
+    jj = nil + 1
+;
+_main(args) { "<<a.x>><<a.m()>><<a.t>>"; return 'x<<a.u>>y'; }
+"""
+
+programs["obj11"] = """
+a: object
+    m(x)
+    {
+        local unused;
+        local n = 0;
+    again:
+        for (local i = 1 ; i <= x ; ++i)
+        {
+            try { if (i == limit) break again; n += step; }
+            finally { count++; }
+        }
+        switch (n) { case 1: return self; default: return n; }
+        n = 2;
+    }
+    limit = 10
+    step = 2
+    count = 0
+;
+_main(args) { return a.m(5); }
+"""
+
+programs["obj12"] = """
+class C: object;
+f(args)
+{
+    try { args = 2; }
+    catch (C e) { do { return args; } while (args); }
+    finally { args = 3; }
+}
+g(args)
+{
+    try { args = 2; }
+    catch (C e) { local x = 1; local left = 2; do { return (x + left); } while (args); }
+    finally { goto L0; args; L0: while (args) { } do { } while (args); }
+}
+h(args)
+{
+    try { args = 1; }
+    finally { try { args = 2; } catch (C e) { return args; } finally { args = 3; } }
+}
+_main(args)
+{
+    out: while (args)
+    {
+        try { args = 2; }
+        catch (C e)
+        {
+            if (args) break;
+            if (args > 1) goto here;
+            while (args)
+            {
+                if (args) break out;
+                if (args > 2) continue out;
+                if (args > 3) goto here;
+                if (args > 4) goto away;
+                return 1;
+            }
+        here:
+            switch (args) { case 1: break out; case 2: goto away; default: return 2; }
+            a: { break a; }
+            b: { if (args) break out; }
+        }
+        finally { args = 3; }
+    }
+away:
+    return f(args) + g(args) + h(args);
+}
+"""
+
 mistakes = {
     "e_undef": "_main(args) { return undefinedThing; }",
     "e_undefcall": "_main(args) { return undefinedFunc(1); }",
@@ -992,6 +1227,36 @@ mistakes = {
     "e_undef1": "_main(args) { nosuch; nosuch; nosuch(); nosuch = 1; other; return nosuch + other; }",
     "e_undef2": "f() { nosuch(); } g() { \"<<nosuch>>\"; }\n_main(args) { nosuch; try { } catch (nosuch e) { } }",
     "e_undef3": "_main(args) { try { } catch (nosuch e) { } try { } catch (nosuch e) { } nosuch = 1; }",
+    "e_obj1": "a: object\n    x = 1\n    x = 2\n    y = 3\n    sourceTextOrder = 9\n;\na: object;\nf() { }\nf: object;\ng: object z = 1;\ng() { }\n_main: object;\n_main(args) { }",
+    "e_obj2": "a object x = 1;\nb: x = 1;\ne: e;\nf: g;\ng: f;\nh: object x 1 y = ; z ;\n_main(args) { }",
+    "e_obj3": "i: object x = 1\nj: object y = 2;\n_main(args) { }",
+    "e_obj4": "a: object x = 1;\ni: object x = 1\na: object y = 2;\n_main(args) { }",
+    "e_obj5": "f() { return 1; }\na: object x = 1;\n_main(args) { self; self.x; x; x = 1; x(1); a.f; a.f(1); a.a; f.x; 'str'.x; [1].x; nil.x; args.f; args.(f); args.(a); a.(f)(1); nosuch.x; nosuch.x = 1; f.x = 1; a.(1) = 2; }",
+    "e_obj6": "a: Nosuch x = 1;\nf() { }\nb: f;\nc: a, Nosuch2, f;\n_main(args) { }",
+    "e_obj7": "a: object\n    x = 1\n    m() { return 1 }\n    n = { return 2; }\n    y = 2\n;\n_main(args) { }",
+    "e_obj8": "f() { }\na: object f = 1 g() { } _main = 2;\ng() { }\n_main(args) { }",
+    "e_obj9": "a: object x = 1;\n_main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }",
+    "e_obj10": "a: object x = 1;\nb: a, object;\nc: object {\n x = 1\n_main(args) { }",
+    "e_obj11": "a: object { x = 1 class b: object;\n_main(args) { }",
+    "e_obj12": "a: object x = 1 class b: object;\n_main(args) { }",
+    "e_obj13": "a: object x = 1 , y = 2 ) z = 3 ] w = 4 } v = 5;\n_main(args) { }",
+    "e_obj14": "a: object 1 2 x = 3;\n_main(args) { }",
+    "e_obj15": "a: object x = ;\nb: object m( { }\n_main(args) { }",
+    "e_obj16": "class a: object;\nclass a: object;\nclass f() { }\nclass 1;\nclass;\n_main(args) { }",
+    "e_obj17": "a: object m() { return nosuch.x + self.(nosuch2) + nosuch3(); }\n;\nf() { return nosuch4 + nosuch5(); }\n_main(args) { }",
+    "e_obj18": "a: object x = 1;\na x = 2\n_main(args) { }",
+    "e_obj19": "a: object x = 1;\na\n",
+    "e_obj20": "a: object x = (1;\nb: object y = 2;\n_main(args) { }",
+    "e_obj21": "a: object x = 1; y = 2;\n_main(args) { }",
+    "e_obj22": "a: object m() { local q; return self.; }\n n = self.(1 ;\n;\n_main(args) { return a.; }",
+    "e_obj23": "a: object x = 1;\nf() { try { } catch (a e) { } catch (f g) { } catch (nosuch h) { } }\n_main(args) { }",
+    "e_obj24": "object;\nobject x = 1\n_main(args) { }",
+    "e_obj25": "a: object construct() { return 1; }\n;\nb: object construct() { return self; }\n;\n_main(args) { }",
+    "w_obj1": "a: object m() { local q; return 1; q = 2; }\n n() { if (x) return 1; }\n x = 1\n;\n_main(args) { }",
+    "w_obj2": "a: object m() { return y; }\n n() { y = 1; return a.z + self.w + v(1); }\n;\n_main(args) { return a.u; }",
+    "e_unres1": "_main(args) { if (true) args = 1; else { a: args = 2; } goto a; }",
+    "e_unres2": "f(x) { if (nil) { b: x = 1; } if (x) goto b; goto b; }\n_main(args) { if (true) args = 1; else { a: args = 2; } if (args) goto a; return f(args); }",
+    "e_unres3": "f(x) { unused: if (nil) { b: x = 1; } if (x) goto b; local q; }\ng(x) { if (nil) { c: while (x) { if (x) break; x = 2; } } other: goto c; }\nh(x) { try { if (nil) { d: x = 1; } } finally { x = 2; } goto d; }\n_main(args) { return f(args) + g(args) + h(args) + nosuch; }",
 }
 
 # The compiler gives up after a hundred errors, whether it finds them

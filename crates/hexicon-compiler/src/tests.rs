@@ -54,6 +54,7 @@ fn preprocess_files(mut files: Files) -> (Vec<String>, Vec<String>) {
             let kind = match problem.severity {
                 Severity::Error => "error",
                 Severity::Fatal => "fatal error",
+                Severity::Internal => "internal error",
                 Severity::Warning => "warning",
                 Severity::Message => "message",
             };
@@ -392,6 +393,7 @@ fn compile_messages(text: &str) -> Vec<String> {
             let kind = match problem.severity {
                 Severity::Error => "error",
                 Severity::Fatal => "fatal error",
+                Severity::Internal => "internal error",
                 Severity::Warning => "warning",
                 Severity::Message => "message",
             };
@@ -967,5 +969,180 @@ fn a_long_string_in_a_message_is_cut_short() {
     assert_eq!(
         compile_messages("_main(args) { 1 'two\\nlines'; }\n"),
         ["1: error: expected ';', but found \"'two\\nlines'\""]
+    );
+}
+
+#[test]
+fn an_object_is_its_superclasses_and_its_properties_in_order_of_number() {
+    let compiled = compile_text(
+        "thing: object\n    name = 'thing'\n    weight = 3\n;\n\
+         _main(args) { return thing.name; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // One object, of the first metaclass: number 1, 27 bytes, no
+    // superclasses, three properties, not a class. The properties are
+    // its place in the source (property 7), and then the two the
+    // source gives it, numbered in the order of the table of names:
+    // weight before name.
+    let objs = block(&image, b"OBJS");
+    assert_eq!(objs[..6], [1, 0, 0, 0, 0, 0]);
+    assert_eq!(objs[6..12], [1, 0, 0, 0, 27, 0]);
+    assert_eq!(objs[12..18], [0, 0, 3, 0, 0, 0]);
+    assert_eq!(objs[18..25], [7, 0, 7, 1, 0, 0, 0]);
+    assert_eq!(objs[25..32], [26, 0, 7, 3, 0, 0, 0]);
+    assert_eq!(objs[32..35], [27, 0, 8]);
+    // objgetprop object 1, property 27; return the result
+    assert_eq!(code(&image)[10..18], [0x66, 1, 0, 0, 0, 27, 0, 0x54]);
+}
+
+#[test]
+fn a_method_has_a_self_and_a_function_does_not() {
+    let compiled = compile_text(
+        "a: object\n    size = 1\n    grow(by) { size += by; return self.size; }\n;\n\
+         _main(args) { return a.grow(2); }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // getpropself; the result; the argument; add; setpropself;
+    // getpropself; return the result
+    assert_eq!(code[10], 0x63);
+    assert_eq!(code[13..17], [0x8b, 0x7c, 0x22, 0xe7]);
+    assert_eq!(code[19], 0x63);
+    assert_eq!(code[22], 0x54);
+
+    assert_eq!(
+        compile_messages(
+            "a: object size = 1;\n_main(args) { size = 2; return self.size + size; }\n"
+        ),
+        [
+            "2: error: cannot assign to property \"size\" without \"object.\" prefix - no \"self\"",
+            "2: error: 'self' is not valid in this context",
+            "2: error: cannot call property \"size\" without \"object.\" prefix - no \"self\"",
+        ]
+    );
+}
+
+#[test]
+fn a_name_nothing_defines_is_taken_for_a_property_where_one_makes_sense() {
+    assert_eq!(
+        compile_messages(
+            "a: object m() { return size; }\n;\n_main(args) { return a.weight + other; }\n"
+        ),
+        [
+            "1: warning: undefined symbol \"size\" - assuming this is a property name",
+            "3: warning: undefined symbol \"weight\" - assuming this is a property name",
+            "3: error: undefined symbol \"other\"",
+        ]
+    );
+}
+
+#[test]
+fn object_definitions_that_are_wrong() {
+    assert_eq!(
+        compile_messages(
+            "a: object x = 1 x = 2;\na: object;\nf() { }\nf: object;\nb: b;\nc object;\n\
+             d: object x 1;\n_main(args) { }\n"
+        ),
+        [
+            "1: error: property \"x\" already defined in object",
+            "2: error: object \"a\" is already defined - can't redefine as object",
+            "4: error: symbol \"f\" is already defined - can't redefine as object",
+            "5: error: circular class definition: b is a subclass of b",
+            // `c` is taken for the class of an object with no name.
+            "6: error: missing semicolon at end of object definition - found \"object\"",
+            "7: error: '=' required between property name and value - found \"1\"",
+        ]
+    );
+    // A definition whose end was left out, and the next one starting.
+    assert_eq!(
+        compile_messages("a: object;\nb: object x = 1\na: object y = 2;\n_main(args) { }\n"),
+        [
+            "3: error: unterminated object definition",
+            "3: error: object \"a\" is already defined - can't redefine as object",
+        ]
+    );
+    assert_eq!(
+        compile_messages("a: Nosuch;\nf() { }\nb: f;\n_main(args) { }\n"),
+        [
+            "1: error: undefined symbol \"Nosuch\" (used as superclass of \"a\")",
+            "3: error: invalid superclass \"f\" - not an object",
+        ]
+    );
+}
+
+#[test]
+fn a_constructor_returns_the_object_and_several_superclasses_get_one() {
+    let compiled = compile_text("class A: object;\nclass B: object;\nc: A, B;\n_main(args) { }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // It takes any number of arguments, and has one local, for them
+    // as a list.
+    assert_eq!(code[..4], [0x80, 0, 1, 0]);
+    assert_eq!(
+        code[10..36],
+        [
+            0x0d, 0, 0xe0, 0, // the arguments, into the local
+            0x01, 0xaa, 0x0e, 0x76, // none more, and those: as arguments
+            0x74, 0, 1, 0, 1, 0, 0, 0, // A's constructor
+            0x01, 0xaa, 0x0e, 0x76, //
+            0x74, 0, 1, 0, 2, 0, // B's
+        ]
+    );
+    assert_eq!(code[38..40], [0x84, 0x50]);
+
+    assert_eq!(
+        compile_messages("a: object construct() { return 1; }\n;\n_main(args) { }\n"),
+        ["1: error: \"construct\" cannot return a value"]
+    );
+}
+
+#[test]
+fn a_catch_names_a_class_of_exception() {
+    let compiled = compile_text(
+        "class Oops: object;\n_main(args) { try { throw args; } catch (Oops e) { return e; } }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    let table = usize::from(u16::from_le_bytes([code[6], code[7]]));
+    // One handler, for the class, which is object 1.
+    assert_eq!(code[table..table + 2], [1, 0]);
+    assert_eq!(code[table + 6..table + 10], [1, 0, 0, 0]);
+    assert_eq!(
+        compile_messages("f() { }\n_main(args) { try { } catch (f e) { } catch (nosuch e) { } }\n"),
+        [
+            "2: error: exception class symbol \"f\" in \"catch\" clause is not an object",
+            "2: error: undefined symbol \"nosuch\"",
+        ]
+    );
+}
+
+#[test]
+fn a_jump_to_a_label_in_code_that_was_left_out_cannot_be_compiled() {
+    assert_eq!(
+        compile_messages("_main(args) { if (true) args = 1; else { a: args = 2; } goto a; }\n"),
+        [
+            "1: warning: \"if\" condition is always true - \"else\" part is unreachable",
+            "0: internal error: 1 unresolved branches",
+        ]
     );
 }

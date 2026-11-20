@@ -17,7 +17,7 @@ use crate::ast::{
 use crate::codegen::{CodeGen, Label};
 use crate::flow::Flow;
 use crate::fold::{self, Folded};
-use crate::parse::{BifSym, Global, Program, enum_order};
+use crate::parse::{BifSym, Global, Local, ObjDef, Program, PropValue, Top, enum_order};
 use crate::pp::{MAX_ERRORS, Severity, TOO_MANY_ERRORS, show_name};
 
 /// The start of one item in a stream: a function in the code, or a
@@ -34,6 +34,27 @@ pub(crate) enum Target {
     Func(usize),
     /// An item in the constants: an index into the constants' anchors.
     Const(usize),
+    /// A method's code: an index into the program's code bodies.
+    Body(usize),
+}
+
+/// An object as it goes into the image.
+#[derive(Debug)]
+pub(crate) struct GenObj {
+    pub id: u32,
+    pub is_class: bool,
+    pub superclasses: Vec<u32>,
+    pub props: Vec<GenProp>,
+}
+
+/// A property of an object: its number, and its value as a kind and
+/// four bytes. If the value is an address, `target` says of what.
+#[derive(Debug)]
+pub(crate) struct GenProp {
+    pub id: u16,
+    pub kind: u8,
+    pub value: u32,
+    pub target: Option<Target>,
 }
 
 /// Four bytes in the code that are to hold an address once it is known
@@ -49,9 +70,12 @@ pub(crate) struct Fixup {
 mod datatype {
     pub(super) const NIL: u8 = 1;
     pub(super) const TRUE: u8 = 2;
+    pub(super) const OBJ: u8 = 5;
     pub(super) const INT: u8 = 7;
     pub(super) const SSTRING: u8 = 8;
+    pub(super) const DSTRING: u8 = 9;
     pub(super) const LIST: u8 = 10;
+    pub(super) const CODEOFS: u8 = 11;
     pub(super) const FUNCPTR: u8 = 12;
 }
 
@@ -75,6 +99,14 @@ pub(crate) struct Generated {
     pub code_anchors: Vec<Anchor>,
     /// Where each function's code is: an index into `code_anchors`.
     pub func_anchor: HashMap<usize, usize>,
+    /// Where each code body's code is, functions and methods alike.
+    pub body_anchor: HashMap<usize, usize>,
+    /// The objects, in the order they were generated.
+    pub objs: Vec<GenObj>,
+    /// The number the next property would get.
+    pub next_prop_id: u16,
+    /// Where in the code there are property numbers.
+    pub prop_fixups: Vec<usize>,
     /// The constants: strings, each with its length before it.
     pub consts: Vec<u8>,
     pub const_anchors: Vec<Anchor>,
@@ -233,6 +265,14 @@ struct Gen<'p> {
     errors: usize,
     /// The undefined names reported so far.
     undefined_names: HashSet<Vec<u8>>,
+    /// The code being generated is a method's: it has a `self`.
+    self_available: bool,
+    /// The code being generated is a constructor's.
+    in_constructor: bool,
+    /// What an assignment to `obj.prop` that changes the value in
+    /// place (`+=`) learned when it fetched the value, kept for when
+    /// it stores the new one.
+    member_ctx: Vec<(bool, Option<u32>, Option<u16>)>,
     /// How many problems had been reported when the generator gave up
     /// for too many errors, if it has.
     gave_up: Option<usize>,
@@ -241,6 +281,8 @@ struct Gen<'p> {
 /// Generate the code for a program.
 pub(crate) fn generate(prog: &mut Program) -> Generated {
     let mut bodies = std::mem::take(&mut prog.bodies);
+    let mut objdefs = std::mem::take(&mut prog.objdefs);
+    let top = prog.top.clone();
     let mut generator = Gen {
         prog,
         cg: CodeGen::new(),
@@ -262,6 +304,9 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         local_names: Vec::new(),
         errors: 0,
         undefined_names: HashSet::new(),
+        self_available: false,
+        in_constructor: false,
+        member_ctx: Vec::new(),
         gave_up: None,
     };
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
@@ -270,22 +315,77 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
     }
     // Names are looked up, and what has become constant is worked out,
     // for the whole program before any code is generated.
-    for (body, _) in &mut bodies {
-        generator.fold_stmt(&mut body.stm);
+    for item in &top {
+        match *item {
+            Top::Func(body) => generator.fold_stmt(&mut bodies[body].0.stm),
+            Top::Obj(def) => {
+                for prop in &mut objdefs[def].props {
+                    match &mut prop.value {
+                        PropValue::Method(body) => {
+                            let body = *body;
+                            generator.fold_stmt(&mut bodies[body].0.stm);
+                        }
+                        PropValue::Expr(expr) => {
+                            generator.cur_file = prop.file;
+                            generator.cur_line = prop.line;
+                            generator.fold_in_place(expr);
+                            if expr.is_const() || matches!(expr, Expr::DStr(_)) {
+                                continue;
+                            }
+                            // A value that has to be worked out when
+                            // the program runs is a method that
+                            // returns it.
+                            let expr = std::mem::replace(expr, Expr::constant(Value::Nil));
+                            let kind = if generator.has_return_value(&expr) {
+                                StmtKind::Return(Some(expr))
+                            } else {
+                                StmtKind::Expr(expr)
+                            };
+                            let body = CodeBody {
+                                lcltab: None,
+                                stm: Stmt {
+                                    kind,
+                                    file: prop.file,
+                                    line: prop.line,
+                                },
+                                argc: 0,
+                                opt_argc: 0,
+                                varargs: false,
+                                varargs_list_local: None,
+                                local_cnt: 0,
+                                self_valid: true,
+                                replaced: false,
+                                labels: Rc::default(),
+                                end_file: prop.file,
+                                end_line: prop.line,
+                            };
+                            prop.value = PropValue::Method(bodies.len());
+                            bodies.push((body, None));
+                        }
+                    }
+                }
+            }
+        }
     }
     // The reference stops here if that found anything wrong.
     if generator.errors != 0 {
         let out = generator.out;
         prog.bodies = bodies;
+        prog.objdefs = objdefs;
         return out;
     }
     let mut scopes = Vec::new();
-    for (body, func) in &bodies {
+    for item in &top {
         if generator.gave_up.is_some() {
             break;
         }
-        generator.gen_code_body(body, *func);
-        scopes.push(std::mem::take(&mut generator.frames));
+        match *item {
+            Top::Func(body) => {
+                generator.gen_code_body(&bodies[body].0, body, bodies[body].1, false);
+                scopes.push(std::mem::take(&mut generator.frames));
+            }
+            Top::Obj(def) => generator.gen_object(&objdefs[def], &bodies, &mut scopes),
+        }
     }
     // Locals are checked for use once everything has been generated.
     for frames in scopes {
@@ -298,9 +398,22 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         generator.out.diagnostics.truncate(count);
     }
     generator.finish_local_names();
+    generator.out.next_prop_id = generator.prog.next_prop_id;
+    let prop_ids = generator.prog.final_prop_ids();
     let mut out = generator.out;
     out.code = generator.cg.code;
+    // Properties get the numbers they have in the image.
+    for &ofs in &out.prop_fixups {
+        let id = u16::from_le_bytes([out.code[ofs], out.code[ofs + 1]]);
+        out.code[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
+    }
+    for obj in &mut out.objs {
+        for prop in &mut obj.props {
+            prop.id = prop_ids[usize::from(prop.id)];
+        }
+    }
     prog.bodies = bodies;
+    prog.objdefs = objdefs;
     out
 }
 
@@ -415,6 +528,7 @@ impl Gen<'_> {
                 }
             }
             StmtKind::Throw(expr) => self.fold_in_place(expr),
+            StmtKind::ImplicitCtor(_) => {}
             StmtKind::Comp { stmts, .. } => {
                 for stmt in stmts {
                     self.fold_stmt(stmt);
@@ -472,8 +586,36 @@ impl Gen<'_> {
             Expr::Const(_) | Expr::Local(_) => expr,
             Expr::Sym(name) => match self.prog.globals.get(&name) {
                 Some(Global::Func(func)) => Expr::constant(Value::FuncPtr(*func)),
-                Some(Global::Bif(_)) | None => Expr::Sym(name),
+                Some(Global::Obj(obj)) => Expr::constant(Value::Obj(self.prog.objs[*obj].id)),
+                Some(Global::Bif(_) | Global::Prop(_)) | None => Expr::Sym(name),
             },
+            Expr::SelfRef => expr,
+            Expr::Member {
+                obj,
+                prop,
+                prop_is_expr,
+                args,
+            } => {
+                let obj = Box::new(self.fold_expr(*obj));
+                // The property's name is looked up like any other name,
+                // so the name of a function or an object becomes the
+                // function or the object, and is then no property.
+                let prop = Box::new(self.fold_expr(*prop));
+                let args = args.map(|args| {
+                    args.into_iter()
+                        .map(|arg| Arg {
+                            expr: self.fold_expr(arg.expr),
+                            varargs: arg.varargs,
+                        })
+                        .collect()
+                });
+                Expr::Member {
+                    obj,
+                    prop,
+                    prop_is_expr,
+                    args,
+                }
+            }
             Expr::DStr(_) => expr,
             Expr::DStrEmbed(sub) => Expr::DStrEmbed(Box::new(self.fold_expr(*sub))),
             Expr::OneOf(dbl, elements) => {
@@ -619,7 +761,150 @@ impl Gen<'_> {
 
     // ---- functions ----
 
-    fn gen_code_body(&mut self, body: &CodeBody, func: usize) {
+    /// Generate an object: its superclasses and its properties, with
+    /// the code of its methods.
+    fn gen_object(
+        &mut self,
+        def: &ObjDef,
+        bodies: &[(CodeBody, Option<usize>)],
+        scopes: &mut Vec<Vec<TabId>>,
+    ) {
+        let Some(sym) = def.sym else {
+            return;
+        };
+        (self.cur_file, self.cur_line) = (def.file, def.line);
+        let mut obj = GenObj {
+            id: self.prog.objs[sym].id,
+            is_class: def.is_class,
+            superclasses: Vec::new(),
+            props: Vec::new(),
+        };
+        for name in &def.superclasses {
+            match self.prog.globals.get(name) {
+                Some(Global::Obj(superclass)) => {
+                    obj.superclasses.push(self.prog.objs[*superclass].id);
+                }
+                Some(_) => {
+                    self.error(format!(
+                        "invalid superclass \"{}\" - not an object",
+                        show_name(name)
+                    ));
+                }
+                None => {
+                    let obj_name = show_name(&self.prog.objs[sym].name);
+                    self.error(format!(
+                        "undefined symbol \"{}\" (used as superclass of \"{obj_name}\")",
+                        show_name(name)
+                    ));
+                }
+            }
+        }
+        // An object with several superclasses and no constructor is
+        // given one that calls each superclass's.
+        let has_constructor = def
+            .props
+            .iter()
+            .any(|prop| prop.prop == 0 && matches!(prop.value, PropValue::Method(_)));
+        let implicit = (def.superclasses.len() > 1 && !has_constructor).then(|| {
+            self.prog.locals.push(Local {
+                name: b"*".to_vec(),
+                is_param: false,
+                var_num: 0,
+                is_list_param: true,
+                val_used: true,
+                val_assigned: true,
+                file: def.file,
+                line: def.line,
+            });
+            CodeBody {
+                lcltab: None,
+                stm: Stmt {
+                    kind: StmtKind::ImplicitCtor(obj.superclasses.clone()),
+                    file: def.file,
+                    line: def.line,
+                },
+                argc: 0,
+                opt_argc: 0,
+                varargs: true,
+                varargs_list_local: Some(self.prog.locals.len() - 1),
+                local_cnt: 1,
+                self_valid: true,
+                replaced: false,
+                labels: Rc::default(),
+                end_file: def.file,
+                end_line: def.line,
+            }
+        });
+        for prop in &def.props {
+            (self.cur_file, self.cur_line) = (prop.file, prop.line);
+            let id = self.prog.props[prop.prop].id;
+            let (kind, value, target) = match &prop.value {
+                PropValue::Method(body) => {
+                    self.gen_code_body(&bodies[*body].0, *body, None, prop.prop == 0);
+                    scopes.push(std::mem::take(&mut self.frames));
+                    (datatype::CODEOFS, 0, Some(Target::Body(*body)))
+                }
+                PropValue::Expr(Expr::DStr(text)) => {
+                    (datatype::DSTRING, 0, Some(self.const_str_target(text)))
+                }
+                PropValue::Expr(Expr::Const(value)) => match &value.value {
+                    Value::Nil => (datatype::NIL, 0, None),
+                    Value::True => (datatype::TRUE, 0, None),
+                    Value::Int(int) => (datatype::INT, *int as u32, None),
+                    Value::Obj(obj) => (datatype::OBJ, *obj, None),
+                    Value::SStr(text) => (datatype::SSTRING, 0, Some(self.const_str_target(text))),
+                    Value::List(elements) => {
+                        let before = self.out.fixups.len();
+                        self.add_const_list(elements, false, 0);
+                        let target = self.out.fixups.remove(before).target;
+                        (datatype::LIST, 0, Some(target))
+                    }
+                    Value::FuncPtr(func) => (datatype::FUNCPTR, 0, Some(Target::Func(*func))),
+                },
+                PropValue::Expr(_) => {
+                    self.error("invalid property value for code generation");
+                    continue;
+                }
+            };
+            obj.props.push(GenProp {
+                id,
+                kind,
+                value,
+                target,
+            });
+        }
+        if let Some(body) = implicit {
+            (self.cur_file, self.cur_line) = (def.file, def.line);
+            // A number for the body that no body the parser read has.
+            let index = bodies.len() + self.out.objs.len();
+            self.gen_code_body(&body, index, None, true);
+            scopes.push(std::mem::take(&mut self.frames));
+            obj.props.push(GenProp {
+                id: 1,
+                kind: datatype::CODEOFS,
+                value: 0,
+                target: Some(Target::Body(index)),
+            });
+        }
+        self.out.objs.push(obj);
+    }
+
+    /// Put a string in the constants for something outside the code to
+    /// refer to.
+    fn const_str_target(&mut self, text: &[u8]) -> Target {
+        let before = self.out.fixups.len();
+        self.add_const_str(text, false, 0);
+        self.out.fixups.remove(before).target
+    }
+
+    fn gen_code_body(
+        &mut self,
+        body: &CodeBody,
+        body_index: usize,
+        func: Option<usize>,
+        is_constructor: bool,
+    ) {
+        self.in_constructor = is_constructor;
         if body.replaced {
             return;
         }
@@ -636,9 +921,15 @@ impl Gen<'_> {
         self.fin_ret_lcl = None;
         self.method_ofs = self.cg.ofs();
         let method_ofs = self.method_ofs;
+        self.self_available = body.self_valid;
+        if let Some(func) = func {
+            self.out
+                .func_anchor
+                .insert(func, self.out.code_anchors.len());
+        }
         self.out
-            .func_anchor
-            .insert(func, self.out.code_anchors.len());
+            .body_anchor
+            .insert(body_index, self.out.code_anchors.len());
         self.out.code_anchors.push(Anchor { ofs: method_ofs });
         self.cg
             .write(body.argc as u8 | if body.varargs { 0x80 } else { 0 });
@@ -667,9 +958,15 @@ impl Gen<'_> {
 
         self.gen_stmt(&body.stm);
 
-        // Falling off the end returns nil.
+        // Falling off the end returns nil, or from a constructor the
+        // object constructed.
         if !self.cg.can_skip_op() {
-            self.cg.write_op(Op::RetNil);
+            if self.in_constructor {
+                self.cg.write_op(Op::PushSelf);
+                self.cg.write_op(Op::RetVal);
+            } else {
+                self.cg.write_op(Op::RetNil);
+            }
         }
         if self.errors == 0 {
             self.remove_jumps_to_jumps(code_start);
@@ -694,6 +991,21 @@ impl Gen<'_> {
                 self.cg.write4(entry.class);
                 self.cg.write2(entry.handler_ofs as u16);
             }
+        }
+
+        // A jump to a label that was never come to: a `goto` into
+        // code that was left out because nothing could reach it. The
+        // reference finds this when it lets go of the function's
+        // labels, and calls it its own error.
+        let unresolved = self.cg.take_unresolved();
+        if unresolved != 0 {
+            self.errors += 1;
+            self.out.diagnostics.push(GenDiagnostic {
+                file: usize::MAX,
+                line: 0,
+                severity: Severity::Internal,
+                message: format!("{unresolved} unresolved branches"),
+            });
         }
 
         self.build_debug_table(method_ofs);
@@ -1224,6 +1536,24 @@ impl Gen<'_> {
                 catches,
                 finally,
             } => self.gen_try(stmt, *id, body.as_deref(), catches, finally.as_deref()),
+            StmtKind::ImplicitCtor(superclasses) => {
+                for superclass in superclasses {
+                    // The arguments, which are in the first local as a
+                    // list, and a count of the others, which is zero.
+                    self.cg.write_op(Op::Push0);
+                    self.cg.note_push();
+                    self.gen_getlcl(0, false);
+                    self.cg.write_op(Op::MakeLstPar);
+                    self.cg.note_push();
+                    self.cg.note_pop();
+                    self.cg.write_op(Op::VarArgc);
+                    self.cg.write_op(Op::ExpInherit);
+                    self.cg.write(0);
+                    self.cg.write2(1);
+                    self.cg.write4(*superclass);
+                    self.cg.note_pops(2);
+                }
+            }
             StmtKind::Throw(expr) => {
                 self.gen_expr(expr, false, false);
                 self.cg.write_op(Op::Throw);
@@ -1279,10 +1609,38 @@ impl Gen<'_> {
     /// Generate a `break` or a `continue`: each statement around it,
     /// from the nearest outward, either does the jump or does what
     /// leaving it takes and passes the job on. Nothing may take it.
+    /// The statements a jump out of the one being generated leaves, from
+    /// the nearest outward, as places in `enclosing`. The nearest is
+    /// the one being generated; after that the reference goes by what
+    /// the parser took each to be inside of, and the parser takes a
+    /// `catch` block to be outside its `try`. So a jump out of a loop
+    /// in a `catch` block does not leave the `try`, and does not call
+    /// its `finally` block, though a jump straight out of the `catch`
+    /// block does.
+    fn leaving(&self) -> Vec<usize> {
+        let mut chain = Vec::new();
+        let mut next = self.enclosing.len().checked_sub(1);
+        while let Some(index) = next {
+            chain.push(index);
+            let parent = self
+                .prog
+                .enclosure_parents
+                .get(&self.enclosing[index].id())
+                .copied()
+                .flatten();
+            next = parent.and_then(|parent| {
+                self.enclosing[..index]
+                    .iter()
+                    .rposition(|enclosing| enclosing.id() == parent)
+            });
+        }
+        chain
+    }
+
     fn gen_jump_out(&mut self, label: Option<&[u8]>, is_break: bool) -> bool {
         // The label named, and whether the function has it.
         let named = label.map(|name| self.find_label(name));
-        for index in (0..self.enclosing.len()).rev() {
+        for index in self.leaving() {
             match self.enclosing[index] {
                 Enclosing::Loop {
                     break_lbl,
@@ -1413,6 +1771,7 @@ impl Gen<'_> {
                 self.add_fixup(false, ofs + 1, Target::Func(*func));
                 (datatype::FUNCPTR, 0)
             }
+            Value::Obj(obj) => (datatype::OBJ, *obj),
         };
         if matches!(value.value, Value::Nil | Value::True) {
             // The reference writes the kind and leaves the rest as its
@@ -1436,7 +1795,7 @@ impl Gen<'_> {
         // outward, until one that the label is inside as well.
         let within = self.labels[label].within.clone();
         let mut shared = None;
-        for index in (0..self.enclosing.len()).rev() {
+        for index in self.leaving() {
             let id = self.enclosing[index].id();
             if let Some(found) = within.iter().position(|enclosure| enclosure.id == id) {
                 shared = Some(found);
@@ -1537,9 +1896,11 @@ impl Gen<'_> {
 
     fn gen_catch(&mut self, stmt: &Stmt, catch: &Catch, start_ofs: usize, end_ofs: usize) {
         let old_frame = self.set_local_frame(catch.symtab);
-        // The class of exception caught has to be an object, and there
-        // are no objects yet.
-        if self.prog.globals.contains_key(&catch.class) {
+        // The class of exception caught has to be an object.
+        let mut class = 0;
+        if let Some(Global::Obj(obj)) = self.prog.globals.get(&catch.class) {
+            class = self.prog.objs[*obj].id;
+        } else if self.prog.globals.contains_key(&catch.class) {
             self.out.diagnostics.push(GenDiagnostic {
                 file: catch.file,
                 line: catch.line,
@@ -1556,7 +1917,7 @@ impl Gen<'_> {
         self.exc_table.push(ExcEntry {
             start_ofs,
             end_ofs,
-            class: 0,
+            class,
             handler_ofs: self.rel_ofs(),
         });
         self.cg.clear_peephole();
@@ -1630,6 +1991,9 @@ impl Gen<'_> {
         let constant = expr.and_then(|expr| expr.as_const().map(|value| &value.value));
         let need_gen = expr.is_some() && !matches!(constant, Some(Value::Nil | Value::True));
         let mut val_on_stack = false;
+        if self.in_constructor && expr.is_some() {
+            self.error("\"construct\" cannot return a value");
+        }
         if let (true, Some(expr)) = (need_gen, expr) {
             let depth = self.cg.sp_depth();
             self.gen_expr(expr, false, false);
@@ -1640,11 +2004,10 @@ impl Gen<'_> {
         // value put aside in a local meanwhile.
         if !self.enclosing.is_empty() {
             let finally_lbls: Vec<Label> = self
-                .enclosing
-                .iter()
-                .rev()
-                .filter_map(|enclosing| match enclosing {
-                    Enclosing::Try { finally_lbl, .. } => *finally_lbl,
+                .leaving()
+                .into_iter()
+                .filter_map(|index| match self.enclosing[index] {
+                    Enclosing::Try { finally_lbl, .. } => finally_lbl,
                     _ => None,
                 })
                 .collect();
@@ -1665,6 +2028,12 @@ impl Gen<'_> {
             }
         }
 
+        if self.in_constructor {
+            // A constructor returns what it constructed.
+            self.cg.write_op(Op::PushSelf);
+            self.cg.write_op(Op::RetVal);
+            return;
+        }
         match constant {
             _ if expr.is_none() => self.cg.write_op(Op::RetNil),
             Some(Value::Nil) => self.cg.write_op(Op::RetNil),
@@ -1794,6 +2163,7 @@ impl Gen<'_> {
                     self.add_fixup(true, at + 1, Target::Func(*func));
                     (datatype::FUNCPTR, 0)
                 }
+                Value::Obj(obj) => (datatype::OBJ, *obj),
             };
             if matches!(element.value, Value::Nil | Value::True) {
                 // The reference writes the kind and leaves the rest as
@@ -1856,14 +2226,38 @@ impl Gen<'_> {
                         self.add_const_list(elements, false, self.cg.ofs());
                         self.cg.write4(0);
                     }
+                    Value::Obj(obj) => {
+                        self.cg.write_op(Op::PushObj);
+                        self.cg.write4(*obj);
+                    }
                 }
                 self.cg.note_push();
             }
+            Expr::SelfRef => {
+                self.need_self();
+                if !discard {
+                    self.cg.write_op(Op::PushSelf);
+                    self.cg.note_push();
+                }
+            }
+            Expr::Member {
+                obj,
+                prop,
+                prop_is_expr,
+                args,
+            } => {
+                let (argc, varargs) = match args {
+                    Some(args) => (args.len(), self.gen_arglist(args)),
+                    None => (0, false),
+                };
+                self.gen_member(obj, prop, *prop_is_expr, argc, varargs, discard);
+            }
             // A built-in function named without parentheses is called
             // with no arguments.
-            Expr::Sym(name) => match self.prog.globals.get(name) {
-                Some(Global::Bif(bif)) => self.gen_bif_call(*bif, discard, 0, false),
-                _ => self.undefined(name),
+            Expr::Sym(name) => match self.implied_global(name) {
+                Some(Global::Bif(bif)) => self.gen_bif_call(bif, discard, 0, false),
+                Some(Global::Prop(prop)) => self.gen_prop_self(prop, discard),
+                _ => {}
             },
             Expr::DStr(text) => {
                 if !discard {
@@ -2039,7 +2433,7 @@ impl Gen<'_> {
             Expr::Call(func, _) => match &**func {
                 Expr::Sym(name) => match self.prog.globals.get(name) {
                     Some(Global::Func(func)) => self.prog.funcs[*func].has_retval,
-                    Some(Global::Bif(_)) | None => true,
+                    _ => true,
                 },
                 _ => true,
             },
@@ -2054,6 +2448,430 @@ impl Gen<'_> {
             Expr::OneOf(dbl, _) => !dbl,
             _ => true,
         }
+    }
+
+    // ---- objects and properties ----
+
+    /// What a name is, when the name stands alone in an expression. A
+    /// name that is nothing yet is taken to be a property where there
+    /// is a `self` for it to be a property of, with a warning; where
+    /// there is none, it is reported as undefined.
+    fn implied_global(&mut self, name: &[u8]) -> Option<Global> {
+        match self.prog.globals.get(name) {
+            Some(global) => Some(*global),
+            None if self.self_available && !self.undefined_names.contains(name) => {
+                self.assume_prop(name);
+                Some(Global::Prop(self.prog.def_prop(name)))
+            }
+            None => {
+                self.undefined(name);
+                None
+            }
+        }
+    }
+
+    /// Write a property's number into the code, and note where, for
+    /// the number is not the one the image will have.
+    fn write_prop_id(&mut self, id: u16) {
+        self.out.prop_fixups.push(self.cg.ofs());
+        self.cg.write2(id);
+    }
+
+    /// Whether a constant is a list as the source wrote it, whatever
+    /// value it has now.
+    fn is_list_node(value: &ConstVal) -> bool {
+        matches!(value.value, Value::List(_)) || value.list_node.is_some()
+    }
+
+    fn assume_prop(&mut self, name: &[u8]) {
+        self.log(
+            Severity::Warning,
+            format!(
+                "undefined symbol \"{}\" - assuming this is a property name",
+                show_name(name)
+            ),
+        );
+    }
+
+    fn need_self(&mut self) {
+        if !self.self_available {
+            self.error("'self' is not valid in this context");
+        }
+    }
+
+    fn prop_needs_obj(&mut self, prop: usize) {
+        let name = show_name(&self.prog.props[prop].name);
+        self.error(format!(
+            "cannot call property \"{name}\" without \"object.\" prefix - no \"self\""
+        ));
+    }
+
+    /// Get a property of `self`.
+    fn gen_prop_self(&mut self, prop: usize, discard: bool) {
+        if !self.self_available {
+            self.prop_needs_obj(prop);
+            return;
+        }
+        self.cg.write_op(Op::GetPropSelf);
+        self.write_prop_id(self.prog.props[prop].id);
+        if !discard {
+            self.cg.write_op(Op::GetR0);
+            self.cg.note_push();
+        }
+    }
+
+    /// Which property the right side of a `.` is, if that is known
+    /// when compiling. If it is not, and `check_only` is not set, the
+    /// code that works it out is generated.
+    fn gen_propid(&mut self, prop: &Expr, is_expr: bool, check_only: bool) -> Option<u16> {
+        let name = match prop {
+            Expr::Sym(name) => name,
+            // A constant list is still a list to the reference, and is
+            // generated like any expression.
+            Expr::Const(value) if !Self::is_list_node(value) => {
+                if !check_only {
+                    self.error("invalid '.' expression - right side is not a property");
+                }
+                return None;
+            }
+            _ => {
+                if !check_only {
+                    self.gen_expr(prop, false, false);
+                }
+                return None;
+            }
+        };
+        // A name is a property's; if it is nothing yet, it becomes
+        // one.
+        let global = match self.prog.globals.get(name) {
+            Some(global) => *global,
+            None => {
+                self.assume_prop(name);
+                Global::Prop(self.prog.def_prop(name))
+            }
+        };
+        match global {
+            Global::Prop(prop) if is_expr => {
+                // In parentheses, it is the property of `self` whose
+                // value says which property is meant.
+                if !check_only {
+                    self.cg.write_op(Op::GetPropSelf);
+                    self.write_prop_id(self.prog.props[prop].id);
+                    self.cg.write_op(Op::GetR0);
+                    self.cg.note_push();
+                }
+                None
+            }
+            Global::Prop(prop) => Some(self.prog.props[prop].id),
+            _ => {
+                if !check_only {
+                    self.error(format!(
+                        "invalid '.' expression - symbol \"{}\" is not a property",
+                        show_name(name)
+                    ));
+                }
+                None
+            }
+        }
+    }
+
+    /// Generate `obj.prop` or `obj.prop(args)`. The arguments are on
+    /// the stack already.
+    fn gen_member(
+        &mut self,
+        obj: &Expr,
+        prop: &Expr,
+        is_expr: bool,
+        argc: usize,
+        varargs: bool,
+        discard: bool,
+    ) {
+        match obj {
+            Expr::SelfRef => {
+                self.need_self();
+                match self.gen_propid(prop, is_expr, false) {
+                    Some(id) => {
+                        if argc == 0 {
+                            self.cg.write_op(Op::GetPropSelf);
+                        } else {
+                            if varargs {
+                                self.cg.write_op(Op::VarArgc);
+                            }
+                            self.cg.write_op(Op::CallPropSelf);
+                            self.cg.write(argc as u8);
+                        }
+                        self.write_prop_id(id);
+                        self.cg.note_pops(argc as i32);
+                    }
+                    None => {
+                        if varargs {
+                            self.cg.write_op(Op::Swap);
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::PtrCallPropSelf);
+                        self.cg.write(argc as u8);
+                        self.cg.note_pops(argc as i32 + 1);
+                    }
+                }
+            }
+            Expr::Const(ConstVal {
+                value: Value::Obj(obj),
+                ..
+            }) => match self.gen_propid(prop, is_expr, true) {
+                Some(id) => {
+                    if argc == 0 {
+                        self.cg.write_op(Op::ObjGetProp);
+                    } else {
+                        if varargs {
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::ObjCallProp);
+                        self.cg.write(argc as u8);
+                    }
+                    self.cg.write4(*obj);
+                    self.write_prop_id(id);
+                    self.cg.note_pops(argc as i32);
+                }
+                None => {
+                    self.cg.write_op(Op::PushObj);
+                    self.cg.write4(*obj);
+                    self.cg.note_push();
+                    if varargs {
+                        self.cg.write_op(Op::Swap);
+                    }
+                    self.gen_propid(prop, is_expr, false);
+                    if varargs {
+                        self.cg.write_op(Op::Swap);
+                        self.cg.write_op(Op::VarArgc);
+                    }
+                    self.cg.write_op(Op::PtrCallProp);
+                    self.cg.write(argc as u8);
+                    self.cg.note_pops(argc as i32 + 2);
+                }
+            },
+            Expr::Const(ConstVal {
+                value: Value::Nil | Value::True | Value::Int(_) | Value::FuncPtr(_),
+                ..
+            }) => {
+                self.error("illegal expression - left of '.' is not an object");
+                return;
+            }
+            Expr::Sym(name) => {
+                // A property of `self`, whose value is the object.
+                match self.prog.globals.get(name).copied() {
+                    Some(Global::Prop(obj_prop)) => {
+                        if !self.self_available {
+                            self.prop_needs_obj(obj_prop);
+                        } else {
+                            self.gen_prop_self(obj_prop, false);
+                        }
+                        self.gen_member_rhs(prop, is_expr, argc, varargs);
+                    }
+                    Some(_) => {
+                        self.error(format!(
+                            "symbol \"{}\" is not an object - illegal on left of '.'",
+                            show_name(name)
+                        ));
+                        return;
+                    }
+                    None => {
+                        self.undefined(name);
+                        return;
+                    }
+                }
+            }
+            _ => {
+                self.gen_expr(obj, false, false);
+                self.gen_member_rhs(prop, is_expr, argc, varargs);
+            }
+        }
+        if !discard {
+            self.cg.write_op(Op::GetR0);
+            self.cg.note_push();
+        }
+    }
+
+    /// The right side of a `.`, with the object on the stack.
+    fn gen_member_rhs(&mut self, prop: &Expr, is_expr: bool, argc: usize, varargs: bool) {
+        if varargs {
+            self.cg.write_op(Op::Swap);
+        }
+        match self.gen_propid(prop, is_expr, false) {
+            Some(id) if argc == 0 => {
+                self.cg.write_op(Op::GetProp);
+                self.write_prop_id(id);
+                self.cg.note_pop();
+            }
+            Some(id) => {
+                self.cg.write_callprop(argc, varargs);
+                self.write_prop_id(id);
+            }
+            None => {
+                if varargs {
+                    self.cg.write_op(Op::Swap);
+                    self.cg.write_op(Op::VarArgc);
+                }
+                self.cg.write_op(Op::PtrCallProp);
+                self.cg.write(argc as u8);
+                self.cg.note_pops(argc as i32 + 2);
+            }
+        }
+    }
+
+    /// The object on the left of a `.` that is being assigned to:
+    /// whether it is `self`, and which object it is if that is known
+    /// when compiling. If neither, the code that works it out is
+    /// generated.
+    fn gen_obj_predot(&mut self, obj: &Expr) -> (bool, Option<u32>) {
+        match obj {
+            Expr::SelfRef => {
+                self.need_self();
+                (true, None)
+            }
+            Expr::Const(ConstVal {
+                value: Value::Obj(obj),
+                ..
+            }) => (false, Some(*obj)),
+            Expr::Const(value) if !Self::is_list_node(value) => {
+                self.error("illegal expression - left of '.' is not an object");
+                (false, None)
+            }
+            Expr::Sym(name) => {
+                match self.prog.globals.get(name).copied() {
+                    Some(Global::Prop(prop)) => self.gen_prop_self(prop, false),
+                    Some(_) => self.error(format!(
+                        "symbol \"{}\" is not an object - illegal on left of '.'",
+                        show_name(name)
+                    )),
+                    None => self.undefined(name),
+                }
+                (false, None)
+            }
+            _ => {
+                self.gen_expr(obj, false, false);
+                (false, None)
+            }
+        }
+    }
+
+    /// Assign to `obj.prop`. See [`Gen::gen_asi`] for the phases.
+    #[allow(clippy::too_many_arguments)]
+    fn gen_member_asi(
+        &mut self,
+        obj: &Expr,
+        prop: &Expr,
+        is_expr: bool,
+        discard: bool,
+        phase: u8,
+        typ: AsiOp,
+        rhs: Option<&Expr>,
+    ) -> bool {
+        let simple = typ == AsiOp::Simple;
+        let (mut is_self, mut obj_id, mut prop_id) = (false, None, None);
+        if phase == 2 {
+            (is_self, obj_id, prop_id) = self.member_ctx.pop().unwrap_or((false, None, None));
+        }
+        if let (true, Some(rhs)) = (simple, rhs) {
+            self.gen_expr(rhs, false, false);
+        }
+        if !discard && (simple || phase == 2) {
+            self.cg.write_op(Op::Dup);
+            self.cg.note_push();
+        }
+        if simple || phase == 1 {
+            (is_self, obj_id) = self.gen_obj_predot(obj);
+            prop_id = self.gen_propid(prop, is_expr, true);
+            if prop_id.is_none() {
+                if is_self {
+                    self.cg.write_op(Op::PushSelf);
+                    self.cg.note_push();
+                } else if let Some(id) = obj_id {
+                    self.cg.write_op(Op::PushObj);
+                    self.cg.write4(id);
+                    self.cg.note_push();
+                }
+                self.gen_propid(prop, is_expr, false);
+                if !simple {
+                    self.cg.write_op(Op::Dup2);
+                    self.cg.note_pushes(2);
+                }
+            } else if !simple && !is_self && obj_id.is_none() {
+                self.cg.write_op(Op::Dup);
+                self.cg.note_push();
+            }
+        }
+        if !simple && phase == 1 {
+            // The value the property has now.
+            match (prop_id, obj_id) {
+                (None, _) => {
+                    self.cg.write_op(Op::PtrCallProp);
+                    self.cg.write(0);
+                    self.cg.note_pops(2);
+                }
+                (Some(prop), _) if is_self => {
+                    self.cg.write_op(Op::GetPropSelf);
+                    self.write_prop_id(prop);
+                }
+                (Some(prop), Some(obj)) => {
+                    self.cg.write_op(Op::ObjGetProp);
+                    self.cg.write4(obj);
+                    self.write_prop_id(prop);
+                }
+                (Some(prop), None) => {
+                    self.cg.write_op(Op::GetProp);
+                    self.write_prop_id(prop);
+                    self.cg.note_pop();
+                }
+            }
+            self.cg.write_op(Op::GetR0);
+            self.cg.note_push();
+            self.member_ctx.push((is_self, obj_id, prop_id));
+            return false;
+        }
+        match prop_id {
+            None => {
+                if !simple && phase == 2 {
+                    // Put the new value under the object and the
+                    // property.
+                    if discard {
+                        self.cg.write_op(Op::SwapN);
+                        self.cg.write(0);
+                        self.cg.write(2);
+                        self.cg.write_op(Op::Swap);
+                    } else {
+                        self.cg.write_op(Op::Swap2);
+                    }
+                }
+                self.cg.write_op(Op::PtrSetProp);
+                self.cg.note_pops(3);
+            }
+            Some(prop) => {
+                if phase == 2 && !is_self && obj_id.is_none() {
+                    if discard {
+                        self.cg.write_op(Op::Swap);
+                    } else {
+                        self.cg.write_op(Op::SwapN);
+                        self.cg.write(0);
+                        self.cg.write(2);
+                    }
+                }
+                if is_self {
+                    self.cg.write_op(Op::SetPropSelf);
+                    self.write_prop_id(prop);
+                    self.cg.note_pop();
+                } else if let Some(obj) = obj_id {
+                    self.cg.write_op(Op::ObjSetProp);
+                    self.cg.write4(obj);
+                    self.write_prop_id(prop);
+                    self.cg.note_pop();
+                } else {
+                    self.cg.write_op(Op::SetProp);
+                    self.write_prop_id(prop);
+                    self.cg.note_pops(2);
+                }
+            }
+        }
+        true
     }
 
     /// Report a name that nothing defines. It is reported once: the
@@ -2258,9 +3076,32 @@ impl Gen<'_> {
             Expr::Const(_) => {
                 self.error("this constant expression cannot be called as a function");
             }
-            Expr::Sym(name) => match self.prog.globals.get(name) {
-                Some(Global::Bif(bif)) => self.gen_bif_call(*bif, discard, argc, varargs),
-                _ => self.undefined(name),
+            Expr::Sym(name) => match self.implied_global(name) {
+                Some(Global::Bif(bif)) => self.gen_bif_call(bif, discard, argc, varargs),
+                Some(Global::Prop(prop)) => {
+                    // A property of `self`, as a method.
+                    if !self.self_available {
+                        self.prop_needs_obj(prop);
+                        return;
+                    }
+                    let id = self.prog.props[prop].id;
+                    if argc == 0 {
+                        self.cg.write_op(Op::GetPropSelf);
+                    } else {
+                        if varargs {
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::CallPropSelf);
+                        self.cg.write(argc as u8);
+                    }
+                    self.write_prop_id(id);
+                    self.cg.note_pops(argc as i32);
+                    if !discard {
+                        self.cg.write_op(Op::GetR0);
+                        self.cg.note_push();
+                    }
+                }
+                _ => {}
             },
             _ => {
                 // Anything else is taken to be a pointer to a function.
@@ -2401,16 +3242,57 @@ impl Gen<'_> {
                 self.gen_index_asi(left, index, discard, phase, typ, rhs, explicit)
             }
             Expr::Sym(name) => {
-                if ignore_error || phase > 1 {
+                // A name that is nothing yet is taken to be a property
+                // of `self`, where there is a `self`.
+                let known = self.prog.globals.get(name).copied();
+                if known.is_none() && !self.self_available {
+                    if ignore_error || phase > 1 {
+                        return false;
+                    }
+                    self.undefined(name);
                     return false;
                 }
-                if self.prog.globals.contains_key(name) {
+                let Some(Global::Prop(prop)) = self.implied_global(name) else {
+                    if ignore_error || phase > 1 {
+                        return false;
+                    }
                     self.error(format!("cannot assign to \"{}\"", show_name(name)));
                     return true;
+                };
+                if !self.self_available {
+                    if phase == 1 {
+                        self.error(format!(
+                            "cannot assign to property \"{}\" without \"object.\" prefix - \
+                             no \"self\"",
+                            show_name(name)
+                        ));
+                    }
+                    return true;
                 }
-                self.undefined(name);
-                false
+                let id = self.prog.props[prop].id;
+                if typ == AsiOp::Simple || phase == 2 {
+                    if let (AsiOp::Simple, Some(rhs)) = (typ, rhs) {
+                        self.gen_expr(rhs, false, false);
+                    }
+                    if !discard {
+                        self.cg.write_op(Op::Dup);
+                        self.cg.note_push();
+                    }
+                    self.cg.write_op(Op::SetPropSelf);
+                    self.write_prop_id(id);
+                    self.cg.note_pop();
+                    true
+                } else {
+                    self.gen_prop_self(prop, false);
+                    false
+                }
             }
+            Expr::Member {
+                obj,
+                prop,
+                prop_is_expr,
+                args: None,
+            } => self.gen_member_asi(obj, prop, *prop_is_expr, discard, phase, typ, rhs),
             _ => {
                 if !ignore_error && phase == 1 {
                     let message = if matches!(
