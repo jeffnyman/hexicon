@@ -4554,7 +4554,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     _ => self.parse_inc_dec(AsiOp::PreDec, sub),
                 })
             }
-            _ => self.parse_postfix(),
+            _ => self.parse_postfix(true, true),
         }
     }
 
@@ -4611,13 +4611,13 @@ impl<'p, 'a> Parser<'p, 'a> {
         Expr::IncDec(op, Box::new(sub))
     }
 
-    fn parse_postfix(&mut self) -> Option<Expr> {
+    fn parse_postfix(&mut self, allow_member: bool, allow_call: bool) -> Option<Expr> {
         let mut sub = self.parse_primary()?;
         loop {
             match self.cur() {
-                Tok::LPar => sub = self.parse_call(sub)?,
+                Tok::LPar if allow_call => sub = self.parse_call(sub)?,
                 Tok::LBrack => sub = self.parse_subscript(sub)?,
-                Tok::Dot => sub = self.parse_member(sub)?,
+                Tok::Dot if allow_member => sub = self.parse_member(sub)?,
                 Tok::Inc => {
                     self.next();
                     sub = self.parse_inc_dec(AsiOp::PostInc, sub);
@@ -4879,12 +4879,12 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.next();
                     return Some(Expr::Replaced);
                 }
-                Tok::Float
-                | Tok::BigInt
-                | Tok::ReStr
-                | Tok::Object
-                | Tok::ArgCount
-                | Tok::Delegated => {
+                Tok::ArgCount => {
+                    self.next();
+                    return Some(Expr::ArgCount);
+                }
+                Tok::Delegated => return self.parse_delegated(),
+                Tok::Float | Tok::BigInt | Tok::ReStr | Tok::Object => {
                     let shown = self.tok.cur_token_shown();
                     self.unsupported(&format!("\"{shown}\" in an expression"));
                     self.next();
@@ -5243,9 +5243,12 @@ impl Parser<'_, '_> {
             self.next();
             Expr::Sym(name)
         } else if self.cur() == Tok::Operator {
-            self.unsupported("the address of an operator");
-            self.next();
-            return Some(Expr::constant(Value::Nil));
+            // `&operator +`: the property an operator's method is.
+            let (name, _, ok) = self.parse_op_name();
+            if ok {
+                self.next();
+            }
+            Expr::Sym(name)
         } else {
             self.parse_unary()?
         };
@@ -5253,6 +5256,55 @@ impl Parser<'_, '_> {
             self.error("invalid address expression - can't apply '&' operator");
         }
         Some(Expr::Addr(Box::new(sub)))
+    }
+
+    /// Read the name of an operator's property, from `operator` on:
+    /// `operator +`, `operator []=`, `operator negate`. The last token
+    /// of the name is left current. Returns the property's name, how
+    /// many operands the operator has, and whether it was an operator
+    /// at all.
+    fn parse_op_name(&mut self) -> (Vec<u8>, usize, bool) {
+        let (name, op_args) = match self.next() {
+            Tok::Sym if self.cur_text() == b"negate" => ("operator negate", 1),
+            Tok::Plus => ("operator +", 2),
+            Tok::Minus => ("operator -", 2),
+            Tok::Times => ("operator *", 2),
+            Tok::Div => ("operator /", 2),
+            Tok::Mod => ("operator %", 2),
+            Tok::Xor => ("operator ^", 2),
+            Tok::Shl => ("operator <<", 2),
+            Tok::AShr => ("operator >>", 2),
+            Tok::LShr => ("operator >>>", 2),
+            Tok::BNot => ("operator ~", 1),
+            Tok::Or => ("operator |", 2),
+            Tok::And => ("operator &", 2),
+            Tok::LBrack => {
+                if self.next() != Tok::RBrack {
+                    self.error_curtok("expected ']' in 'operator []', found '%'");
+                }
+                if self.next() == Tok::Eq {
+                    ("operator []=", 3)
+                } else {
+                    self.tok.unget_token();
+                    ("operator []", 2)
+                }
+            }
+            _ => {
+                self.error_curtok("invalid overloaded operator '%'");
+                return (b"unknown_operator".to_vec(), 0, false);
+            }
+        };
+        (name.as_bytes().to_vec(), op_args, true)
+    }
+
+    /// Read `delegated target.prop(args)`: the target's method, run
+    /// with this method's `self`. The target is one operand; a `.` or
+    /// an argument list after it belongs to `delegated`.
+    fn parse_delegated(&mut self) -> Option<Expr> {
+        self.self_referenced = true;
+        self.next();
+        let target = self.parse_postfix(false, false)?;
+        self.parse_member(Expr::Delegated(Box::new(target)))
     }
 
     /// Read `inherited`, which is followed by `.prop` or stands for
@@ -5946,10 +5998,15 @@ impl Parser<'_, '_> {
                         return Ok(());
                     }
                 }
+                // The method that stands for an operator.
                 Tok::Operator => {
-                    let shown = self.tok.cur_token_shown();
-                    self.unsupported(&format!("\"{shown}\" in an object definition"));
-                    self.next();
+                    if !is_nested {
+                        self.term_pos = self.tok.last_pos();
+                    }
+                    self.parse_obj_prop(def, is_nested)?;
+                    if self.unterm {
+                        return Ok(());
+                    }
                 }
                 // The end of a group of properties, if one is open.
                 Tok::RBrace if self.propset_depth != 0 => {
@@ -6185,8 +6242,19 @@ impl Parser<'_, '_> {
         let (file, line) = self.tok.last_pos();
         (self.cur_file, self.cur_line) = (file, line);
         let mut name = self.cur_text();
+        let is_op = self.cur() == Tok::Operator;
         if self.propset_depth != 0 {
+            if is_op {
+                self.error("an 'operator' property cannot be defined within a 'propertyset'");
+            }
             name = self.propset_name(name);
+        }
+        // `operator +` and the like: the name is the operator's, and a
+        // method has to have the operator's operands, but for the first,
+        // which is the object.
+        let mut op_args = 0;
+        if is_op {
+            (name, op_args, _) = self.parse_op_name();
         }
         let existing = self.prog.globals.get(&name).copied();
         let mut new_prop = None;
@@ -6321,6 +6389,12 @@ impl Parser<'_, '_> {
             };
             self.prog.last_labels = std::rc::Rc::clone(&body.labels);
             self.self_valid = true;
+            if op_args != 0 && (body.varargs || body.argc != op_args - 1) {
+                self.error(format!(
+                    "wrong number of parameters defined for overloaded operator ({} required)",
+                    op_args - 1
+                ));
+            }
             if let Some(prop) = prop {
                 new_prop = Some(def.props.len());
                 // The method is taken to be where the last statement

@@ -196,6 +196,11 @@ pub(crate) enum Expr {
     /// `replaced`: in a function defined with `modify`, the function
     /// as it was before.
     Replaced,
+    /// `delegated target`, which is always the left side of a `.`: the
+    /// method is the target's, but runs with this method's `self`.
+    Delegated(Box<Expr>),
+    /// `argcount`: how many arguments the function was called with.
+    ArgCount,
     /// A list with an element that is not a constant.
     List(Vec<Expr>),
     /// `a[b]`

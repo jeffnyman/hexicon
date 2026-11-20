@@ -1982,3 +1982,73 @@ fn a_propertyset_gives_its_properties_a_pattern_for_their_names_and_parameters()
         ]
     );
 }
+
+#[test]
+fn a_method_can_stand_for_an_operator() {
+    // The operator's property is one every program has, so naming it
+    // the long way makes the same image.
+    let compiled = compile_text(
+        "a: object\n    operator +(x) { return x; }\n    operator []=(i, v) { return self; }\n\
+         operator negate() { return 1; }\n;\n\
+         _main(args) { return [a + 1, &operator +, &operator []=]; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let objs = block(&image, b"OBJS");
+    // One object with four properties: where it comes in the source,
+    // and the three operators, whose properties are numbers 11, 23
+    // and 25.
+    assert_eq!(objs[0..2], [1, 0]);
+    assert_eq!(objs[14..16], [4, 0]);
+    assert_eq!(objs[25..27], [11, 0]);
+    assert_eq!(objs[32..34], [23, 0]);
+    assert_eq!(objs[39..41], [25, 0]);
+
+    // The number of parameters is checked when the method has been
+    // read, which is at the start of what comes after it.
+    assert_eq!(
+        compile_messages(
+            "a: object\n    operator +() { }\n    operator ~(x) { }\n    operator []=(i) { }\n\
+             operator ==(x) { }\n    propertyset 'x*' { operator -(x) { } }\n;\n_main(args) { }\n"
+        ),
+        [
+            "3: error: wrong number of parameters defined for overloaded operator (1 required)",
+            "4: error: wrong number of parameters defined for overloaded operator (0 required)",
+            "5: error: wrong number of parameters defined for overloaded operator (2 required)",
+            "5: error: invalid overloaded operator '=='",
+            "6: error: an 'operator' property cannot be defined within a 'propertyset'",
+        ]
+    );
+}
+
+#[test]
+fn delegated_runs_another_objects_method_as_this_ones() {
+    let compiled = compile_text(
+        "a: object m(x) { return x; };\n\
+         b: object\n    m(x) { return delegated a.m(x) + delegated a(x) + delegated a.(&m)(x); }\n;\n\
+         f(...) { return argcount; }\n_main(args) { return b.m(1) + f(); }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // The object to take the method from, and then the call: by the
+    // property's number, or with the property on the stack.
+    assert!(has_bytes(code, &[0x77, 1]));
+    assert!(has_bytes(code, &[0x78, 1]));
+    // The count of arguments is an instruction of its own.
+    assert!(has_bytes(code, &[0x87, 0x50]));
+
+    // There has to be an object for the method to run as.
+    assert_eq!(
+        compile_messages("a: object m() { return 1; };\n_main(args) { return delegated a.m(); }\n"),
+        ["2: error: 'self' is not valid in this context"]
+    );
+}

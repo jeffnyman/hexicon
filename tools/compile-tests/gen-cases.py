@@ -2846,6 +2846,150 @@ _main(args) { }
 """
 
 
+# Methods that stand for operators.
+programs["op1"] = (
+    BUILTINS
+    + """
+class Vec: object
+    x = 0 y = 0
+    construct(x_, y_) { x = x_; y = y_; }
+    operator +(o) { return new Vec(x + o.x, y + o.y); }
+    operator -(o) { return new Vec(x - o.x, y - o.y); }
+    operator *(k) { return new Vec(x * k, y * k); }
+    operator /(k) { return new Vec(x / k, y / k); }
+    operator %(k) { return new Vec(x % k, y % k); }
+    operator ^(k) { return 'xor' + k; }
+    operator <<(k) { return 'shl' + k; }
+    operator >>(k) { return 'ashr' + k; }
+    operator >>>(k) { return 'lshr' + k; }
+    operator ~() { return 'bnot'; }
+    operator |(k) { return 'or' + k; }
+    operator &(k) { return 'and' + k; }
+    operator negate() { return new Vec(-x, -y); }
+    operator [](i) { return i == 1 ? x : y; }
+    operator []=(i, v) { if (i == 1) x = v; else y = v; return self; }
+    show() { return '(' + x + ',' + y + ')'; }
+;
+other: object
+    operator + = 5
+    operator negate { return 'neg'; }
+    operator [ ] (i) { return i * 2; }
+;
+modify Vec
+    replace operator ^(k) { return 'XOR' + k; }
+;
+_main(args)
+{
+    local a = new Vec(1, 2), b = new Vec(10, 20);
+    tadsSay((a + b).show()); tadsSay((b - a).show()); tadsSay((a * 3).show());
+    tadsSay((b / 2).show()); tadsSay((b % 3).show()); tadsSay((-a).show()); tadsSay('\\n');
+    tadsSay(a ^ 1); tadsSay(a << 2); tadsSay(a >> 3); tadsSay(a >>> 4); tadsSay(~a);
+    tadsSay(a | 5); tadsSay(a & 6); tadsSay('\\n');
+    tadsSay(a[1]); tadsSay(a[2]); a[2] = 9; tadsSay(a.show()); tadsSay(other[21]); tadsSay(-other); tadsSay('\\n');
+    local p = &operator +, q = &operator []=, r = &operator negate, s = &operator [];
+    tadsSay(a.(p)(b).show()); tadsSay(other.(r)()); tadsSay(other.(s)(4));
+    tadsSay(other.propType(&operator +)); tadsSay('\\n');
+}
+"""
+)
+
+mistakes["e_op1"] = """a: object
+    operator +() { }
+    operator -(a, b) { }
+    operator negate(a) { }
+    operator ~(a) { }
+    operator [](a, b) { }
+    operator []=(a) { }
+    operator *(a, ...) { }
+    operator /([a]) { }
+    operator %(a?) { }
+    operator foo(a) { }
+    operator = 5
+    operator ==(a) { }
+    operator [ = 5
+    operator [5] = 6
+    operator + = 1
+    operator + = 2
+    propertyset 'x*' { operator -(a) { } operator <<(b) { } }
+    operator
+;
+_main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+"""
+
+# A method of another object run as this one's, and the count of arguments.
+programs["deleg1"] = (
+    BUILTINS
+    + """
+class A: object
+    name = 'A'
+    who() { return 'A.who as ' + name; }
+    add(a, b) { return name + (a + b); }
+    many([lst]) { return name + lst.length(); }
+;
+class B: object
+    name = 'B'
+    who() { return 'B.who as ' + name; }
+;
+c: object
+    name = 'c'
+    target = A
+    who() { return delegated A.who(); }
+    who2() { return delegated B.who; }
+    who3() { return delegated target.who(); }
+    who4() { return delegated (target).who(); }
+    who5(p) { return delegated A.(p)(); }
+    who6() { return delegated A(); }
+    add(a, b) { return delegated A(a, b) + delegated A.add(b, a); }
+    many([lst]) { return delegated A.many(lst...) + delegated A.(&many)(1, lst...); }
+    who7() { return delegated A.targetprop(); }
+    who8() { local f = {: delegated B.who() }; return f(); }
+    cnt(a?, b?, [r]) { return argcount; }
+    lst = [A, B]
+    who9() { return delegated lst[2].who(); }
+    who10() { return delegated self.target.who(); }
+    who11() { delegated A.who(); return delegated new B().who(); }
+;
+f(a?, b?) { return argcount + ({: argcount })(); }
+_main(args)
+{
+    tadsSay(c.who()); tadsSay(c.who2()); tadsSay(c.who3()); tadsSay(c.who4()); tadsSay(c.who5(&who)); tadsSay(c.who6()); tadsSay('\\n');
+    tadsSay(c.add(1, 2)); tadsSay(c.many(1, 2, 3)); tadsSay(c.who7()); tadsSay(c.who8()); tadsSay(c.cnt()); tadsSay(c.cnt(1, 2, 3)); tadsSay('\\n');
+    tadsSay(c.who9()); tadsSay(c.who10()); tadsSay(c.who11()); tadsSay(f(1)); tadsSay(argcount); tadsSay('\\n');
+}
+"""
+)
+
+mistakes["e_deleg1"] = """class A: object who() { return 1; };
+f() { return delegated A.who(); }
+g() { return delegated A; }
+c: object
+    m1() { return delegated; }
+    m2() { return delegated A.; }
+    m4() { return delegated .who(); }
+    m5() { return delegated A.who().x; }
+    m6() { return delegated undefinedThing.who(); }
+    m7() { return delegated A.undefinedProp(1, 2); }
+    m8 = (delegated A.who())
+    m9 = static (delegated A.who())
+;
+_main(args) { return delegated A.who() + argcount; }
+"""
+
+mistakes["e_deleg2"] = """class A: object who() { return 1; };
+f() { return delegated A.who(); }
+g() { return delegated A; }
+c: object
+    m6() { return delegated undefinedThing.who(); }
+    m7() { return delegated A.undefinedProp(1, 2); }
+    m8 = (delegated A.who())
+    m9 = static (delegated A.who())
+    m10() { delegated A; delegated A.who; return ({: delegated A.x }); }
+    operator +(x) { return argcount; }
+;
+_main(args) { return delegated A.who() + argcount + f.(&operator +) + g.(&operator []=)(1); }
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

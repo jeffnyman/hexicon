@@ -148,6 +148,26 @@ TEMPLATES = [
     ("<<the * thing>>", 1, "the {} thing"),
     ("<<big *>>", 1, "big {}"),
 ]
+# The operators a method can stand for, each with how many parameters
+# the method has.
+OPERATORS = [
+    ("+", 1),
+    ("-", 1),
+    ("*", 1),
+    ("/", 1),
+    ("%", 1),
+    ("^", 1),
+    ("<<", 1),
+    (">>", 1),
+    (">>>", 1),
+    ("~", 0),
+    ("|", 1),
+    ("&", 1),
+    ("negate", 0),
+    ("[]", 1),
+    ("[]=", 2),
+    ("==", 1),
+]
 WORDS = ["", "", "a", "one two", " and ", ". ", "x", "It\\'s ", "\\n", "%"]
 FORMATS = ["%d", "%5d", "%s", "%x", "%-3s", "%05.2f", "%c"]
 # Names for properties. Some have the same letters as others, which puts
@@ -359,6 +379,8 @@ class Program:
             return self.anon_expr(scope, depth)
         if rng.random() < 0.03:
             return rng.choice(ENUMS)
+        if rng.random() < 0.02:
+            return "argcount"
         # In a function defined with `modify`, the function as it was.
         if self.replaced_argc is not None and rng.random() < 0.08:
             if rng.random() < 0.15:
@@ -372,7 +394,9 @@ class Program:
         if named and rng.random() < 0.04:
             # A new object, or the address of a property.
             if rng.random() < 0.5:
-                return "&" + rng.choice(self.props + PROPS[:3])
+                return "&" + rng.choice(
+                    self.props + PROPS[:3] + ["operator +", "operator []=", "operator negate"]
+                )
             count = rng.choice([None, 0, 1, 2])
             args = (
                 ""
@@ -397,10 +421,14 @@ class Program:
                         "targetobj",
                         "definingobj",
                         "inherited." + rng.choice(self.props),
+                        "delegated self." + rng.choice(self.props),
                     ]
                     + ["inherited " + name for name in named[:1]]
+                    + ["delegated " + name for name in named[:1]]
+                    + [f"delegated {name}.{rng.choice(self.props)}" for name in named[:2]]
+                    + [f"delegated {name}" for name in scope[:1]]
                 )
-                if text.startswith("inherited"):
+                if text.startswith(("inherited", "delegated")):
                     count = rng.randint(0, 2)
                     text += (
                         "("
@@ -685,6 +713,17 @@ class Program:
         for prop in rng.sample(self.props, rng.randint(0, len(self.props))):
             if rng.random() < 0.06:
                 lines += ["    " + line for line in self.propset(2, None)]
+                continue
+            # A method that stands for an operator, now and then with
+            # the wrong number of parameters.
+            if rng.random() < 0.05:
+                op, argc = rng.choice(OPERATORS)
+                if rng.random() < 0.1:
+                    argc = rng.randint(0, 3)
+                self.in_method = True
+                body = self.function(f"operator {op}", argc, rng.random() < 0.03)
+                self.in_method = False
+                lines += ["    " + line for line in body]
                 continue
             kind = rng.random()
             if redef == "modify" and rng.random() < 0.2:

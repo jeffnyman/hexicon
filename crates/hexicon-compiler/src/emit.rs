@@ -891,9 +891,13 @@ impl Gen<'_> {
                 Some(Global::Enum(sym)) => Expr::constant(Value::Enum(self.enum_ids[*sym])),
                 Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_)) | None => Expr::Sym(name),
             },
-            Expr::SelfRef | Expr::Inh | Expr::InhClass(_) | Expr::CtxEle(_) | Expr::Replaced => {
-                expr
-            }
+            Expr::SelfRef
+            | Expr::Inh
+            | Expr::InhClass(_)
+            | Expr::CtxEle(_)
+            | Expr::Replaced
+            | Expr::ArgCount => expr,
+            Expr::Delegated(target) => Expr::Delegated(Box::new(self.fold_expr(*target))),
             Expr::IsIn {
                 left,
                 args,
@@ -3048,6 +3052,15 @@ impl Gen<'_> {
             Expr::Inh | Expr::InhClass(_) => {
                 self.error("\"inherited\" cannot be generated on its own");
             }
+            Expr::Delegated(_) => {
+                self.error("attempting to generate 'delegated' node directly");
+            }
+            Expr::ArgCount => {
+                if !discard {
+                    self.cg.write_op(Op::GetArgc);
+                    self.cg.note_push();
+                }
+            }
             Expr::CtxEle(which) => {
                 if !self.self_available {
                     match which {
@@ -3786,6 +3799,34 @@ impl Gen<'_> {
                         self.cg.write_op(Op::PtrInherit);
                         self.cg.write(argc as u8);
                         self.cg.note_pops(argc as i32 + 1);
+                    }
+                }
+            }
+            Expr::Delegated(target) => {
+                self.need_self();
+                self.gen_expr(target, false, false);
+                // The count of arguments goes back on top.
+                if varargs {
+                    self.cg.write_op(Op::Swap);
+                }
+                match self.gen_propid(prop, is_expr, false) {
+                    Some(id) => {
+                        if varargs {
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::Delegate);
+                        self.cg.write(argc as u8);
+                        self.write_prop_id(id);
+                        self.cg.note_pops(argc as i32 + 1);
+                    }
+                    None => {
+                        if varargs {
+                            self.cg.write_op(Op::Swap);
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        self.cg.write_op(Op::PtrDelegate);
+                        self.cg.write(argc as u8);
+                        self.cg.note_pops(argc as i32 + 2);
                     }
                 }
             }
