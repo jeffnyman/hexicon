@@ -1,0 +1,12 @@
+[package]
+name = "hexicon-bignum"
+description = "Decimal floating-point arithmetic for Hexicon's BigNumber values"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

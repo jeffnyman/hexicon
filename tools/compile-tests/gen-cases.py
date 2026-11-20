@@ -2990,6 +2990,69 @@ _main(args) { return delegated A.who() + argcount + f.(&operator +) + g.(&operat
 """
 
 
+# Numbers that are not integers, and regular expressions.
+programs["float1"] = """_main(args) { local x = 1.5; local y = R"a+"; return [x, 2.25, y, 2147483647 + 1, 0x100000000, 3.0 * 2, 1e3, -2147483648, 4294967296 - 4294967295]; }
+"""
+
+programs["float2"] = """#include <bignum.h>
+#include <tads.h>
+obj: object
+    half = 0.5
+    big = 4294967296
+    lst = [1.5, 2, 'x', 3.25e2]
+    calc = (1.5 + 2)
+    pat = R'a+b'
+    pats = [R"x*", R'%d+']
+;
+show(v) { tadsSay(toString(v)); tadsSay(' '); }
+_main(args)
+{
+    show(1.5 + 2.25); show(1.5 - 2); show(2 * 1.5); show(1 / 3.0); show(10.0 / 4); show(7.5 % 2);
+    show(-1.5); show(-(-1.5)); show(+1.5); show(1e3); show(1.0e-3); show(.5); show(5.); tadsSay('\\n');
+    show(2147483647 + 1); show(-2147483647 - 2); show(2147483647 + 1 - 1); show(4294967296 - 4294967295);
+    show(0x7fffffff + 1); show(0xffffffff); show(0x100000000); show(077777777777); show(-2147483648); show(-(-2147483648)); tadsSay('\\n');
+    show(1.5 < 2); show(2.5 > 2.25); show(1.0 == 1); show(1 == 1.0); show(1.5 != 1.5); show(2147483648 >= 2147483647);
+    show(1.5 ? 'y' : 'n'); show(0.0 ? 'y' : 'n'); show(!0.0); show(!1.5); show(0.0 && 1); show(0.5 || nil); tadsSay('\\n');
+    show('a' + 1.5); show(1.5 + 'a'); show('v' + 2147483648); show([1] + 1.5); show([1.5, 2.5] - 1.5); show(1.5 is in (1, 1.5));
+    show(obj.half); show(obj.big); show(obj.lst[4]); show(obj.calc); show(1.50 == 1.5); show(1.5.getWhole()); tadsSay('\\n');
+    show(4294967296 / 3); show(4294967296 * 2); show(4294967296 / 4294967296); show(2147483648 / 2);
+    show(1.23456789012345678901234567890 + 1); show(100000 * 100000); show(-2147483648 / 1);
+    show(3000000000); show(3000000000 - 1000000000); show(1e10 - 1e10 + 5); tadsSay('\\n');
+    for (local i in 1..2 step 0.5) show(i);
+    for (local i in 2..1 step -0.5) show(i);
+    switch (1.5) { case 1.5: show('case'); break; default: show('default'); }
+    show(rexMatch(obj.pat, 'aaab')); show(rexMatch(R'%d+', '123x')); show(rexMatch(obj.pats[1], 'xxxy')); tadsSay('\\n');
+}
+"""
+
+mistakes["e_float1"] = """_main(args)
+{
+    local a = 1.5 | 2;
+    local b = 1 & 2.5;
+    local c = 1.5 << 1;
+    local d = 2 >> 1.0;
+    local e = 1.5 ^ 2.5;
+    local f = ~1.5;
+    local g = 1.5 / 0;
+    local h = 1.5 / 0.0;
+    local i = 1 % 0.0;
+    local j = 1.5 < 'a';
+    local k = nil + 1.5;
+    local l = 1.5 - 'a';
+    local m = 1.5[1];
+    local n = [1, 2][1.5];
+    local o = -'a' + +'b' + -R'x' + +R'y';
+    local p = R'a' + 'b';
+    local q = R'a' < R'b';
+    local r = R'a'[1];
+    local s = 1.5 * nil;
+    local t = 4294967296 | 1;
+    local u = 2147483648 >>> 1;
+    return [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u];
+}
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

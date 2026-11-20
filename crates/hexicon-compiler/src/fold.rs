@@ -6,6 +6,85 @@
 //! some operators are tried again.
 
 use crate::ast::{BinOp, ConstVal, Expr, UnOp, Value};
+use hexicon_bignum::{Big, FORMAT_POINT};
+use std::cmp::Ordering;
+
+/// A constant number as the arithmetic on numbers that are not
+/// integers has it. An integer has ten digits; another number has as
+/// many as its text has.
+pub(crate) fn big_of(value: &Value) -> Option<Big> {
+    match value {
+        Value::Int(int) => Some(Big::from_int(i64::from(*int), 10)),
+        Value::Float { text, .. } => Some(Big::parse_source(&String::from_utf8_lossy(text))),
+        _ => None,
+    }
+}
+
+/// The constant a result of that arithmetic is: its text, written out
+/// in full.
+pub(crate) fn float_value(big: &Big, promoted: bool) -> Value {
+    Value::Float {
+        text: big.format(-1, -1, -1, -1, FORMAT_POINT, None).into_bytes(),
+        promoted,
+    }
+}
+
+/// Make an integer that was too large to be one an integer again, if
+/// it now is in range.
+pub(crate) fn demote(value: &mut Value) {
+    if let Value::Float { promoted: true, .. } = value {
+        if let Some((int, false)) = big_of(value).map(|big| big.to_i32()) {
+            *value = Value::Int(int);
+        }
+    }
+}
+
+fn is_num(expr: &Expr) -> bool {
+    matches!(
+        expr.as_const(),
+        Some(ConstVal {
+            value: Value::Int(_) | Value::Float { .. },
+            ..
+        })
+    )
+}
+
+/// Work an operator out on two numbers that are not both integers,
+/// or whose result as integers was out of range. Nothing comes back
+/// for an operator that only integers have.
+fn big_calc(op: BinOp, a: &Big, b: &Big, errors: &mut Vec<String>) -> Option<Big> {
+    match op {
+        BinOp::Add => Some(Big::add(a, b)),
+        BinOp::Sub => Some(Big::sub(a, b)),
+        BinOp::Mul => Some(Big::mul(a, b)),
+        BinOp::Div | BinOp::Mod => {
+            if b.zero {
+                errors.push("divide by zero in constant expression".into());
+                return Some(Big::from_int(1, 10));
+            }
+            // The reference asks for a remainder even when it divides,
+            // and a division that gives one stops at the whole part of
+            // the quotient: `1 / 3.0` is 0 here, though the program
+            // would make it 0.3333 if it did the sum itself.
+            let prec = a.digs.len().max(b.digs.len());
+            let (mut quotient, mut remainder) = if op == BinOp::Div {
+                (Big::zero(prec), Big::zero(2))
+            } else {
+                (Big::zero(2), Big::zero(prec))
+            };
+            quotient.quotient_into(Some(&mut remainder), a, b)?;
+            Some(if op == BinOp::Div {
+                quotient
+            } else {
+                remainder
+            })
+        }
+        _ => {
+            errors.push("floating point values can't be used with this operator".into());
+            None
+        }
+    }
+}
 
 /// What came of trying to fold an operator.
 pub(crate) enum Folded {
@@ -123,7 +202,7 @@ pub(crate) fn binary(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String
             if !both_const(&left, &right) {
                 return Folded::No(left, right);
             }
-            if is_int(&left) && is_int(&right) {
+            if is_num(&left) && is_num(&right) {
                 arithmetic(op, left, right, errors)
             } else if is_list(&left) {
                 // Take out every element equal to the right side, or to
@@ -157,16 +236,6 @@ pub(crate) fn binary(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String
     }
 }
 
-fn is_int(expr: &Expr) -> bool {
-    matches!(
-        expr.as_const(),
-        Some(ConstVal {
-            value: Value::Int(_),
-            ..
-        })
-    )
-}
-
 fn is_list(expr: &Expr) -> bool {
     expr.const_list_len().is_some()
 }
@@ -182,7 +251,6 @@ fn is_str(expr: &Expr) -> bool {
 }
 
 fn relation(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String>) -> Folded {
-    use std::cmp::Ordering;
     if !both_const(&left, &right) {
         return Folded::No(left, right);
     }
@@ -192,6 +260,9 @@ fn relation(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String>) -> Fol
     ) {
         (Value::Int(a), Value::Int(b)) => a.cmp(b),
         (Value::SStr(a), Value::SStr(b)) => c_string(a).cmp(c_string(b)),
+        (a @ (Value::Int(_) | Value::Float { .. }), b @ (Value::Int(_) | Value::Float { .. })) => {
+            compare_nums(a, b)
+        }
         _ => {
             errors.push("incompatible types for comparison in constant expression".into());
             return Folded::No(left, right);
@@ -208,6 +279,15 @@ fn relation(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String>) -> Fol
     Folded::Yes(Expr::Const(result))
 }
 
+/// How two constant numbers compare, at least one of them not an
+/// integer.
+fn compare_nums(left: &Value, right: &Value) -> Ordering {
+    match (big_of(left), big_of(right)) {
+        (Some(left), Some(right)) => left.compare(&right).unwrap_or(Ordering::Equal),
+        _ => Ordering::Equal,
+    }
+}
+
 /// A string as C's `strcmp` sees it: up to the first zero byte.
 fn c_string(text: &[u8]) -> &[u8] {
     let end = text
@@ -221,11 +301,79 @@ fn arithmetic(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String>) -> F
     if !both_const(&left, &right) {
         return Folded::No(left, right);
     }
-    let (a, b) = match (
-        &left.as_const().expect("constant").value,
-        &right.as_const().expect("constant").value,
-    ) {
-        (Value::Int(a), Value::Int(b)) => (*a, *b),
+    let left_value = &left.as_const().expect("constant").value;
+    let right_value = &right.as_const().expect("constant").value;
+    let result = match (left_value, right_value) {
+        (Value::Int(a), Value::Int(b)) => {
+            let (a, b) = (*a, *b);
+            // Shifts take the count modulo 32, as the processor the
+            // reference runs on does.
+            let (int, overflow) = match op {
+                BinOp::BOr => (a | b, false),
+                BinOp::BAnd => (a & b, false),
+                BinOp::BXor => (a ^ b, false),
+                BinOp::Shl => (a.wrapping_shl(b as u32), false),
+                BinOp::AShr => (a.wrapping_shr(b as u32), false),
+                BinOp::LShr => ((a as u32).wrapping_shr(b as u32) as i32, false),
+                // The reference built for Windows multiplies in 32 bits
+                // and so never sees a product overflow; built elsewhere,
+                // it makes the product a number that is not an integer,
+                // as it does everywhere with a sum or a difference.
+                BinOp::Mul => (a.wrapping_mul(b), false),
+                BinOp::Add => a.overflowing_add(b),
+                BinOp::Sub => a.overflowing_sub(b),
+                BinOp::Div | BinOp::Mod => {
+                    if b == 0 {
+                        errors.push("divide by zero in constant expression".into());
+                        (1, false)
+                    } else if op == BinOp::Div {
+                        // What the reference takes for the one quotient
+                        // out of range is the lowest integer divided by
+                        // one, not by minus one.
+                        (a.wrapping_div(b), a == i32::MIN && b == 1)
+                    } else {
+                        (a.wrapping_rem(b), false)
+                    }
+                }
+                _ => unreachable!("not an arithmetic operator"),
+            };
+            if overflow {
+                // Done again as numbers that are not integers, and the
+                // result stays one.
+                let (a, b) = (Big::from_int(a.into(), 10), Big::from_int(b.into(), 10));
+                match big_calc(op, &a, &b, errors) {
+                    Some(big) => float_value(&big, true),
+                    None => left_value.clone(),
+                }
+            } else {
+                Value::Int(int)
+            }
+        }
+        (Value::Int(_) | Value::Float { .. }, Value::Int(_) | Value::Float { .. }) => {
+            // The result is an integer too large to be one only if
+            // every operand that is not an integer was.
+            let promoted = [left_value, right_value].iter().all(|value| {
+                !matches!(
+                    value,
+                    Value::Float {
+                        promoted: false,
+                        ..
+                    }
+                )
+            });
+            let (Some(a), Some(b)) = (big_of(left_value), big_of(right_value)) else {
+                unreachable!("both are numbers");
+            };
+            match big_calc(op, &a, &b, errors) {
+                Some(big) => {
+                    let mut value = float_value(&big, promoted);
+                    demote(&mut value);
+                    value
+                }
+                // The left operand is what is left.
+                None => left_value.clone(),
+            }
+        }
         _ => {
             errors.push(format!(
                 "binary '{}' operator requires numeric value in constant expression",
@@ -234,49 +382,8 @@ fn arithmetic(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String>) -> F
             return Folded::No(left, right);
         }
     };
-    // Shifts take the count modulo 32, as the processor the reference
-    // runs on does.
-    let result = match op {
-        BinOp::BOr => a | b,
-        BinOp::BAnd => a & b,
-        BinOp::BXor => a ^ b,
-        BinOp::Shl => a.wrapping_shl(b as u32),
-        BinOp::AShr => a.wrapping_shr(b as u32),
-        BinOp::LShr => (a as u32).wrapping_shr(b as u32) as i32,
-        // The reference built for Windows multiplies in 32 bits and so
-        // never sees a product overflow; built elsewhere, it turns the
-        // product into a floating-point number, as it does everywhere
-        // with a sum or a difference that overflows.
-        BinOp::Mul => a.wrapping_mul(b),
-        BinOp::Add | BinOp::Sub => {
-            let exact = if op == BinOp::Add {
-                a.checked_add(b)
-            } else {
-                a.checked_sub(b)
-            };
-            let Some(exact) = exact else {
-                errors.push(
-                    "a number too large for an integer is not supported by this compiler yet"
-                        .into(),
-                );
-                return Folded::No(left, right);
-            };
-            exact
-        }
-        BinOp::Div | BinOp::Mod => {
-            if b == 0 {
-                errors.push("divide by zero in constant expression".into());
-                1
-            } else if op == BinOp::Div {
-                a.wrapping_div(b)
-            } else {
-                a.wrapping_rem(b)
-            }
-        }
-        _ => unreachable!("not an arithmetic operator"),
-    };
     let mut value = into_const(left);
-    value.value = Value::Int(result);
+    value.value = result;
     Folded::Yes(Expr::Const(value))
 }
 
@@ -287,8 +394,13 @@ fn as_text(value: &Value) -> Option<Vec<u8>> {
         Value::Nil => b"nil".to_vec(),
         Value::True => b"true".to_vec(),
         Value::Int(int) => int.to_string().into_bytes(),
-        Value::SStr(text) => text.clone(),
-        Value::FuncPtr(_) | Value::List(_) | Value::Obj(_) | Value::Prop(_) | Value::Enum(_) => {
+        Value::SStr(text) | Value::Float { text, .. } => text.clone(),
+        Value::FuncPtr(_)
+        | Value::List(_)
+        | Value::Obj(_)
+        | Value::Prop(_)
+        | Value::Enum(_)
+        | Value::ReStr(_) => {
             return None;
         }
     })
@@ -299,7 +411,9 @@ fn as_text(value: &Value) -> Option<Vec<u8>> {
 /// anything, itself included.
 fn const_eq(left: &Value, right: &Value) -> bool {
     match (left, right) {
-        (Value::Enum(_), _) | (_, Value::Enum(_)) => false,
+        (Value::Enum(_) | Value::ReStr(_), _) | (_, Value::Enum(_) | Value::ReStr(_)) => false,
+        (Value::Float { .. }, Value::Int(_) | Value::Float { .. })
+        | (Value::Int(_), Value::Float { .. }) => compare_nums(left, right) == Ordering::Equal,
         (Value::List(left), Value::List(right)) => {
             left.len() == right.len()
                 && left
@@ -315,7 +429,7 @@ fn add(left: Expr, right: Expr, errors: &mut Vec<String>) -> Folded {
     if !both_const(&left, &right) {
         return Folded::No(left, right);
     }
-    if is_int(&left) && is_int(&right) {
+    if is_num(&left) && is_num(&right) {
         return arithmetic(BinOp::Add, left, right, errors);
     }
     if is_list(&left) {
@@ -394,7 +508,7 @@ pub(crate) fn subscript(left: &Expr, index: &Expr, errors: &mut Vec<String>) -> 
                 }
             }
         }
-        Value::SStr(_) | Value::FuncPtr(_) | Value::Obj(_) => None,
+        Value::SStr(_) | Value::FuncPtr(_) | Value::Obj(_) | Value::Float { .. } => None,
         _ => {
             errors.push("invalid indexed type in constant expression - list required".into());
             None

@@ -30,6 +30,16 @@ pub(crate) enum Value {
     Prop(u16),
     /// A value of an enumeration, by its number.
     Enum(u32),
+    /// A number that is not an integer, as its text, which is the
+    /// source's own or what arithmetic on constants wrote out.
+    /// `promoted` says it is an integer too large to be one, which
+    /// goes back to being an integer if arithmetic brings it in range.
+    Float {
+        text: Vec<u8>,
+        promoted: bool,
+    },
+    /// A regular expression (`R'...'`), as its text.
+    ReStr(Vec<u8>),
 }
 
 /// A constant in an expression.
@@ -60,7 +70,11 @@ impl ConstVal {
 
     /// The value as a condition. Only nil and zero are false.
     pub(crate) fn is_true(&self) -> bool {
-        !matches!(self.value, Value::Nil | Value::Int(0))
+        match &self.value {
+            Value::Nil | Value::Int(0) => false,
+            Value::Float { .. } => !crate::fold::big_of(&self.value).is_some_and(|big| big.zero),
+            _ => true,
+        }
     }
 
     /// Replace the value by true or nil. The reference changes the

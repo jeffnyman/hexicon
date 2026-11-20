@@ -90,6 +90,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hexicon-bignum"
+version = "0.1.0"
+
+[[package]]
 name = "hexicon-bytecode"
 version = "0.1.0"
 dependencies = [
@@ -112,6 +116,7 @@ dependencies = [
 name = "hexicon-compiler"
 version = "0.1.0"
 dependencies = [
+ "hexicon-bignum",
  "hexicon-bytecode",
 ]
 
@@ -127,6 +132,7 @@ version = "0.1.0"
 name = "hexicon-vm"
 version = "0.1.0"
 dependencies = [
+ "hexicon-bignum",
  "hexicon-bytecode",
  "hexicon-host",
  "hexicon-image",

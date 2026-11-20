@@ -331,6 +331,27 @@ class Program:
 
     def constant(self):
         rng = self.rng
+        # Now and then a number that is not an integer, an integer too
+        # large to be one, or a regular expression.
+        if rng.random() < 0.06:
+            return rng.choice(
+                [
+                    "1.5",
+                    "0.25",
+                    "2.0",
+                    "0.0",
+                    "1e2",
+                    "3.",
+                    ".5",
+                    "2147483648",
+                    "-2147483648",
+                    "4294967295",
+                    "0x100000000",
+                    "017777777777777",
+                    "R'a+'",
+                    'R"%d"',
+                ]
+            )
         kind = rng.random()
         if kind < 0.55:
             return str(

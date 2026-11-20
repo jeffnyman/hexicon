@@ -8,7 +8,7 @@
 //! the outside world comes through a [`hexicon_host::Host`].
 
 mod bif;
-mod bignum;
+pub(crate) use hexicon_bignum as bignum;
 mod bignum_math;
 mod bignum_obj;
 mod bytearray;

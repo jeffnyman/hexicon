@@ -169,6 +169,12 @@ pub(crate) struct Generated {
     pub max_str_len: usize,
     /// The number of elements in the longest list.
     pub max_list_cnt: usize,
+    /// The numbers that are not integers, each an object: its number,
+    /// and its data as the virtual machine keeps it.
+    pub bignums: Vec<(u32, Vec<u8>)>,
+    /// The regular expressions, each an object: its number, and where
+    /// its text is in the constants.
+    pub rexpats: Vec<(u32, Target)>,
     /// Places in the code where two bytes are written that mean
     /// nothing.
     pub unspecified: Vec<usize>,
@@ -1292,6 +1298,10 @@ impl Gen<'_> {
                     Value::True => (datatype::TRUE, 0, None),
                     Value::Int(int) => (datatype::INT, *int as u32, None),
                     Value::Obj(obj) => (datatype::OBJ, *obj, None),
+                    Value::Float { .. } | Value::ReStr(_) => {
+                        let id = self.gen_const_obj(&value.value).expect("an object");
+                        (datatype::OBJ, id, None)
+                    }
                     Value::Enum(id) => (datatype::ENUM, *id, None),
                     Value::Prop(prop) => (datatype::PROP, u32::from(*prop), None),
                     Value::SStr(text) => (datatype::SSTRING, 0, Some(self.const_str_target(text))),
@@ -1333,6 +1343,41 @@ impl Gen<'_> {
 
     /// Put a string in the constants for something outside the code to
     /// refer to.
+    /// Make the object a constant number that is not an integer is.
+    /// Each place such a constant is used gets an object of its own.
+    fn gen_bignum_obj(&mut self, text: &[u8], promoted: bool) -> u32 {
+        if promoted {
+            self.log(
+                Severity::Warning,
+                "constant value exceeds integer range; promoted to BigNumber",
+            );
+        }
+        let id = self.prog.next_obj_id;
+        self.prog.next_obj_id += 1;
+        let big = hexicon_bignum::Big::parse_source(&String::from_utf8_lossy(text));
+        self.out.bignums.push((id, big.to_bytes()));
+        id
+    }
+
+    /// Make the object a regular expression in the source is.
+    fn gen_rexpat_obj(&mut self, text: &[u8]) -> u32 {
+        let id = self.prog.next_obj_id;
+        self.prog.next_obj_id += 1;
+        let target = self.const_str_target(text);
+        self.out.rexpats.push((id, target));
+        id
+    }
+
+    /// The object a constant is, if it is one of the kinds that are
+    /// made objects when code is generated.
+    fn gen_const_obj(&mut self, value: &Value) -> Option<u32> {
+        match value {
+            Value::Float { text, promoted } => Some(self.gen_bignum_obj(text, *promoted)),
+            Value::ReStr(text) => Some(self.gen_rexpat_obj(text)),
+            _ => None,
+        }
+    }
+
     fn const_str_target(&mut self, text: &[u8]) -> Target {
         let before = self.out.fixups.len();
         self.add_const_str(text, false, 0);
@@ -2459,6 +2504,10 @@ impl Gen<'_> {
                 (datatype::FUNCPTR, 0)
             }
             Value::Obj(obj) => (datatype::OBJ, *obj),
+            Value::Float { .. } | Value::ReStr(_) => {
+                let id = self.gen_const_obj(&value.value).expect("an object");
+                (datatype::OBJ, id)
+            }
             Value::Enum(id) => (datatype::ENUM, *id),
             Value::Prop(prop) => {
                 // A property's number is two bytes; the other two are
@@ -2859,6 +2908,10 @@ impl Gen<'_> {
                     (datatype::FUNCPTR, 0)
                 }
                 Value::Obj(obj) => (datatype::OBJ, *obj),
+                Value::Float { .. } | Value::ReStr(_) => {
+                    let id = self.gen_const_obj(&element.value).expect("an object");
+                    (datatype::OBJ, id)
+                }
                 Value::Enum(id) => (datatype::ENUM, *id),
                 Value::Prop(prop) => {
                     self.out.const_prop_fixups.push(at + 1);
@@ -2985,6 +3038,11 @@ impl Gen<'_> {
                     Value::Obj(obj) => {
                         self.cg.write_op(Op::PushObj);
                         self.cg.write4(*obj);
+                    }
+                    Value::Float { .. } | Value::ReStr(_) => {
+                        self.cg.write_op(Op::PushObj);
+                        let id = self.gen_const_obj(&value.value).expect("an object");
+                        self.cg.write4(id);
                     }
                     Value::Enum(id) => {
                         self.cg.write_op(Op::PushEnum);
@@ -3430,6 +3488,16 @@ impl Gen<'_> {
                         ..
                     })) => {
                         if *step < 0 {
+                            -1
+                        } else {
+                            1
+                        }
+                    }
+                    Some(Some(ConstVal {
+                        value: Value::Float { text, .. },
+                        ..
+                    })) => {
+                        if text.first() == Some(&b'-') {
                             -1
                         } else {
                             1

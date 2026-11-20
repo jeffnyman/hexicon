@@ -4575,7 +4575,7 @@ impl<'p, 'a> Parser<'p, 'a> {
     fn parse_pos(&mut self, sub: Expr) -> Expr {
         match sub {
             Expr::Const(value) => {
-                if !matches!(value.value, Value::Int(_)) {
+                if !matches!(value.value, Value::Int(_) | Value::Float { .. }) {
                     self.error("unary '+' operator requires numeric value in constant expression");
                 }
                 Expr::Const(value)
@@ -4588,10 +4588,22 @@ impl<'p, 'a> Parser<'p, 'a> {
         match sub {
             Expr::Const(mut value) => {
                 match value.value {
+                    // The one integer whose negative is not one.
                     Value::Int(i32::MIN) => {
-                        self.unsupported("a number too large for an integer");
+                        let big = hexicon_bignum::Big::from_u64(2_147_483_648, 10);
+                        value.value = fold::float_value(&big, true);
                     }
                     Value::Int(int) => value.value = Value::Int(-int),
+                    // The sign is part of the text; and `-2147483648`
+                    // is an integer after all.
+                    Value::Float { ref mut text, .. } => {
+                        if text.first() == Some(&b'-') {
+                            text.remove(0);
+                        } else {
+                            text.insert(0, b'-');
+                        }
+                        fold::demote(&mut value.value);
+                    }
                     _ => self
                         .error("unary '-' operator requires numeric value in constant expression"),
                 }
@@ -4785,6 +4797,13 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Nil => Value::Nil,
                 Tok::True => Value::True,
                 Tok::Int => Value::Int(self.tok.cur_token().int_val as i32),
+                // A number with a point or an exponent, or an integer
+                // too large to be one.
+                Tok::Float | Tok::BigInt => Value::Float {
+                    text: self.cur_text(),
+                    promoted: self.cur() == Tok::BigInt,
+                },
+                Tok::ReStr => Value::ReStr(self.cur_text()),
                 Tok::SStr => Value::SStr(self.cur_text()),
                 Tok::DStr => {
                     // Displaying a string might go through `self`.
@@ -4884,7 +4903,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     return Some(Expr::ArgCount);
                 }
                 Tok::Delegated => return self.parse_delegated(),
-                Tok::Float | Tok::BigInt | Tok::ReStr | Tok::Object => {
+                Tok::Object => {
                     let shown = self.tok.cur_token_shown();
                     self.unsupported(&format!("\"{shown}\" in an expression"));
                     self.next();

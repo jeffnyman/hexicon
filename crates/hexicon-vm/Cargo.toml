@@ -7,6 +7,7 @@ rust-version.workspace = true
 repository.workspace = true
 
 [dependencies]
+hexicon-bignum = { path = "../hexicon-bignum" }
 hexicon-bytecode = { path = "../hexicon-bytecode" }
 hexicon-host = { path = "../hexicon-host" }
 hexicon-image = { path = "../hexicon-image" }

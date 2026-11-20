@@ -2052,3 +2052,67 @@ fn delegated_runs_another_objects_method_as_this_ones() {
         ["2: error: 'self' is not valid in this context"]
     );
 }
+
+#[test]
+fn a_number_that_is_not_an_integer_is_an_object_in_the_image() {
+    let compiled = compile_text("_main(args) { return [1.5, 2.5 + 1, 3.0 * 2, 1.5 < 2]; }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // Three objects in a block of their own, each its number, the
+    // length of its data, and the data: how many digits, the exponent,
+    // the sign and kind, and the digits two to a byte.
+    let objs = block(&image, b"OBJS");
+    assert_eq!(objs[0..2], [3, 0]);
+    assert_eq!(objs[6..18], [1, 0, 0, 0, 6, 0, 2, 0, 1, 0, 0, 0x15]);
+    assert_eq!(objs[18..30], [2, 0, 0, 0, 6, 0, 2, 0, 1, 0, 0, 0x35]);
+    assert_eq!(objs[30..42], [3, 0, 0, 0, 6, 0, 1, 0, 1, 0, 0, 0x60]);
+    // Their class is one the image has to say it depends on.
+    let text = String::from_utf8_lossy(&image);
+    assert!(text.contains("bignumber/000000"));
+}
+
+#[test]
+fn an_integer_too_large_to_be_one_is_a_number_that_is_not() {
+    // It is reported when code is generated for it, once for each
+    // place it is used; arithmetic that brings it back in range makes
+    // it an integer again.
+    assert_eq!(
+        compile_messages(
+            "_main(args)\n{\n    local a = 2147483647 + 1;\n    local b = 4294967296 - 4294967295;\n\
+             local c = -2147483648;\n    local d = 0x100000000;\n    return [a, b, c, d];\n}\n"
+        ),
+        [
+            "3: warning: constant value exceeds integer range; promoted to BigNumber",
+            "6: warning: constant value exceeds integer range; promoted to BigNumber",
+        ]
+    );
+    // Only integers have bits.
+    assert_eq!(
+        compile_messages("_main(args) { return [1.5 | 2, 1.5 / 0, ~1.5]; }\n"),
+        [
+            "1: error: floating point values can't be used with this operator",
+            "1: error: divide by zero in constant expression",
+            "1: error: unary '~' operator requires numeric value in constant expression",
+        ]
+    );
+}
+
+#[test]
+fn a_regular_expression_is_an_object_that_points_at_its_text() {
+    let compiled = compile_text("_main(args) { return R'a+b'; }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let objs = block(&image, b"OBJS");
+    // One object, whose data is a string in the constants.
+    assert_eq!(objs[0..2], [1, 0]);
+    assert_eq!(objs[6..13], [1, 0, 0, 0, 5, 0, 8]);
+    assert!(String::from_utf8_lossy(&image).contains("regex-pattern/000000"));
+}

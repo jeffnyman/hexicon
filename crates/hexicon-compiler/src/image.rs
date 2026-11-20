@@ -331,6 +331,24 @@ pub(crate) fn write_image(
     // unless the program has declared it.
     const INTRINSIC_CLASS: &[u8] = b"intrinsic-class";
     let mut metas = std::mem::take(&mut generated.metas);
+    // The classes of the objects that constants are made into, if
+    // there are any and the program has not declared them.
+    let mut meta_for = |name: &[u8], wanted: bool| -> u16 {
+        if !wanted {
+            return 0;
+        }
+        let found = metas.iter().position(|(full, ..)| {
+            full.strip_prefix(name)
+                .is_some_and(|rest| rest.first() == Some(&b'/'))
+        });
+        let index = found.unwrap_or_else(|| {
+            metas.push(([name, b"/000000"].concat(), Vec::new(), None));
+            metas.len() - 1
+        });
+        index as u16
+    };
+    let bignum_meta = meta_for(b"bignumber", !generated.bignums.is_empty());
+    let rexpat_meta = meta_for(b"regex-pattern", !generated.rexpats.is_empty());
     let is_intrinsic_class = |name: &[u8]| {
         name.strip_prefix(INTRINSIC_CLASS)
             .is_some_and(|rest| rest.first() == Some(&b'/'))
@@ -471,6 +489,56 @@ pub(crate) fn write_image(
             }
         }
         writer.block(b"OBJS", true, &objs);
+    }
+
+    // The objects that constants were made into: the numbers that are
+    // not integers, and then the regular expressions. Each is its
+    // number, the length of its data, and the data, and a block holds
+    // no more than 64,000 bytes of them.
+    let rexpats: Vec<(u32, Vec<u8>)> = generated
+        .rexpats
+        .iter()
+        .map(|(id, target)| {
+            let addr = match target {
+                Target::Const(anchor) => const_addrs[*anchor] as u32,
+                _ => 0,
+            };
+            // A string in the constants.
+            let mut data = vec![8];
+            data.extend_from_slice(&addr.to_le_bytes());
+            (*id, data)
+        })
+        .collect();
+    for (metaclass, items) in [(bignum_meta, &generated.bignums), (rexpat_meta, &rexpats)] {
+        let mut rest = &items[..];
+        while !rest.is_empty() {
+            let mut size = 0;
+            let mut count = 0;
+            for (_, data) in rest {
+                if count != 0 && size + 6 + data.len() > 64000 {
+                    break;
+                }
+                size += 6 + data.len();
+                count += 1;
+            }
+            let mut objs = Vec::new();
+            objs.extend_from_slice(&(count as u16).to_le_bytes());
+            objs.extend_from_slice(&metaclass.to_le_bytes());
+            objs.extend_from_slice(&0u16.to_le_bytes());
+            for (id, data) in &rest[..count] {
+                objs.extend_from_slice(&id.to_le_bytes());
+                objs.extend_from_slice(&(data.len() as u16).to_le_bytes());
+                if metaclass == bignum_meta && !generated.bignums.is_empty() {
+                    // A number's fifth byte has its sign and its kind
+                    // in the low bits. The reference never sets the
+                    // high ones, which are as its memory had them.
+                    unspecified.push((writer.out.len() + 10 + objs.len() + 4, 1));
+                }
+                objs.extend_from_slice(data);
+            }
+            writer.block(b"OBJS", true, &objs);
+            rest = &rest[count..];
+        }
     }
 
     // The objects that stand for the built-in classes the program

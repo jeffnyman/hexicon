@@ -1,0 +1,53 @@
+// A program to run: numbers that are not integers, integers too large
+// to be integers, and regular expressions written in the source.
+#include <systype.h>
+#include <tadsgen.h>
+#include <tadsio.h>
+#include <t3.h>
+#include <bignum.h>
+
+// Results go one to a line.
+line(val) { tadsSay(toString(val)); tadsSay('\n'); }
+
+shelf: object
+    // A number with a point or an exponent is an object of the class
+    // BigNumber, made when the program is compiled.
+    width = 1.25
+    weights = [0.5, 12, 3.75e2]
+
+    // Arithmetic on constants is done by the compiler.
+    area = (1.25 * 4)
+
+    // A regular expression: `R` and a string.
+    label = R'<alpha>+<space>+<digit>+'
+;
+
+_main(args)
+{
+    line(1.5 + 2.25);
+    line(7.5 % 2);
+    line(1e3);
+    line(1.5 < 2 ? 'less' : 'not less');
+    line('half is ' + 0.5);
+
+    // An integer too large to be one is a BigNumber as well, and the
+    // compiler says so; if arithmetic brings it back in range, it is an
+    // integer again.
+    line(2147483647 + 1);
+    line(0x100000000);
+    line(4294967296 - 4294967295);
+
+    // The same numbers when the program does the arithmetic.
+    local x = 1.5;
+    line(x + 2.25);
+    line(x / 4);
+    line(shelf.width * 2 + shelf.weights[3]);
+    line(shelf.area);
+
+    // A range can count in steps that are not integers.
+    for (local i in 1..2 step 0.5)
+        line(i);
+
+    line(rexMatch(shelf.label, 'shelf  42'));
+    line(rexReplace(R'<space>+', 'one   two  three', ' ', ReplaceAll));
+}

@@ -1,5 +1,9 @@
 //! Decimal floating-point arithmetic for the BigNumber intrinsic class.
 //!
+//! The virtual machine does a program's arithmetic with it, and the
+//! compiler works out constant expressions with it, so that a sum the
+//! compiler does comes out as it would have if the program had done it.
+//!
 //! A number is a sign, a string of decimal digits, and a decimal exponent:
 //! its value is `0.d1d2d3... × 10^exp`. The number of digits, the
 //! precision, is fixed when the number is created, and the result of an
@@ -40,19 +44,32 @@ pub struct Big {
 }
 
 // Formatting flags, for `formatString`.
+
+/// Show a `+` before a positive number.
 pub const FORMAT_SIGN: u32 = 0x0001;
+/// Always show an exponent.
 pub const FORMAT_EXP: u32 = 0x0002;
+/// Show a `+` before a positive exponent.
 pub const FORMAT_EXP_SIGN: u32 = 0x0004;
+/// Show a zero before the point of a number less than one.
 pub const FORMAT_LEADING_ZERO: u32 = 0x0008;
+/// Always show the point.
 pub const FORMAT_POINT: u32 = 0x0010;
-/// The reference VM gives these two the same value, so asking for one
-/// asks for both.
+/// Show the exponent's `E` as a capital. The reference VM gives this
+/// and [`FORMAT_COMMAS`] the same value, so asking for one asks for
+/// both.
 pub const FORMAT_EXP_CAP: u32 = 0x0020;
+/// Group the digits before the point in threes.
 pub const FORMAT_COMMAS: u32 = 0x0020;
+/// Show a space before a positive number.
 pub const FORMAT_POS_SPACE: u32 = 0x0040;
+/// Use a comma for the point and points to group digits.
 pub const FORMAT_EUROSTYLE: u32 = 0x0080;
+/// Use whichever of the plain and the exponent forms is shorter.
 pub const FORMAT_COMPACT: u32 = 0x0100;
+/// Count only significant digits against the limit on digits.
 pub const FORMAT_MAXSIG: u32 = 0x0200;
+/// Keep the zeros at the end of the fraction.
 pub const FORMAT_TRAILING_ZEROS: u32 = 0x0400;
 
 impl Big {
@@ -455,7 +472,8 @@ impl Big {
         }
     }
 
-    pub(crate) fn sum_into(&mut self, a: &Big, b: &Big) {
+    /// Set this number, at its own precision, to `a + b`.
+    pub fn sum_into(&mut self, a: &Big, b: &Big) {
         if a.neg == b.neg {
             self.abs_sum_into(a, b);
             self.neg = a.neg;
@@ -536,7 +554,9 @@ impl Big {
         self.normalize();
     }
 
-    pub(crate) fn abs_diff_into(&mut self, a: &Big, b: &Big) {
+    /// Set this number, at its own precision, to the difference of the
+    /// sizes of `a` and `b`, with the sign of `a - b`.
+    pub fn abs_diff_into(&mut self, a: &Big, b: &Big) {
         if b.zero {
             self.copy_from(a, true);
             return;
@@ -587,7 +607,8 @@ impl Big {
         self.normalize();
     }
 
-    pub(crate) fn prod_into(&mut self, a: &Big, b: &Big) {
+    /// Set this number, at its own precision, to `a × b`.
+    pub fn prod_into(&mut self, a: &Big, b: &Big) {
         let (prec1, prec2) = (a.digs.len() as i32, b.digs.len() as i32);
         let new_prec = self.digs.len() as i32;
         self.digs.fill(0);
@@ -629,7 +650,7 @@ impl Big {
 
     /// Long division. With `remainder`, stop at the whole-number part of
     /// the quotient and report what is left over.
-    pub(crate) fn quotient_into(
+    pub fn quotient_into(
         &mut self,
         mut remainder: Option<&mut Big>,
         a: &Big,
@@ -997,7 +1018,48 @@ impl Big {
         if prec == 0 { digits } else { prec }
     }
 
-    /// Parse a decimal number, with an optional exponent, to a precision.
+    /// Which radix a number is written in, going by how it starts, as a
+    /// number in a program's source is read: `0x` is 16, and a leading
+    /// zero is 8 unless what follows makes the number a decimal one (a
+    /// point, an exponent, an 8 or a 9).
+    pub fn radix_from_str(text: &str) -> u32 {
+        let rest = text.trim_start();
+        let rest = rest.strip_prefix(['-', '+']).unwrap_or(rest).trim_start();
+        let Some(rest) = rest.strip_prefix('0') else {
+            return 10;
+        };
+        if rest.starts_with(['x', 'X']) {
+            return 16;
+        }
+        for c in rest.chars() {
+            match c {
+                '0'..='7' => {}
+                '.' | 'e' | 'E' | '8' | '9' => return 10,
+                _ => return 8,
+            }
+        }
+        8
+    }
+
+    /// Parse a number as a program's source writes it, in the radix
+    /// its start says, with the precision its digits need.
+    pub fn parse_source(text: &str) -> Self {
+        match Self::radix_from_str(text) {
+            10 => Self::parse(text, Self::precision_from_str(text)),
+            16 => {
+                // The digits come after the `0x`, which a sign can
+                // come before.
+                let rest = text.trim_start();
+                let (sign, rest) = match rest.strip_prefix(['-', '+']) {
+                    Some(after) => (&rest[..1], after.trim_start()),
+                    None => ("", rest),
+                };
+                Self::parse_radix(&format!("{sign}{}", &rest[2..]), 16)
+            }
+            radix => Self::parse_radix(text, radix),
+        }
+    }
+
     /// Parse a whole number written in a radix other than 10. The
     /// precision is what the digits need.
     pub fn parse_radix(text: &str, radix: u32) -> Self {
@@ -1025,6 +1087,7 @@ impl Big {
         n
     }
 
+    /// Parse a decimal number, with an optional exponent, to a precision.
     pub fn parse(text: &str, prec: usize) -> Self {
         let mut n = Self::zero(prec);
         n.zero = false;
@@ -1526,5 +1589,36 @@ impl Big {
             total = sum;
         }
         total
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Big;
+
+    #[test]
+    fn a_number_in_source_says_its_radix_by_how_it_starts() {
+        assert_eq!(Big::radix_from_str("123"), 10);
+        assert_eq!(Big::radix_from_str("0x1F"), 16);
+        assert_eq!(Big::radix_from_str("-0X1f"), 16);
+        assert_eq!(Big::radix_from_str("0777"), 8);
+        assert_eq!(Big::radix_from_str("0778"), 10);
+        assert_eq!(Big::radix_from_str("0.5"), 10);
+        assert_eq!(Big::radix_from_str("0e5"), 10);
+        assert_eq!(Big::radix_from_str("0"), 8);
+    }
+
+    #[test]
+    fn a_number_in_source_has_the_digits_it_needs() {
+        assert_eq!(Big::parse_source("1.50").to_text(), "1.5");
+        assert_eq!(Big::parse_source("1.50").prec(), 3);
+        assert_eq!(Big::parse_source("0x100000000").to_text(), "4294967296");
+        assert_eq!(Big::parse_source("-0x10").to_text(), "-16");
+        assert_eq!(
+            Big::parse_source("017777777777777").to_text(),
+            "1099511627775"
+        );
+        assert!(Big::parse_source("2147483648.").to_i32().1);
+        assert_eq!(Big::parse_source("-2147483648").to_i32(), (i32::MIN, false));
     }
 }
