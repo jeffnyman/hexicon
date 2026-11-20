@@ -30,10 +30,14 @@ pub(crate) fn float_value(big: &Big, promoted: bool) -> Value {
 }
 
 /// Make an integer that was too large to be one an integer again, if
-/// it now is in range.
+/// it now is in range. What a division has left with a fraction is not
+/// an integer at all, and stays as it is.
 pub(crate) fn demote(value: &mut Value) {
     if let Value::Float { promoted: true, .. } = value {
-        if let Some((int, false)) = big_of(value).map(|big| big.to_i32()) {
+        let Some(big) = big_of(value) else {
+            return;
+        };
+        if let (true, (int, false)) = (big.is_frac_zero(), big.to_i32()) {
             *value = Value::Int(int);
         }
     }
@@ -62,22 +66,21 @@ fn big_calc(op: BinOp, a: &Big, b: &Big, errors: &mut Vec<String>) -> Option<Big
                 errors.push("divide by zero in constant expression".into());
                 return Some(Big::from_int(1, 10));
             }
-            // The reference asks for a remainder even when it divides,
-            // and a division that gives one stops at the whole part of
-            // the quotient: `1 / 3.0` is 0 here, though the program
-            // would make it 0.3333 if it did the sum itself.
-            let prec = a.digs.len().max(b.digs.len());
-            let (mut quotient, mut remainder) = if op == BinOp::Div {
-                (Big::zero(prec), Big::zero(2))
+            if op == BinOp::Div {
+                // The quotient in full, as the program would work it
+                // out if it did the division itself. The reference
+                // stops at the whole part here, so that `1 / 3.0` is 0
+                // when both are constants and 0.3333 when one is not;
+                // Hexicon does not follow it in that.
+                Big::div(a, b)
             } else {
-                (Big::zero(2), Big::zero(prec))
-            };
-            quotient.quotient_into(Some(&mut remainder), a, b)?;
-            Some(if op == BinOp::Div {
-                quotient
-            } else {
-                remainder
-            })
+                // The remainder has the precision; the quotient is
+                // not wanted.
+                let mut quotient = Big::zero(2);
+                let mut remainder = Big::zero(a.digs.len().max(b.digs.len()));
+                quotient.quotient_into(Some(&mut remainder), a, b)?;
+                Some(remainder)
+            }
         }
         _ => {
             errors.push("floating point values can't be used with this operator".into());

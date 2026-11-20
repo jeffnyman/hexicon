@@ -2177,3 +2177,26 @@ fn a_choice_in_a_string_gets_an_object_to_do_the_choosing() {
         ["3: error: <<one of>> requires getNextIndex to be defined as a property"]
     );
 }
+
+#[test]
+fn a_constant_division_gives_the_quotient_the_program_would_get() {
+    // The reference stops at the point when both operands are
+    // constants: there, `1 / 3.0` is 0 and `10.0 / 4` is 2. Here the
+    // compiler's answer is the one the program gets when it divides.
+    let compiled = compile_text(
+        "_main(args) { return [10.0 / 4, 1 / 4.00, 4294967296 / 8]; }
+",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let objs = block(&image, b"OBJS");
+    // 2.5 and 0.25, each with the digits its text has when written
+    // out; the third is the integer 536870912, and no object.
+    assert_eq!(objs[0..2], [2, 0]);
+    assert_eq!(objs[6..18], [1, 0, 0, 0, 6, 0, 2, 0, 1, 0, 0, 0x25]);
+    assert_eq!(objs[18..30], [2, 0, 0, 0, 6, 0, 2, 0, 0, 0, 0, 0x25]);
+}

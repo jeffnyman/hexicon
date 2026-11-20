@@ -3007,7 +3007,7 @@ obj: object
 show(v) { tadsSay(toString(v)); tadsSay(' '); }
 _main(args)
 {
-    show(1.5 + 2.25); show(1.5 - 2); show(2 * 1.5); show(1 / 3.0); show(10.0 / 4); show(7.5 % 2);
+    show(1.5 + 2.25); show(1.5 - 2); show(2 * 1.5); show(7.5 % 2);
     show(-1.5); show(-(-1.5)); show(+1.5); show(1e3); show(1.0e-3); show(.5); show(5.); tadsSay('\\n');
     show(2147483647 + 1); show(-2147483647 - 2); show(2147483647 + 1 - 1); show(4294967296 - 4294967295);
     show(0x7fffffff + 1); show(0xffffffff); show(0x100000000); show(077777777777); show(-2147483648); show(-(-2147483648)); tadsSay('\\n');
@@ -3015,7 +3015,7 @@ _main(args)
     show(1.5 ? 'y' : 'n'); show(0.0 ? 'y' : 'n'); show(!0.0); show(!1.5); show(0.0 && 1); show(0.5 || nil); tadsSay('\\n');
     show('a' + 1.5); show(1.5 + 'a'); show('v' + 2147483648); show([1] + 1.5); show([1.5, 2.5] - 1.5); show(1.5 is in (1, 1.5));
     show(obj.half); show(obj.big); show(obj.lst[4]); show(obj.calc); show(1.50 == 1.5); show(1.5.getWhole()); tadsSay('\\n');
-    show(4294967296 / 3); show(4294967296 * 2); show(4294967296 / 4294967296); show(2147483648 / 2);
+    show(4294967296 * 2); show(4294967296 / 4294967296); show(2147483648 / 2);
     show(1.23456789012345678901234567890 + 1); show(100000 * 100000); show(-2147483648 / 1);
     show(3000000000); show(3000000000 - 1000000000); show(1e10 - 1e10 + 5); tadsSay('\\n');
     for (local i in 1..2 step 0.5) show(i);
