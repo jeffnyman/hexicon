@@ -9,8 +9,8 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    Arg, AsiOp, BinOp, Catch, CodeBody, Enclosure, Expr, Finally, ForIn, LabelSym, LocalId, Stmt,
-    StmtKind, TabId, UnOp, Value, flow,
+    Arg, AsiOp, BinOp, Catch, Closure, CodeBody, Enclosure, Expr, Finally, ForIn, LabelSym,
+    LocalId, Stmt, StmtKind, TabId, UnOp, Value, flow,
 };
 use crate::flow::Flow;
 use crate::fold::{self, Folded};
@@ -18,7 +18,7 @@ use crate::lex::Tok;
 use crate::pp::{Preprocessor, Severity, SrcToken, show_name};
 
 /// A local variable or a parameter.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct Local {
     pub name: Vec<u8>,
     pub is_param: bool,
@@ -31,6 +31,22 @@ pub(crate) struct Local {
     /// Where it is declared.
     pub file: usize,
     pub line: u32,
+    /// It is shared with a nested function, and so lives in a context
+    /// rather than on the stack.
+    pub is_ctx_local: bool,
+    /// For a nested function's view of a local of a function around
+    /// it: the local it is a view of.
+    pub ctx_orig: Option<LocalId>,
+    /// The local that holds the context it lives in, and whether that
+    /// has been settled.
+    pub ctx_var_num: usize,
+    pub ctx_var_num_set: bool,
+    /// How many functions out the local is.
+    pub ctx_level: usize,
+    /// Its place in its context. A view has its original's.
+    pub ctx_arr_idx: usize,
+    /// The name has been looked up.
+    pub referenced: bool,
 }
 
 /// The locals of one scope.
@@ -350,9 +366,103 @@ pub(crate) struct Program {
     /// (`export`): each a name in the program, and the name the
     /// virtual machine knows it by.
     pub exports: Vec<(Vec<u8>, Vec<u8>)>,
+    /// The bodies of anonymous functions, in the order they were
+    /// finished. They are generated after everything else.
+    pub nested: Vec<usize>,
+    /// What bodies know of the bodies around them.
+    pub body_refs: Vec<BodyRef>,
+    /// The labels of the last function or method read.
+    pub last_labels: std::rc::Rc<Vec<LabelSym>>,
+}
+
+/// What is known of a body that others are nested in.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct BodyRef {
+    pub enclosing: Option<usize>,
+    pub local_ctx_needs_full: bool,
 }
 
 impl Program {
+    /// Note that a local's value is used: for a nested function's view
+    /// of a local, that the local's is.
+    pub(crate) fn set_val_used(&mut self, mut id: LocalId) {
+        loop {
+            self.locals[id].val_used = true;
+            match self.locals[id].ctx_orig {
+                Some(orig) => id = orig,
+                None => break,
+            }
+        }
+    }
+
+    pub(crate) fn set_val_assigned(&mut self, mut id: LocalId) {
+        loop {
+            self.locals[id].val_assigned = true;
+            match self.locals[id].ctx_orig {
+                Some(orig) => id = orig,
+                None => break,
+            }
+        }
+    }
+
+    /// A shared local's place in its context.
+    pub(crate) fn ctx_arr_idx(&self, mut id: LocalId) -> usize {
+        while let Some(orig) = self.locals[id].ctx_orig {
+            id = orig;
+        }
+        self.locals[id].ctx_arr_idx
+    }
+
+    /// Make a local one that lives in a context, because a nested
+    /// function uses it.
+    fn convert_to_ctx_var(&mut self, mut id: LocalId, used: bool, assigned: bool) {
+        loop {
+            let local = &mut self.locals[id];
+            if !local.is_ctx_local {
+                local.is_ctx_local = true;
+                local.ctx_var_num = 0;
+                local.ctx_arr_idx = 0;
+            }
+            local.referenced = true;
+            if used {
+                self.set_val_used(id);
+            }
+            if assigned {
+                self.set_val_assigned(id);
+            }
+            match self.locals[id].ctx_orig {
+                Some(orig) => id = orig,
+                None => break,
+            }
+        }
+    }
+
+    /// Whether an expression leaves a value. A call to a function that
+    /// is known not to return one does not, nor does a string that
+    /// displays itself.
+    pub(crate) fn has_return_value(&self, expr: &Expr) -> bool {
+        match expr {
+            Expr::Call(func, _) => match &**func {
+                Expr::Sym(name) => match self.globals.get(name) {
+                    Some(Global::Func(func)) => self.funcs[*func].has_retval,
+                    _ => true,
+                },
+                Expr::AnonFunc { has_retval, .. } => *has_retval,
+                _ => true,
+            },
+            Expr::Binary(BinOp::Comma, _, right) => self.has_return_value(right),
+            Expr::If(_, second, third) => {
+                self.has_return_value(second) || self.has_return_value(third)
+            }
+            Expr::IfNil(first, second) => {
+                self.has_return_value(first) || self.has_return_value(second)
+            }
+            Expr::DStr(_) | Expr::DStrEmbed(_) => false,
+            Expr::OneOf(dbl, _) => !dbl,
+            _ => true,
+        }
+    }
+
     /// The names as another reading of the same source should see them
     /// before it starts: known, but not yet defined. A function or
     /// object that was only ever declared is not passed on.
@@ -574,7 +684,32 @@ pub(crate) struct Parser<'p, 'a> {
     /// The number the next object that is not a class gets for its
     /// place in the source.
     src_order_idx: i32,
+
+    // What the function being read shares with functions nested in it.
+    has_local_ctx: bool,
+    local_ctx_var_num: usize,
+    next_ctx_arr_idx: usize,
+    self_referenced: bool,
+    full_ctx_referenced: bool,
+    local_ctx_needs_self: bool,
+    local_ctx_needs_full: bool,
+    /// The body being read, as a number in `Program::body_refs`; or
+    /// the last one read, at the outermost level.
+    cur_code_body: Option<usize>,
 }
+
+/// The kinds of code body.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CbType {
+    Normal,
+    AnonFn,
+    ShortAnonFn,
+    AnonMethod,
+}
+
+/// The first place in a context that a local can have: the one before
+/// it is for the method's `self`.
+const FIRST_CTX_ARR_IDX: usize = 2;
 
 /// A string template: an embedded expression made of these tokens is a
 /// call to a function.
@@ -723,6 +858,14 @@ impl<'p, 'a> Parser<'p, 'a> {
             str_templates: Vec::new(),
             self_valid: false,
             src_order_idx: 1,
+            has_local_ctx: false,
+            local_ctx_var_num: 0,
+            next_ctx_arr_idx: FIRST_CTX_ARR_IDX,
+            self_referenced: false,
+            full_ctx_referenced: false,
+            local_ctx_needs_self: false,
+            local_ctx_needs_full: false,
+            cur_code_body: None,
         }
     }
 
@@ -853,11 +996,9 @@ impl<'p, 'a> Parser<'p, 'a> {
             name: name.to_vec(),
             is_param,
             var_num,
-            is_list_param: false,
-            val_used: false,
-            val_assigned: false,
             file,
             line,
+            ..Local::default()
         });
         let id = self.prog.locals.len() - 1;
         self.prog.tabs[tab].entries.push(id);
@@ -940,6 +1081,10 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
             suppress_error = suppress_next_error;
         }
+        // The anonymous functions come after everything else.
+        for body in std::mem::take(&mut self.prog.nested) {
+            self.prog.top.push(Top::Func(body));
+        }
         self.prog
     }
 
@@ -1008,9 +1153,11 @@ impl<'p, 'a> Parser<'p, 'a> {
                 return Ok(());
             }
         }
-        let Some((body, has_retval)) = self.parse_code_body(false)? else {
+        let Some((body, has_retval)) = self.parse_code_body(false, CbType::Normal, None, None)?
+        else {
             return Ok(());
         };
+        self.prog.last_labels = std::rc::Rc::clone(&body.labels);
         let (argc, opt_argc, varargs) = (body.argc, body.opt_argc, body.varargs);
 
         // A name that is a property only because its address was
@@ -1288,35 +1435,396 @@ impl<'p, 'a> Parser<'p, 'a> {
 
     /// Read a function's parameters and body. Nothing comes back if the
     /// body could not be made sense of.
-    fn parse_code_body(&mut self, self_valid: bool) -> Parsed<Option<(CodeBody, bool)>> {
+    /// Forget what the last function shared with functions nested in
+    /// it.
+    fn clear_local_ctx(&mut self) {
+        self.has_local_ctx = false;
+        self.local_ctx_var_num = 0;
+        self.next_ctx_arr_idx = FIRST_CTX_ARR_IDX;
+        self.self_referenced = false;
+        self.full_ctx_referenced = false;
+        self.local_ctx_needs_self = false;
+        self.local_ctx_needs_full = false;
+    }
+
+    /// Give the function being read a context for its locals, if it has
+    /// none yet.
+    fn init_local_ctx(&mut self) {
+        if !self.has_local_ctx {
+            self.has_local_ctx = true;
+            self.local_ctx_var_num = self.alloc_local();
+        }
+    }
+
+    /// The local in which a body keeps the context from so many
+    /// functions out.
+    fn ctx_var_for_level(&mut self, body: &mut CodeBody, level: usize) -> usize {
+        if let Some(&(_, var)) = body
+            .closure
+            .ctx_levels
+            .iter()
+            .find(|&&(have, _)| have == level)
+        {
+            return var;
+        }
+        let var = self.alloc_local();
+        body.local_cnt = self.max_local_cnt;
+        body.closure.ctx_levels.push((level, var));
+        var
+    }
+
+    /// Settle, at the end of a body, what it shares: its own context,
+    /// and which of the locals of the functions around it it used.
+    fn finish_local_ctx(&mut self, body: &mut CodeBody, has_outer: bool) {
+        if self.has_local_ctx {
+            body.closure.has_local_ctx = true;
+            body.closure.local_ctx_var = self.local_ctx_var_num;
+            body.closure.local_ctx_arr_size = self.next_ctx_arr_idx - 1;
+        }
+        if !has_outer {
+            return;
+        }
+        // The outermost table is the one with the views of the locals
+        // of the functions around this one.
+        let Some(mut tab) = self.local_symtab else {
+            return;
+        };
+        while let Some(parent) = self.prog.tabs[tab].parent {
+            tab = parent;
+        }
+        for id in enum_order(&self.prog.tabs[tab], &self.prog.locals) {
+            let local = &self.prog.locals[id];
+            if !local.referenced {
+                // Never used here: it is not shared on this function's
+                // account.
+                self.prog.tabs[tab].entries.retain(|&entry| entry != id);
+                continue;
+            }
+            if let Some(orig) = local.ctx_orig {
+                let (used, assigned, level) = (local.val_used, local.val_assigned, local.ctx_level);
+                self.prog.convert_to_ctx_var(orig, used, assigned);
+                let var = self.ctx_var_for_level(body, level);
+                let local = &mut self.prog.locals[id];
+                local.ctx_var_num = var;
+                local.ctx_var_num_set = true;
+            }
+        }
+    }
+
+    /// Make the tables of locals for an anonymous function: one with a
+    /// view of each local of the functions around it, and inside that
+    /// one, its own.
+    fn anon_symtab(&mut self) -> (TabId, TabId) {
+        self.prog.tabs.push(LocalTab::default());
+        let enc = self.prog.tabs.len() - 1;
+        let (file, line) = self.tok.last_pos();
+        let mut tab = self.local_symtab;
+        while let Some(id) = tab {
+            for orig in enum_order(&self.prog.tabs[id], &self.prog.locals) {
+                let name = self.prog.locals[orig].name.clone();
+                // A local of the same name further in hides this one.
+                if self.find_direct(enc, &name).is_some() {
+                    continue;
+                }
+                let level = if self.prog.locals[orig].is_ctx_local {
+                    self.prog.locals[orig].ctx_level + 1
+                } else {
+                    1
+                };
+                self.prog.locals.push(Local {
+                    name,
+                    file,
+                    line,
+                    is_ctx_local: true,
+                    ctx_orig: Some(orig),
+                    ctx_level: level,
+                    ..Local::default()
+                });
+                let copy = self.prog.locals.len() - 1;
+                self.prog.tabs[enc].entries.push(copy);
+            }
+            tab = self.prog.tabs[id].parent;
+        }
+        self.prog.tabs.push(LocalTab {
+            parent: Some(enc),
+            ..LocalTab::default()
+        });
+        (enc, self.prog.tabs.len() - 1)
+    }
+
+    /// After an anonymous function has been read: the locals of the
+    /// function around it that it used get their places in that
+    /// function's context.
+    fn anon_finish(&mut self, enc: TabId) {
+        let mut tab = self.local_symtab;
+        while let Some(id) = tab {
+            for local in enum_order(&self.prog.tabs[id], &self.prog.locals) {
+                let name = self.prog.locals[local].name.clone();
+                if self.find_direct(enc, &name).is_none() {
+                    continue;
+                }
+                let sym = &self.prog.locals[local];
+                if !sym.is_ctx_local || sym.ctx_var_num_set {
+                    continue;
+                }
+                self.init_local_ctx();
+                let var = self.local_ctx_var_num;
+                let sym = &mut self.prog.locals[local];
+                sym.ctx_var_num = var;
+                sym.ctx_var_num_set = true;
+                if sym.ctx_arr_idx == 0 {
+                    sym.ctx_arr_idx = self.next_ctx_arr_idx;
+                    self.next_ctx_arr_idx += 1;
+                }
+            }
+            tab = self.prog.tabs[id].parent;
+        }
+    }
+
+    /// Read an anonymous function: `{params: expression}`,
+    /// `function(params) { ... }`, or `method(params) { ... }`. The
+    /// current token is the brace or the keyword.
+    fn parse_anon_func(&mut self, short_form: bool) -> Option<Expr> {
+        let cb_type = if short_form {
+            CbType::ShortAnonFn
+        } else if self.cur() == Tok::Method {
+            CbType::AnonMethod
+        } else {
+            CbType::AnonFn
+        };
+        let is_method = cb_type == CbType::AnonMethod;
+        self.next();
+        let (enc, lcltab) = self.anon_symtab();
+
+        // A function shares the `self` of the code it is in, if that
+        // has one. A method has whatever `self` it is called with.
+        let self_valid = is_method || self.self_valid;
+        let (mut body, has_retval) = self
+            .parse_nested_code_body(self_valid, lcltab, cb_type)
+            .ok()??;
+        if is_method {
+            body.closure.is_anon_method = true;
+        } else {
+            if body.closure.self_referenced {
+                self.self_referenced = true;
+                self.local_ctx_needs_self = true;
+            }
+            if body.closure.full_ctx_referenced {
+                self.full_ctx_referenced = true;
+                self.local_ctx_needs_full = true;
+            }
+        }
+        self.anon_finish(enc);
+        if !is_method
+            && self.self_valid
+            && (body.closure.self_referenced || body.closure.full_ctx_referenced)
+        {
+            self.init_local_ctx();
+        }
+        let index = self.prog.bodies.len();
+        self.prog.bodies.push((body, None));
+        self.prog.nested.push(index);
+        Some(Expr::AnonFunc {
+            body: index,
+            has_retval,
+        })
+    }
+
+    /// Read the body of a function inside another, and go back to
+    /// reading the outer one.
+    fn parse_nested_code_body(
+        &mut self,
+        self_valid: bool,
+        lcltab: TabId,
+        cb_type: CbType,
+    ) -> Parsed<Option<(CodeBody, bool)>> {
+        let old_local_symtab = self.local_symtab;
+        let old_enclosing_local_symtab = self.enclosing_local_symtab;
+        let old_enclosing = std::mem::take(&mut self.enclosing);
+        let old_switches = std::mem::take(&mut self.switches);
+        let old_labels = std::mem::take(&mut self.labels);
+        let old_local_cnt = self.local_cnt;
+        let old_max_local_cnt = self.max_local_cnt;
+        let old_has_local_ctx = self.has_local_ctx;
+        let old_local_ctx_var_num = self.local_ctx_var_num;
+        let old_next_ctx_arr_idx = self.next_ctx_arr_idx;
+        let old_self_valid = self.self_valid;
+        let old_self_referenced = self.self_referenced;
+        let old_full_ctx_referenced = self.full_ctx_referenced;
+        let old_local_ctx_needs_self = self.local_ctx_needs_self;
+        let old_local_ctx_needs_full = self.local_ctx_needs_full;
+        let old_cur_code_body = self.cur_code_body;
+
+        let result = self.parse_code_body(self_valid, cb_type, Some(lcltab), old_cur_code_body);
+
+        self.cur_code_body = old_cur_code_body;
+        self.local_symtab = old_local_symtab;
+        self.enclosing_local_symtab = old_enclosing_local_symtab;
+        self.enclosing = old_enclosing;
+        self.switches = old_switches;
+        self.labels = old_labels;
+        self.local_cnt = old_local_cnt;
+        self.max_local_cnt = old_max_local_cnt;
+        self.has_local_ctx = old_has_local_ctx;
+        self.local_ctx_var_num = old_local_ctx_var_num;
+        self.next_ctx_arr_idx = old_next_ctx_arr_idx;
+        self.self_valid = old_self_valid;
+        self.self_referenced = old_self_referenced;
+        self.full_ctx_referenced = old_full_ctx_referenced;
+        self.local_ctx_needs_self = old_local_ctx_needs_self;
+        self.local_ctx_needs_full = old_local_ctx_needs_full;
+        // Where the statement being read started is not put back: the
+        // reference takes the statement around the function to have
+        // started where the last one inside it did.
+        result
+    }
+
+    /// Read the inside of `{params: expression}`: the parameters, any
+    /// locals, and the expression, up to the closing brace.
+    fn parse_short_anon_body(&mut self, formals: &mut Formals) -> Parsed<Option<Stmt>> {
+        formals.short_form = true;
+        self.parse_formal_list(formals)?;
+        let mut expr: Option<Expr> = None;
+        while self.cur() == Tok::Local {
+            if self.next() == Tok::Sym {
+                let name = self.cur_text();
+                let local = self.add_local(&name);
+                if matches!(self.next(), Tok::Asi | Tok::Eq) {
+                    // A value that cannot be read is the end of the
+                    // source, which is found again below.
+                    if let Some(sub) = self.parse_local_initializer(local) {
+                        expr = Some(match expr {
+                            None => sub,
+                            Some(first) => {
+                                Expr::Binary(BinOp::Comma, Box::new(first), Box::new(sub))
+                            }
+                        });
+                    }
+                }
+                if self.cur() == Tok::Comma {
+                    self.next();
+                }
+            } else {
+                self.error_curtok(
+                    "expected symbol name in local variable declaration, but found \"%\"",
+                );
+            }
+        }
+        if expr.is_none() || self.cur() != Tok::RBrace {
+            if let Some(sub) = self.parse_expr() {
+                expr = Some(match expr {
+                    None => sub,
+                    Some(first) => Expr::Binary(BinOp::Comma, Box::new(first), Box::new(sub)),
+                });
+            }
+        }
+        if self.cur() == Tok::Sem {
+            self.error("semicolon is not allowed in a short anonymous function");
+            self.next();
+        }
+        // The reference has two messages under this error's number,
+        // and the one it finds is not the one about the brace.
+        const NEED_RBRACE: &str = "semicolon is not allowed in a short-form anonymous function";
+        match self.cur() {
+            Tok::RBrace => {
+                self.next();
+            }
+            Tok::Eof => {
+                self.error(NEED_RBRACE);
+                return Ok(None);
+            }
+            _ => self.error(NEED_RBRACE),
+        }
+        // The function returns the expression's value, if it has one.
+        let Some(expr) = expr else {
+            return Ok(None);
+        };
+        let kind = if self.prog.has_return_value(&expr) {
+            StmtKind::Return(Some(expr))
+        } else {
+            StmtKind::Expr(expr)
+        };
+        let inner = self.stmt(kind);
+        Ok(Some(self.stmt(StmtKind::Comp {
+            stmts: vec![inner],
+            symtab: self.local_symtab,
+        })))
+    }
+
+    fn parse_code_body(
+        &mut self,
+        self_valid: bool,
+        cb_type: CbType,
+        local_symtab: Option<TabId>,
+        enclosing: Option<usize>,
+    ) -> Parsed<Option<(CodeBody, bool)>> {
+        self.prog.body_refs.push(BodyRef::default());
+        let body_ref = self.prog.body_refs.len() - 1;
+        self.cur_code_body = Some(body_ref);
+        let parsing_anon_fn = matches!(cb_type, CbType::AnonFn | CbType::ShortAnonFn);
         self.self_valid = self_valid;
-        self.local_symtab = None;
-        self.enclosing_local_symtab = None;
+        self.clear_local_ctx();
+        self.local_symtab = local_symtab;
+        self.enclosing_local_symtab = local_symtab.and_then(|tab| self.prog.tabs[tab].parent);
         self.local_cnt = 0;
         self.max_local_cnt = 0;
         self.labels.clear();
         self.enclosing.clear();
         self.switches.clear();
 
-        let mut formals = Formals::default();
-        if self.cur() == Tok::LPar {
-            self.next();
-            self.parse_formal_list(&mut formals)?;
-        }
-        if self.cur() != Tok::LBrace {
-            self.error_curtok("expected '{' at start of method code body, but found \"%\"");
-            if matches!(self.cur(), Tok::Sem | Tok::RBrace) {
+        let mut formals = Formals {
+            typed_ok: cb_type == CbType::Normal,
+            ..Formals::default()
+        };
+        let mut empty = false;
+        let stm = if cb_type == CbType::ShortAnonFn {
+            let Some(stm) = self.parse_short_anon_body(&mut formals)? else {
+                return Ok(None);
+            };
+            stm
+        } else {
+            if self.cur() == Tok::LPar {
+                self.next();
+                self.parse_formal_list(&mut formals)?;
+            }
+            if self.cur() != Tok::LBrace {
+                self.error_curtok("expected '{' at start of method code body, but found \"%\"");
+                empty = matches!(self.cur(), Tok::Sem | Tok::RBrace);
+            }
+            if empty {
                 // It looks like the end of the definition: take the body
                 // to be empty.
-                let stm = self.stmt(StmtKind::Comp {
+                self.stmt(StmtKind::Comp {
                     stmts: Vec::new(),
                     symtab: None,
-                });
-                return Ok(Some((self.finish_code_body(formals, stm), false)));
+                })
+            } else {
+                self.parse_compound(true, true, false, true)?
             }
-        }
-        let stm = self.parse_compound(true, true, false, true)?;
+        };
+        let (mut body, has_retval) = self.check_body_flow(formals, stm);
 
+        body.closure.enclosing = enclosing;
+        self.finish_local_ctx(&mut body, local_symtab.is_some());
+        // An anonymous function that uses its method's `self` finds it
+        // in the context of the function just outside it.
+        if self_valid && parsing_anon_fn && (self.self_referenced || self.full_ctx_referenced) {
+            self.ctx_var_for_level(&mut body, 1);
+        }
+        body.closure.self_referenced = self.self_referenced;
+        body.closure.full_ctx_referenced = self.full_ctx_referenced;
+        body.closure.local_ctx_needs_self = self.local_ctx_needs_self;
+        body.closure.local_ctx_needs_full = self.local_ctx_needs_full;
+        self.prog.body_refs[body_ref] = BodyRef {
+            enclosing,
+            local_ctx_needs_full: self.local_ctx_needs_full,
+        };
+        Ok(Some((body, has_retval)))
+    }
+
+    /// Work out how a body can be left, warn of what is odd about it,
+    /// and make the body.
+    fn check_body_flow(&mut self, formals: Formals, stm: Stmt) -> (CodeBody, bool) {
         let mut flow = Flow {
             warn: true,
             syntax_only: self.syntax_only,
@@ -1343,7 +1851,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
         }
         let has_retval = flags & flow::RET_VAL != 0;
-        Ok(Some((self.finish_code_body(formals, stm), has_retval)))
+        (self.finish_code_body(formals, stm), has_retval)
     }
 
     fn finish_code_body(&mut self, formals: Formals, stm: Stmt) -> CodeBody {
@@ -1361,15 +1869,26 @@ impl<'p, 'a> Parser<'p, 'a> {
             labels: std::rc::Rc::new(std::mem::take(&mut self.labels)),
             end_file,
             end_line,
+            closure: Closure::default(),
         }
     }
 
     /// Read a parameter list. The opening parenthesis has been read.
     fn parse_formal_list(&mut self, formals: &mut Formals) -> Parsed<()> {
-        const MISSING_RPAR: &str =
-            "missing right parenthesis ')' at end of formal parameter list - found \"%\"";
+        // The parameters of `{a, b: expression}` end at the colon.
+        let (end_tok, missing_end): (Tok, &str) = if formals.short_form {
+            (
+                Tok::Colon,
+                "missing colon at end of anonymous function formal list - found \"%\"",
+            )
+        } else {
+            (
+                Tok::RPar,
+                "missing right parenthesis ')' at end of formal parameter list - found \"%\"",
+            )
+        };
         let mut done = false;
-        if self.cur() == Tok::RPar {
+        if self.cur() == end_tok {
             done = true;
             self.next();
         }
@@ -1377,12 +1896,12 @@ impl<'p, 'a> Parser<'p, 'a> {
             match self.cur() {
                 Tok::Ellipsis => {
                     formals.varargs = true;
-                    done = self.after_ellipsis(MISSING_RPAR);
+                    done = self.after_ellipsis(end_tok, missing_end);
                 }
                 Tok::LBrack => {
                     formals.varargs = true;
                     match self.next() {
-                        Tok::RBrack => done = self.after_ellipsis(MISSING_RPAR),
+                        Tok::RBrack => done = self.after_ellipsis(end_tok, missing_end),
                         Tok::Sym => {
                             if !formals.count_only {
                                 self.create_scope_local_symtab();
@@ -1397,7 +1916,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                             }
                             match self.next() {
                                 Tok::RBrack => {
-                                    if self.next() == Tok::RPar {
+                                    if self.next() == end_tok {
                                         self.next();
                                         done = true;
                                     } else {
@@ -1406,12 +1925,12 @@ impl<'p, 'a> Parser<'p, 'a> {
                                                 "variable-argument list parameter must be the last parameter",
                                             ),
                                             Tok::LBrace | Tok::RBrace | Tok::LPar | Tok::Eof => {
-                                                self.error_curtok(MISSING_RPAR);
+                                                self.error_curtok(missing_end);
                                                 done = true;
                                             }
                                             _ => {
-                                                self.error_curtok(MISSING_RPAR);
-                                                if self.next() == Tok::RPar {
+                                                self.error_curtok(missing_end);
+                                                if self.next() == end_tok {
                                                     self.next();
                                                 }
                                                 done = true;
@@ -1439,7 +1958,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                                 "variable-argument list parameter name expected, but found \"%\"",
                             );
                             match self.cur() {
-                                Tok::RPar => {
+                                tok if tok == end_tok => {
                                     self.next();
                                     done = true;
                                 }
@@ -1481,9 +2000,19 @@ impl<'p, 'a> Parser<'p, 'a> {
                         }
                     } else {
                         match self.cur() {
+                            Tok::Colon if formals.short_form => {
+                                // The colon names the parameter only if
+                                // more of the list follows; otherwise it
+                                // ends the list.
+                                if matches!(self.next(), Tok::Comma | Tok::Colon) {
+                                    self.unsupported("a named parameter");
+                                } else {
+                                    self.tok.unget_token();
+                                }
+                            }
                             Tok::Colon => self.unsupported("a named parameter"),
                             Tok::Question | Tok::Eq => self.unsupported("an optional parameter"),
-                            Tok::Sym if !self.cur_is_sym(b"multimethod") => {
+                            Tok::Sym if formals.typed_ok && !self.cur_is_sym(b"multimethod") => {
                                 self.unsupported("a parameter with a type");
                             }
                             _ => {}
@@ -1495,7 +2024,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                         formals.argc += 1;
                     }
                     match self.cur() {
-                        Tok::RPar => {
+                        tok if tok == end_tok => {
                             self.next();
                             done = true;
                         }
@@ -1515,12 +2044,18 @@ impl<'p, 'a> Parser<'p, 'a> {
                     }
                 }
                 Tok::Sem | Tok::RBrace | Tok::LBrace | Tok::Eof => {
-                    self.error_curtok(MISSING_RPAR);
+                    self.error_curtok(missing_end);
                     done = true;
                 }
-                Tok::RPar => {
+                tok if tok == end_tok => {
                     self.error("missing parameter name at end of formal parameter list");
                     self.next();
+                    done = true;
+                }
+                _ if formals.short_form => {
+                    // The colon was probably left out: the list ends
+                    // here.
+                    self.error_curtok(missing_end);
                     done = true;
                 }
                 _ => {
@@ -1532,7 +2067,11 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
         }
         if self.cur_is_sym(b"multimethod") {
-            self.unsupported("a multi-method");
+            if formals.typed_ok || formals.count_only {
+                self.unsupported("a multi-method");
+            } else {
+                self.error("'multimethod' is not allowed here");
+            }
             self.next();
         }
         // The count is of the parameters that have to be there.
@@ -1541,8 +2080,8 @@ impl<'p, 'a> Parser<'p, 'a> {
     }
 
     /// What follows `...` in a parameter list. True if the list is over.
-    fn after_ellipsis(&mut self, missing_rpar: &str) -> bool {
-        if self.next() == Tok::RPar {
+    fn after_ellipsis(&mut self, end_tok: Tok, missing_rpar: &str) -> bool {
+        if self.next() == end_tok {
             self.next();
             return true;
         }
@@ -1780,16 +2319,21 @@ impl<'p, 'a> Parser<'p, 'a> {
             if self.cur() == Tok::Sym {
                 let name = self.cur_text();
                 let local = self.add_local(&name);
+                // An initializer that could not be read ends the
+                // statement, after a look at what follows.
+                let mut done = false;
                 if matches!(self.next(), Tok::Eq | Tok::Asi) {
-                    let Some(expr) = self.parse_local_initializer(local) else {
-                        break;
-                    };
-                    let (file, line) = self.tok.last_pos();
-                    stmts.push(Stmt {
-                        kind: StmtKind::Expr(expr),
-                        file,
-                        line,
-                    });
+                    match self.parse_local_initializer(local) {
+                        Some(expr) => {
+                            let (file, line) = self.tok.last_pos();
+                            stmts.push(Stmt {
+                                kind: StmtKind::Expr(expr),
+                                file,
+                                line,
+                            });
+                        }
+                        None => done = true,
+                    }
                 }
                 match self.cur() {
                     Tok::Comma => {
@@ -1807,6 +2351,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                         );
                         break;
                     }
+                }
+                if done {
+                    break;
                 }
             } else {
                 self.error_curtok(
@@ -2062,13 +2609,12 @@ impl<'p, 'a> Parser<'p, 'a> {
         let (file, line) = self.tok.last_pos();
         self.prog.locals.push(Local {
             name: name.to_vec(),
-            is_param: false,
             var_num,
-            is_list_param: false,
             val_used: true,
             val_assigned: true,
             file,
             line,
+            ..Local::default()
         });
         self.prog.locals.len() - 1
     }
@@ -3030,26 +3576,34 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Int => Value::Int(self.tok.cur_token().int_val as i32),
                 Tok::SStr => Value::SStr(self.cur_text()),
                 Tok::DStr => {
+                    // Displaying a string might go through `self`.
+                    self.self_referenced = true;
                     let text = self.cur_text();
                     self.next();
                     return Some(Expr::DStr(text));
                 }
                 Tok::SelfKw => {
+                    self.self_referenced = true;
                     self.next();
                     return Some(Expr::SelfRef);
                 }
                 Tok::TargetProp => {
+                    self.full_ctx_referenced = true;
                     self.next();
                     return Some(Expr::CtxEle(1));
                 }
                 Tok::TargetObj => {
+                    self.full_ctx_referenced = true;
                     self.next();
                     return Some(Expr::CtxEle(2));
                 }
                 Tok::DefiningObj => {
+                    self.full_ctx_referenced = true;
                     self.next();
                     return Some(Expr::CtxEle(3));
                 }
+                Tok::LBrace => return self.parse_anon_func(true),
+                Tok::Function | Tok::Method => return self.parse_anon_func(false),
                 Tok::Invokee => {
                     self.next();
                     return Some(Expr::CtxEle(4));
@@ -3057,10 +3611,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Inherited => return self.parse_inherited(),
                 Tok::New => {
                     let transient = match self.next() {
-                        Tok::Function | Tok::Method => {
-                            self.unsupported("an anonymous function");
-                            return Some(Expr::constant(Value::Nil));
-                        }
+                        Tok::Function | Tok::Method => return self.parse_anon_func(false),
                         Tok::Transient => {
                             self.next();
                             true
@@ -3073,15 +3624,25 @@ impl<'p, 'a> Parser<'p, 'a> {
                     }
                     return Some(Expr::New(Box::new(sub), transient));
                 }
-                Tok::DStrStart => return self.parse_embedding(true),
+                Tok::DStrStart => {
+                    self.self_referenced = true;
+                    return self.parse_embedding(true);
+                }
                 Tok::SStrStart => return self.parse_embedding(false),
                 Tok::LBrack => return self.parse_list(),
                 Tok::Sym => {
                     let name = self.cur_text();
                     self.next();
                     return Some(match self.find_local(&name) {
-                        Some(id) => Expr::Local(id),
-                        None => Expr::Sym(name),
+                        Some(id) => {
+                            self.prog.locals[id].referenced = true;
+                            Expr::Local(id)
+                        }
+                        None => {
+                            // It might be a property of `self`.
+                            self.self_referenced = true;
+                            Expr::Sym(name)
+                        }
                     });
                 }
                 Tok::RPar => {
@@ -3106,9 +3667,6 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Float
                 | Tok::BigInt
                 | Tok::ReStr
-                | Tok::LBrace
-                | Tok::Method
-                | Tok::Function
                 | Tok::Object
                 | Tok::Replaced
                 | Tok::ArgCount
@@ -3405,6 +3963,8 @@ impl Parser<'_, '_> {
     /// Read `inherited`, which is followed by `.prop` or stands for
     /// the method being overridden, and can name a superclass first.
     fn parse_inherited(&mut self) -> Option<Expr> {
+        // What is inherited depends on how the method was called.
+        self.full_ctx_referenced = true;
         let lhs = match self.next() {
             Tok::Sym => {
                 let name = self.cur_text();
@@ -3428,6 +3988,7 @@ impl Parser<'_, '_> {
             } else {
                 None
             };
+            self.full_ctx_referenced = true;
             return Some(Expr::Member {
                 obj: Box::new(lhs),
                 prop: Box::new(Expr::CtxEle(1)),
@@ -3461,6 +4022,7 @@ impl Parser<'_, '_> {
             Tok::TargetProp => {
                 self.next();
                 prop_is_expr = true;
+                self.full_ctx_referenced = true;
                 Expr::CtxEle(1)
             }
             _ => {
@@ -3906,28 +4468,79 @@ impl Parser<'_, '_> {
             }
             // The value is read as an expression of its own, outside
             // any function.
+            let old_cur_code_body = self.cur_code_body;
+            self.clear_local_ctx();
+            self.cur_code_body = None;
             self.local_symtab = None;
             self.enclosing_local_symtab = None;
             self.local_cnt = 0;
             self.max_local_cnt = 0;
             self.enclosing.clear();
+            // A value that cannot be read ends the reading of the whole
+            // source.
             let Some(expr) = self.parse_expr() else {
-                return Ok(false);
+                return Err(Stop);
             };
+            // A value with an anonymous function in it that uses `self`
+            // has to be a method, to make the context the function
+            // finds `self` in.
+            let value = if self.has_local_ctx {
+                let kind = if self.prog.has_return_value(&expr) {
+                    StmtKind::Return(Some(expr))
+                } else {
+                    StmtKind::Expr(expr)
+                };
+                // The reference takes the statement to be where the
+                // last statement read was, wherever that is; but it
+                // looks up the names in the value as the property's,
+                // and that is where what there is to say gets said.
+                let mut body = CodeBody {
+                    lcltab: None,
+                    stm: Stmt { kind, file, line },
+                    argc: 0,
+                    opt_argc: 0,
+                    varargs: false,
+                    varargs_list_local: None,
+                    local_cnt: self.local_cnt,
+                    self_valid: self.self_valid,
+                    replaced: false,
+                    labels: std::rc::Rc::default(),
+                    end_file: file,
+                    end_line: line,
+                    closure: Closure {
+                        // The reference has the last body read as the
+                        // one this is in.
+                        enclosing: old_cur_code_body,
+                        wraps_prop_expr: true,
+                        ..Closure::default()
+                    },
+                };
+                self.finish_local_ctx(&mut body, false);
+                body.closure.self_referenced = self.self_referenced;
+                body.closure.full_ctx_referenced = self.full_ctx_referenced;
+                body.closure.local_ctx_needs_self = self.local_ctx_needs_self;
+                body.closure.local_ctx_needs_full = self.local_ctx_needs_full;
+                self.prog.bodies.push((body, None));
+                PropValue::Method(self.prog.bodies.len() - 1)
+            } else {
+                PropValue::Expr(expr)
+            };
+            self.cur_code_body = old_cur_code_body;
             if let Some(prop) = prop {
                 new_prop = Some(def.props.len());
                 def.props.push(ObjProp {
                     prop,
-                    value: PropValue::Expr(expr),
+                    value,
                     overwritable: false,
                     file,
                     line,
                 });
             }
         } else {
-            let Some((body, _)) = self.parse_code_body(true)? else {
+            let Some((body, _)) = self.parse_code_body(true, CbType::Normal, None, None)? else {
                 return Ok(false);
             };
+            self.prog.last_labels = std::rc::Rc::clone(&body.labels);
             self.self_valid = true;
             if let Some(prop) = prop {
                 new_prop = Some(def.props.len());
@@ -4451,6 +5064,10 @@ struct Formals {
     /// The list is only being read for how many parameters there are;
     /// they are not declared.
     count_only: bool,
+    /// The list is that of `{a, b: expression}`, which ends at a colon.
+    short_form: bool,
+    /// A parameter can be given a type.
+    typed_ok: bool,
     argc: usize,
     opt_argc: usize,
     varargs: bool,

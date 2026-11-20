@@ -329,6 +329,8 @@ class Program:
             if scope and rng.random() < 0.92:
                 return rng.choice(scope)
             return self.constant()
+        if rng.random() < 0.05:
+            return self.anon_expr(scope, depth)
         kind = rng.random()
         named = [obj[0] for obj in self.objs if obj[0]]
         if named and rng.random() < 0.04:
@@ -522,6 +524,8 @@ class Program:
             return self.simple(scope, indent, in_loop)
         if force is None and rng.random() < 0.08:
             return self.for_in(scope, depth, indent)
+        if force is None and rng.random() < 0.06:
+            return self.anon_stmt(scope, declared, depth, indent)
         if kind < 0.5:
             name = rng.choice(NAMES)
             # A block cannot declare a name twice.
@@ -638,6 +642,50 @@ class Program:
             lines += ["    " + line for line in body if "return " not in line]
         lines.append("}" if braces else ";")
         return lines
+
+    def anon_expr(self, scope, depth):
+        """A short anonymous function, perhaps called on the spot."""
+        rng = self.rng
+        params = rng.sample(NAMES, rng.randint(0, 2))
+        inner = list(scope) + params
+        own = ""
+        if rng.random() < 0.15:
+            name = rng.choice(NAMES)
+            if name not in params:
+                own = f"local {name} = {self.expr(inner, depth - 2)}, "
+                inner.append(name)
+        text = "{" + ", ".join(params) + ": " + own + self.expr(inner, depth - 1) + " }"
+        if rng.random() < 0.5:
+            args = ", ".join(self.expr(scope, depth - 2) for _ in params)
+            text = f"({text})({args})"
+        return text
+
+    def anon_stmt(self, scope, declared, depth, indent):
+        """A local given an anonymous function or method with a body."""
+        rng = self.rng
+        pad = "    " * indent
+        params = rng.sample(NAMES, rng.randint(0, 2))
+        word = rng.choice(["function", "function", "method", "new function"])
+        # The function has labels and loops of its own.
+        labels, around = self.labels, self.around
+        self.labels, self.around = [], []
+        lines = self.block(list(scope) + params, depth - 1, indent + 1, 0)
+        for index, line in enumerate(lines):
+            if "@LABEL@" in line:
+                if self.labels:
+                    lines[index] = line.replace("@LABEL@", rng.choice(self.labels))
+                else:
+                    lines[index] = line.replace("goto @LABEL@;", ";")
+        self.labels, self.around = labels, around
+        name = rng.choice(NAMES)
+        if name in declared or (scope and rng.random() < 0.3):
+            target = rng.choice(scope) if scope else "nosuch"
+        else:
+            declared.add(name)
+            scope.append(name)
+            target = f"local {name}"
+        head = f"{pad}{target} = {word}({', '.join(params)})"
+        return [head, pad + "{"] + lines + [pad + "};"]
 
     def for_in(self, scope, depth, indent):
         """A loop over a collection or a range."""

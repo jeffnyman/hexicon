@@ -11,8 +11,8 @@ use std::rc::Rc;
 use hexicon_bytecode::{Layout, Opcode as Op};
 
 use crate::ast::{
-    Arg, AsiOp, BinOp, Catch, CodeBody, ConstVal, Expr, Finally, ForIn, LabelSym, LocalId, Stmt,
-    StmtKind, TabId, UnOp, Value, flow,
+    Arg, AsiOp, BinOp, Catch, Closure, CodeBody, ConstVal, Expr, Finally, ForIn, LabelSym, LocalId,
+    Stmt, StmtKind, TabId, UnOp, Value, flow,
 };
 use crate::codegen::{CodeGen, Label};
 use crate::flow::Flow;
@@ -82,6 +82,13 @@ mod datatype {
 
 /// The number of the list metaclass among those every image has.
 const METACLASS_LIST: u8 = 1;
+const METACLASS_VECTOR: u8 = 4;
+const METACLASS_ANON_FN: u8 = 5;
+/// The place in a context of the `self` of the method it was made in.
+const CTX_METHOD_CTX: u8 = 1;
+/// Which part of what a function knows about its call is the function
+/// object itself.
+const CTX_ELE_INVOKEE: u8 = 4;
 
 /// A problem found while generating, and where.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -392,6 +399,11 @@ struct Gen<'p> {
     /// How many problems had been reported when the generator gave up
     /// for too many errors, if it has.
     gave_up: Option<usize>,
+    /// What each body shares with the bodies in and around it, by the
+    /// body's index.
+    closures: Vec<Closure>,
+    /// The body being generated.
+    cur_body: usize,
 }
 
 /// Generate the code for a program.
@@ -424,11 +436,11 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         in_constructor: false,
         member_ctx: Vec::new(),
         gave_up: None,
+        closures: Vec::new(),
+        cur_body: 0,
     };
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
-    if let Some((body, _)) = bodies.last() {
-        generator.last_labels = Rc::clone(&body.labels);
-    }
+    generator.last_labels = Rc::clone(&generator.prog.last_labels);
     // Names are looked up, and what has become constant is worked out,
     // for the whole program before any code is generated.
     for item in &top {
@@ -439,6 +451,26 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                     match &mut prop.value {
                         PropValue::Method(body) => {
                             let body = *body;
+                            if bodies[body].0.closure.wraps_prop_expr {
+                                // The value is worked out first as the
+                                // property's; if that leaves a
+                                // constant, the property is that, and
+                                // not a method after all.
+                                generator.cur_file = prop.file;
+                                generator.cur_line = prop.line;
+                                let (StmtKind::Return(Some(expr)) | StmtKind::Expr(expr)) =
+                                    &mut bodies[body].0.stm.kind
+                                else {
+                                    unreachable!("a property's value in a statement");
+                                };
+                                generator.fold_in_place(expr);
+                                if expr.is_const() || matches!(expr, Expr::DStr(_)) {
+                                    let expr = std::mem::replace(expr, Expr::constant(Value::Nil));
+                                    bodies[body].0.replaced = true;
+                                    prop.value = PropValue::Expr(expr);
+                                    continue;
+                                }
+                            }
                             generator.fold_stmt(&mut bodies[body].0.stm);
                         }
                         PropValue::Expr(expr) => {
@@ -474,6 +506,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                                 labels: Rc::default(),
                                 end_file: prop.file,
                                 end_line: prop.line,
+                                closure: Closure::default(),
                             };
                             prop.value = PropValue::Method(bodies.len());
                             bodies.push((body, None));
@@ -490,6 +523,10 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         prog.objdefs = objdefs;
         return out;
     }
+    generator.closures = bodies
+        .iter()
+        .map(|(body, _)| body.closure.clone())
+        .collect();
     let mut scopes = Vec::new();
     for item in &top {
         if generator.gave_up.is_some() {
@@ -597,6 +634,11 @@ impl Gen<'_> {
     fn check_unreferenced_locals(&mut self, tab: TabId) {
         for id in enum_order(&self.prog.tabs[tab], &self.prog.locals) {
             let local = &self.prog.locals[id];
+            // A nested function's view of a local: the local itself is
+            // what gets reported.
+            if local.ctx_orig.is_some() {
+                continue;
+            }
             let param = local.is_param || local.is_list_param;
             let name = show_name(&local.name);
             let message = if !local.val_used && !local.val_assigned && !param {
@@ -731,7 +773,7 @@ impl Gen<'_> {
 
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         match expr {
-            Expr::Const(_) | Expr::Local(_) => expr,
+            Expr::Const(_) | Expr::Local(_) | Expr::AnonFunc { .. } => expr,
             Expr::Sym(name) => match self.prog.globals.get(&name) {
                 Some(Global::Func(func)) => Expr::constant(Value::FuncPtr(*func)),
                 Some(Global::Obj(obj)) => Expr::constant(Value::Obj(self.prog.objs[*obj].id)),
@@ -1021,13 +1063,12 @@ impl Gen<'_> {
         let implicit = (def.superclasses.len() > 1 && !has_constructor).then(|| {
             self.prog.locals.push(Local {
                 name: b"*".to_vec(),
-                is_param: false,
-                var_num: 0,
                 is_list_param: true,
                 val_used: true,
                 val_assigned: true,
                 file: def.file,
                 line: def.line,
+                ..Local::default()
             });
             CodeBody {
                 lcltab: None,
@@ -1050,6 +1091,7 @@ impl Gen<'_> {
                 labels: Rc::clone(&self.last_labels),
                 end_file: def.file,
                 end_line: def.line,
+                closure: Closure::default(),
             }
         });
         for prop in &def.props {
@@ -1140,6 +1182,7 @@ impl Gen<'_> {
         self.method_ofs = self.cg.ofs();
         let method_ofs = self.method_ofs;
         self.self_available = body.self_valid;
+        self.cur_body = body_index;
         if let Some(func) = func {
             self.out
                 .func_anchor
@@ -1167,11 +1210,94 @@ impl Gen<'_> {
         }
         self.set_local_frame(body.lcltab);
 
+        // A function with locals that nested functions use makes a
+        // vector to keep them in, and moves into it any parameters
+        // among them.
+        let closure = &body.closure;
+        if closure.has_local_ctx {
+            self.gen_int(closure.local_ctx_arr_size as i32);
+            self.cg.write_op(Op::Dup);
+            self.cg.write_op(Op::New1);
+            self.cg.write(2);
+            self.cg.write(METACLASS_VECTOR);
+            self.cg.write_op(Op::GetR0);
+            self.cg.note_push();
+            self.cg.note_pop();
+            self.gen_setlcl_stk(closure.local_ctx_var, false);
+            if let Some(lcltab) = body.lcltab {
+                for id in enum_order(&self.prog.tabs[lcltab], &self.prog.locals) {
+                    let local = &self.prog.locals[id];
+                    if local.is_param && local.is_ctx_local {
+                        self.gen_getlcl(local.var_num, true);
+                        self.gen_local_asi(id, true, 1, AsiOp::Simple, None, false);
+                    }
+                }
+            }
+        }
+
         if let Some(local) = body.varargs_list_local {
             self.cg.write_op(Op::PushParLst);
             self.cg.write(body.argc as u8);
             self.cg.note_push();
-            self.gen_setlcl_stk(self.prog.locals[local].var_num, false);
+            self.gen_setlcl(local);
+        }
+
+        // A nested function keeps in locals the contexts it was made
+        // with, which it finds in the function object it is run as.
+        let outer_has_full = self.outermost_needs_full(closure);
+        for (index, &(level, var)) in closure.ctx_levels.iter().enumerate() {
+            self.cg.write_op(Op::PushCtxEle);
+            self.cg.write(CTX_ELE_INVOKEE);
+            self.gen_int(index as i32 + 2);
+            self.cg.write_op(Op::Index);
+            self.cg.note_push();
+            self.cg.note_pop();
+            // The context of the function just outside has the `self`
+            // of the method all this is in.
+            if level == 1
+                && !closure.is_anon_method
+                && body.self_valid
+                && (closure.self_referenced || closure.full_ctx_referenced)
+            {
+                self.cg.write_op(Op::Dup);
+                self.cg.note_push();
+                self.gen_int(i32::from(CTX_METHOD_CTX));
+                self.cg.write_op(Op::Index);
+                self.cg.write_op(if outer_has_full {
+                    Op::LoadCtx
+                } else {
+                    Op::SetSelf
+                });
+                self.cg.note_pops(2);
+            }
+            self.gen_setlcl_stk(var, false);
+        }
+
+        // And a method whose nested functions use its `self` puts that
+        // in its context for them.
+        if closure.has_local_ctx
+            && body.self_valid
+            && (closure.local_ctx_needs_self || closure.local_ctx_needs_full)
+        {
+            self.cg
+                .write_op(if closure.local_ctx_needs_full || outer_has_full {
+                    Op::StoreCtx
+                } else {
+                    Op::PushSelf
+                });
+            self.cg.note_push();
+            if closure.local_ctx_var <= 255 {
+                self.cg.write_op(Op::SetIndLcl1I8);
+                self.cg.write(closure.local_ctx_var as u8);
+                self.cg.write(CTX_METHOD_CTX);
+                self.cg.note_pop();
+            } else {
+                self.gen_getlcl(closure.local_ctx_var, false);
+                self.gen_int(i32::from(CTX_METHOD_CTX));
+                self.cg.write_op(Op::SetInd);
+                self.cg.write_op(Op::Disc);
+                self.cg.note_pops(3);
+            }
         }
 
         self.gen_stmt(&body.stm);
@@ -1318,13 +1444,25 @@ impl Gen<'_> {
                 if !inline {
                     flags |= 0x0004;
                 }
-                self.cg.write2(local.var_num as u16);
+                if local.is_ctx_local {
+                    flags |= 0x0002;
+                }
+                let is_ctx_local = local.is_ctx_local;
+                self.cg.write2(if is_ctx_local {
+                    local.ctx_var_num
+                } else {
+                    local.var_num
+                } as u16);
                 self.cg.write2(flags);
                 // The index within a shared context, for a local that is
                 // shared with nested functions. For any other local the
                 // reference writes whatever its memory holds.
-                self.out.unspecified.push(self.cg.ofs());
-                self.cg.write2(0);
+                if is_ctx_local {
+                    self.cg.write2(self.prog.ctx_arr_idx(id) as u16);
+                } else {
+                    self.out.unspecified.push(self.cg.ofs());
+                    self.cg.write2(0);
+                }
                 if inline {
                     self.cg.write2(name.len() as u16);
                     for byte in name {
@@ -2188,7 +2326,7 @@ impl Gen<'_> {
         self.cg.clear_peephole();
         // The exception is on the stack on arrival.
         self.cg.note_push();
-        self.gen_setlcl_stk(self.prog.locals[catch.var].var_num, false);
+        self.gen_setlcl(catch.var);
         if let Some(body) = &catch.body {
             self.gen_substm(body, stmt);
         }
@@ -2513,6 +2651,50 @@ impl Gen<'_> {
                 }
             }
             Expr::New(sub, transient) => self.gen_new(sub, *transient, discard, 0, false, false),
+            Expr::AnonFunc { body, .. } => {
+                if discard {
+                    return;
+                }
+                // The contexts the function needs, last first: each is
+                // one this function has, from one function less far
+                // out. Then the code; and if there are contexts, or the
+                // function makes one of its own, an object of the two.
+                let levels = self.closures[*body].ctx_levels.clone();
+                let mut argc = 1;
+                for &(level, _) in levels.iter().rev() {
+                    let cur = &self.closures[self.cur_body];
+                    let var = if level == 1 {
+                        cur.local_ctx_var
+                    } else {
+                        cur.ctx_levels
+                            .iter()
+                            .find(|&&(have, _)| have == level - 1)
+                            .map_or(0, |&(_, var)| var)
+                    };
+                    self.gen_getlcl(var, false);
+                    argc += 1;
+                }
+                self.cg.write_op(Op::PushFnPtr);
+                self.out.fixups.push(Fixup {
+                    ofs: self.cg.ofs(),
+                    target: Target::Body(*body),
+                });
+                self.cg.write4(0);
+                self.cg.note_push();
+                if argc > 1 || self.closures[*body].has_local_ctx {
+                    if argc <= 255 {
+                        self.cg.write_op(Op::New1);
+                        self.cg.write(argc as u8);
+                        self.cg.write(METACLASS_ANON_FN);
+                    } else {
+                        self.cg.write_op(Op::New2);
+                        self.cg.write2(argc as u16);
+                        self.cg.write2(u16::from(METACLASS_ANON_FN));
+                    }
+                    self.cg.write_op(Op::GetR0);
+                    self.cg.note_pops(argc - 1);
+                }
+            }
             Expr::Inh | Expr::InhClass(_) => {
                 self.error("\"inherited\" cannot be generated on its own");
             }
@@ -2799,25 +2981,20 @@ impl Gen<'_> {
     /// through a constant to leave a value whatever the function does.
     /// So only a call by a name that was never defined is looked up.
     fn has_return_value(&self, expr: &Expr) -> bool {
-        match expr {
-            Expr::Call(func, _) => match &**func {
-                Expr::Sym(name) => match self.prog.globals.get(name) {
-                    Some(Global::Func(func)) => self.prog.funcs[*func].has_retval,
-                    _ => true,
-                },
-                _ => true,
-            },
-            Expr::Binary(BinOp::Comma, _, right) => self.has_return_value(right),
-            Expr::If(_, second, third) => {
-                self.has_return_value(second) || self.has_return_value(third)
-            }
-            Expr::IfNil(first, second) => {
-                self.has_return_value(first) || self.has_return_value(second)
-            }
-            Expr::DStr(_) | Expr::DStrEmbed(_) => false,
-            Expr::OneOf(dbl, _) => !dbl,
-            _ => true,
+        self.prog.has_return_value(expr)
+    }
+
+    /// Whether the outermost of the bodies a body is nested in keeps
+    /// all of what a method knows of its call in its context, not just
+    /// `self`.
+    fn outermost_needs_full(&self, closure: &Closure) -> bool {
+        let mut outermost = None;
+        let mut next = closure.enclosing;
+        while let Some(body) = next {
+            outermost = Some(body);
+            next = self.prog.body_refs[body].enclosing;
         }
+        outermost.is_some_and(|body| self.prog.body_refs[body].local_ctx_needs_full)
     }
 
     // ---- loops over collections and ranges ----
@@ -3875,11 +4052,51 @@ impl Gen<'_> {
     fn gen_local(&mut self, id: LocalId, discard: bool) {
         if !discard {
             let local = &self.prog.locals[id];
-            self.gen_getlcl(local.var_num, local.is_param);
+            if local.is_ctx_local {
+                // It is in a context: an element of a vector.
+                let var = local.ctx_var_num;
+                let index = self.prog.ctx_arr_idx(id);
+                if var <= 255 && index <= 255 {
+                    self.cg.write_op(Op::IdxLcl1Int8);
+                    self.cg.write(var as u8);
+                    self.cg.write(index as u8);
+                    self.cg.note_push();
+                } else {
+                    self.gen_getlcl(var, false);
+                    self.gen_int(index as i32);
+                    self.cg.write_op(Op::Index);
+                    self.cg.note_pop();
+                }
+            } else {
+                self.gen_getlcl(local.var_num, local.is_param);
+            }
         }
         // The variable has been used, whether or not its value was
         // wanted here.
-        self.prog.locals[id].val_used = true;
+        self.prog.set_val_used(id);
+    }
+
+    /// Store the value on the stack in a local, wherever it lives.
+    fn gen_setlcl(&mut self, id: LocalId) {
+        let local = &self.prog.locals[id];
+        if !local.is_ctx_local {
+            self.gen_setlcl_stk(local.var_num, local.is_param);
+            return;
+        }
+        let var = local.ctx_var_num;
+        let index = self.prog.ctx_arr_idx(id);
+        if var <= 255 && index <= 255 {
+            self.cg.write_op(Op::SetIndLcl1I8);
+            self.cg.write(var as u8);
+            self.cg.write(index as u8);
+            self.cg.note_pop();
+        } else {
+            self.gen_getlcl(var, false);
+            self.gen_int(index as i32);
+            self.cg.write_op(Op::SetInd);
+            self.cg.write_op(Op::Disc);
+            self.cg.note_pops(3);
+        }
     }
 
     fn gen_getlcl(&mut self, var_num: usize, is_param: bool) {
@@ -4119,20 +4336,27 @@ impl Gen<'_> {
         explicit: bool,
     ) -> bool {
         if explicit {
-            self.prog.locals[id].val_assigned = true;
+            self.prog.set_val_assigned(id);
         }
         if typ != AsiOp::Simple {
-            self.prog.locals[id].val_used = true;
+            self.prog.set_val_used(id);
         }
         let var_num = self.prog.locals[id].var_num;
         let is_param = self.prog.locals[id].is_param;
+        let is_ctx_local = self.prog.locals[id].is_ctx_local;
+        // A local in a context has no instructions of its own: its
+        // value is fetched, worked on, and stored.
+        if is_ctx_local && typ != AsiOp::Simple && phase == 1 {
+            self.gen_local(id, false);
+            return false;
+        }
         // The second phase of any assignment is a plain store.
         let typ = if phase == 2 { AsiOp::Simple } else { typ };
         match typ {
             AsiOp::Simple => {
                 // Setting a local to nil, zero or one has instructions
                 // of its own.
-                let short = if is_param {
+                let short = if is_param || is_ctx_local {
                     None
                 } else {
                     match rhs.and_then(Expr::as_const).map(|value| &value.value) {
@@ -4163,7 +4387,7 @@ impl Gen<'_> {
                     self.cg.write_op(Op::Dup);
                     self.cg.note_push();
                 }
-                self.gen_setlcl_stk(var_num, is_param);
+                self.gen_setlcl(id);
                 true
             }
             AsiOp::Add | AsiOp::Sub => {

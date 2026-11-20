@@ -202,6 +202,12 @@ pub(crate) enum Expr {
     OneOf(bool, Vec<Expr>),
     /// `self`
     SelfRef,
+    /// An anonymous function: its body, as an index into the program's
+    /// bodies, and whether calling it gives a value.
+    AnonFunc {
+        body: usize,
+        has_retval: bool,
+    },
     /// `x is in (a, b)`, or with `not` set `x not in (a, b)`. `hit` is
     /// set when constants were worked out and the left side was found
     /// among them: the test is then known to succeed if nothing else
@@ -532,6 +538,46 @@ pub(crate) struct CodeBody {
     /// Where the closing brace is.
     pub end_file: usize,
     pub end_line: u32,
+    /// What the body shares with functions nested in it, and with the
+    /// function it is nested in.
+    pub closure: Closure,
+}
+
+/// How a body shares locals, and the object a method is running on,
+/// with anonymous functions.
+///
+/// A local that a nested function uses does not live on the stack: it
+/// is an element of a vector, the function's "context", which the
+/// nested function is given when it is made. The nested function keeps
+/// each context it was given in a local of its own.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Closure {
+    /// The body makes a context for its own locals, and keeps it in
+    /// this local; and how many elements it has.
+    pub has_local_ctx: bool,
+    pub local_ctx_var: usize,
+    pub local_ctx_arr_size: usize,
+    /// The contexts the body is given, in the order it is given them:
+    /// how many functions out each comes from, and the local it is
+    /// kept in.
+    pub ctx_levels: Vec<(usize, usize)>,
+    /// The code refers to `self`, or might; and to the rest of what a
+    /// method knows about how it was called.
+    pub self_referenced: bool,
+    pub full_ctx_referenced: bool,
+    /// A function nested in the body needs the body's `self` put in its
+    /// context, or all of what the method knows.
+    pub local_ctx_needs_self: bool,
+    pub local_ctx_needs_full: bool,
+    /// It is the body of an anonymous method, which gets its `self`
+    /// from whoever calls it.
+    pub is_anon_method: bool,
+    /// The body this one is nested in, as a number in
+    /// `Program::body_refs`.
+    pub enclosing: Option<usize>,
+    /// The body was made for a property's value, an expression that
+    /// had to be a method for the sake of a function in it.
+    pub wraps_prop_expr: bool,
 }
 
 /// The ways a statement can be left.

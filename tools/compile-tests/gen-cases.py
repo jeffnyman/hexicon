@@ -1230,6 +1230,320 @@ _main(args)
 }
 """
 
+# Anonymous functions, and what they share with the functions around
+# them.
+programs["anon1"] = """
+_main(args)
+{
+    local f = {x: x + 1};
+    local g = function(a, b) { return a + b; };
+    return f(1) + g(2, 3);
+}
+"""
+
+programs["anon2"] = """
+_main(args)
+{
+    local n = 5;
+    local q = 7;
+    local f = {x: x + n};
+    n = 6;
+    local g = {: f(args) + {y: y + n + q}(2) };
+    return f(1) + g();
+}
+"""
+
+programs["anon3"] = """
+a: object
+    v = 3
+    m(p)
+    {
+        local f = {x: x + v + p};
+        local g = method(x) { return x + v; };
+        local h = function() { return self; };
+        return f(1) + g(2) + h();
+    }
+    k() { return ({: targetprop }); }
+;
+_main(args)
+{
+    return a.m(1);
+}
+"""
+
+programs["anon4"] = """
+_main(args)
+{
+    local a = 1, b = 2, c = 3, d;
+    local f = {x: {y: {z: x + y + z + a}}};
+    local g = function(p, q) {
+        local r = p + b;
+        return {: r + q + c };
+    };
+    b += 2;
+    c++;
+    --c;
+    a = a * 2;
+    b -= 1;
+    c <<= 1;
+    local h = {: d = 5 };
+    h();
+    return f(1)(2)(3) + g(1, 2)() + a + b + c + d;
+}
+"""
+
+programs["anon5"] = """
+f(a, b, [rest])
+{
+    local g = {: a + rest.length() };
+    local h = {x: b = x };
+    try { h(1); } catch (Exception e) { local k = {: e }; k(); }
+    for (local i = 1 ; i < 3 ; ++i) { local z = {: i * 2 }; z(); }
+    return g;
+}
+g(x, y) { return {: y }; }
+h(x, y) { return {x: x }; }
+k(x) { local x1 = x; { local x2 = 2; return {: x1 + x2 }; } }
+_main(args)
+{
+    local u;
+    local w = 1;
+    local v = {: "hello" };
+    {: w };
+    v();
+    {: "x<<w>>y" }();
+    return {a, b: a + b}(1, 2) + f(1, 2)() + g(1,2)() + h(1,2)(3) + k(1)() + (function() { return 1; })() + new function(q) { return q; }(2);
+}
+"""
+
+programs["anon6"] = """
+class Exception: object;
+a: object
+    v = 3
+    m(p)
+    {
+        local f = {x: x + v + p};
+        local g = method(x) { return x + v + self.v; };
+        local h = function() { return self; };
+        return f(1) + g(2) + h();
+    }
+    k() { return ({: targetprop }); }
+    k2() { return ({: {: definingobj } }); }
+    k3(q) { return ({: {: q + v } }); }
+    k4() { return ({: inherited() }); }
+    k5() { return method() { return {: self }; }; }
+    k6() { return {: "str" }; }
+    k7() { local z = 1; return method() { return z; }; }
+    k8() { return method() { return {: targetobj }; }; }
+    p1 = {: v }
+    p2 = {: 1 }
+    p3 = ({x: x + v} (2))
+    p4 = [{: self }, {: targetprop }]
+    p5 = method() { return v; }
+    p6 = {: "hello" }
+;
+b: object
+    q1 = {: 2 }
+    m1() { return {: targetprop }; }
+    q2 = {: self }
+    m2() { return 1; }
+    q3 = {: self }
+;
+f1() { return {: nosuch }; }
+f2() { return {: self }; }
+_main(args)
+{
+    return a.m(1);
+}
+"""
+
+programs["anon7"] = """
+_main(args)
+{
+    local a = 1;
+    local unused;
+    local f = function(x) {
+        local inner;
+        local n = 0;
+        lbl:
+        n++;
+        if (n < 3) goto lbl;
+        return {: a + inner };
+    };
+    local g = function() { a = 2; };
+    local h = function(z) { if (z) return 1; };
+    local i = {: local q = 3 };
+    return f(1)() + g() + h(1);
+}
+"""
+
+programs["anon8"] = """
+_main(args)
+{
+    local a = 1;
+    local f = function(x) {
+        local b = x;
+        return function(y) {
+            local c = y;
+            return function(z) {
+                a += 1;
+                b += a;
+                c = b + z;
+                return {: a + b + c + x + y + z };
+            };
+        };
+    };
+    local g = {x: {y: a + y}};
+    local h = {a: {b: a + b}};
+    local a2 = 5;
+    {
+        local a2 = 6;
+        local i = {: a2 };
+        i();
+    }
+    local j = {: a2 };
+    return f(1)(2)(3)() + g(1)(2) + h(1)(2) + j();
+}
+"""
+
+programs["anon9"] = """
+class Exception: object;
+intrinsic class Object 'root-object/030004' { ofKind(cls); }
+intrinsic class Collection 'collection/030000': Object { createIterator(); }
+a: object
+    v = 1
+    m1(lst)
+    {
+        local total = 0;
+        foreach (local x in lst)
+            total += {: x + v }();
+        for (local i in 1..3)
+        {
+            local f = {: i };
+            total += f();
+        }
+        for (local i = 1, local j in lst ; i < 2 ; ++i)
+            total += {: i + j }();
+        return total;
+    }
+    m2(p, [more])
+    {
+        try { return ({: p + more.length() }); }
+        catch (Exception e) { return ({: e }); }
+        finally { local z = {: more }; z(); }
+    }
+    m3()
+    {
+        local n = 0;
+        local inc = {: ++n };
+        local dec = {: n-- };
+        local add = {k: n += k };
+        local idx = {k: n = k };
+        local idx2 = {k: n[1] };
+        local cmp = {: n == nil ? 1 : n };
+        local sw = function(k) { switch (n) { case 1: return k; default: return n; } };
+        inc(); dec(); add(2); idx(1); idx2(1); cmp(); sw(1);
+        n = n ?? 3;
+        n = n && 1;
+        return n++ + ++n + n-- + --n;
+    }
+    m4()
+    {
+        return function() {
+            return function() {
+                return function() { return v + self.v; };
+            };
+        };
+    }
+    m5(q)
+    {
+        local f = method(k) { return q + k + v; };
+        local g = method() { return ({: targetprop }); };
+        local h = {: method() { return q; } };
+        return f(1) + g() + h();
+    }
+    m6()
+    {
+        "one";
+        return ({: "two" });
+    }
+    m7(x)
+    {
+        return ({: {: {: x } } });
+    }
+    m8(x)
+    {
+        return ({: {: {: inherited(x) } } });
+    }
+    m9 = ({: v } () + {: self.v } ())
+;
+_main(args)
+{
+    return a.m1(args) + a.m2(1) + a.m3() + a.m9;
+}
+"""
+
+programs["anon10"] = """
+f1() { local a = 1; local f = {: a }; local g = {: a }; return f() + g(); }
+f2() { local a = 1, b = 2, c = 3; local f = {: c }; local g = {: a }; local h = {: b }; return f() + g() + h(); }
+f3(p1, p2, p3) { local f = {: p3 + p1 }; return f; }
+f4(p1) { local x = 1; if (p1) { local y = 2; return {: x + y + p1 }; } return {: x }; }
+f5() { local zz = 1, yy = 2, ab = 3, ba = 4, abc = 5, cab = 6; return {: zz + yy + ab + ba + abc + cab }; }
+f6() { local zz = 1, yy = 2, ab = 3, ba = 4, abc = 5, cab = 6; return {: {: cab + abc + ba + ab + yy + zz } }; }
+f7() { local a = 1; local f = {: a }; local b = 2; local g = {: b }; local c = 3; return {: a + b + c + f() + g() }; }
+f8() { local a; local f = {: a = 1 }; return f; }
+f9() { local a = 1; local f = {: 1 }; return f() + a; }
+f10() { local a = 1; return {: {: 1 } }; }
+f11() { local a = 1; return {: {: a } }; }
+f12(a) { return {b: {c: {d: a + b + c + d } } }; }
+f13(a) { return {b: {c: {d: b + d } } }; }
+f14(a) { return {b: {c: {d: d } } }; }
+f15(a) { return {b: {c: {d: c + a } } }; }
+f16() { local f = {: f }; return f; }
+f17() { local f; f = {: f }; return f; }
+f18(a) { local f = {: a }; local g = {: f }; return {: g }; }
+_main(args)
+{
+    return f1() + f2() + f3(1, 2, 3) + f4(1) + f5() + f6() + f7() + f8() + f9() + f10() + f11()
+        + f12(1) + f13(1) + f14(1) + f15(1) + f16() + f17() + f18(1);
+}
+"""
+
+programs["anon11"] = """
+a: object
+    p1 = [1, {: 2 }]
+    p2 = {x: x }
+    p3 = {: p1 }
+    p4 = (function() { return self; })
+    p5 = {: targetprop }
+    p6 = {: {: self } }
+    p7 = method() { return self; }
+    p8 = new function() { return 1; }
+    p9 = ({: 1 }() + 2)
+    p10 = {: "hello" }
+    p11 = "say <<{: 1 }()>>"
+    p12 = '<<{: 1 }()>>'
+    m1() { return 1; }
+    p13 = {: self }
+    m2() { return {: targetprop }; }
+    p14 = {: self }
+    p15 = {: {: 1 } }
+;
+f() { return {: 1 }; }
+b: object
+    p1 = {: self }
+;
+c: object
+    m() { return {: {: definingobj } }; }
+    p1 = {: self }
+    p2 = {: targetobj }
+;
+_main(args)
+{
+    return a.p1 + b.p1;
+}
+"""
+
 mistakes = {
     "e_undef": "_main(args) { return undefinedThing; }",
     "e_undefcall": "_main(args) { return undefinedFunc(1); }",
@@ -1529,6 +1843,130 @@ mistakes["e_many4"] = "_main(args) {\n" + "  [1][2];\n" * 101 + "}"
 mistakes["e_many7"] = "_main(a) { for (a x"
 mistakes["e_many8"] = "_main(a) { for (local i = 1, "
 mistakes["e_many5"] = "_main(args) {\n" + "  1 2;\n" * 100 + "}"
+
+mistakes["e_anon1"] = """_main(args)
+{
+    local a, b = 1, c;
+    local f = {x: a };
+    local g = {x, y: local t = x, local u = y, t + u };
+    local g2 = {: local t, t };
+    local g3 = {: local t = 1 };
+    local h = {x: x; };
+    local i = {x x };
+    local j = function(a b) { return a; };
+    local k = function(Thing a) { return a; };
+    local l = function(a) multimethod { return a; };
+    local m = {x, y: x};
+    local n = {x, [y]: y};
+    local o = {...: 1};
+    local p = {[q]: q};
+    local r = {x, : x};
+    local s = { 1 + 2 };
+    local t = function { return 1; };
+    local u = function() return 1;
+    local v = method;
+    while (b) { local w = {: 1 }; local w2 = function() { break; }; lbl: w(); w2(); goto lbl; }
+    return f;
+}
+"""
+
+mistakes["e_anon2"] = """_main(args)
+{
+    local f = {x: x
+"""
+
+mistakes["e_anon3"] = """_main(args)
+{
+    local f = {x
+"""
+
+mistakes["e_anon4"] = """_main(args)
+{
+    local f = function(x) { return {y: 
+"""
+
+mistakes["e_anon5"] = """_main(args)
+{
+    local a = {x: local, x };
+    local b = {x: local 1 };
+    local c = {x: local y = , x };
+    local d = {x: local y, local y, y };
+    local e = {x: local y = 1, };
+    local f = {x, x: x };
+    local g = {x: };
+    local h = { };
+    local i = {: };
+    local j = {x: x };;
+    local k = {x: return x; };
+    local l = function(x) { return x };
+    local m = function(x) { local x; return x; };
+    local n = method(x) { return self + x + targetprop; };
+    local o = function() { return self + targetobj; };
+    local p = {: self };
+    local q = {: inherited() };
+    local r = {: break };
+    local s = function() { continue; };
+    local t = {: args = 1, args };
+    return a;
+}
+"""
+
+mistakes["e_anon6"] = """f(x)
+{
+    local unused1 = {y: 1 };
+    local g = function(z) { local unused2; local unset; return unset; };
+    local h = function(z) { local w = 1; };
+    local i = {q: q };
+    {r: r + x };
+    function(s) { return s; };
+    if ({: 1 }) return 1;
+    while ({: nil }()) { }
+    switch (x) { case 1: return {: 2 }(); }
+    return {: 1 } + {: 2 } == {: 3 } ? {: 4 } : {: 5 };
+}
+g(x) { return function() { if (x) return 1; else return; }; }
+h(x) { return function() { if (x) return 1; }; }
+i(x) { return function() { return; }(); }
+j(x) { return {: x = 1 }; }
+k(x) { local y; return {: y }; }
+l(x) { local y = 1; return {: 1 }; }
+m() { local y; local f = {: y = 1 }; return f; }
+_main(args) { return f(1); }
+"""
+
+mistakes["e_anon7"] = """a: object
+    p1 = {: }
+    p2 = {x: x
+    p3 = 1
+;
+_main(args) { return a; }
+"""
+
+mistakes["e_anon8"] = """a: object
+    m() { return function() { return {: ; }; }
+    p3 = 1
+;
+_main(args) { return a.m() + function(; }
+"""
+
+mistakes["e_anon9"] = """_main(args)
+{
+    return new method { return 1; } + new function;
+}
+"""
+
+mistakes["e_anon10"] = """_main(args)
+{
+    local a = 1;
+    lbl:
+    local f = function() { goto lbl; };
+    local g = function() { lbl2: return 1; };
+    local h = function() { lbl: a++; if (a < 5) goto lbl; };
+    try { local i = {: a }; i(); } finally { local j = function() { return a; }; j(); }
+    goto lbl2;
+    return f + g + h;
+}
+"""
 
 
 def main():

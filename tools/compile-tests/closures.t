@@ -1,0 +1,117 @@
+// A program to run: anonymous functions, the locals they share with
+// the functions around them, and the object they act for.
+#include <systype.h>
+#include <tadsgen.h>
+#include <tadsio.h>
+#include <t3.h>
+
+say(val) { tadsSay(val); }
+
+// A counter: each call of what this returns gives the next number.
+counter(start)
+{
+    local n = start;
+    return ({: n++ });
+}
+
+// Two functions over one shared local.
+account(balance)
+{
+    local deposit = function(amount) { balance += amount; return balance; };
+    local withdraw = function(amount)
+    {
+        if (amount > balance)
+            return nil;
+        balance -= amount;
+        return balance;
+    };
+    return [deposit, withdraw];
+}
+
+// Functions that make functions.
+adder(a) { return ({b: {c: a + b + c }}); }
+
+// Apply a function to each number in a range and add up the results.
+sumOver(from, to, func)
+{
+    local sum = 0;
+    for (local i in from..to)
+        sum += func(i);
+    return sum;
+}
+
+class Thing: object
+    name = 'thing'
+    size = 1
+
+    // A function that remembers the object it was made by.
+    namer() { return ({prefix: prefix + ' ' + name }); }
+
+    // One nested in another: both act for the same object.
+    grower()
+    {
+        return function(by)
+        {
+            size += by;
+            return ({: '<<name>> is now <<size>>' });
+        };
+    }
+
+    // A method made on the spot acts for whatever object it is given to.
+    describer() { return method() { return 'I am the ' + name; }; }
+
+    // A value worked out by a function when it is asked for.
+    doubled = ({x: x * 2 }(size))
+;
+
+box: Thing
+    name = 'box'
+    size = 3
+;
+
+pebble: Thing
+    name = 'pebble'
+;
+
+_main(args)
+{
+    t3SetSay(say);
+
+    local next = counter(10);
+    local other = counter(100);
+    "Counting: <<next()>>, <<next()>>, <<other()>>, <<next()>>, <<other()>>.\n";
+
+    local acct = account(50);
+    "Deposit: <<acct[1](25)>>. Withdraw: <<acct[2](60)>>. ";
+    "Too much: <<acct[2](100) == nil ? 'refused' : 'allowed'>>.\n";
+
+    "Adding: <<adder(1)(2)(3)>>. ";
+    local factor = 3;
+    "Squares to four: <<sumOver(1, 4, {x: x * x })>>; ";
+    "times <<factor>>: <<sumOver(1, 4, {x: x * factor })>>.\n";
+
+    // The turns of a loop all share the one local, as it is when the
+    // functions are called.
+    local fns = new Vector(3);
+    for (local i = 1 ; i <= 3 ; ++i)
+    {
+        local j = i * 10;
+        fns.append({: j + i });
+    }
+    "From the loop:";
+    foreach (local f in fns)
+        " <<f()>>";
+    ".\n";
+
+    "<<box.namer()('the')>>, <<pebble.namer()('a')>>. ";
+    local grow = box.grower();
+    "<<grow(2)()>>; <<grow(5)()>>. ";
+    "Doubled: <<box.doubled>>.\n";
+
+    box.setMethod(&describe, pebble.describer());
+    "<<box.describe()>>.\n";
+
+    local sorted = [5, 3, 8, 1].sort(nil, {a, b: a - b });
+    "Sorted: <<sorted.join(' ')>>; backwards: <<sorted.sort(true, {a, b: a - b }).join(' ')>>. ";
+    "Big ones: <<sorted.subset({x: x > 2 }).join(' ')>>; doubled: <<sorted.mapAll({x: x * 2 }).join(' ')>>.\n";
+}

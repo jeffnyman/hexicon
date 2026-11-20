@@ -1401,3 +1401,103 @@ fn a_source_that_ends_in_a_for_header_stops_at_the_limit_on_errors() {
     assert_eq!(messages.len(), 102);
     assert!(messages[101].contains("fatal error: too many errors"));
 }
+
+/// Whether some bytes come one after another somewhere in the code.
+fn has_bytes(code: &[u8], bytes: &[u8]) -> bool {
+    code.windows(bytes.len()).any(|window| window == bytes)
+}
+
+#[test]
+fn an_anonymous_function_that_shares_nothing_is_just_its_code() {
+    let compiled = compile_text("_main(args) { local f = {x: x + 1}; return f(2); }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // One local, and nothing made when the function is: the address of
+    // its code goes straight into the local.
+    assert_eq!(code[2..4], [1, 0]);
+    assert_eq!(code[10], 0x0b);
+    assert_eq!(code[15..17], [0xe0, 0]);
+    assert!(!has_bytes(code, &[0xc0, 2, 4]));
+    // The function's own code comes after: one parameter, and it
+    // returns the parameter and one.
+    assert!(has_bytes(code, &[0x7c, 0x2e, 0x50]));
+}
+
+#[test]
+fn a_local_an_anonymous_function_uses_lives_in_a_vector() {
+    let compiled =
+        compile_text("_main(args) { local n = 5; local f = {x: x + n}; n = 6; return f(1); }\n");
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // Three locals: n's old place, f, and one for the vector, which is
+    // made first, with room for the method's `self` and for n.
+    assert_eq!(code[2..4], [3, 0]);
+    assert_eq!(code[10..18], [0x03, 2, 0x88, 0xc0, 2, 4, 0xee, 2]);
+    // n = 5 stores into the vector's second place.
+    assert_eq!(code[18..23], [0x03, 5, 0xef, 2, 2]);
+    // The function is made of the vector and its code.
+    assert!(has_bytes(code, &[0xc0, 2, 5, 0xee, 1]));
+    // And inside it the vector is fetched from the function object,
+    // and n from the vector.
+    assert!(has_bytes(code, &[0x8e, 4, 0xbc, 2, 0xe0, 0]));
+    assert!(has_bytes(code, &[0xbb, 0, 2]));
+}
+
+#[test]
+fn an_anonymous_function_in_a_method_takes_the_methods_self() {
+    let compiled = compile_text(
+        "a: object v = 1 m() { local f = {: v}; return f(); } ;\n_main(args) { return a.m(); }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // The method puts `self` in the first place of its vector; the
+    // function takes it from there and makes it its own.
+    assert!(has_bytes(code, &[0x84, 0xef, 1, 1]));
+    assert!(has_bytes(code, &[0x88, 0xbc, 1, 0xeb]));
+}
+
+#[test]
+fn a_short_anonymous_function_has_its_own_mistakes() {
+    assert_eq!(
+        compile_messages(
+            "_main(args)\n{\n    local a = {x: x; };\n    local b = {x x };\n    \
+             local c = function(x) multimethod { return x; };\n    return {: 1 };\n}\n"
+        ),
+        [
+            "3: error: semicolon is not allowed in a short anonymous function",
+            "4: error: expected a comma in formal parameter list, but found \"x\"",
+            "4: error: formal parameter \"x\" defined more than once",
+            "4: error: missing colon at end of anonymous function formal list - found \"}\"",
+            "4: error: expected an operand, but found \"}\"",
+            "5: error: 'multimethod' is not allowed here",
+            "6: error: expected ';' or expression after \"return\", but found \"{\"",
+            "6: error: expected integer, string, symbol, '[', or '(', but found \":\"",
+            "6: error: expected ';', but found \"}\"",
+        ]
+    );
+    // The source ending inside one: the reference's message is not the
+    // one it means.
+    assert_eq!(
+        compile_messages("_main(args)\n{\n    local f = {x: x\n"),
+        [
+            "4: error: semicolon is not allowed in a short-form anonymous function",
+            "4: error: expected ',' or ';' after local variable, but found \"<End Of File>\"",
+            "4: error: unexpected end of file in code block - '}' missing",
+        ]
+    );
+}
