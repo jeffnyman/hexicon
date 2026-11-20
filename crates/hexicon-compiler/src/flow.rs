@@ -264,6 +264,7 @@ impl Flow<'_> {
             }
             StmtKind::Throw(_) => flow::THROW,
             StmtKind::ImplicitCtor(_) => flow::NEXT,
+            StmtKind::StaticPropInit(..) => flow::RET_VAL,
             StmtKind::Null | StmtKind::Expr(_) => flow::NEXT,
         }
     }

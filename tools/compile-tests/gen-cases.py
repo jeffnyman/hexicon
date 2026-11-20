@@ -2158,6 +2158,132 @@ mistakes["e_param3"] = """_main(args)
     local b = [1, 5]["""
 
 
+# Enumerations.
+programs["enum1"] = (
+    BUILTINS
+    + """
+enum red, green, blue;
+enum token tokWord, tokNum;
+f(x) { return x == red ? 1 : 2; }
+enum ab, ba, zz, a1, b0, later;
+obj: object
+    color = red
+    list = [red, green, [blue, tokWord]]
+    m() { return color == blue; }
+;
+_main(args)
+{
+    local c = green;
+    switch (c) { case red: tadsSay('r'); break; case green: tadsSay('g'); break; case early: break; }
+    // The reference never finds two of them equal when it compares
+    // them itself.
+    tadsSay(red == red ? 'eq' : 'ne');
+    tadsSay(red != red ? 'ne2' : 'eq2');
+    tadsSay(red == green ? 'eq3' : 'ne3');
+    tadsSay([red, green] - red == [green] ? 'y' : 'n');
+    tadsSay([red] == [red] ? 'y' : 'n');
+    tadsSay(c == green ? 'y' : 'n');
+    tadsSay((red ? 'T' : 'F') + (!red ? 'T' : 'F'));
+    tadsSay(f(ab) + f(ba) + f(zz) + f(a1) + f(b0) + f(later) + f(early));
+    if (red) tadsSay('!');
+    local l = [ab, ba, zz, a1, b0, later, early, tokNum];
+    return l.length() + (red is in (red, green) ? 1 : 0) + (red ?? 1) + (red, 1);
+}
+enum early;
+enum red, tokWord;
+enum token green;
+"""
+)
+
+mistakes["e_enum1"] = (
+    BUILTINS
+    + """
+enum ;
+enum a b;
+enum c, ;
+enum d,, e;
+enum 5, g;
+enum token;
+f() { }
+enum f;
+enum h;
+h() { }
+enum i;
+i: object;
+obj1: object p2 = 1;
+enum obj1;
+enum p2;
+enum q;
+property q;
+enum r;
+class C: r;
+export r;
+m(x)
+{
+    r = 1;
+    switch(x) { case r: case r: return 1; }
+    for (local r in [1]) ;
+    "<<r>>";
+    return [&r, r.x, r(1), new r, r + 1, r < q, r + 'x', 'x' + r, [1][r], -r, r && 1, x.(r), r - 1, [r, 1] + r, r++];
+}
+_main(args) { }
+enum last"""
+)
+
+# Properties whose values are worked out before the program starts.
+programs["static1"] = (
+    BUILTINS
+    + """
+counter: object n = 0 next() { return ++n; };
+a: object
+    p1 = static counter.next()
+    p2 = static [1, 2, 3]
+    p3 = static (counter.next() + p1)
+    p4 = static 'const'
+    p5 = static "dstr"
+    p6 = static nosuchprop
+    p7 = (counter.next())
+    m() { return p1; }
+;
+f() { return 1; }
+class B: object
+    q1 = static [counter.next(), f(), self]
+    q2 = static tadsSay('init q2')
+    q3 = static {: counter.next() }
+    q4 = static {: self }
+    q5 = static (new B())
+    q6 = static (targetprop)
+    q7 = static
+        [1,
+         f()]
+;
+b2: B q1 = static 7 + f();
+_main(args)
+{
+    tadsSay(a.p1); tadsSay(a.p1); tadsSay(a.p3); tadsSay(a.p7); tadsSay(a.p7);
+    tadsSay(B.q1.length()); tadsSay(b2.q1); tadsSay(a.p6 == nil ? 'nil' : 'x');
+}
+"""
+)
+
+mistakes["e_static1"] = (
+    BUILTINS
+    + """
+_main(args) { }
+a: object p = static ;
+b: object p = static static 1;
+g: object p = static f()
+ q = static ("x", 1) r = static nosuch(1);
+h: object p = static function() { return 1; } q = static method() { return self; };
+i: object p = static 1 + nosuch p2 = static [nosuch2] ;
+j: object construct = static 1 x = static inherited();
+l: object m() { return u1.q; } q = 1;
+n(x) { return x.u1; }
+c: object static p = 1;
+d: object p(x) = static 1;"""
+)
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

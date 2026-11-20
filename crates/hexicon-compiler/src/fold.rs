@@ -102,7 +102,10 @@ pub(crate) fn binary(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String
             if !both_const(&left, &right) {
                 return Folded::No(left, right);
             }
-            let equal = into_const(right).value == left.as_const().expect("constant").value;
+            let equal = const_eq(
+                &left.as_const().expect("constant").value,
+                &into_const(right).value,
+            );
             let mut result = into_const(left);
             result.set_bool(equal == (op == BinOp::Eq));
             Folded::Yes(Expr::Const(result))
@@ -131,8 +134,11 @@ pub(crate) fn binary(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String
                 };
                 let mut result = into_const(left);
                 if let Value::List(elements) = &mut result.value {
-                    elements
-                        .retain(|element| !removed.iter().any(|gone| gone.value == element.value));
+                    elements.retain(|element| {
+                        !removed
+                            .iter()
+                            .any(|gone| const_eq(&gone.value, &element.value))
+                    });
                 }
                 Folded::Yes(Expr::Const(result))
             } else if matches!(
@@ -282,8 +288,27 @@ fn as_text(value: &Value) -> Option<Vec<u8>> {
         Value::True => b"true".to_vec(),
         Value::Int(int) => int.to_string().into_bytes(),
         Value::SStr(text) => text.clone(),
-        Value::FuncPtr(_) | Value::List(_) | Value::Obj(_) | Value::Prop(_) => return None,
+        Value::FuncPtr(_) | Value::List(_) | Value::Obj(_) | Value::Prop(_) | Value::Enum(_) => {
+            return None;
+        }
     })
+}
+
+/// Whether two constants are equal, as the reference tells it. It has
+/// no case for values of an enumeration, so one is never equal to
+/// anything, itself included.
+fn const_eq(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Enum(_), _) | (_, Value::Enum(_)) => false,
+        (Value::List(left), Value::List(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| const_eq(&left.value, &right.value))
+        }
+        _ => left == right,
+    }
 }
 
 fn add(left: Expr, right: Expr, errors: &mut Vec<String>) -> Folded {

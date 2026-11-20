@@ -202,21 +202,32 @@ pub(crate) fn write_image(
     let code_addrs = code_layout.place(&generated.code_anchors, generated.code.len());
     let first_static_page = code_layout.page_cnt;
     code_layout.start_new_stream();
-    let static_anchors = [Anchor { ofs: 0 }];
-    let static_addrs = code_layout.place(&static_anchors, STATIC_INIT_STUB.len());
+    // That is the code for static properties, and after it the
+    // function that sets up multi-methods.
+    let stub_ofs = generated.static_code.len();
+    generated.static_code.extend_from_slice(&STATIC_INIT_STUB);
+    generated.static_anchors.push(Anchor { ofs: stub_ofs });
+    let static_addrs = code_layout.place(&generated.static_anchors, generated.static_code.len());
     code_layout.finish();
 
     // Fill in the addresses, in the code and in the constants.
     let Generated {
         code,
+        static_code,
         consts,
         fixups,
+        static_fixups,
         const_fixups,
         func_anchor,
         body_anchor,
+        static_body_anchor,
         ..
     } = &mut generated;
-    for (stream, fixups) in [(code, &*fixups), (consts, &*const_fixups)] {
+    for (stream, fixups) in [
+        (code, &*fixups),
+        (static_code, &*static_fixups),
+        (consts, &*const_fixups),
+    ] {
         for fixup in fixups {
             let addr = match &fixup.target {
                 Target::Func(func) => match func_anchor.get(func) {
@@ -230,6 +241,7 @@ pub(crate) fn write_image(
                 },
                 Target::Const(anchor) => const_addrs[*anchor],
                 Target::Body(body) => code_addrs[body_anchor[body]],
+                Target::StaticBody(body) => static_addrs[static_body_anchor[body]],
             };
             stream[fixup.ofs..fixup.ofs + 4].copy_from_slice(&(addr as u32).to_le_bytes());
         }
@@ -348,8 +360,20 @@ pub(crate) fn write_image(
     writer.block(b"MCLD", true, &mcld);
 
     let mut code_items = items(&generated.code, &generated.code_anchors, &code_addrs);
-    code_items.push((static_addrs[0], &STATIC_INIT_STUB));
+    code_items.extend(items(
+        &generated.static_code,
+        &generated.static_anchors,
+        &static_addrs,
+    ));
     writer.pool(1, &code_layout, &code_items, 0);
+    for ofs in &generated.static_unspecified {
+        let index = generated
+            .static_anchors
+            .partition_point(|anchor| anchor.ofs <= *ofs)
+            - 1;
+        let (_, file_ofs) = writer.item_ofs[generated.code_anchors.len() + index];
+        unspecified.push((file_ofs + ofs - generated.static_anchors[index].ofs, 2));
+    }
     // The code's meaningless fields, now that it is known where in the
     // file each function went.
     for ofs in &generated.unspecified {
@@ -406,6 +430,9 @@ pub(crate) fn write_image(
                     None => prop.value,
                     Some(Target::Const(anchor)) => const_addrs[*anchor] as u32,
                     Some(Target::Body(body)) => code_addrs[generated.body_anchor[body]] as u32,
+                    Some(Target::StaticBody(body)) => {
+                        static_addrs[generated.static_body_anchor[body]] as u32
+                    }
                     Some(Target::Func(func)) => {
                         match func_anchor_addr(&generated, &code_addrs, *func) {
                             Some(addr) => addr as u32,
@@ -461,7 +488,11 @@ pub(crate) fn write_image(
     let mut sini = Vec::new();
     sini.extend_from_slice(&12u32.to_le_bytes());
     sini.extend_from_slice(&((first_static_page * code_layout.page_size) as u32).to_le_bytes());
-    sini.extend_from_slice(&0u32.to_le_bytes());
+    sini.extend_from_slice(&(generated.static_inits.len() as u32).to_le_bytes());
+    for (obj, prop) in &generated.static_inits {
+        sini.extend_from_slice(&obj.to_le_bytes());
+        sini.extend_from_slice(&prop.to_le_bytes());
+    }
     writer.block(b"SINI", true, &sini);
 
     writer.block(b"EOF ", true, &[]);

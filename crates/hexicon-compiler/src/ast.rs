@@ -28,6 +28,8 @@ pub(crate) enum Value {
     Obj(u32),
     /// A property, by the number it has while compiling.
     Prop(u16),
+    /// A value of an enumeration, by its number.
+    Enum(u32),
 }
 
 /// A constant in an expression.
@@ -378,6 +380,11 @@ pub(crate) enum StmtKind {
     /// its arguments to each superclass's constructor. These are the
     /// superclasses' numbers.
     ImplicitCtor(Vec<u32>),
+    /// The body of the code that works out a property's value before
+    /// the program starts (`prop = static expr`): it sets the property
+    /// of `self`, given as an index into the program's properties, to
+    /// the value, and returns the value.
+    StaticPropInit(Expr, usize),
     /// A block.
     Comp {
         stmts: Vec<Stmt>,

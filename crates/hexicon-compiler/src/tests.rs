@@ -1592,3 +1592,62 @@ fn optional_and_named_parameters_have_their_own_mistakes() {
         ["0: error: optional parameters require support function \"getArg\", which is undefined"]
     );
 }
+
+#[test]
+fn enum_values_are_numbered_in_the_order_of_the_table_of_names() {
+    let compiled = compile_text(
+        "enum red, green, blue;\n\
+         _main(args) { local a = red == red; return [blue, green, red, a]; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // Compared while compiling, a value of an enumeration is not equal
+    // even to itself, as the reference has it: the local is set to nil.
+    assert_eq!(code[10..12], [0xd8, 0]);
+    // The list's elements are pushed last first. The numbers go by the
+    // sums of the names' bytes: green, red, blue.
+    assert_eq!(
+        code[13..28],
+        [0x0f, 2, 0, 0, 0, 0x0f, 1, 0, 0, 0, 0x0f, 3, 0, 0, 0]
+    );
+    assert_eq!(
+        compile_messages("f() { }\nenum f, ;\n_main(args) { }\n"),
+        [
+            "2: error: symbol \"f\" is already defined - can't be used as an enum name",
+            "2: error: symbol expected in 'enum' list - found \";\"",
+        ]
+    );
+}
+
+#[test]
+fn a_static_property_is_code_that_runs_before_the_program() {
+    let compiled = compile_text(
+        "f() { return 7; }\na: object p = static f() q = static 5;\n\
+         _main(args) { return a.p; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // One property to work out, of object 1: the constant is a constant
+    // like any other. The code for it starts where the code that is
+    // only needed before the program starts is kept, on a page of its
+    // own.
+    let sini = block(&image, b"SINI");
+    assert_eq!(sini[4..12], [0, 8, 0, 0, 1, 0, 0, 0]);
+    assert_eq!(sini[12..16], [1, 0, 0, 0]);
+    let prop = &sini[16..18];
+    // It calls f, sets the property to what comes back, and returns
+    // that too.
+    assert!(has_bytes(
+        &image,
+        &[0x58, 0, 0, 0, 0, 0, 0xa5, 0xe7, prop[0], prop[1], 0x50]
+    ));
+}

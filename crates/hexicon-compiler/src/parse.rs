@@ -245,6 +245,9 @@ pub(crate) struct ObjProp {
     /// The compiler put it there, and the source can give the property
     /// a value of its own.
     pub overwritable: bool,
+    /// The value is to be worked out once, before the program starts
+    /// (`prop = static expr`).
+    pub is_static: bool,
     pub file: usize,
     pub line: u32,
 }
@@ -285,6 +288,19 @@ pub(crate) enum Global {
     Prop(usize),
     /// An index into [`Program::metas`].
     Meta(usize),
+    /// An index into [`Program::enums`].
+    Enum(usize),
+}
+
+/// A value of an enumeration (`enum red, green;`).
+#[derive(Debug, Clone)]
+pub(crate) struct EnumSym {
+    pub name: Vec<u8>,
+    /// It was declared with `enum token`, as a kind of token for a
+    /// grammar to match.
+    pub is_token: bool,
+    /// When the name was first met: see [`PropSym::seq`].
+    pub seq: u32,
 }
 
 /// The properties every program has, in the order of their numbers,
@@ -341,11 +357,13 @@ pub(crate) struct Exports {
     /// Each with whether it is a property only for want of anything
     /// else (see [`PropSym::weak`]), and when it was first met.
     pub props: Vec<(Vec<u8>, bool, u32)>,
+    pub enums: Vec<EnumSym>,
 }
 
 /// A program as the parser leaves it.
 #[derive(Debug, Default)]
 pub(crate) struct Program {
+    pub enums: Vec<EnumSym>,
     pub locals: Vec<Local>,
     pub tabs: Vec<LocalTab>,
     pub funcs: Vec<FuncSym>,
@@ -532,7 +550,27 @@ impl Program {
             objs,
             metas,
             props,
+            enums: self.enums.clone(),
         }
+    }
+
+    /// The number each value of an enumeration has in the image. Like
+    /// properties, they are numbered when the program is put together,
+    /// from one, in the order of the table of global names: see
+    /// [`Program::final_prop_ids`].
+    pub(crate) fn final_enum_ids(&self) -> Vec<u32> {
+        let mut order: Vec<usize> = (0..self.enums.len()).collect();
+        order.sort_by_key(|&index| {
+            let sym = &self.enums[index];
+            let new = sym.seq >= SECOND_READING;
+            let within = if new { u32::MAX - sym.seq } else { sym.seq };
+            (global_hash(&sym.name), !new, within)
+        });
+        let mut ids = vec![0; self.enums.len()];
+        for (place, index) in order.into_iter().enumerate() {
+            ids[index] = place as u32 + 1;
+        }
+        ids
     }
 
     /// The number each property has in the image, by the number it had
@@ -682,6 +720,9 @@ pub(crate) struct Parser<'p, 'a> {
     /// Where the statement being read starts.
     cur_file: usize,
     cur_line: u32,
+    /// The code body about to be read is a method's in an object
+    /// definition.
+    body_is_obj_prop: bool,
     /// The labels of the function being read.
     labels: Vec<LabelSym>,
     /// The loops, `switch` statements, labeled statements, and `try`
@@ -847,6 +888,11 @@ impl<'p, 'a> Parser<'p, 'a> {
             prog.globals.insert(meta.name.clone(), Global::Meta(index));
             prog.metas.push(meta);
         }
+        for sym in known.enums {
+            prog.globals
+                .insert(sym.name.clone(), Global::Enum(prog.enums.len()));
+            prog.enums.push(sym);
+        }
         for (name, weak, seq) in known.props {
             if !prog.globals.contains_key(&name) {
                 let prop = prog.def_prop(&name);
@@ -867,6 +913,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             max_local_cnt: 0,
             cur_file: 0,
             cur_line: 0,
+            body_is_obj_prop: false,
             labels: Vec::new(),
             enclosing: Vec::new(),
             next_enclosure_id: 0,
@@ -1061,6 +1108,10 @@ impl<'p, 'a> Parser<'p, 'a> {
                     }
                 }
                 Tok::Property => self.parse_property(),
+                Tok::Enum => {
+                    self.parse_enum();
+                    Ok(())
+                }
                 Tok::Export => {
                     self.parse_export();
                     Ok(())
@@ -1072,8 +1123,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 | Tok::Replace
                 | Tok::Modify
                 | Tok::Dictionary
-                | Tok::Grammar
-                | Tok::Enum => {
+                | Tok::Grammar => {
                     if !suppress_error {
                         let shown = self.tok.cur_token_shown();
                         self.unsupported(&format!("a definition starting with \"{shown}\""));
@@ -1186,7 +1236,13 @@ impl<'p, 'a> Parser<'p, 'a> {
         }
         let existing = self.prog.globals.get(&name).copied();
         let func_id = match existing {
-            Some(Global::Bif(_) | Global::Obj(_) | Global::Prop(_) | Global::Meta(_)) => {
+            Some(
+                Global::Bif(_)
+                | Global::Obj(_)
+                | Global::Prop(_)
+                | Global::Meta(_)
+                | Global::Enum(_),
+            ) => {
                 self.tok.log_at(
                     sym_file,
                     sym_line,
@@ -1804,6 +1860,13 @@ impl<'p, 'a> Parser<'p, 'a> {
                 self.next();
                 self.parse_formal_list(&mut formals)?;
             }
+            // `name(args) = { ... }` was how an older language wrote a
+            // method.
+            if self.cur() == Tok::Eq && std::mem::take(&mut self.body_is_obj_prop) {
+                self.error("'=' is not allowed with a method definition");
+                self.next();
+            }
+            self.body_is_obj_prop = false;
             if self.cur() != Tok::LBrace {
                 self.error_curtok("expected '{' at start of method code body, but found \"%\"");
                 empty = matches!(self.cur(), Tok::Sem | Tok::RBrace);
@@ -3889,6 +3952,79 @@ impl Parser<'_, '_> {
 
     /// Read `property a, b, c;`: names that are properties, whatever
     /// else the program does with them.
+    /// Read `enum name, name;`, which makes each name a value unlike
+    /// any other. `enum token` makes them kinds of token as well.
+    fn parse_enum(&mut self) {
+        const NEED_SEM: &str = "expected ';', but found \"%\"";
+        const NEED_SYM: &str = "symbol expected in 'enum' list - found \"%\"";
+        let mut is_token = false;
+        self.next();
+        if self.cur_is_sym(b"token") {
+            is_token = true;
+            self.next();
+        }
+        loop {
+            match self.cur() {
+                Tok::Sym => {
+                    let name = self.cur_text();
+                    match self.prog.globals.get(&name).copied() {
+                        Some(Global::Enum(sym)) => {
+                            if is_token {
+                                self.prog.enums[sym].is_token = true;
+                            }
+                        }
+                        Some(_) => self.error_curtok(
+                            "symbol \"%\" is already defined - can't be used as an enum name",
+                        ),
+                        None => {
+                            self.prog
+                                .globals
+                                .insert(name.clone(), Global::Enum(self.prog.enums.len()));
+                            self.prog.enums.push(EnumSym {
+                                name,
+                                is_token,
+                                seq: self.prog.next_seq,
+                            });
+                            self.prog.next_seq += 1;
+                        }
+                    }
+                    match self.next() {
+                        Tok::Comma => {
+                            self.next();
+                        }
+                        Tok::Sem => {
+                            self.next();
+                            return;
+                        }
+                        Tok::LBrace | Tok::RBrace | Tok::Eof => {
+                            self.error_curtok(NEED_SEM);
+                            return;
+                        }
+                        _ => {
+                            self.error_curtok(
+                                "comma expected in 'enum' symbol list, but found \"%\"",
+                            );
+                            self.next();
+                        }
+                    }
+                }
+                Tok::LBrace | Tok::RBrace | Tok::Eof => {
+                    self.error_curtok(NEED_SEM);
+                    return;
+                }
+                Tok::Sem => {
+                    self.error_curtok(NEED_SYM);
+                    self.next();
+                    return;
+                }
+                _ => {
+                    self.error_curtok(NEED_SYM);
+                    self.next();
+                }
+            }
+        }
+    }
+
     fn parse_property(&mut self) -> Parsed<()> {
         const NEED_COMMA: &str = "expected comma in 'property' list, but found \"%\"";
         self.next();
@@ -4262,6 +4398,7 @@ impl Parser<'_, '_> {
                 prop: SRC_ORDER_PROP,
                 value: PropValue::Expr(order),
                 overwritable: true,
+                is_static: false,
                 file,
                 line,
             });
@@ -4508,8 +4645,8 @@ impl Parser<'_, '_> {
         if no_value {
             // Nothing to read; but the name is still checked below.
         } else if is_value {
-            if self.cur() == Tok::Static {
-                self.unsupported("a static property");
+            let is_static = self.cur() == Tok::Static;
+            if is_static {
                 self.next();
             }
             // The value is read as an expression of its own, outside
@@ -4530,8 +4667,11 @@ impl Parser<'_, '_> {
             // A value with an anonymous function in it that uses `self`
             // has to be a method, to make the context the function
             // finds `self` in.
-            let value = if self.has_local_ctx {
-                let kind = if self.prog.has_return_value(&expr) {
+            let has_local_ctx = self.has_local_ctx;
+            let value = if has_local_ctx {
+                let kind = if let (true, Some(prop)) = (is_static, prop) {
+                    StmtKind::StaticPropInit(expr, prop)
+                } else if self.prog.has_return_value(&expr) {
                     StmtKind::Return(Some(expr))
                 } else {
                     StmtKind::Expr(expr)
@@ -4574,15 +4714,19 @@ impl Parser<'_, '_> {
             self.cur_code_body = old_cur_code_body;
             if let Some(prop) = prop {
                 new_prop = Some(def.props.len());
+                // The reference forgets that the property is static when
+                // its value has had to be made a method already.
                 def.props.push(ObjProp {
                     prop,
                     value,
                     overwritable: false,
+                    is_static: is_static && !has_local_ctx,
                     file,
                     line,
                 });
             }
         } else {
+            self.body_is_obj_prop = true;
             let Some((body, _)) = self.parse_code_body(true, CbType::Normal, None, None)? else {
                 return Ok(false);
             };
@@ -4597,6 +4741,7 @@ impl Parser<'_, '_> {
                     prop,
                     value: PropValue::Method(self.prog.bodies.len()),
                     overwritable: false,
+                    is_static: false,
                     file: self.cur_file,
                     line: self.cur_line,
                 });

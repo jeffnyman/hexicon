@@ -43,6 +43,8 @@ NAMES = [
 # Names for parameters passed by name: none of them a local's, since a
 # parameter defined twice brings the reference down.
 NAMED = ["nm0", "nm1", "opt"]
+# The values of the enumerations every program declares.
+ENUMS = ["red", "green", "tokWord"]
 BINARY = [
     "+",
     "-",
@@ -352,6 +354,8 @@ class Program:
             return self.constant()
         if rng.random() < 0.05:
             return self.anon_expr(scope, depth)
+        if rng.random() < 0.03:
+            return rng.choice(ENUMS)
         kind = rng.random()
         named = [obj[0] for obj in self.objs if obj[0]]
         if named and rng.random() < 0.04:
@@ -643,8 +647,11 @@ class Program:
             if kind < 0.4:
                 lines.append(f"    {prop} = {self.constant()}")
             elif kind < 0.6:
+                # A value to work out: each time it is asked for, or
+                # once, before the program starts.
+                word = "static " if rng.random() < 0.3 else ""
                 self.in_method = True
-                lines.append(f"    {prop} = ({self.expr(list(self.props), 2)})")
+                lines.append(f"    {prop} = {word}({self.expr(list(self.props), 2)})")
                 self.in_method = False
             elif kind < 0.7:
                 self.in_method = True
@@ -804,7 +811,8 @@ class Program:
             place += 1
         for part in parts:
             lines += part
-        return PRELUDE + "\n".join(lines) + "\n"
+        enums = "enum red, green;\nenum token tokWord;\n"
+        return PRELUDE + enums + "\n".join(lines) + "\n"
 
 
 def main():

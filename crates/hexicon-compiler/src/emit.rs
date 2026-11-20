@@ -36,6 +36,9 @@ pub(crate) enum Target {
     Const(usize),
     /// A method's code: an index into the program's code bodies.
     Body(usize),
+    /// The same, for code that runs before the program starts, which
+    /// is kept apart from the rest.
+    StaticBody(usize),
 }
 
 /// An object as it goes into the image.
@@ -78,6 +81,7 @@ mod datatype {
     pub(super) const LIST: u8 = 10;
     pub(super) const CODEOFS: u8 = 11;
     pub(super) const FUNCPTR: u8 = 12;
+    pub(super) const ENUM: u8 = 15;
 }
 
 /// The number of the list metaclass among those every image has.
@@ -109,6 +113,18 @@ pub(crate) struct Generated {
     pub func_anchor: HashMap<usize, usize>,
     /// Where each code body's code is, functions and methods alike.
     pub body_anchor: HashMap<usize, usize>,
+    /// The code that works out the values of static properties before
+    /// the program starts, with what [`Generated::code`] has for the
+    /// rest of the code.
+    pub static_code: Vec<u8>,
+    pub static_anchors: Vec<Anchor>,
+    pub static_body_anchor: HashMap<usize, usize>,
+    pub static_fixups: Vec<Fixup>,
+    pub static_prop_fixups: Vec<usize>,
+    pub static_unspecified: Vec<usize>,
+    /// The properties that code is the value of: each an object's
+    /// number and a property's.
+    pub static_inits: Vec<(u32, u16)>,
     /// The objects, in the order they were generated.
     pub objs: Vec<GenObj>,
     /// The number the next property would get.
@@ -380,6 +396,8 @@ struct Gen<'p> {
     /// The labels of the last function in the source.
     last_labels: Rc<Vec<LabelSym>>,
     goto_labels: Vec<Option<Label>>,
+    /// The number each value of an enumeration has in the image.
+    enum_ids: Vec<u32>,
     exc_table: Vec<ExcEntry>,
     /// The names of the arguments passed by name in each call of the
     /// function being generated that has any, and the tables of names
@@ -430,6 +448,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
     let mut bodies = std::mem::take(&mut prog.bodies);
     let mut objdefs = std::mem::take(&mut prog.objdefs);
     let top = prog.top.clone();
+    let enum_ids = prog.final_enum_ids();
     let mut generator = Gen {
         prog,
         cg: CodeGen::new(),
@@ -442,6 +461,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         labels: Rc::default(),
         last_labels: Rc::default(),
         goto_labels: Vec::new(),
+        enum_ids,
         exc_table: Vec::new(),
         named_lists: Vec::new(),
         named_tabs: Vec::new(),
@@ -480,8 +500,9 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                                 // not a method after all.
                                 generator.cur_file = prop.file;
                                 generator.cur_line = prop.line;
-                                let (StmtKind::Return(Some(expr)) | StmtKind::Expr(expr)) =
-                                    &mut bodies[body].0.stm.kind
+                                let (StmtKind::Return(Some(expr))
+                                | StmtKind::Expr(expr)
+                                | StmtKind::StaticPropInit(expr, _)) = &mut bodies[body].0.stm.kind
                                 else {
                                     unreachable!("a property's value in a statement");
                                 };
@@ -506,7 +527,9 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                             // the program runs is a method that
                             // returns it.
                             let expr = std::mem::replace(expr, Expr::constant(Value::Nil));
-                            let kind = if generator.has_return_value(&expr) {
+                            let kind = if prop.is_static {
+                                StmtKind::StaticPropInit(expr, prop.prop)
+                            } else if generator.has_return_value(&expr) {
                                 StmtKind::Return(Some(expr))
                             } else {
                                 StmtKind::Expr(expr)
@@ -585,6 +608,13 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
     for &ofs in &out.prop_fixups {
         let id = u16::from_le_bytes([out.code[ofs], out.code[ofs + 1]]);
         out.code[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
+    }
+    for &ofs in &out.static_prop_fixups {
+        let id = u16::from_le_bytes([out.static_code[ofs], out.static_code[ofs + 1]]);
+        out.static_code[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
+    }
+    for (_, prop) in &mut out.static_inits {
+        *prop = prop_ids[usize::from(*prop)];
     }
     for &ofs in &out.const_prop_fixups {
         let id = u16::from_le_bytes([out.consts[ofs], out.consts[ofs + 1]]);
@@ -734,7 +764,7 @@ impl Gen<'_> {
                     self.fold_stmt(body);
                 }
             }
-            StmtKind::Throw(expr) => self.fold_in_place(expr),
+            StmtKind::Throw(expr) | StmtKind::StaticPropInit(expr, _) => self.fold_in_place(expr),
             StmtKind::ImplicitCtor(_) => {}
             StmtKind::Comp { stmts, .. } => {
                 for stmt in stmts {
@@ -803,6 +833,7 @@ impl Gen<'_> {
             Expr::Sym(name) => match self.prog.globals.get(&name) {
                 Some(Global::Func(func)) => Expr::constant(Value::FuncPtr(*func)),
                 Some(Global::Obj(obj)) => Expr::constant(Value::Obj(self.prog.objs[*obj].id)),
+                Some(Global::Enum(sym)) => Expr::constant(Value::Enum(self.enum_ids[*sym])),
                 Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_)) | None => Expr::Sym(name),
             },
             Expr::SelfRef | Expr::Inh | Expr::InhClass(_) | Expr::CtxEle(_) => expr,
@@ -1139,6 +1170,23 @@ impl Gen<'_> {
             (self.cur_file, self.cur_line) = (prop.file, prop.line);
             let id = self.prog.props[prop.prop].id;
             let (kind, value, target) = match &prop.value {
+                PropValue::Method(body) if prop.is_static => {
+                    // Code that runs before the program starts: it is
+                    // generated like any other, and then moved to where
+                    // such code is kept.
+                    self.out.static_inits.push((obj.id, id));
+                    let mark = (
+                        self.cg.ofs(),
+                        self.out.code_anchors.len(),
+                        self.out.fixups.len(),
+                        self.out.prop_fixups.len(),
+                        self.out.unspecified.len(),
+                    );
+                    self.gen_code_body(&bodies[*body].0, *body, None, prop.prop == 0);
+                    scopes.push(std::mem::take(&mut self.frames));
+                    self.move_to_static(mark, *body);
+                    (datatype::CODEOFS, 0, Some(Target::StaticBody(*body)))
+                }
                 PropValue::Method(body) => {
                     self.gen_code_body(&bodies[*body].0, *body, None, prop.prop == 0);
                     scopes.push(std::mem::take(&mut self.frames));
@@ -1152,6 +1200,7 @@ impl Gen<'_> {
                     Value::True => (datatype::TRUE, 0, None),
                     Value::Int(int) => (datatype::INT, *int as u32, None),
                     Value::Obj(obj) => (datatype::OBJ, *obj, None),
+                    Value::Enum(id) => (datatype::ENUM, *id, None),
                     Value::Prop(prop) => (datatype::PROP, u32::from(*prop), None),
                     Value::SStr(text) => (datatype::SSTRING, 0, Some(self.const_str_target(text))),
                     Value::List(elements) => {
@@ -1196,6 +1245,42 @@ impl Gen<'_> {
         let before = self.out.fixups.len();
         self.add_const_str(text, false, 0);
         self.out.fixups.remove(before).target
+    }
+
+    /// Take the code generated since a mark was made out of the
+    /// program's code and put it with the code that runs before the
+    /// program starts, along with everything noted about it. The mark
+    /// is how long the code was, and how many anchors, addresses to
+    /// fill in, property numbers, and meaningless fields had been
+    /// noted.
+    fn move_to_static(&mut self, mark: (usize, usize, usize, usize, usize), body: usize) {
+        let (ofs, anchors, fixups, prop_fixups, unspecified) = mark;
+        let base = self.out.static_code.len();
+        let moved = |at: usize| at - ofs + base;
+        self.out.static_code.extend(self.cg.code.drain(ofs..));
+        self.cg.clear_peephole();
+        if self.out.body_anchor.remove(&body).is_some() {
+            self.out
+                .static_body_anchor
+                .insert(body, self.out.static_anchors.len());
+        }
+        for anchor in self.out.code_anchors.drain(anchors..) {
+            self.out.static_anchors.push(Anchor {
+                ofs: moved(anchor.ofs),
+            });
+        }
+        for fixup in self.out.fixups.drain(fixups..) {
+            self.out.static_fixups.push(Fixup {
+                ofs: moved(fixup.ofs),
+                target: fixup.target,
+            });
+        }
+        for at in self.out.prop_fixups.drain(prop_fixups..) {
+            self.out.static_prop_fixups.push(moved(at));
+        }
+        for at in self.out.unspecified.drain(unspecified..) {
+            self.out.static_unspecified.push(moved(at));
+        }
     }
 
     fn gen_code_body(
@@ -2052,6 +2137,23 @@ impl Gen<'_> {
                 self.cg.write_op(Op::Throw);
                 self.cg.note_pop();
             }
+            StmtKind::StaticPropInit(expr, prop) => {
+                // The value, or nil if the expression has none; it is
+                // both stored and returned.
+                let depth = self.cg.sp_depth();
+                self.gen_expr(expr, false, false);
+                if self.cg.sp_depth() <= depth {
+                    self.cg.write_op(Op::PushNil);
+                    self.cg.note_push();
+                }
+                self.cg.write_op(Op::Dup);
+                self.cg.note_push();
+                self.cg.write_op(Op::SetPropSelf);
+                self.write_prop_id(self.prog.props[*prop].id);
+                self.cg.note_pop();
+                self.cg.write_op(Op::RetVal);
+                self.cg.note_pop();
+            }
         }
     }
 
@@ -2265,6 +2367,7 @@ impl Gen<'_> {
                 (datatype::FUNCPTR, 0)
             }
             Value::Obj(obj) => (datatype::OBJ, *obj),
+            Value::Enum(id) => (datatype::ENUM, *id),
             Value::Prop(prop) => {
                 // A property's number is two bytes; the other two are
                 // as the reference's memory had them.
@@ -2664,6 +2767,7 @@ impl Gen<'_> {
                     (datatype::FUNCPTR, 0)
                 }
                 Value::Obj(obj) => (datatype::OBJ, *obj),
+                Value::Enum(id) => (datatype::ENUM, *id),
                 Value::Prop(prop) => {
                     self.out.const_prop_fixups.push(at + 1);
                     self.out.const_unspecified2.push(at + 3);
@@ -2734,6 +2838,10 @@ impl Gen<'_> {
                     Value::Obj(obj) => {
                         self.cg.write_op(Op::PushObj);
                         self.cg.write4(*obj);
+                    }
+                    Value::Enum(id) => {
+                        self.cg.write_op(Op::PushEnum);
+                        self.cg.write4(*id);
                     }
                     Value::Prop(prop) => {
                         self.cg.write_op(Op::PushPropId);
@@ -3290,7 +3398,7 @@ impl Gen<'_> {
                 self.gen_func_ref(func);
                 self.cg.note_push();
             }
-            Global::Bif(_) | Global::Meta(_) => {
+            Global::Bif(_) | Global::Meta(_) | Global::Enum(_) => {
                 self.error(format!("cannot take address of \"{}\"", show_name(name)));
             }
         }
@@ -3458,6 +3566,17 @@ impl Gen<'_> {
         // one.
         let global = match self.prog.globals.get(name) {
             Some(global) => *global,
+            // A name already found to be nothing is noted as that, and
+            // is no property.
+            None if self.undefined_names.contains(name) => {
+                if !check_only {
+                    self.error(format!(
+                        "invalid '.' expression - symbol \"{}\" is not a property",
+                        show_name(name)
+                    ));
+                }
+                return None;
+            }
             None => {
                 self.assume_prop(name);
                 Global::Prop(self.prog.def_prop(name))
@@ -3628,7 +3747,13 @@ impl Gen<'_> {
                 }
             },
             Expr::Const(ConstVal {
-                value: Value::Nil | Value::True | Value::Int(_) | Value::FuncPtr(_) | Value::Prop(_),
+                value:
+                    Value::Nil
+                    | Value::True
+                    | Value::Int(_)
+                    | Value::FuncPtr(_)
+                    | Value::Prop(_)
+                    | Value::Enum(_),
                 ..
             }) => {
                 self.error("illegal expression - left of '.' is not an object");

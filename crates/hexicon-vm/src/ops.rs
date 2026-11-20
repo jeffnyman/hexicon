@@ -540,8 +540,26 @@ impl Vm {
                 Ok((self.new_string(text.clone()), text))
             }
             Value::Int(_) | Value::True => self.text_of(value),
+            _ if self.anon_fn_len(value).is_some() => self.join_text(value, b","),
             _ if self.list_like_len(value)?.is_some() => self.join_text(value, b","),
-            _ => self.text_of(value),
+            Value::SString(_) | Value::Obj(_) | Value::List(_) => self.text_of(value),
+            // The address of a function or a property and the like have
+            // text only when it is asked for outright.
+            _ => Err(VmError::new(code::NO_STR_CONV)),
+        }
+    }
+
+    /// How many values an anonymous function that carries anything with
+    /// it is made of: its code and what it carries. Such a function is a
+    /// vector underneath, and converts to text as one, though it is not
+    /// a list in any other way.
+    fn anon_fn_len(&self, value: Value) -> Option<usize> {
+        match value {
+            Value::Obj(id) => match self.objects.get(id) {
+                Some(Object::AnonFn(items)) => Some(items.len()),
+                _ => None,
+            },
+            _ => None,
         }
     }
 
@@ -553,7 +571,10 @@ impl Vm {
         list: Value,
         separator: &[u8],
     ) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
-        let len = self.list_like_len(list)?.unwrap_or(0);
+        let len = match self.anon_fn_len(list) {
+            Some(len) => len,
+            None => self.list_like_len(list)?.unwrap_or(0),
+        };
         // The reference creates the result before it converts anything.
         let result = self.new_string(Vec::new());
         self.push(result);
@@ -613,7 +634,12 @@ impl Vm {
         let value = Value::Obj(id);
         match self.objects.get(id) {
             Some(Object::String(text)) => return Ok((value, text.clone())),
-            Some(Object::List(_) | Object::Vector(_)) => return self.list_to_text(value),
+            // An anonymous function that carries anything with it is a
+            // vector underneath, of its code and what it carries, and
+            // converts as one.
+            Some(Object::List(_) | Object::Vector(_) | Object::AnonFn(_)) => {
+                return self.list_to_text(value);
+            }
             Some(Object::BigNumber(big)) => {
                 let text: std::rc::Rc<[u8]> = big.to_text().into_bytes().into();
                 return Ok((self.new_string(text.clone()), text));
@@ -694,7 +720,10 @@ impl Vm {
     /// reference builds a list of the converted elements on the way, and
     /// so does this.
     fn list_to_text(&mut self, list: Value) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
-        let len = self.list_like_len(list)?.unwrap_or(0);
+        let len = match self.anon_fn_len(list) {
+            Some(len) => len,
+            None => self.list_like_len(list)?.unwrap_or(0),
+        };
         let converted = self.new_list(Vec::new());
         self.push(converted);
         let mut items = Vec::with_capacity(len);
