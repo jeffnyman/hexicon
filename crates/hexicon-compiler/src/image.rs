@@ -17,19 +17,6 @@ const CONST_XOR_MASK: u8 = 0xDF;
 /// returns.
 const STATIC_INIT_STUB: [u8; 11] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x51];
 
-/// The metaclasses every image depends on, whether it uses them or not.
-const METACLASSES: [&str; 9] = [
-    "tads-object/000000",
-    "list/000000",
-    "dictionary2/030000",
-    "grammar-production/030000",
-    "vector/000000",
-    "anon-func-ptr/000000",
-    "int-class-mod/030000",
-    "lookuptable/030003",
-    "intrinsic-class/000000",
-];
-
 /// The properties every image exports by name, with their numbers in a
 /// program that defines no properties of its own.
 const EXPORTED_PROPS: [(&str, u16); 20] = [
@@ -281,7 +268,31 @@ pub(crate) fn write_image(
 
     // The symbols the virtual machine looks up by name.
     let mut symd = Vec::new();
-    symd.extend_from_slice(&((EXPORTED_PROPS.len() + 1) as u16).to_le_bytes());
+    let count = generated.exports.len() + EXPORTED_PROPS.len() + 1;
+    symd.extend_from_slice(&(count as u16).to_le_bytes());
+    // What the program exports comes first.
+    for export in &generated.exports {
+        let value = match export.func {
+            Some(func) => match func_anchor_addr(&generated, &code_addrs, func) {
+                Some(addr) => addr as u32,
+                None => {
+                    return Err(format!(
+                        "function \"{}\" is declared but not defined",
+                        String::from_utf8_lossy(&prog.funcs[func].name)
+                    ));
+                }
+            },
+            None => export.value,
+        };
+        symd.push(export.kind);
+        if export.kind == 6 {
+            // A property number is two bytes of the four.
+            unspecified.push((writer.out.len() + 10 + symd.len() + 2, 2));
+        }
+        symd.extend_from_slice(&value.to_le_bytes());
+        symd.push(export.name.len() as u8);
+        symd.extend_from_slice(&export.name);
+    }
     let props = std::iter::once(("LastProp", generated.next_prop_id)).chain(EXPORTED_PROPS);
     for (name, prop) in props {
         symd.push(6);
@@ -303,16 +314,36 @@ pub(crate) fn write_image(
     }
     writer.block(b"FNSD", true, &fnsd);
 
+    // The built-in classes the image depends on. The class of the
+    // objects that stand for built-in classes is one, and goes last
+    // unless the program has declared it.
+    const INTRINSIC_CLASS: &[u8] = b"intrinsic-class";
+    let mut metas = std::mem::take(&mut generated.metas);
+    let is_intrinsic_class = |name: &[u8]| {
+        name.strip_prefix(INTRINSIC_CLASS)
+            .is_some_and(|rest| rest.first() == Some(&b'/'))
+    };
+    let intrinsic_class = match metas.iter().position(|(name, ..)| is_intrinsic_class(name)) {
+        Some(index) => index,
+        None => {
+            metas.push((b"intrinsic-class/000000".to_vec(), Vec::new(), None));
+            metas.len() - 1
+        }
+    };
     let mut mcld = Vec::new();
-    mcld.extend_from_slice(&(METACLASSES.len() as u16).to_le_bytes());
-    for name in METACLASSES {
-        // Each entry: its own size, the name, and an empty list of
-        // properties whose entries would be two bytes each.
-        mcld.extend_from_slice(&((2 + 1 + name.len() + 2 + 2) as u16).to_le_bytes());
+    mcld.extend_from_slice(&(metas.len() as u16).to_le_bytes());
+    for (name, props, _) in &metas {
+        // Each entry: its own size, the name, and the class's
+        // properties, two bytes each.
+        let size = 2 + 1 + name.len() + 2 + 2 + 2 * props.len();
+        mcld.extend_from_slice(&(size as u16).to_le_bytes());
         mcld.push(name.len() as u8);
-        mcld.extend_from_slice(name.as_bytes());
-        mcld.extend_from_slice(&0u16.to_le_bytes());
+        mcld.extend_from_slice(name);
+        mcld.extend_from_slice(&(props.len() as u16).to_le_bytes());
         mcld.extend_from_slice(&2u16.to_le_bytes());
+        for prop in props {
+            mcld.extend_from_slice(&prop.to_le_bytes());
+        }
     }
     writer.block(b"MCLD", true, &mcld);
 
@@ -398,6 +429,29 @@ pub(crate) fn write_image(
                 }
                 objs.extend_from_slice(&value.to_le_bytes());
             }
+        }
+        writer.block(b"OBJS", true, &objs);
+    }
+
+    // The objects that stand for the built-in classes the program
+    // declared: each says which class it is, and has room for an
+    // object that adds to the class.
+    let class_objs: Vec<(u32, usize)> = metas
+        .iter()
+        .enumerate()
+        .filter_map(|(index, (_, _, obj))| obj.map(|obj| (obj, index)))
+        .collect();
+    if !class_objs.is_empty() {
+        let mut objs = Vec::new();
+        objs.extend_from_slice(&(class_objs.len() as u16).to_le_bytes());
+        objs.extend_from_slice(&(intrinsic_class as u16).to_le_bytes());
+        objs.extend_from_slice(&0u16.to_le_bytes());
+        for (obj, meta) in class_objs {
+            objs.extend_from_slice(&obj.to_le_bytes());
+            objs.extend_from_slice(&8u16.to_le_bytes());
+            objs.extend_from_slice(&8u16.to_le_bytes());
+            objs.extend_from_slice(&(meta as u16).to_le_bytes());
+            objs.extend_from_slice(&0u32.to_le_bytes());
         }
         writer.block(b"OBJS", true, &objs);
     }

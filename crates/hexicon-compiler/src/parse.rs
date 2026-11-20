@@ -129,6 +129,51 @@ pub(crate) struct ObjSym {
     pub sc_names: Vec<Vec<u8>>,
 }
 
+/// A class built into the virtual machine, as the name the program
+/// gives it.
+#[derive(Debug, Clone)]
+pub(crate) struct MetaSym {
+    pub name: Vec<u8>,
+    /// The number of the object that stands for the class.
+    pub obj_id: u32,
+    /// Which built-in class it is: an index into
+    /// [`Program::meta_table`].
+    pub meta: usize,
+    /// The properties the class has, in the order it declares them:
+    /// indexes into [`Program::props`].
+    pub props: Vec<usize>,
+    /// It is known of from the reading before, and not declared yet in
+    /// this one.
+    pub is_ext: bool,
+    /// When the name was first met: see [`PropSym::seq`].
+    pub seq: u32,
+}
+
+/// A built-in class the image depends on.
+#[derive(Debug, Clone)]
+pub(crate) struct MetaEntry {
+    /// The virtual machine's name for it, with its version:
+    /// `list/030008`.
+    pub name: Vec<u8>,
+    /// The name the program declared it under: an index into
+    /// [`Program::metas`].
+    pub sym: Option<usize>,
+}
+
+/// The built-in classes every image depends on, whether it uses them
+/// or not. One more, `intrinsic-class`, is added after whatever the
+/// program declares.
+const PREDEFINED_METACLASSES: [&str; 8] = [
+    "tads-object/000000",
+    "list/000000",
+    "dictionary2/030000",
+    "grammar-production/030000",
+    "vector/000000",
+    "anon-func-ptr/000000",
+    "int-class-mod/030000",
+    "lookuptable/030003",
+];
+
 /// A property, as a name.
 #[derive(Debug, Clone)]
 pub(crate) struct PropSym {
@@ -141,7 +186,14 @@ pub(crate) struct PropSym {
     /// (`&name`) when it was nothing else. A function defined with the
     /// name afterward takes the name over.
     pub weak: bool,
+    /// When the name was first met, among the properties and built-in
+    /// classes: a count that goes on from [`SECOND_READING`] for those
+    /// first met on the second reading of the source.
+    pub seq: u32,
 }
+
+/// Where the count of names first met on the second reading starts.
+pub(crate) const SECOND_READING: u32 = 1 << 24;
 
 /// The value an object definition gives a property.
 #[derive(Debug)]
@@ -198,6 +250,8 @@ pub(crate) enum Global {
     Obj(usize),
     /// An index into [`Program::props`].
     Prop(usize),
+    /// An index into [`Program::metas`].
+    Meta(usize),
 }
 
 /// The properties every program has, in the order of their numbers,
@@ -248,9 +302,12 @@ pub(crate) fn global_hash(name: &[u8]) -> usize {
 pub(crate) struct Exports {
     pub funcs: Vec<FuncSym>,
     pub objs: Vec<ObjSym>,
+    /// The built-in classes declared, in the order they were, each with
+    /// the virtual machine's name for it.
+    pub metas: Vec<(MetaSym, Vec<u8>)>,
     /// Each with whether it is a property only for want of anything
-    /// else (see [`PropSym::weak`]).
-    pub props: Vec<(Vec<u8>, bool)>,
+    /// else (see [`PropSym::weak`]), and when it was first met.
+    pub props: Vec<(Vec<u8>, bool, u32)>,
 }
 
 /// A program as the parser leaves it.
@@ -271,6 +328,10 @@ pub(crate) struct Program {
     pub bodies: Vec<(CodeBody, Option<usize>)>,
     pub objs: Vec<ObjSym>,
     pub props: Vec<PropSym>,
+    pub metas: Vec<MetaSym>,
+    /// The built-in classes the image depends on, in the order the
+    /// image lists them.
+    pub meta_table: Vec<MetaEntry>,
     pub objdefs: Vec<ObjDef>,
     /// The functions and objects in the order the source defines them,
     /// which is the order they are generated in.
@@ -282,10 +343,13 @@ pub(crate) struct Program {
     /// number, the one it is directly inside of as the parser saw it.
     /// A `catch` block is outside its `try` there.
     pub enclosure_parents: HashMap<usize, Option<usize>>,
-    /// How many of the properties were known before this reading of
-    /// the source started: the ones every program has, and the ones
-    /// the reading before found.
-    pub known_prop_cnt: usize,
+    /// The count that says when a property or a built-in class was
+    /// first met.
+    pub next_seq: u32,
+    /// The names the program makes known to the virtual machine
+    /// (`export`): each a name in the program, and the name the
+    /// virtual machine knows it by.
+    pub exports: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
 impl Program {
@@ -316,39 +380,91 @@ impl Program {
             })
             .collect();
         objs.sort_by_key(|obj| global_hash(&obj.name));
+        let metas = self
+            .metas
+            .iter()
+            .map(|meta| {
+                let sym = MetaSym {
+                    is_ext: true,
+                    props: Vec::new(),
+                    ..meta.clone()
+                };
+                (sym, self.meta_table[meta.meta].name.clone())
+            })
+            .collect();
         let props = self
             .props
             .iter()
             .enumerate()
             .skip(SPECIAL_PROPS.len())
             .filter(|(index, prop)| self.globals.get(&prop.name) == Some(&Global::Prop(*index)))
-            .map(|(_, prop)| (prop.name.clone(), prop.weak))
+            .map(|(_, prop)| (prop.name.clone(), prop.weak, prop.seq))
             .collect();
-        Exports { funcs, objs, props }
+        Exports {
+            funcs,
+            objs,
+            metas,
+            props,
+        }
     }
 
     /// The number each property has in the image, by the number it had
     /// while compiling. The reference numbers properties when it puts
     /// the program together, in the order of its table of global names
-    /// then: chain by chain, and in a chain the properties first met on
-    /// the last reading of the source, newest first, and then those of
-    /// the reading before, oldest first. The properties every program
-    /// has keep their numbers.
+    /// then: chain by chain, and in a chain the names first met on the
+    /// last reading of the source, newest first, and then those of the
+    /// reading before, oldest first. A built-in class's name there
+    /// brings the properties the class declares, in the order it
+    /// declares them. The properties every program has keep their
+    /// numbers.
     ///
     /// A name that stopped being a property gets no number. The second
     /// value is the number the next property would get.
     pub(crate) fn final_prop_ids(&self) -> (Vec<u16>, u16) {
         let special = SPECIAL_PROPS.len();
-        let mut order: Vec<usize> = (special..self.props.len())
-            .filter(|index| {
-                self.globals.get(&self.props[*index].name) == Some(&Global::Prop(*index))
+        let is_prop = |index: usize| {
+            index >= special
+                && self.globals.get(&self.props[index].name) == Some(&Global::Prop(index))
+        };
+        // The names in the table's order: properties, and built-in
+        // classes.
+        let key = |name: &[u8], seq: u32| {
+            let new = seq >= SECOND_READING;
+            let within = if new { u32::MAX - seq } else { seq };
+            (global_hash(name), !new, within)
+        };
+        // Each name's place in the table, and the property or the
+        // built-in class it is.
+        type Placed = ((usize, bool, u32), Option<usize>, Option<usize>);
+        let mut names: Vec<Placed> = (special..self.props.len())
+            .filter(|index| is_prop(*index))
+            .map(|index| {
+                let prop = &self.props[index];
+                (key(&prop.name, prop.seq), Some(index), None)
             })
+            .chain(
+                self.metas
+                    .iter()
+                    .enumerate()
+                    .map(|(index, meta)| (key(&meta.name, meta.seq), None, Some(index))),
+            )
             .collect();
-        order.sort_by_key(|&index| {
-            let new = index >= self.known_prop_cnt;
-            let within = if new { usize::MAX - index } else { index };
-            (global_hash(&self.props[index].name), !new, within)
-        });
+        names.sort_unstable();
+        let mut order: Vec<usize> = Vec::new();
+        let mut placed = vec![false; self.props.len()];
+        for (_, prop, meta) in names {
+            let props: &[usize] = match (&prop, meta) {
+                (Some(prop), _) => std::slice::from_ref(prop),
+                (None, Some(meta)) => &self.metas[meta].props,
+                (None, None) => &[],
+            };
+            for &index in props {
+                if is_prop(index) && !placed[index] {
+                    placed[index] = true;
+                    order.push(index);
+                }
+            }
+        }
         // Indexed by the compile-time number, which starts at 1.
         let mut ids: Vec<u16> = (0..=special as u16).collect();
         ids.resize(self.props.len() + 1, 0);
@@ -359,13 +475,57 @@ impl Program {
         (ids, next)
     }
 
+    /// Find a built-in class in the table of them by the virtual
+    /// machine's name for it, or add it. The name has a version after a
+    /// slash; of two versions, the table keeps the later.
+    pub(crate) fn find_or_add_meta(&mut self, name: &[u8], sym: Option<usize>) -> usize {
+        let split = |name: &[u8]| {
+            let slash = name.iter().position(|&byte| byte == b'/');
+            (slash.unwrap_or(name.len()), slash.map(|at| at + 1))
+        };
+        let (name_len, version) = split(name);
+        for (index, entry) in self.meta_table.iter_mut().enumerate() {
+            let (entry_len, entry_version) = split(&entry.name);
+            if entry.name[..entry_len] != name[..name_len] {
+                continue;
+            }
+            if let (Some(version), Some(entry_version)) = (version, entry_version) {
+                let (new, old) = (&name[version..], &entry.name[entry_version..]);
+                if new.len() == old.len() && new > old {
+                    entry.name.truncate(entry_version);
+                    entry.name.extend_from_slice(&name[version..]);
+                }
+            }
+            if entry.sym.is_none() {
+                entry.sym = sym;
+            }
+            return index;
+        }
+        // A name without a version, or with a short one, is filled out
+        // with zeros.
+        let mut full = name.to_vec();
+        match version {
+            None => full.extend_from_slice(b"/000000"),
+            Some(version) => {
+                let have = name.len() - version + 1;
+                if have < 7 {
+                    full.extend_from_slice(&b"000000"[..7 - have]);
+                }
+            }
+        }
+        self.meta_table.push(MetaEntry { name: full, sym });
+        self.meta_table.len() - 1
+    }
+
     /// Give a property name a number, if it is not a property already.
     pub(crate) fn def_prop(&mut self, name: &[u8]) -> usize {
         self.props.push(PropSym {
             name: name.to_vec(),
             id: self.next_prop_id,
             weak: false,
+            seq: self.next_seq,
         });
+        self.next_seq += 1;
         self.next_prop_id += 1;
         self.globals
             .insert(name.to_vec(), Global::Prop(self.props.len() - 1));
@@ -492,20 +652,59 @@ impl<'p, 'a> Parser<'p, 'a> {
                 .insert(func.name.clone(), Global::Func(prog.funcs.len()));
             prog.funcs.push(func);
         }
-        for mut obj in known.objs {
-            obj.id = prog.next_obj_id;
+        for name in PREDEFINED_METACLASSES {
+            prog.meta_table.push(MetaEntry {
+                name: name.as_bytes().to_vec(),
+                sym: None,
+            });
+        }
+        // Objects and the objects that stand for built-in classes are
+        // numbered together, in the order of the table of global names:
+        // chain by chain, and in a chain as they were first met.
+        let mut numbered: Vec<(usize, u32, bool, usize)> =
+            known
+                .objs
+                .iter()
+                .enumerate()
+                .map(|(index, obj)| (global_hash(&obj.name), obj.id, false, index))
+                .chain(
+                    known.metas.iter().enumerate().map(|(index, (meta, _))| {
+                        (global_hash(&meta.name), meta.obj_id, true, index)
+                    }),
+                )
+                .collect();
+        numbered.sort_unstable();
+        let mut objs = known.objs;
+        let mut metas = known.metas;
+        for (_, _, is_meta, index) in numbered {
+            if is_meta {
+                metas[index].0.obj_id = prog.next_obj_id;
+            } else {
+                objs[index].id = prog.next_obj_id;
+            }
             prog.next_obj_id += 1;
+        }
+        for obj in objs {
             prog.globals
                 .insert(obj.name.clone(), Global::Obj(prog.objs.len()));
             prog.objs.push(obj);
         }
-        for (name, weak) in known.props {
+        for (mut meta, vm_name) in metas {
+            let index = prog.metas.len();
+            meta.meta = prog.find_or_add_meta(&vm_name, Some(index));
+            prog.globals.insert(meta.name.clone(), Global::Meta(index));
+            prog.metas.push(meta);
+        }
+        for (name, weak, seq) in known.props {
             if !prog.globals.contains_key(&name) {
                 let prop = prog.def_prop(&name);
                 prog.props[prop].weak = weak;
+                prog.props[prop].seq = seq;
             }
         }
-        prog.known_prop_cnt = prog.props.len();
+        if !syntax_only {
+            prog.next_seq = SECOND_READING;
+        }
         Self {
             tok,
             syntax_only,
@@ -703,14 +902,17 @@ impl<'p, 'a> Parser<'p, 'a> {
                         self.parse_anon_object()
                     }
                 }
+                Tok::Property => self.parse_property(),
+                Tok::Export => {
+                    self.parse_export();
+                    Ok(())
+                }
                 Tok::Extern
                 | Tok::Transient
                 | Tok::Plus
                 | Tok::Inc
                 | Tok::Replace
                 | Tok::Modify
-                | Tok::Property
-                | Tok::Export
                 | Tok::Dictionary
                 | Tok::Grammar
                 | Tok::Enum => {
@@ -820,7 +1022,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         }
         let existing = self.prog.globals.get(&name).copied();
         let func_id = match existing {
-            Some(Global::Bif(_) | Global::Obj(_) | Global::Prop(_)) => {
+            Some(Global::Bif(_) | Global::Obj(_) | Global::Prop(_) | Global::Meta(_)) => {
                 self.tok.log_at(
                     sym_file,
                     sym_line,
@@ -1020,11 +1222,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 self.next();
                 self.add_fnset(&name)
             }
-            Tok::Class => {
-                self.unsupported("an intrinsic class");
-                self.next();
-                return Ok(());
-            }
+            Tok::Class => return self.parse_intrinsic_class(),
             _ => {
                 self.error_curtok(
                     "expected function set name string after \"intrinsic\", but found \"%\"",
@@ -2743,6 +2941,246 @@ impl Parser<'_, '_> {
     /// Read `.prop` after an expression, with arguments if there are
     /// any. The property is a name, or an expression in parentheses
     /// that says which property.
+    /// Read `intrinsic class Name 'vm-name/version': Superclass { ... }`,
+    /// from `class` on: the name the program has for a class built into
+    /// the virtual machine, and the names of the class's properties, in
+    /// the virtual machine's order.
+    fn parse_intrinsic_class(&mut self) -> Parsed<()> {
+        let mut sym = None;
+        let mut name = None;
+        if self.next() == Tok::Sym {
+            let text = self.cur_text();
+            match self.prog.globals.get(&text) {
+                Some(Global::Meta(meta)) if self.prog.metas[*meta].is_ext => {
+                    sym = Some(*meta);
+                    name = Some(text);
+                }
+                Some(_) => self.error_curtok(
+                    "symbol \"%\" is already defined - can't redefine as intrinsic class",
+                ),
+                None => name = Some(text),
+            }
+            self.next();
+        } else {
+            self.error_curtok(
+                "expected class name symbol after \"intrinsic class\", but found \"%\"",
+            );
+        }
+
+        if self.cur() == Tok::SStr {
+            if let Some(name) = name {
+                let index = match sym {
+                    Some(index) => {
+                        self.prog.metas[index].is_ext = false;
+                        index
+                    }
+                    None => {
+                        self.prog.metas.push(MetaSym {
+                            name: name.clone(),
+                            obj_id: self.prog.next_obj_id,
+                            meta: 0,
+                            props: Vec::new(),
+                            is_ext: false,
+                            seq: self.prog.next_seq,
+                        });
+                        self.prog.next_seq += 1;
+                        self.prog.next_obj_id += 1;
+                        let index = self.prog.metas.len() - 1;
+                        self.prog.globals.insert(name, Global::Meta(index));
+                        index
+                    }
+                };
+                let vm_name = self.cur_text();
+                let meta = self.prog.find_or_add_meta(&vm_name, Some(index));
+                if let Some(other) = self.prog.meta_table[meta].sym {
+                    if other != index {
+                        let other = Self::name(&self.prog.metas[other].name);
+                        self.error(format!(
+                            "intrinsic class has been previously defined as \"{other}\""
+                        ));
+                    }
+                }
+                self.prog.metas[index].meta = meta;
+                sym = Some(index);
+            }
+            self.next();
+        } else {
+            self.error_curtok(
+                "expected class name string after class name symbol, but found \"%\"",
+            );
+        }
+
+        if self.cur() == Tok::Colon {
+            if self.next() != Tok::Sym {
+                self.error_curtok(
+                    "expected intrinsic superclass name after colon, but found \"%\"",
+                );
+            } else {
+                match self.prog.globals.get(&self.cur_text()) {
+                    None => {
+                        self.error_curtok("intrinsic class superclass \"%\" is not defined");
+                    }
+                    Some(Global::Meta(_)) => {}
+                    Some(_) => self
+                        .error_curtok("intrinsic class superclass \"%\" is not an intrinsic class"),
+                }
+                self.next();
+            }
+        }
+        if self.cur() == Tok::LBrace {
+            self.next();
+        } else {
+            self.error_curtok("expected '{' after intrinsic class name, but found \"%\"");
+        }
+
+        const NEED_PROP: &str = "expected property name in intrinsic class list, but found \"%\"";
+        loop {
+            match self.cur() {
+                Tok::RBrace => {
+                    self.next();
+                    return Ok(());
+                }
+                Tok::Eof => {
+                    self.error("end of file in \"intrinsic class\" list - '}' is probably missing");
+                    return Err(Stop);
+                }
+                Tok::Sem => {
+                    self.next();
+                }
+                Tok::Static if self.next() != Tok::Sym => {
+                    let shown = self.tok.cur_token_shown();
+                    self.error(NEED_PROP.replacen('%', &shown, 1));
+                }
+                Tok::Sym | Tok::Static => {
+                    let prop_name = self.cur_text();
+                    if let Some(index) = sym {
+                        let prop = match self.prog.globals.get(&prop_name) {
+                            Some(Global::Prop(prop)) => Some(*prop),
+                            Some(_) => {
+                                self.error_curtok(
+                                    "symbol \"%\" is already defined - can't redefine as property",
+                                );
+                                None
+                            }
+                            None => Some(self.prog.def_prop(&prop_name)),
+                        };
+                        if let Some(prop) = prop {
+                            self.prog.metas[index].props.push(prop);
+                        }
+                    }
+                    if self.next() == Tok::LPar {
+                        // Parameters are for the reader; only that
+                        // they parse matters.
+                        self.next();
+                        let mut formals = Formals {
+                            count_only: true,
+                            ..Formals::default()
+                        };
+                        self.parse_formal_list(&mut formals)?;
+                    }
+                    self.parse_req_sem()?;
+                }
+                _ => {
+                    self.error_curtok(NEED_PROP);
+                    self.next();
+                }
+            }
+        }
+    }
+
+    /// Read `property a, b, c;`: names that are properties, whatever
+    /// else the program does with them.
+    fn parse_property(&mut self) -> Parsed<()> {
+        const NEED_COMMA: &str = "expected comma in 'property' list, but found \"%\"";
+        self.next();
+        loop {
+            if self.cur() == Tok::Sym {
+                let name = self.cur_text();
+                self.look_up_prop(&name);
+                match self.next() {
+                    Tok::Comma => {
+                        self.next();
+                    }
+                    Tok::Sem => {
+                        self.next();
+                        return Ok(());
+                    }
+                    Tok::Sym => self.error_curtok(NEED_COMMA),
+                    Tok::LBrace | Tok::RBrace | Tok::Eof => {
+                        self.error_curtok("expected ';', but found \"%\"");
+                        return Ok(());
+                    }
+                    _ => {
+                        self.error_curtok(NEED_COMMA);
+                        match self.next() {
+                            Tok::Comma => {
+                                self.next();
+                            }
+                            Tok::Sem => {
+                                self.next();
+                                return Ok(());
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            } else {
+                self.error_curtok("expected property name in 'property' list, but found \"%\"");
+                match self.cur() {
+                    Tok::Sem | Tok::LBrace | Tok::RBrace | Tok::Eof => return Ok(()),
+                    Tok::Comma => {
+                        self.next();
+                    }
+                    _ => {
+                        if self.next() == Tok::Comma {
+                            self.next();
+                        }
+                    }
+                }
+                if self.cur() == Tok::Sem {
+                    self.next();
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    /// Read `export name;` or `export name 'external name';`: a
+    /// property, object, or function the virtual machine is to know
+    /// by name.
+    fn parse_export(&mut self) {
+        const NEED_SYM: &str = "expected symbol in 'export' statement, but found \"%\"";
+        match self.next() {
+            Tok::Sym => {
+                let name = self.cur_text();
+                let mut external = name.clone();
+                match self.next() {
+                    Tok::Sem => {
+                        self.next();
+                    }
+                    Tok::SStr => {
+                        external = self.cur_text();
+                        if external.len() > 80 {
+                            self.error_curtok("external name \"%\" in 'export' is too long");
+                        }
+                        // The semicolon is left for whatever reads
+                        // next, which takes it for an empty statement.
+                        if self.next() != Tok::Sem {
+                            self.error_curtok("expected ';', but found \"%\"");
+                        }
+                    }
+                    _ => self.error_curtok("expected ';', but found \"%\""),
+                }
+                self.prog.exports.push((name, external));
+            }
+            Tok::Sem | Tok::LBrace | Tok::RBrace | Tok::Eof => self.error_curtok(NEED_SYM),
+            _ => {
+                self.error_curtok(NEED_SYM);
+                self.next();
+            }
+        }
+    }
+
     /// Read `&name`, from after the `&`.
     fn parse_addr(&mut self) -> Option<Expr> {
         let sub = if self.cur() == Tok::Sym {

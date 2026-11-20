@@ -1233,3 +1233,80 @@ fn the_address_of_a_property_is_a_constant() {
         ["1: error: invalid address expression - can't apply '&' operator",]
     );
 }
+
+#[test]
+fn a_built_in_class_is_declared_with_its_properties() {
+    let compiled = compile_text(
+        "intrinsic class Object 'root-object/030004' { ofKind(cls); }\n\
+         intrinsic class List 'list/030008': Object { length(); }\n\
+         _main(args) { return [args.length(), new List()]; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // Ten classes: the eight every image has, with the list's version
+    // now the one declared, then the one declared that is new, and
+    // the class of the objects that stand for classes.
+    let mcld = block(&image, b"MCLD");
+    assert_eq!(mcld[..2], [10, 0]);
+    let text = String::from_utf8_lossy(mcld);
+    let list = text.find("list/030008").expect("the list class");
+    let root = text.find("root-object/030004").expect("the root class");
+    let last = text
+        .find("intrinsic-class/000000")
+        .expect("the class of classes");
+    assert!(list < root && root < last);
+    // The list class has one property.
+    assert_eq!(mcld[list + 11..list + 15], [1, 0, 2, 0]);
+    // new, with no arguments, of the second class in the table
+    let code = code(&image);
+    assert!(code.windows(3).any(|bytes| bytes == [0xc0, 0, 1]));
+
+    assert_eq!(
+        compile_messages(
+            "f() { }\nintrinsic class f 'f/030000' { }\n\
+             intrinsic class A 'a/030000': Nosuch { 1; }\n_main(args) { return A(); }\n"
+        ),
+        [
+            "2: error: symbol \"f\" is already defined - can't redefine as intrinsic class",
+            "3: error: intrinsic class superclass \"Nosuch\" is not defined",
+            "3: error: expected property name in intrinsic class list, but found \"1\"",
+        ]
+    );
+}
+
+#[test]
+fn exports_come_first_among_the_names_the_image_gives() {
+    let compiled = compile_text(
+        "property alpha;\nexport alpha 'Alpha.name';\nexport f;\nf() { }\n_main(args) { }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let symd = block(&image, b"SYMD");
+    // Two more than the 21 every image has: a property, and a
+    // function.
+    assert_eq!(symd[..2], [23, 0]);
+    assert_eq!(symd[2..5], [6, 26, 0]);
+    assert_eq!(&symd[7..18], b"\x0aAlpha.name");
+    assert_eq!(symd[18], 12);
+    assert_eq!(&symd[23..25], b"\x01f");
+
+    assert_eq!(
+        compile_messages(
+            "export a 'LastProp';\nexport b 'same';\nexport c 'same';\n_main(args) { }\n"
+        ),
+        [
+            "0: error: external name \"LastProp\" illegal in 'export' - reserved for compiler use",
+            "0: warning: undefined symbol \"a\" - assuming this is a property name",
+            "0: warning: undefined symbol \"b\" - assuming this is a property name",
+            "0: error: duplicate export for external name \"same\": \"b\" and \"c\"",
+        ]
+    );
+}

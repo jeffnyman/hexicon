@@ -1062,6 +1062,93 @@ later() { }
 a: object ba = 1 ab = 2;
 """
 
+programs["meta1"] = """
+intrinsic class Object 'root-object/030004'
+{
+    ofKind(cls);
+    getSuperclassList();
+    propDefined(prop, flags?);
+}
+intrinsic class Collection 'collection/030000': Object
+{
+    createIterator();
+    createLiveIterator();
+}
+intrinsic class List 'list/030008': Collection
+{
+    subset(func);
+    mapAll(func);
+    length();
+    static generate(func, n);
+}
+_main(args) { return args.length() + [1, 2].length(); }
+"""
+
+programs["meta2"] = """
+intrinsic class Vector 'vector/030005': Collection
+{
+    toList(start?, cnt?);
+    length();
+}
+intrinsic class String 'string/030008': Object
+{
+    length();
+    substr(start, len?);
+}
+intrinsic class Object 'root-object/030004'
+{
+    ofKind(cls);
+}
+intrinsic class Collection 'collection/030000': Object
+{
+    createIterator();
+}
+intrinsic class Iterator 'iterator/030001': Object
+{
+    getNext();
+}
+intrinsic class BigNumber 'bignumber/030001': Object { formatString(); }
+intrinsic class IntrinsicClass 'intrinsic-class/030001': Object { isIntrinsicClass(obj); }
+intrinsic class ByteArray 'bytearray/030002': Object { }
+a: object x = 1;
+_main(args)
+{
+    local v = new Vector(10);
+    local w = new transient Vector(args...);
+    v.ofKind(Vector);
+    Vector;
+    return [Vector, String, a, v.length(), 'abc'.substr(2), Vector.length, String.substr(1),
+            new ByteArray(1, 2), w, new Vector, new Vector()];
+}
+"""
+
+programs["meta3"] = """
+intrinsic class TadsObject 'tads-object/030005'
+{
+    createInstance(...);
+    static createClone();
+}
+intrinsic class Lookup 'lookuptable/030003' { isKeyPresent(key); }
+intrinsic class Dict 'dictionary2/030001' { addWord(obj, str, prop); }
+intrinsic class Old 'list/030001' { ba1(); ab1(); }
+class C: object ab1 = 1 isKeyPresent = 2;
+_main(args) { return new Lookup(8, 16).isKeyPresent(1) + C.createInstance() + args.ba1(); }
+"""
+
+programs["export1"] = """
+property alpha, beta;
+property gamma;
+export alpha 'Alpha.name';
+export beta;
+export thing 'TheThing';
+export f 'func';
+export neverMentioned 'never';
+export alpha 'Alpha.name';
+thing: object alpha = 1 gamma = 2;
+f() { }
+_main(args) { return thing.beta; }
+"""
+
 mistakes = {
     "e_undef": "_main(args) { return undefinedThing; }",
     "e_undefcall": "_main(args) { return undefinedFunc(1); }",
@@ -1326,6 +1413,13 @@ mistakes = {
     "e_new1": "f() { }\na: object;\n_main(args) { new f; new f(); new 1; new args; new args(1); new (a); new nosuch; new nosuch(1); new a()(); new [1]; }",
     "e_inh1": "f() { }\na: object;\n_main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }",
     "e_inh2": "f() { }\na: object m() { inherited f.x; inherited nosuch.x(1); return inherited.; };\n_main(args) { }",
+    "e_meta1": "intrinsic class;\nintrinsic class 1;\nintrinsic class A;\nintrinsic class B 'b/030000'\nintrinsic class C 'c/030000': ;\nintrinsic class D 'd/030000': Nosuch { }\nf() { }\nintrinsic class E 'e/030000': f { }\n_main(args) { }",
+    "e_meta2": "f() { }\nintrinsic class f 'f/030000' { }\nintrinsic class A 'a/030000' { f(); 1; x y; z(a,); }\nintrinsic class A 'a/030001' { }\nintrinsic class B 'a/030000' { }\n_main(args) { }",
+    "e_meta3": "intrinsic class A 'a/030000' { x(); }\nb: A;\nA: object;\nA() { }\n_main(args) { A(); A = 1; A.x = 2; &A; new A.x; try { } catch (A e) { } return inherited A.x(); }",
+    "e_meta4": "intrinsic class A 'a/030000' { x();\n_main(args) { }",
+    "e_export1": "property a b, 1, , c d;\nproperty;\nproperty x\nexport;\nexport 1;\nexport a b;\nexport a 'x' y;\n_main(args) { }",
+    "e_export2": "export a 'LastProp';\nexport b 'operator +';\nexport c 'Constructor';\nexport d 'same';\nexport e 'same';\nexport f 'same';\nexport tadsSay 'bif';\nintrinsic 'tads-io/030007' { tadsSay(val, ...); }\n_main(args) { }",
+    "e_export3": "f() { }\nproperty f, _main;\nexport g;\ng() { }\n_main(args) { }",
 }
 
 # The compiler gives up after a hundred errors, whether it finds them

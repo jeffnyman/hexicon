@@ -182,6 +182,14 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
             ),
         });
     }
+    for (severity, message) in emit::resolve_exports(&prog, &mut generated) {
+        compiled.diagnostics.push(Diagnostic {
+            file: String::new(),
+            line: 0,
+            severity,
+            message,
+        });
+    }
     if has_errors(&compiled.diagnostics) {
         return compiled;
     }

@@ -106,6 +106,16 @@ pub(crate) struct Generated {
     pub objs: Vec<GenObj>,
     /// The number the next property would get.
     pub next_prop_id: u16,
+    /// The number each property has in the image, by the number it
+    /// had while compiling.
+    pub prop_ids: Vec<u16>,
+    /// What the image exports by name, besides what every image does.
+    pub exports: Vec<GenExport>,
+    /// The built-in classes the image depends on: the virtual
+    /// machine's name for each, the numbers of the properties the
+    /// program declared it to have, and the number of the object that
+    /// stands for the class, if the program declared it.
+    pub metas: Vec<(Vec<u8>, Vec<u16>, Option<u32>)>,
     /// Where in the code there are property numbers, and where in the
     /// constants.
     pub prop_fixups: Vec<usize>,
@@ -138,6 +148,106 @@ pub(crate) struct Generated {
 /// How many chains the reference's table of a function's labels has,
 /// and its table of global names.
 const LABEL_HASH_SIZE: usize = 512;
+
+/// A name the image makes known to the virtual machine, with its value
+/// as a kind and four bytes. For a function the value is its address,
+/// which is not known yet.
+#[derive(Debug)]
+pub(crate) struct GenExport {
+    pub name: Vec<u8>,
+    pub kind: u8,
+    pub value: u32,
+    pub func: Option<usize>,
+}
+
+/// Work out what the program's `export` statements export. The
+/// reference does this when it writes the image, so what is wrong
+/// with them is reported last, and nowhere in particular.
+pub(crate) fn resolve_exports(
+    prog: &Program,
+    generated: &mut Generated,
+) -> Vec<(Severity, String)> {
+    let mut problems = Vec::new();
+    let mut errors = Vec::new();
+    // A name exported that is nothing else is a property.
+    let mut assumed: HashMap<&[u8], u16> = HashMap::new();
+    let mut done: Vec<&[u8]> = Vec::new();
+    for (index, (sym, external)) in prog.exports.iter().enumerate() {
+        // An external name is exported once: the first time.
+        if done.contains(&external.as_slice()) {
+            continue;
+        }
+        done.push(external);
+        if external == b"LastProp"
+            || external == b"Constructor"
+            || external == b"Destructor"
+            || external.starts_with(b"operator ")
+        {
+            errors.push(format!(
+                "external name \"{}\" illegal in 'export' - reserved for compiler use",
+                show_name(external)
+            ));
+        }
+        problems.extend(errors.drain(..).map(|message| (Severity::Error, message)));
+        if !prog.globals.contains_key(sym) && !assumed.contains_key(sym.as_slice()) {
+            problems.push((
+                Severity::Warning,
+                format!(
+                    "undefined symbol \"{}\" - assuming this is a property name",
+                    show_name(sym)
+                ),
+            ));
+            assumed.insert(sym, generated.next_prop_id);
+            generated.next_prop_id += 1;
+        }
+        let mut dups = 0;
+        for (other_sym, other_external) in &prog.exports[index + 1..] {
+            if other_external != external || other_sym == sym {
+                continue;
+            }
+            dups += 1;
+            errors.push(if dups == 1 {
+                format!(
+                    "duplicate export for external name \"{}\": \"{}\" and \"{}\"",
+                    show_name(external),
+                    show_name(sym),
+                    show_name(other_sym)
+                )
+            } else {
+                format!(
+                    "additional duplicate export for external name \"{}\": \"{}\"",
+                    show_name(external),
+                    show_name(other_sym)
+                )
+            });
+        }
+        let (kind, value, func) = match prog.globals.get(sym) {
+            Some(Global::Prop(prop)) => {
+                let id = generated.prop_ids[usize::from(prog.props[*prop].id)];
+                (datatype::PROP, u32::from(id), None)
+            }
+            Some(Global::Obj(obj)) => (datatype::OBJ, prog.objs[*obj].id, None),
+            Some(Global::Func(func)) => (datatype::FUNCPTR, 0, Some(*func)),
+            Some(_) => {
+                errors.push(format!(
+                    "symbol \"{}\" is not a valid type for export",
+                    show_name(sym)
+                ));
+                problems.extend(errors.drain(..).map(|message| (Severity::Error, message)));
+                continue;
+            }
+            None => (datatype::PROP, u32::from(assumed[sym.as_slice()]), None),
+        };
+        generated.exports.push(GenExport {
+            name: external.clone(),
+            kind,
+            value,
+            func,
+        });
+        problems.extend(errors.drain(..).map(|message| (Severity::Error, message)));
+    }
+    problems
+}
 
 /// The functions that the code refers to but the program never defines,
 /// in the order the reference reports them: the order of its table of
@@ -405,6 +515,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
     }
     generator.finish_local_names();
     let (prop_ids, next_prop_id) = generator.prog.final_prop_ids();
+    generator.out.prop_ids = prop_ids.clone();
     generator.out.next_prop_id = next_prop_id;
     let mut out = generator.out;
     out.code = generator.cg.code;
@@ -417,6 +528,21 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         let id = u16::from_le_bytes([out.consts[ofs], out.consts[ofs + 1]]);
         out.consts[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
     }
+    out.metas = generator
+        .prog
+        .meta_table
+        .iter()
+        .map(|entry| {
+            let sym = entry.sym.map(|sym| &generator.prog.metas[sym]);
+            let props = sym.map_or_else(Vec::new, |sym| {
+                sym.props
+                    .iter()
+                    .map(|prop| prop_ids[usize::from(generator.prog.props[*prop].id)])
+                    .collect()
+            });
+            (entry.name.clone(), props, sym.map(|sym| sym.obj_id))
+        })
+        .collect();
     for obj in &mut out.objs {
         for prop in &mut obj.props {
             prop.id = prop_ids[usize::from(prop.id)];
@@ -600,7 +726,7 @@ impl Gen<'_> {
             Expr::Sym(name) => match self.prog.globals.get(&name) {
                 Some(Global::Func(func)) => Expr::constant(Value::FuncPtr(*func)),
                 Some(Global::Obj(obj)) => Expr::constant(Value::Obj(self.prog.objs[*obj].id)),
-                Some(Global::Bif(_) | Global::Prop(_)) | None => Expr::Sym(name),
+                Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_)) | None => Expr::Sym(name),
             },
             Expr::SelfRef | Expr::Inh | Expr::InhClass(_) | Expr::CtxEle(_) => expr,
             // The address of a property is a constant. What else a
@@ -2327,6 +2453,13 @@ impl Gen<'_> {
             Expr::Sym(name) => match self.implied_global(name) {
                 Some(Global::Bif(bif)) => self.gen_bif_call(bif, discard, 0, false),
                 Some(Global::Prop(prop)) => self.gen_prop_self(prop, discard),
+                // A built-in class: the object that stands for it,
+                // which the reference pushes wanted or not.
+                Some(Global::Meta(meta)) => {
+                    self.cg.write_op(Op::PushObj);
+                    self.cg.write4(self.prog.metas[meta].obj_id);
+                    self.cg.note_push();
+                }
                 _ => {}
             },
             Expr::DStr(text) => {
@@ -2574,7 +2707,7 @@ impl Gen<'_> {
                 self.gen_func_ref(func);
                 self.cg.note_push();
             }
-            Global::Bif(_) => {
+            Global::Bif(_) | Global::Meta(_) => {
                 self.error(format!("cannot take address of \"{}\"", show_name(name)));
             }
         }
@@ -2608,10 +2741,32 @@ impl Gen<'_> {
                 ..
             }) => *obj,
             Expr::Sym(name) => {
-                if self.prog.globals.contains_key(name) {
-                    self.error(INVALID);
-                } else {
-                    self.undefined(name);
+                match self.prog.globals.get(name).copied() {
+                    Some(Global::Meta(meta)) => {
+                        // An object of a built-in class.
+                        let index = self.prog.metas[meta].meta;
+                        if varargs {
+                            self.cg.write_op(Op::VarArgc);
+                        }
+                        if index <= 255 && argc <= 255 {
+                            self.cg
+                                .write_op(if transient { Op::TrNew1 } else { Op::New1 });
+                            self.cg.write(argc as u8);
+                            self.cg.write(index as u8);
+                        } else {
+                            self.cg
+                                .write_op(if transient { Op::TrNew1 } else { Op::New2 });
+                            self.cg.write2(argc as u16);
+                            self.cg.write2(index as u16);
+                        }
+                        self.cg.note_pops(argc as i32);
+                        if !discard {
+                            self.cg.write_op(Op::GetR0);
+                            self.cg.note_push();
+                        }
+                    }
+                    Some(_) => self.error(INVALID),
+                    None => self.undefined(name),
                 }
                 return;
             }
@@ -2895,6 +3050,12 @@ impl Gen<'_> {
                         } else {
                             self.gen_prop_self(obj_prop, false);
                         }
+                        self.gen_member_rhs(prop, is_expr, argc, varargs);
+                    }
+                    Some(Global::Meta(meta)) => {
+                        self.cg.write_op(Op::PushObj);
+                        self.cg.write4(self.prog.metas[meta].obj_id);
+                        self.cg.note_push();
                         self.gen_member_rhs(prop, is_expr, argc, varargs);
                     }
                     Some(_) => {
@@ -3330,6 +3491,12 @@ impl Gen<'_> {
                         self.cg.write_op(Op::GetR0);
                         self.cg.note_push();
                     }
+                }
+                Some(Global::Meta(_)) => {
+                    self.error(format!(
+                        "cannot call \"{}\" as a method or function",
+                        show_name(name)
+                    ));
                 }
                 _ => {}
             },
