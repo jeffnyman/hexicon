@@ -254,6 +254,9 @@ pub struct Preprocessor<'a> {
     /// Files not to be included again.
     include_once: Vec<String>,
     all_once: bool,
+    /// `#pragma sourceTextGroup` has said to turn the source text groups
+    /// on or off since the parser last asked.
+    src_group_change: Option<bool>,
 
     macros: Vec<Macro>,
     defines: HashMap<Vec<u8>, usize>,
@@ -333,6 +336,7 @@ impl<'a> Preprocessor<'a> {
             include_paths: Vec::new(),
             include_once: Vec::new(),
             all_once: false,
+            src_group_change: None,
             macros: Vec::new(),
             defines: HashMap::new(),
             linebuf: Vec::new(),
@@ -1985,7 +1989,7 @@ impl<'a> Preprocessor<'a> {
                 // This is for the compiler proper; when only
                 // preprocessing, the line is passed on to it.
                 if !self.pp_only {
-                    self.clear_linebuf();
+                    self.pragma_source_text_group();
                 }
             }
             _ => self.warning(format!(
@@ -1993,6 +1997,38 @@ impl<'a> Preprocessor<'a> {
                 show_name(&keyword)
             )),
         }
+    }
+
+    /// `#pragma sourceTextGroup`, `(on)`, or `(off)`: whether the
+    /// objects defined from here on say which source file they are in.
+    fn pragma_source_text_group(&mut self) {
+        let on = match self.next_on_line() {
+            Tok::Eof => Some(true),
+            Tok::LPar if self.next_on_line() == Tok::Sym => {
+                let on = match self.curtok_text().as_slice() {
+                    b"on" => Some(true),
+                    b"off" => Some(false),
+                    _ => None,
+                };
+                if on.is_some() && self.next_on_line() != Tok::RPar {
+                    None
+                } else {
+                    on
+                }
+            }
+            _ => None,
+        };
+        match on {
+            Some(on) => self.src_group_change = Some(on),
+            None => self.warning("invalid syntax for #pragma"),
+        }
+        self.clear_linebuf();
+    }
+
+    /// What `#pragma sourceTextGroup` has said since this was last
+    /// asked, if anything.
+    pub(crate) fn take_source_text_group(&mut self) -> Option<bool> {
+        self.src_group_change.take()
     }
 
     fn pragma_message(&mut self) {
@@ -2804,7 +2840,8 @@ fn join_path(dir: &str, name: &str) -> String {
     } else if dir.ends_with(is_separator) {
         format!("{dir}{name}")
     } else {
-        format!("{dir}/{name}")
+        // As the reference joins them: with the system's separator.
+        format!("{dir}{}{name}", std::path::MAIN_SEPARATOR)
     }
 }
 

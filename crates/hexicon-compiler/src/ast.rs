@@ -369,7 +369,7 @@ impl Expr {
     pub(crate) fn is_bool(&self) -> bool {
         match self {
             Self::Const(value) => value.is_bool(),
-            Self::Unary(UnOp::Not, _) => true,
+            Self::Unary(UnOp::Not, _) | Self::IsIn { .. } => true,
             Self::Binary(op, _, right) => match op {
                 BinOp::Comma => right.is_bool(),
                 BinOp::Eq
@@ -646,6 +646,9 @@ pub(crate) struct Closure {
     /// one, `replaced` in it means what the function's latest `modify`
     /// says, not what it meant when the body was read.
     pub func_id: Option<usize>,
+    /// The function a function's body was defined as, which stays the
+    /// same when `modify` takes the name away from the body.
+    pub defined_as: Option<usize>,
     /// For a function's body: how many parameters it has to be given,
     /// how many more it can be, and whether any number beyond that.
     pub func_proto: (usize, usize, bool),

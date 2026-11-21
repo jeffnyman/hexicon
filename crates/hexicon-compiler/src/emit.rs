@@ -3864,6 +3864,13 @@ impl Gen<'_> {
                 self.gen_expr(second, discard, for_condition);
                 self.def_label_pos(lbl_end);
             }
+            Expr::Call(func, args)
+                if self.is_rand(func)
+                    && args.len() >= 2
+                    && args.iter().all(|arg| !arg.varargs && arg.name.is_none()) =>
+            {
+                self.gen_rand(func, args, discard, for_condition);
+            }
             Expr::Call(func, args) => {
                 let CallArgs {
                     argc,
@@ -3873,6 +3880,57 @@ impl Gen<'_> {
                 self.gen_call(func, discard, argc, varargs, named);
             }
         }
+    }
+
+    /// Whether what a call calls is `rand` by name: the built-in
+    /// function, or a local of that name. (A function the program
+    /// defines has become a constant by now, and is not.)
+    fn is_rand(&self, func: &Expr) -> bool {
+        match func {
+            Expr::Sym(name) => name == b"rand",
+            Expr::Local(id) => self.prog.locals[*id].name == b"rand",
+            _ => false,
+        }
+    }
+
+    /// Generate `rand(a, b, ...)` with two or more arguments: the
+    /// reference evaluates only the one chosen. It calls `rand` with
+    /// the number of arguments, and switches on what comes back, from
+    /// 0 for the first; the cases are written last first, as the
+    /// reference keeps its arguments.
+    fn gen_rand(&mut self, func: &Expr, args: &[Arg], discard: bool, for_condition: bool) {
+        let count = args.len();
+        self.gen_int(count as i32);
+        self.gen_call(func, false, 1, false, None);
+        self.cg.write_op(Op::Switch);
+        self.cg.write2(count as u16);
+        self.cg.note_pop();
+        let table = self.cg.ofs();
+        for index in (0..count).rev() {
+            self.cg.write(datatype::INT);
+            self.cg.write4(index as u32);
+            self.cg.write2(0);
+        }
+        let default_slot = self.cg.ofs();
+        self.cg.write2(0);
+        let end_lbl = self.cg.new_label();
+        for (place, arg) in args.iter().rev().enumerate() {
+            let slot = table + 7 * place + 5;
+            let jump = self.cg.ofs() - slot;
+            self.cg.write2_at(slot, jump as u16);
+            self.gen_expr(&arg.expr, discard, for_condition);
+            self.cg.write_jump(Op::Jmp, end_lbl);
+            if !discard {
+                self.cg.note_pop();
+            }
+        }
+        let jump = self.cg.ofs() - default_slot;
+        self.cg.write2_at(default_slot, jump as u16);
+        if !discard {
+            self.cg.write_op(Op::PushNil);
+            self.cg.note_push();
+        }
+        self.cg.def_label(end_lbl);
     }
 
     /// Whether evaluating an expression leaves a value. A call to a
@@ -4110,7 +4168,16 @@ impl Gen<'_> {
                 self.gen_func_ref(func);
                 self.cg.note_push();
             }
-            Global::Bif(_) | Global::Meta(_) | Global::Enum(_) => {
+            // A built-in function: a pointer to it, by its place in its
+            // set and the set's.
+            Global::Bif(bif) => {
+                let (index, set) = (self.prog.bifs[bif].index, self.prog.bifs[bif].set);
+                self.cg.write_op(Op::PushBifPtr);
+                self.cg.write2(index as u16);
+                self.cg.write2(set as u16);
+                self.cg.note_push();
+            }
+            Global::Meta(_) | Global::Enum(_) => {
                 self.error(format!("cannot take address of \"{}\"", show_name(name)));
             }
         }
@@ -4994,7 +5061,9 @@ impl Gen<'_> {
         let mut closure = self.closures.get(self.cur_body)?;
         loop {
             if closure.is_func {
-                let func = closure.func_id?;
+                // A body that `modify` has put another in front of is
+                // still the version it was defined as.
+                let func = closure.defined_as?;
                 return self.prog.funcs[func].is_mm.then_some(func);
             }
             let mut next = closure.enclosing;

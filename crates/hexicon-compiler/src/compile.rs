@@ -22,6 +22,14 @@ pub struct CompileOptions {
     /// records (`Thu Nov 19 09:24:12 2026`). The compiler has no clock
     /// of its own.
     pub timestamp: [u8; 24],
+    /// Objects say which source file they are in from the start of each
+    /// file (`-Gstg`), as `#pragma sourceTextGroup(on)` makes them.
+    pub source_text_group: bool,
+    /// For each source, the name its source text group gives it and
+    /// its place among the modules of the build, from 1. Without them,
+    /// a source is named as it is given, and numbered by its place in
+    /// the list.
+    pub module_names: Vec<(String, usize)>,
 }
 
 impl Default for CompileOptions {
@@ -32,6 +40,8 @@ impl Default for CompileOptions {
             undefines: Vec::new(),
             default_charset: None,
             timestamp: *b"Thu Jan  1 00:00:00 1970",
+            source_text_group: false,
+            module_names: Vec::new(),
         }
     }
 }
@@ -104,7 +114,8 @@ fn start<'a>(
     }
     if !pp.set_source(source) {
         return Err(Diagnostic {
-            file: source.to_owned(),
+            // A message about no place in particular.
+            file: String::new(),
             line: 0,
             severity: Severity::Error,
             message: format!("unable to open source file \"{source}\""),
@@ -152,7 +163,12 @@ pub fn compile_program(
     let known = merge_exports(exports);
 
     let mut modules = Vec::new();
-    for source in sources {
+    for (index, source) in sources.iter().enumerate() {
+        let module = options
+            .module_names
+            .get(index)
+            .cloned()
+            .unwrap_or_else(|| ((*source).to_owned(), index + 1));
         let mut pp = match start(files, source, options) {
             Ok(pp) => pp,
             Err(diagnostic) => {
@@ -160,7 +176,9 @@ pub fn compile_program(
                 return compiled;
             }
         };
-        let mut prog = Parser::new(&mut pp, false, known.clone()).parse_top();
+        let mut parser = Parser::new(&mut pp, false, known.clone());
+        parser.set_module(module, options.source_text_group);
+        let mut prog = parser.parse_top();
         compiled.diagnostics.append(&mut pp.take_diagnostics());
         if has_errors(&compiled.diagnostics) {
             return compiled;
@@ -217,8 +235,13 @@ pub fn compile_program(
         enum_ids,
         errors,
     } = link::link(modules);
-    for message in errors {
-        note(&mut compiled, Severity::Error, message);
+    // The reference reads every object file even when one is wrong,
+    // and goes no further if any was.
+    if !errors.is_empty() {
+        for message in errors {
+            note(&mut compiled, Severity::Error, message);
+        }
+        return compiled;
     }
     let mut generated = emit::link_generate(&mut prog, out, enum_ids);
     for name in emit::unresolved_externs(&prog, &generated) {

@@ -2,12 +2,16 @@
 # Compile source files with Hexicon and with the reference compiler, and
 # report the files on which the two differ.
 #
-# usage: compile-compare.sh [-I dir]... file...
+# usage: compile-compare.sh [-I dir]... [--lib] file...
 #
 # Each file is compiled as a whole program on its own, without the
-# reference's default modules, so it needs a _main function. A folder
-# in place of a file is a program of several source files: the .t files
-# in it, put together in the order of their names. The two
+# reference's default modules, so it needs a _main function. With
+# --lib, the system library's _main comes first, as it does for the
+# reference by default, and libraries such as system.tl are found in
+# the system library. A folder in place of a file is a program of
+# several source files: the .t files in it, put together in the order
+# of their names; or, if it has a project file (.t3m), what that says.
+# The two
 # agree on a file if they report the same problems and, when there are
 # no errors, write the same image. The images and what each compiler
 # said are left in build/compile-compare.
@@ -36,22 +40,32 @@ while [ "$1" = -I ]; do
   inc+=("-I" "$(native "$2")")
   shift 2
 done
+# Where the system library and its headers are, for both compilers.
+sys=("-FL" "$(native "$runner/tads3/lib")" "-FI" "$(native "$runner/tads3/include")")
+nodef=(-nodef)
+if [ "$1" = --lib ]; then
+  nodef=()
+  shift
+fi
 
 pass=0
 fail=0
 for file in "$@"; do
   name=$(echo "$file" | sed 's|[/\\:]|_|g')
   src=()
-  if [ -d "$file" ]; then
+  if [ -d "$file" ] && ls "$file"/*.t3m > /dev/null 2>&1; then
+    for part in "$file"/*.t3m; do src=(-f "$(native "$part")"); break; done
+  elif [ -d "$file" ]; then
     for part in "$file"/*.t; do src+=("$(native "$part")"); done
   else
     src=("$(native "$file")")
   fi
   rm -f "$out/$name.ref.t3" "$out/$name.hex.t3" "$out"/obj/*
-  timeout 60 "$ref" -nodef -nopre -nobanner -a "${inc[@]}" \
+  timeout 60 "$ref" "${nodef[@]}" -nopre -nobanner -a "${inc[@]}" "${sys[@]}" \
     -Fo "$(native "$out/obj")" -Fy "$(native "$out/obj")" \
     -o "$(native "$out/$name.ref.t3")" "${src[@]}" > "$out/$name.ref.log" 2>&1 < /dev/null
-  timeout 60 "$hex" build "${inc[@]}" -cs "$charset" -o "$(native "$out/$name.hex.t3")" \
+  timeout 60 "$hex" build "${nodef[@]}" -nopre "${inc[@]}" "${sys[@]}" -cs "$charset" \
+    -o "$(native "$out/$name.hex.t3")" \
     --unspecified "$(native "$out/$name.skip")" "${src[@]}" 2>&1 \
     | tr -d '\r' > "$out/$name.hex.msg"
   # What the reference says besides the problems it finds: the steps of

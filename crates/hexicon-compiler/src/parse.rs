@@ -495,6 +495,11 @@ pub(crate) const SPECIAL_PROPS: [&str; 25] = [
 ];
 /// Which of them is `sourceTextOrder`, and which `lexicalParent`.
 const SRC_ORDER_PROP: usize = 6;
+/// And `sourceTextGroup`, `sourceTextGroupName`, and
+/// `sourceTextGroupOrder`.
+const SRC_GROUP_PROP: usize = 7;
+const SRC_GROUP_NAME_PROP: usize = 8;
+const SRC_GROUP_ORDER_PROP: usize = 9;
 const LEXICAL_PARENT_PROP: usize = 5;
 /// And `grammarInfo` and `grammarTag`.
 const GRAMMAR_INFO_PROP: usize = 2;
@@ -652,10 +657,11 @@ impl Globals {
 pub(crate) struct Exports {
     /// The names, in the order the reference's symbol file has them.
     pub order: Vec<Vec<u8>>,
-    /// The names more than one source file made known. The reference
-    /// looks a name up when it reads it from a symbol file, to see if
-    /// it has it already, and that counts as a use of the name, in
-    /// every source file.
+    /// The names more than one source file made known as objects,
+    /// properties, or values of enumerations. The reference looks a
+    /// name up when it reads it from a symbol file, to see if it has it
+    /// already, and for those kinds that counts as a use of the name,
+    /// in every source file.
     pub used: Vec<Vec<u8>>,
     /// The sets of built-in functions the source declared, in order.
     pub fnsets: Vec<Vec<u8>>,
@@ -728,7 +734,15 @@ pub(crate) fn merge_exports(all: Vec<Exports>) -> Exports {
             let Some((place, rec)) = by_name.remove(&name) else {
                 continue;
             };
-            if index.contains_key(&name) && !used.contains(&name) {
+            // Looking the name up marks what it already was as used, if
+            // that is an object, a property, or a value of an
+            // enumeration; the reference's other kinds of name take no
+            // notice.
+            let marks = matches!(
+                index.get(&name).and_then(|at| recs[*at].as_ref()),
+                Some((_, Rec::Obj(_) | Rec::Prop(_) | Rec::Enum(_)))
+            );
+            if marks && !used.contains(&name) {
                 used.push(name.clone());
             }
             let old = index
@@ -956,7 +970,11 @@ impl Program {
         let funcs = self
             .funcs
             .iter()
-            .filter(|func| !func.is_extern || func.is_mm_base)
+            // A `replace` or `modify` of a function only declared here
+            // is for the file that defines it to make known. A
+            // multi-method itself is declared everywhere and defined
+            // nowhere: each file with a version makes it known.
+            .filter(|func| (!func.is_extern && !func.ext_redef) || func.is_mm_base)
             // The next reading takes what is known of each one's
             // parameters for its whole declaration, even if all there
             // was to go on was an `extern` that said nothing of them.
@@ -970,14 +988,16 @@ impl Program {
                 ..func.clone()
             })
             .collect();
-        // Objects are numbered in the order of the table of global
-        // names as it is when the program is put together; in a chain
-        // of that table, they are in the order they were defined.
+        // Likewise a `replace` or `modify` of an object only declared
+        // here.
         let mut objs: Vec<ObjSym> = self
             .objs
             .iter()
             .filter(|obj| {
-                !obj.is_extern && !obj.undefined_redef && self.globals.peek(&obj.name).is_some()
+                !obj.is_extern
+                    && !obj.undefined_redef
+                    && !obj.ext_redef
+                    && self.globals.peek(&obj.name).is_some()
             })
             .map(|obj| ObjSym {
                 is_extern: true,
@@ -1188,6 +1208,12 @@ pub(crate) struct Parser<'p, 'a> {
     /// The number the next object that is not a class gets for its
     /// place in the source.
     src_order_idx: i32,
+    /// The module being compiled: its name and its place in the build.
+    module: Option<(String, usize)>,
+    /// Objects say which source file they are in: the object that
+    /// stands for the file, once it has been made.
+    src_group_mode: bool,
+    src_group_obj: Option<u32>,
 
     // What the function being read shares with functions nested in it.
     has_local_ctx: bool,
@@ -1394,6 +1420,9 @@ impl<'p, 'a> Parser<'p, 'a> {
             str_templates: Vec::new(),
             self_valid: false,
             src_order_idx: 1,
+            module: None,
+            src_group_mode: false,
+            src_group_obj: None,
             has_local_ctx: false,
             local_ctx_var_num: 0,
             next_ctx_arr_idx: FIRST_CTX_ARR_IDX,
@@ -1412,7 +1441,73 @@ impl<'p, 'a> Parser<'p, 'a> {
     }
 
     fn next(&mut self) -> Tok {
-        self.tok.next_token()
+        let tok = self.tok.next_token();
+        if let Some(on) = self.tok.take_source_text_group() {
+            self.set_source_text_group(on);
+        }
+        tok
+    }
+
+    /// Say which module this is: its name and its place in the build,
+    /// from 1; and whether its objects say so from the start.
+    pub(crate) fn set_module(&mut self, module: (String, usize), source_text_group: bool) {
+        self.module = Some(module);
+        if source_text_group {
+            self.set_source_text_group(true);
+        }
+    }
+
+    /// Turn source text groups on or off. The first time they go on, the
+    /// object that stands for the source file is made: one with no name,
+    /// whose properties give the module's name and its place in the
+    /// build. Every object defined while they are on has it as its
+    /// `sourceTextGroup`.
+    fn set_source_text_group(&mut self, on: bool) {
+        self.src_group_mode = on;
+        if !on || self.src_group_obj.is_some() {
+            return;
+        }
+        let obj = self.new_anon_obj();
+        self.src_group_obj = Some(self.prog.objs[obj].id);
+        let (file, line) = self.tok.last_pos();
+        let mut props = Vec::new();
+        if let Some((name, seqno)) = self.module.clone() {
+            let values = [
+                (SRC_GROUP_NAME_PROP, Value::SStr(name.into_bytes())),
+                (SRC_GROUP_ORDER_PROP, Value::Int(seqno as i32)),
+            ];
+            for (prop, value) in values {
+                props.push(ObjProp {
+                    prop,
+                    value: PropValue::Expr(Expr::constant(value)),
+                    overwritable: false,
+                    is_static: false,
+                    file,
+                    line,
+                });
+            }
+        }
+        self.prog.objs[obj].def = Some(self.prog.objdefs.len());
+        self.prog.nested.push(Top::Obj(self.prog.objdefs.len()));
+        self.prog.objdefs.push(ObjDef {
+            sym: Some(obj),
+            is_class: false,
+            superclasses: Vec::new(),
+            props,
+            file,
+            line,
+            is_modify: false,
+            mod_base: None,
+            prev_def: None,
+            mod_id: None,
+            replaced: false,
+            meta: None,
+            transient: false,
+            bad_template: false,
+            undesc_sc: false,
+            dict: None,
+            vocab: Vec::new(),
+        });
     }
 
     fn cur_text(&self) -> Vec<u8> {
@@ -2631,6 +2726,9 @@ impl<'p, 'a> Parser<'p, 'a> {
     }
 
     fn parse_function(&mut self, func_kw_present: bool, redef: Redef) -> Parsed<()> {
+        // `method name() { ... }` is a function whose code has a
+        // `self`: what it is called as a method of (a floating method).
+        let is_method = func_kw_present && self.cur() == Tok::Method;
         if func_kw_present {
             self.next();
         }
@@ -2655,7 +2753,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         let body_ref = self.prog.body_refs.len();
         self.types_ok = true;
         self.func_types = None;
-        let parsed = self.parse_code_body(false, CbType::Normal, None, None);
+        let parsed = self.parse_code_body(is_method, CbType::Normal, None, None);
         self.types_ok = false;
         let func_types = self.func_types.take();
         let Some((mut body, has_retval)) = parsed? else {
@@ -2798,6 +2896,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
         };
         body.closure.func_id = Some(func_id);
+        body.closure.defined_as = Some(func_id);
         self.prog.body_refs[body_ref].func_body = Some(self.prog.bodies.len());
         self.prog.funcs[func_id].body = Some(self.prog.bodies.len());
         self.prog.top.push(Top::Func(self.prog.bodies.len()));
@@ -7369,6 +7468,17 @@ impl Parser<'_, '_> {
                 file,
                 line,
             });
+            // And which source file it is in.
+            if let (true, Some(group)) = (self.src_group_mode, self.src_group_obj) {
+                def.props.push(ObjProp {
+                    prop: SRC_GROUP_PROP,
+                    value: PropValue::Expr(Expr::constant(Value::Obj(group))),
+                    overwritable: true,
+                    is_static: false,
+                    file,
+                    line,
+                });
+            }
         }
 
         self.parse_obj_prop_list(&mut def, braces, is_nested)?;

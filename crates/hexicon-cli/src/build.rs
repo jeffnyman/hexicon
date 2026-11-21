@@ -4,7 +4,7 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hexicon_compiler::pp::Severity;
-use hexicon_compiler::{CompileOptions, compile_program};
+use hexicon_compiler::{CompileOptions, ProjectError, ProjectPaths, compile_program, read_project};
 
 use crate::preprocess::DiskFiles;
 
@@ -55,71 +55,108 @@ fn timestamp(now: SystemTime) -> [u8; 24] {
     stamp
 }
 
+/// Where the system's headers and library are: as for the reference,
+/// in `include` and `lib` beside the program, unless `-FI` and `-FL`
+/// say otherwise; and the folders of the `TADSLIB` environment
+/// variable for more libraries.
+fn default_paths() -> ProjectPaths {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
+        .unwrap_or_default();
+    let beside = |name: &str| exe_dir.join(name).to_string_lossy().into_owned();
+    let separator = if cfg!(windows) { ';' } else { ':' };
+    let user_libraries = std::env::var("TADSLIB")
+        .map(|value| {
+            value
+                .split(separator)
+                .filter(|dir| !dir.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
+    ProjectPaths {
+        system_include: beside("include"),
+        system_library: beside("lib"),
+        user_libraries,
+    }
+}
+
 pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
-    let mut options = CompileOptions {
-        timestamp: timestamp(SystemTime::now()),
-        ..CompileOptions::default()
-    };
-    let mut output: Option<&str> = None;
+    // What `t3make` takes is for the project; `--unspecified` is
+    // Hexicon's own.
     let mut unspecified: Option<&str> = None;
+    let mut project_args: Vec<String> = Vec::new();
     let mut rest = args;
-    let mut sources: Vec<&str> = Vec::new();
-    loop {
-        match rest {
-            [] => break,
-            ["-I", dir, tail @ ..] => {
-                options.include_paths.push((*dir).to_owned());
-                rest = tail;
-            }
-            ["-D", definition, tail @ ..] => {
-                let (name, text) = definition.split_once('=').unwrap_or((definition, "1"));
-                options.defines.push((name.to_owned(), text.to_owned()));
-                rest = tail;
-            }
-            ["-U", name, tail @ ..] => {
-                options.undefines.push((*name).to_owned());
-                rest = tail;
-            }
-            ["-cs", name, tail @ ..] => {
-                options.default_charset = Some((*name).to_owned());
-                rest = tail;
-            }
-            ["-o", path, tail @ ..] => {
-                output = Some(path);
-                rest = tail;
-            }
-            ["--unspecified", path, tail @ ..] => {
-                unspecified = Some(path);
-                rest = tail;
-            }
-            [source, tail @ ..] if !source.starts_with('-') => {
-                sources.push(source);
-                rest = tail;
-            }
-            _ => {
+    while let Some((first, tail)) = rest.split_first() {
+        if *first == "--unspecified" {
+            let Some((path, tail)) = tail.split_first() else {
                 eprint!("{usage}");
                 return ExitCode::from(2);
-            }
+            };
+            unspecified = Some(path);
+            rest = tail;
+            continue;
         }
+        project_args.push((*first).to_owned());
+        rest = tail;
     }
-    let Some(first) = sources.first() else {
+
+    let project = match read_project(&mut DiskFiles, &project_args, &default_paths()) {
+        Ok(project) => project,
+        Err(ProjectError::Usage(problem)) => {
+            if !problem.is_empty() {
+                eprintln!("hexicon: {problem}");
+            }
+            eprint!("{usage}");
+            return ExitCode::from(2);
+        }
+        Err(ProjectError::Failed(lines)) => {
+            for line in lines {
+                eprintln!("{line}");
+            }
+            return ExitCode::FAILURE;
+        }
+    };
+    for line in &project.messages {
+        eprintln!("{line}");
+    }
+    if project.preinit {
+        eprintln!(
+            "hexicon: the program is not run before the image is written: preinitialization is not done yet (-nopre says not to)"
+        );
+    }
+    let Some(output) = project.image.clone() else {
         eprint!("{usage}");
         return ExitCode::from(2);
     };
-    // Without a name for the image, it goes beside the first source.
-    let default_output = std::path::Path::new(first)
-        .with_extension("t3")
-        .to_string_lossy()
-        .into_owned();
-    let output = output.unwrap_or(&default_output);
+    let options = CompileOptions {
+        timestamp: timestamp(SystemTime::now()),
+        ..project.options
+    };
+    let sources: Vec<&str> = project.sources.iter().map(String::as_str).collect();
+    // What is built, as the reference shows its steps: each on a line
+    // of its own, after a tab.
+    if project.verbose {
+        eprintln!("	Files to build: {}", sources.len());
+        for source in &sources {
+            eprintln!("	compile {source}");
+        }
+        eprintln!("	link -> {output}");
+    }
 
     let compiled = compile_program(&mut DiskFiles, &sources, &options);
+    let mut warned = false;
     for problem in &compiled.diagnostics {
         let kind = match problem.severity {
             Severity::Error => "error",
             Severity::Fatal => "fatal error",
             Severity::Internal => "internal error",
-            Severity::Warning => "warning",
+            Severity::Warning if !project.warnings => continue,
+            Severity::Warning => {
+                warned = true;
+                "warning"
+            }
             Severity::Message => {
                 eprintln!("{}", problem.message);
                 continue;
@@ -137,7 +174,11 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     let Some(image) = compiled.image else {
         return ExitCode::FAILURE;
     };
-    if let Err(error) = std::fs::write(output, image) {
+    // With `-we`, a warning is as bad as an error.
+    if warned && project.warnings_as_errors {
+        return ExitCode::FAILURE;
+    }
+    if let Err(error) = std::fs::write(&output, image) {
         eprintln!("hexicon: {output}: {error}");
         return ExitCode::FAILURE;
     }
@@ -145,7 +186,12 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
         let list: String = compiled
             .unspecified
             .iter()
-            .map(|(offset, len)| format!("{offset} {len}\n"))
+            .map(|(offset, len)| {
+                format!(
+                    "{offset} {len}
+"
+                )
+            })
             .collect();
         if let Err(error) = std::fs::write(path, list) {
             eprintln!("hexicon: {path}: {error}");

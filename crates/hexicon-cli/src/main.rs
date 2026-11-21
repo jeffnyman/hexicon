@@ -35,20 +35,45 @@ commands:
                                anywhere but writing only in the sandbox,
                                2 for the sandbox only, 3 for reading in
                                the sandbox only, 4 for nowhere (default 22)
-  build [options] <source>...  compile a program image from its source
-                               files, put together in the order given;
-                               the options are:
+  build [options] <module>...  compile a program image from its source
+                               files and libraries (.tl), put together in
+                               the order given, after the system
+                               library's _main; the options are those of
+                               the reference's t3make, which a project
+                               file (.t3m) can also give:
+      -f <project.t3m>         read more options and modules from a
+                               project file (default: makefile.t3m, if
+                               nothing else is given)
+      -source <file>           a source file, whatever its name
+      -lib <file>              a library, whatever its name; -x <name>
+                               after it leaves out one of its sources
       -o <image.t3>            where to write the image (default: beside
                                the first source, with the extension .t3)
+      -I <dir>                 a folder to look for included files in
+      -D <name>[=<text>]       define a macro (as nothing, without a text)
+      -U <name>                undefine a macro
       -cs <name>               the character set of source files that do
                                not say what they are in (default: UTF-8)
+      -FL <dir>, -FI <dir>     where the system library and its headers
+                               are (default: lib and include beside
+                               hexicon)
+      -Fs <dir>                a folder to look for sources and libraries
+                               in
+      -nodef                   leave out the system library's _main
+      -nopre, -pre             whether to run the program before the
+                               image is written (preinitialization is not
+                               done yet)
+      -w0, -w1, -we            no warnings; warnings; warnings stop the
+                               build
+      -v                       list the sources as they are compiled
+      -a, -al, -q, -nobanner, -Fy <dir>, -Fo <dir>, -FC
+                               taken, and of no effect: Hexicon writes no
+                               symbol or object files, and builds
+                               everything every time
       --unspecified <file>     list the parts of the image that mean
                                nothing, such as the time it was compiled,
                                each as an offset and a length; a comparison
                                of two images should skip them
-      -I <dir>                 a folder to look for included files in
-      -D <name>[=<text>]       define a macro (as 1, without a text)
-      -U <name>                undefine a macro
   preprocess [options] <source>
                                write a source file's preprocessed text;
                                the options are:

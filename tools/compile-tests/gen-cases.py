@@ -7,7 +7,8 @@ The programs are for tools/compile-compare.sh. Most are a line or two:
 one way of writing something, or one mistake, to see that Hexicon makes
 of it what the reference compiler does, messages included. A program
 without a `_main` function is given an empty one. A program of several
-source files is a folder of them.
+source files is a folder of them. The projects, which are built with the
+system library, are in a folder of their own: projects.
 
 Cases known to come out differently are not here; the compiler plan's
 findings say what they are and why.
@@ -4245,6 +4246,298 @@ _main(args) { return np; }
 """
 
 
+# What the test suite's programs use: pointers to built-in functions,
+# rand() of a choice, methods at the outermost level, `is in` as a
+# truth value, a modified version of a multi-method, and source text
+# groups.
+programs["bifptr1"] = """#include <tads.h>
+_main(args)
+{
+    local f = &tadsSay;
+    f('pointer\\n');
+    local g = [&toString, &rand, &max];
+    return (g[1])(42);
+}
+"""
+
+programs["rand2"] = """#include <tads.h>
+f(x) { return x * 2; }
+_main(args)
+{
+    rand("One", "Two", "Three");
+    local r = rand(f(1), f(2), f(3));
+    local s = rand('a', 'b');
+    local t = rand(10);
+    local u = rand(r, s...);
+    local rand = {n: n};
+    local v = rand(1, 2);
+    return [r, s, t, u, v];
+}
+"""
+
+programs["floatmeth1"] = """#include <tads.h>
+method topLoc() { return location == nil ? self : location; }
+method showName(x) { "<<name>> <<x>>\\n"; return self; }
+o: object name = 'o' location = nil;
+_main(args)
+{
+    o.setMethod(&where, topLoc);
+    return [o.where(), showName];
+}
+"""
+
+programs["isinbool1"] = """#include <tads.h>
+f(x, y) { return x && y is in (1, 2); }
+g(x, y) { return x not in (3, 4) || y; }
+h(x, y) { return (x is in (1)) && (y not in (2)); }
+_main(args) { return [f(1, 2), g(3, 4), h(1, 2)]; }
+"""
+
+programs["mmmodify1"] = """#include <tads.h>
+class A: object;
+class B: A;
+kf(A a1, A a2) { return 1; }
+kf(A a1, B b1) { return inherited(a1, b1); }
+modify kf(A a1, B b1) { return replaced(a1, b1) + inherited(a1, b1); }
+_multiMethodRegister(base, func, params) { }
+_multiMethodBuildBindings() { }
+_multiMethodCall(base, args) { return nil; }
+_multiMethodCallInherited(from, [args]) { return nil; }
+_main(args) { return kf(B, B); }
+"""
+
+programs["srcgroup1"] = """#include <tads.h>
+a1: object;
+#pragma sourceTextGroup(on)
+class C: object;
+b1: object;
+c1: C x = 1;
+#pragma sourceTextGroup(off)
+d1: object;
+#pragma sourceTextGroup
+e1: object;
+#pragma sourceTextGroup(maybe)
+#pragma sourceTextGroup(on
+_main(args) { return [b1.sourceTextGroup, e1.sourceTextGroup.sourceTextGroupName]; }
+"""
+
+# Projects: a folder of files, with a project file (.t3m) and
+# libraries (.tl), built with the system library (compile-compare.sh
+# --lib). gen-cases.py writes them in a folder of their own, projects.
+projects = {}
+
+projects["p_badlib"] = {
+    "hello.t": """#include <tads.h>
+main(args) { local unused; "Hello <<f1()>> <<f2()>>.\\n"; }
+""",
+    "proj.t3m": """-D SUBNAME=sublib
+-lib system
+-lib mylib/mylib
+-source hello
+""",
+    "mylib/mylib.tl": """name: My Library
+# a comment
+source: one
+library: sub/$(SUBNAME)
+""",
+    "mylib/one.t": """f1() { local u1; return 1; }
+""",
+    "mylib/sub/sublib.tl": """source: two
+badline
+""",
+    "mylib/sub/three$.t": """f3() { return 3; }
+""",
+    "mylib/sub/three.t": """f4() { return 4; }
+""",
+    "mylib/sub/two.t": """f2() { local u2; return 2; }
+""",
+}
+
+projects["p_collide"] = {
+    "hello.t": """#include <tads.h>
+main(args) { "Hello, world.\\n"; }
+""",
+    "proj.t3m": """-lib system
+-source hello
+-source tok
+""",
+    "tok.t": """#include <tads.h>
+f() { return 1; }
+""",
+}
+
+projects["p_collide2"] = {
+    "hello.t": """#include <tads.h>
+main(args) { "Hello, world.\\n"; }
+""",
+    "proj.t3m": """-source hello
+-source sub/hello
+-lib system
+""",
+    "sub/hello.t": """#include <tads.h>
+main(args) { "Hello, world.\\n"; }
+""",
+}
+
+projects["p_exclude"] = {
+    "hello.t": """#include <tads.h>
+main(args) { local unused; "Hello there.\\n"; }
+""",
+    "proj.t3m": """-D SUBNAME=sublib
+-lib system
+-x tok
+-lib mylib/mylib
+  -x sub/sublib/two
+  -x one
+-source hello
+""",
+    "mylib/mylib.tl": """name: My Library
+# a comment
+source: one
+library: sub/$(SUBNAME)
+""",
+    "mylib/one.t": """f1() { local u1; return 1; }
+""",
+    "mylib/sub/sublib.tl": """source: two
+what: x
+source: thr$(NOPE)ee
+source: three$$
+""",
+    "mylib/sub/three$.t": """f3() { return 3; }
+""",
+    "mylib/sub/three.t": """f4() { return 4; }
+""",
+    "mylib/sub/two.t": """f2() { local u2; return 2; }
+""",
+}
+
+projects["p_hello"] = {
+    "hello.t": """#include <tads.h>
+main(args) { "Hello, world.\\n"; }
+""",
+    "hello.t3m": """# A program with the system library.
+-lib system
+-source hello
+""",
+}
+
+projects["p_mylib"] = {
+    "hello.t": """#include <tads.h>
+main(args) { local unused; "Hello <<f1()>> <<f2()>>.\\n"; }
+""",
+    "proj.t3m": """-D SUBNAME=sublib
+-lib system
+-lib mylib/mylib
+-source hello
+""",
+    "mylib/mylib.tl": """name: My Library
+# a comment
+source: one
+library: sub/$(SUBNAME)
+""",
+    "mylib/one.t": """f1() { local u1; return 1; }
+""",
+    "mylib/sub/sublib.tl": """source: two
+what: x
+source: thr$(NOPE)ee
+source: three$$
+""",
+    "mylib/sub/three$.t": """f3() { return 3; }
+""",
+    "mylib/sub/three.t": """f4() { return 4; }
+""",
+    "mylib/sub/two.t": """f2() { local u2; return 2; }
+""",
+}
+
+projects["p_nodef"] = {
+    "hello.t": """#include <tads.h>
+_main(args) { tadsSay('No _main from the library.\\n'); }
+""",
+    "proj.t3m": """-nodef
+-source hello
+""",
+}
+
+projects["p_nodeflib"] = {
+    "hello.t": """#include <tads.h>
+main(args) { "Hello.\\n"; }
+""",
+    "proj.t3m": """-source hello
+-lib system
+""",
+}
+
+projects["p_nolib"] = {
+    "hello.t": """#include <tads.h>
+main(args) { local unused; "Hello <<f1()>> <<f2()>>.\\n"; }
+""",
+    "proj.t3m": """-D SUBNAME=sublib
+-lib system
+-lib mylib/nothere
+-source hello
+""",
+    "mylib/mylib.tl": """name: My Library
+# a comment
+source: one
+library: sub/$(SUBNAME)
+""",
+    "mylib/one.t": """f1() { local u1; return 1; }
+""",
+    "mylib/sub/sublib.tl": """source: two
+what: x
+source: thr$(NOPE)ee
+source: three$$
+""",
+    "mylib/sub/three$.t": """f3() { return 3; }
+""",
+    "mylib/sub/three.t": """f4() { return 4; }
+""",
+    "mylib/sub/two.t": """f2() { local u2; return 2; }
+""",
+}
+
+projects["p_nosrc"] = {
+    "hello.t": """#include <tads.h>
+main(args) { local unused; "Hello <<f1()>> <<f2()>>.\\n"; }
+""",
+    "proj.t3m": """-D SUBNAME=sublib
+-lib system
+-lib mylib/mylib
+-source hello
+-source missing
+""",
+    "mylib/mylib.tl": """name: My Library
+# a comment
+source: one
+library: sub/$(SUBNAME)
+""",
+    "mylib/one.t": """f1() { local u1; return 1; }
+""",
+    "mylib/sub/sublib.tl": """source: two
+what: x
+source: thr$(NOPE)ee
+source: three$$
+""",
+    "mylib/sub/three$.t": """f3() { return 3; }
+""",
+    "mylib/sub/three.t": """f4() { return 4; }
+""",
+    "mylib/sub/two.t": """f2() { local u2; return 2; }
+""",
+}
+
+projects["p_quoted"] = {
+    "proj.t3m": """-D "FOO=quoted"
+-lib system
+-source "my dir/hello"
+""",
+    "my dir/hello.t": """#include <tads.h>
+main(args) { "Hello, <<FOO>>.\\n"; }
+""",
+}
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
@@ -4269,7 +4562,14 @@ def main():
                 os.path.join(folder, name, file + ".t"), "w", newline="\n", encoding="utf-8"
             ) as out:
                 out.write(text)
-    print(f"{len(programs) + len(mistakes) + len(linked)} programs in {folder}")
+    for name, files in projects.items():
+        for path, text in files.items():
+            full = os.path.join(folder, "projects", name, *path.split("/"))
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", newline="\n", encoding="utf-8") as out:
+                out.write(text)
+    count = len(programs) + len(mistakes) + len(linked) + len(projects)
+    print(f"{count} programs in {folder}")
 
 
 main()

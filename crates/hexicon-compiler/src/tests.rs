@@ -22,12 +22,13 @@ impl Files {
 }
 
 impl SourceFiles for Files {
+    // Either separator will do in a path, as on Windows.
     fn read(&mut self, name: &str) -> Option<Vec<u8>> {
-        self.0.get(name).cloned()
+        self.0.get(&name.replace('\\', "/")).cloned()
     }
 
     fn exists(&mut self, name: &str) -> bool {
-        self.0.contains_key(name)
+        self.0.contains_key(&name.replace('\\', "/"))
     }
 
     // A character set of the tests' own: every byte is the letter after
@@ -2802,4 +2803,145 @@ fn a_second_definition_has_to_come_after_the_first() {
         "{:?}",
         compiled.diagnostics
     );
+}
+
+/// A path made of these parts, with the system's separator, as the
+/// project reader makes them.
+fn sys_path(parts: &[&str]) -> String {
+    parts.join(std::path::MAIN_SEPARATOR_STR)
+}
+
+fn project_paths() -> crate::ProjectPaths {
+    crate::ProjectPaths {
+        system_include: "inc".to_owned(),
+        system_library: "syslib".to_owned(),
+        user_libraries: Vec::new(),
+    }
+}
+
+fn read(files: &mut Files, args: &[&str]) -> Result<crate::Project, crate::ProjectError> {
+    let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
+    crate::read_project(files, &args, &project_paths())
+}
+
+#[test]
+fn a_project_file_names_the_sources_and_the_libraries() {
+    let mut files = Files::default()
+        .with("game/game.t3m", "# The game.\n-D LANG=english\n-lib mylib/mylib\n  -x two\n-source start\n-source \"more stuff\"\n[Config:devsys]\nnot = an option\n")
+        .with("game/mylib/mylib.tl", "name: My Library\nsource: one\nsource: two\nlibrary: $(LANG)/$(LANG)\n")
+        .with("game/mylib/english/english.tl", "source: words\nnodef\n")
+        .with("game/start.t", "")
+        .with("game/more stuff.t", "");
+    let project = read(&mut files, &["-f", "game/game"]).expect("a project");
+    // The library's sources come in its place, its own library's in
+    // theirs; `-x` left one out, and `nodef` in the library left out
+    // the system library's `_main`.
+    let mylib = sys_path(&["game", "mylib"]);
+    assert_eq!(
+        project.sources,
+        [
+            format!("{mylib}{}one.t", std::path::MAIN_SEPARATOR),
+            sys_path(&["game", "mylib", "english", "words.t"]),
+            sys_path(&["game", "start.t"]),
+            sys_path(&["game", "more stuff.t"]),
+        ]
+    );
+    // Each module's name and its place in the build, which counts the
+    // one left out.
+    assert_eq!(
+        project.options.module_names,
+        [
+            ("one".to_owned(), 1),
+            ("words".to_owned(), 3),
+            ("start".to_owned(), 4),
+            ("more stuff".to_owned(), 5)
+        ]
+    );
+    // The image is named for the first source; the libraries' folders
+    // are searched for included files before the system's.
+    assert_eq!(project.image, Some(sys_path(&["game", "start.t3"])));
+    assert_eq!(
+        project.options.include_paths,
+        [
+            mylib.clone(),
+            sys_path(&["game", "mylib", "english"]),
+            "inc".to_owned()
+        ]
+    );
+    assert_eq!(
+        project.options.defines,
+        [("LANG".to_owned(), "english".to_owned())]
+    );
+    assert!(project.messages.is_empty(), "{:?}", project.messages);
+}
+
+#[test]
+fn the_system_library_comes_first_unless_told_otherwise() {
+    let mut files = Files::default()
+        .with("main.t", "")
+        .with("syslib/_main.t", "")
+        .with("syslib/system.tl", "source: tok\nnodef\n")
+        .with("syslib/tok.t", "");
+    let project = read(&mut files, &["main.t"]).expect("a project");
+    assert_eq!(
+        project.sources,
+        [sys_path(&["syslib", "_main.t"]), "main.t".to_owned()]
+    );
+    assert!(project.preinit);
+    // A library is looked for in the system library; this one says
+    // its own `_main` is left out.
+    let project = read(&mut files, &["-nopre", "system.tl", "main"]).expect("a project");
+    assert_eq!(
+        project.sources,
+        [sys_path(&["syslib", "tok.t"]), "main.t".to_owned()]
+    );
+    assert!(!project.preinit);
+    // `-D` without a value defines the macro as nothing.
+    let project = read(&mut files, &["-nodef", "-D", "X", "-DY=2", "main"]).expect("a project");
+    assert_eq!(
+        project.options.defines,
+        [
+            ("X".to_owned(), String::new()),
+            ("Y".to_owned(), "2".to_owned())
+        ]
+    );
+}
+
+#[test]
+fn what_is_wrong_with_a_library_is_said_as_the_reference_says_it() {
+    let mut files = Files::default().with("main.t", "").with(
+        "lib.tl",
+        "source: one\nwhat: x\nsource: t$(NOPE)wo\nsource: $x\nbadline\n",
+    );
+    let lib = "lib.tl";
+    match read(&mut files, &["-nodef", "lib.tl", "main.t"]) {
+        Err(crate::ProjectError::Failed(lines)) => assert_eq!(
+            lines,
+            [
+                format!("{lib} (2): unknown definition \"what\""),
+                format!("{lib} (3): undefined symbol \"NOPE\""),
+                format!(
+                    "{lib} (4): invalid '$' sequence - use '$$' for a literal dollar sign \
+                     character"
+                ),
+                format!("{lib} (5): missing colon"),
+            ]
+        ),
+        other => panic!("{other:?}"),
+    }
+    match read(&mut files, &["-nodef", "nothere.tl", "main.t"]) {
+        Err(crate::ProjectError::Failed(lines)) => {
+            assert_eq!(lines, ["unable to open library file \"nothere.tl\""]);
+        }
+        other => panic!("{other:?}"),
+    }
+    // Two modules with one name would have one object file.
+    let mut files = Files::default().with("a/main.t", "").with("b/main.t", "");
+    match read(&mut files, &["-nodef", "a/main", "b/main"]) {
+        Err(crate::ProjectError::Failed(lines)) => assert_eq!(
+            lines,
+            ["error: module \"b/main.t\" the has same name as an existing module"]
+        ),
+        other => panic!("{other:?}"),
+    }
 }
