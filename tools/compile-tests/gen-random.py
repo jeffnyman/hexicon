@@ -159,6 +159,13 @@ TEMPLATES = [
     ("<<the * thing>>", 1, "the {} thing"),
     ("<<big *>>", 1, "big {}"),
 ]
+# The functions the library has for multi-methods.
+MM_SUPPORT = [
+    "_multiMethodRegister(base, func, params) { }",
+    "_multiMethodBuildBindings() { }",
+    "_multiMethodCall(base, args) { return nil; }",
+    "_multiMethodCallInherited(from, [args]) { return nil; }",
+]
 # The productions grammar statements are for.
 GRAM_PRODS = ["np", "vp", "cmd"]
 # Words for the dictionary.
@@ -256,6 +263,11 @@ class Program:
         self.props = rng.sample(PROPS, rng.randint(2, 8))
         # Whether the code being written is a method's.
         self.in_method = False
+        # The multi-methods the program has, each with how many
+        # arguments its versions take.
+        self.mms = []
+        if rng.random() < 0.3:
+            self.mms = [(f"mm{index}", rng.randint(1, 3)) for index in range(rng.randint(1, 2))]
         # Whether the program has dictionary properties, whose values
         # are words: `noun` and `adjective`. There is at most one
         # dictionary, since the reference puts words in the wrong one
@@ -469,6 +481,13 @@ class Program:
             return rng.choice(ENUMS)
         if rng.random() < 0.02:
             return "argcount"
+        if self.mms and rng.random() < 0.04:
+            # A call to a multi-method, or its address.
+            name, argc = rng.choice(self.mms)
+            if rng.random() < 0.15:
+                return name
+            args = ", ".join(self.expr(scope, depth - 2) for _ in range(argc))
+            return f"{name}({args})"
         if rng.random() < 0.03:
             return self.inline_obj(scope, depth)
         if rng.random() < 0.02:
@@ -951,6 +970,38 @@ class Program:
         lines.append(";")
         return lines
 
+    def multimethod(self, name, argc):
+        """One version of a multi-method: a function with types."""
+        rng = self.rng
+        classes = [obj[0] for obj in self.objs if obj[0] and obj[1]]
+        kinds = classes + ["List", "Object", "Collection"]
+        params = []
+        types = []
+        for index in range(argc):
+            if rng.random() < 0.6:
+                types.append(rng.choice(kinds))
+                params.append(f"{types[-1]} p{index}")
+            else:
+                types.append("*")
+                params.append(f"p{index}")
+        scope = [f"p{index}" for index in range(argc)]
+        tail = ""
+        if rng.random() < 0.1:
+            params.append("...")
+            types.append("...")
+        if "*" in types and all(kind in ("*", "...") for kind in types) or rng.random() < 0.05:
+            tail = " multimethod"
+        kind = rng.random()
+        args = ", ".join(scope)
+        if kind < 0.2:
+            value = f"inherited({args})"
+        elif kind < 0.35:
+            value = f"inherited<{', '.join(rng.choice(kinds + ['*']) for _ in scope)}>({args})"
+        else:
+            value = self.expr(scope, 2)
+        head = rng.choice(["", "", "", "replace ", "modify "]) if rng.random() < 0.1 else ""
+        return [f"{head}{name}({', '.join(params)}){tail}", "{", f"    return ({value});", "}"]
+
     def nested_obj(self, prop, depth):
         """A property whose value is an object written in place."""
         rng = self.rng
@@ -1215,6 +1266,15 @@ class Program:
                 body = self.function(self.rng.choice(self.props), 1, False)
                 self.in_method = False
                 parts.append([f"modify {name}"] + ["    " + line for line in body] + [";"])
+        # The versions of the multi-methods, and what the library has
+        # for them, now and then with something missing.
+        for name, argc in self.mms:
+            for _ in range(self.rng.randint(1, 3)):
+                parts.insert(self.rng.randint(0, len(parts)), self.multimethod(name, argc))
+        if self.mms:
+            for support in MM_SUPPORT:
+                if self.rng.random() < 0.97:
+                    parts.append([support])
         # Grammar, in a program with dictionary words, among the rest.
         if self.vocab and self.rng.random() < 0.6:
             tags = set()

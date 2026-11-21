@@ -240,6 +240,9 @@ pub(crate) enum Expr {
     Delegated(Box<Expr>),
     /// `argcount`: how many arguments the function was called with.
     ArgCount,
+    /// `inherited<Type, *, ...>`, which is always what is called: in a
+    /// version of a multi-method, the version for these types.
+    InhTypes(Vec<Option<Vec<u8>>>, bool),
     /// An object written in an expression (`object: Class { ... }`),
     /// which is made each time the expression is evaluated.
     InlineObj {
@@ -437,6 +440,13 @@ pub(crate) enum StmtKind {
     /// its arguments to each superclass's constructor. These are the
     /// superclasses' numbers.
     ImplicitCtor(Vec<u32>),
+    /// The code of a multi-method itself, which the compiler writes:
+    /// a call to the library with the arguments and the function, an
+    /// index into the program's functions.
+    MmStub(usize),
+    /// The code that tells the library of each version of each
+    /// multi-method, before the program starts.
+    MmInit,
     /// The body of the code that works out a property's value before
     /// the program starts (`prop = static expr`): it sets the property
     /// of `self`, given as an index into the program's properties, to

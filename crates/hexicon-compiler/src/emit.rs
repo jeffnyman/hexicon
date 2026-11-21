@@ -199,6 +199,13 @@ pub(crate) struct Generated {
     /// What was found wrong when the program was put together, that
     /// is nowhere in particular in the source.
     pub link_errors: Vec<String>,
+    /// The code that tells the library of the versions of
+    /// multi-methods has been generated, with the rest of the code
+    /// that runs before the program starts.
+    pub has_mm_init: bool,
+    /// Which of the addresses to fill in, in the code that runs before
+    /// the program starts, are that code's.
+    pub mm_init_fixups: std::ops::Range<usize>,
     /// Places in the code where two bytes are written that mean
     /// nothing.
     pub unspecified: Vec<usize>,
@@ -343,10 +350,21 @@ pub(crate) fn unresolved_externs(prog: &Program, generated: &Generated) -> Vec<V
     let mut funcs: Vec<usize> = generated
         .fixups
         .iter()
-        .chain(&generated.static_fixups)
+        .chain(
+            generated
+                .static_fixups
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| !generated.mm_init_fixups.contains(index))
+                .map(|(_, fixup)| fixup),
+        )
         .chain(&generated.const_fixups)
         .filter_map(|fixup| match fixup.target {
-            Target::Func(func) if prog.funcs[func].body.is_none() => Some(func),
+            Target::Func(func)
+                if prog.funcs[func].body.is_none() && !prog.funcs[func].is_mm_base =>
+            {
+                Some(func)
+            }
             _ => None,
         })
         .collect();
@@ -515,6 +533,8 @@ struct Gen<'p> {
     /// The bodies that were read and turned out not to be wanted: no
     /// code is generated for them.
     dropped: HashSet<usize>,
+    /// How many versions of multi-methods the library is told of.
+    mm_count: usize,
     /// The body being generated.
     cur_body: usize,
 }
@@ -559,8 +579,15 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         cur_def: 0,
         def_objs: HashMap::new(),
         dropped: HashSet::new(),
+        mm_count: 0,
     };
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
+    // An object known only as the type of a parameter has to be
+    // defined somewhere.
+    generator
+        .out
+        .obj_refs
+        .extend(generator.prog.type_refs.iter().copied());
     generator.last_labels = Rc::clone(&generator.prog.last_labels);
     // Names are looked up, and what has become constant is worked out,
     // for the whole program before any code is generated.
@@ -675,6 +702,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
     if generator.gave_up.is_none() {
         productions = generator.merge_grammar();
         generator.build_dictionaries(&objdefs, &productions);
+        generator.gen_multimethods();
     }
     // Locals are checked for use once everything has been generated.
     for frames in scopes {
@@ -920,7 +948,7 @@ impl Gen<'_> {
                 }
             }
             StmtKind::Throw(expr) | StmtKind::StaticPropInit(expr, _) => self.fold_in_place(expr),
-            StmtKind::ImplicitCtor(_) => {}
+            StmtKind::ImplicitCtor(_) | StmtKind::MmStub(_) | StmtKind::MmInit => {}
             StmtKind::Comp { stmts, .. } => {
                 for stmt in stmts {
                     self.fold_stmt(stmt);
@@ -1009,6 +1037,7 @@ impl Gen<'_> {
             | Expr::InhClass(_)
             | Expr::CtxEle(_)
             | Expr::Replaced
+            | Expr::InhTypes(..)
             | Expr::ArgCount => expr,
             Expr::InlineObj {
                 superclasses,
@@ -2655,6 +2684,27 @@ impl Gen<'_> {
                 catches,
                 finally,
             } => self.gen_try(stmt, *id, body.as_deref(), catches, finally.as_deref()),
+            StmtKind::MmStub(func) => {
+                // All the arguments as a list, and the function.
+                self.cg.write_op(Op::PushParLst);
+                self.cg.write(0);
+                self.cg.note_push();
+                self.cg.write_op(Op::PushFnPtr);
+                self.gen_func_ref(*func);
+                self.cg.note_pushes(2);
+                if let Some(Global::Func(call)) = self
+                    .prog
+                    .globals
+                    .get(b"_multiMethodCall".as_slice())
+                    .copied()
+                {
+                    let call = Expr::constant(Value::FuncPtr(call));
+                    self.gen_call(&call, false, 2, false, None);
+                }
+                self.cg.write_op(Op::RetVal);
+                self.cg.note_pop();
+            }
+            StmtKind::MmInit => self.gen_mm_init(),
             StmtKind::ImplicitCtor(superclasses) => {
                 for superclass in superclasses {
                     // The arguments, which are in the first local as a
@@ -3511,7 +3561,7 @@ impl Gen<'_> {
                     self.cg.note_pops(argc - 1);
                 }
             }
-            Expr::Inh | Expr::InhClass(_) => {
+            Expr::Inh | Expr::InhClass(_) | Expr::InhTypes(..) => {
                 self.error("\"inherited\" cannot be generated on its own");
             }
             Expr::Delegated(_) => {
@@ -4288,7 +4338,24 @@ impl Gen<'_> {
             },
             other => other,
         };
+        // In a version of a multi-method, `inherited` is the next
+        // version, which the library finds, or with a list of types
+        // the version for those.
+        if let Expr::Inh | Expr::InhTypes(..) = obj {
+            if let Some(func) = self.enclosing_mm() {
+                self.gen_mm_inherited(func, obj, argc, varargs, named, discard);
+                return;
+            }
+        }
         match obj {
+            Expr::InhTypes(..) => {
+                self.need_self();
+                self.error(
+                    "'inherited<>' is not valid here; it can only be used in a multi-method",
+                );
+                self.gen_propid(prop, is_expr, false);
+                return;
+            }
             Expr::Inh => {
                 self.need_self();
                 match self.gen_propid(prop, is_expr, false) {
@@ -4874,6 +4941,371 @@ impl Gen<'_> {
         self.cg.note_pops(3);
     }
 
+    /// A function of the library's that the compiler calls: the one of
+    /// that name, which is declared if it is nothing yet, to be found
+    /// missing when the program is put together.
+    fn internal_func(&mut self, name: &[u8], argc: usize, varargs: bool) -> Option<usize> {
+        match self.prog.globals.get(name).copied() {
+            Some(Global::Func(func)) => Some(func),
+            None => {
+                self.prog.funcs.push(crate::parse::FuncSym {
+                    name: name.to_vec(),
+                    argc,
+                    opt_argc: 0,
+                    varargs,
+                    has_retval: true,
+                    is_extern: true,
+                    has_proto: true,
+                    body: None,
+                    mod_bases: Vec::new(),
+                    mod_extern: false,
+                    mod_proto: (0, 0, false),
+                    ext_redef: false,
+                    is_mm: false,
+                    is_mm_base: false,
+                });
+                let func = self.prog.funcs.len() - 1;
+                self.prog.globals.insert(name.to_vec(), Global::Func(func));
+                Some(func)
+            }
+            Some(_) => {
+                self.error(format!(
+                    "symbol \"{}\" is already defined - can't redefine as function",
+                    show_name(name)
+                ));
+                None
+            }
+        }
+    }
+
+    /// The version of a multi-method the code being generated is in,
+    /// however deep, if it is in one.
+    fn enclosing_mm(&self) -> Option<usize> {
+        let mut closure = self.closures.get(self.cur_body)?;
+        loop {
+            if closure.is_func {
+                let func = closure.func_id?;
+                return self.prog.funcs[func].is_mm.then_some(func);
+            }
+            let mut next = closure.enclosing;
+            loop {
+                let body_ref = &self.prog.body_refs[next?];
+                if let Some(body) = body_ref.func_body {
+                    closure = &self.closures[body];
+                    break;
+                }
+                next = body_ref.enclosing;
+            }
+        }
+    }
+
+    /// Generate `inherited(args)` or `inherited<types>(args)` in a
+    /// version of a multi-method. The arguments are on the stack.
+    fn gen_mm_inherited(
+        &mut self,
+        func: usize,
+        obj: &Expr,
+        argc: usize,
+        varargs: bool,
+        named: Option<usize>,
+        discard: bool,
+    ) {
+        match obj {
+            Expr::InhTypes(types, more) => {
+                // The version for the types given, called outright.
+                let name = &self.prog.funcs[func].name;
+                let base_len = name.iter().position(|&c| c == b'*').unwrap_or(name.len());
+                let base = name[..base_len].to_vec();
+                let target = crate::parse::decorate_name(&base, types, *more);
+                match self.prog.globals.get(&target).copied() {
+                    Some(Global::Func(target)) => {
+                        let target = Expr::constant(Value::FuncPtr(target));
+                        self.gen_call(&target, discard, argc, varargs, named);
+                    }
+                    _ => self.error(format!(
+                        "'inherited<>' function \"{}\" undefined",
+                        show_name(&base)
+                    )),
+                }
+            }
+            _ => {
+                // The library finds the next version, given this one.
+                self.cg.write_op(Op::PushFnPtr);
+                self.gen_func_ref(func);
+                self.cg.note_push();
+                const CALL_INHERITED: &[u8] = b"_multiMethodCallInherited";
+                match self.prog.globals.get(CALL_INHERITED).copied() {
+                    Some(Global::Func(call)) => {
+                        let call = Expr::constant(Value::FuncPtr(call));
+                        self.gen_call(&call, discard, argc + 1, varargs, named);
+                    }
+                    _ => self.error(
+                        "'inherited<>' requires \"_multiMethodCallInherited\", \
+                         which is not defined or not a function",
+                    ),
+                }
+            }
+        }
+    }
+
+    /// The functions in the order of the table of global names as it
+    /// is when the program is put together.
+    fn funcs_in_table_order(&self) -> Vec<usize> {
+        let mut order: Vec<(usize, std::cmp::Reverse<usize>)> = self
+            .prog
+            .funcs
+            .iter()
+            .enumerate()
+            .filter(|(index, func)| {
+                self.prog.globals.get(&func.name) == Some(&Global::Func(*index))
+            })
+            .map(|(index, func)| {
+                (
+                    crate::parse::global_hash(&func.name),
+                    std::cmp::Reverse(index),
+                )
+            })
+            .collect();
+        order.sort_unstable();
+        order.into_iter().map(|(_, index)| index.0).collect()
+    }
+
+    /// Give a built-in class an object to hold what is added to it, if
+    /// it has none: the library keeps what it knows of multi-methods
+    /// in properties of the types of their parameters.
+    fn ensure_mod_obj(&mut self, meta: usize) {
+        if self.prog.metas[meta].mod_obj.is_none() {
+            let id = self.prog.next_obj_id;
+            self.prog.next_obj_id += 1;
+            self.prog.metas[meta].mod_obj = Some(id);
+            self.out.objs.push(GenObj {
+                id,
+                is_class: false,
+                superclasses: Vec::new(),
+                props: Vec::new(),
+                icmod: true,
+                transient: false,
+            });
+        }
+    }
+
+    /// Generate the code that tells the library of each version of
+    /// each multi-method: for each, a list of the types of its
+    /// parameters, the version, and the multi-method. A parameter with
+    /// no type is nil in the list, and `...` the string.
+    fn gen_mm_init(&mut self) {
+        const REGISTER: &[u8] = b"_multiMethodRegister";
+        const BUILD: &[u8] = b"_multiMethodBuildBindings";
+        let register = match self.prog.globals.get(REGISTER).copied() {
+            Some(Global::Func(func)) => Some(func),
+            _ => None,
+        };
+        let object = match self.prog.globals.get(b"Object".as_slice()).copied() {
+            Some(Global::Meta(meta)) => Some(meta),
+            _ => None,
+        };
+        let mut count = 0;
+        'funcs: for func in self.funcs_in_table_order() {
+            // A version's name is the multi-method's, `*`, and the
+            // types.
+            let name = self.prog.funcs[func].name.clone();
+            let Some(star) = name.iter().position(|&c| c == b'*') else {
+                continue;
+            };
+            if !name[..star].iter().all(|&c| crate::lex::is_sym(c)) {
+                continue;
+            }
+            let Some(Global::Func(base)) = self.prog.globals.get(&name[..star]).copied() else {
+                continue;
+            };
+            // The types, last first. The reference counts each value
+            // but nil twice over as it works out how deep the stack
+            // gets.
+            let mut types: Vec<&[u8]> = name[star + 1..].split(|&c| c == b';').collect();
+            types.pop();
+            for kind in types.iter().rev() {
+                if kind.is_empty() {
+                    self.cg.write_op(Op::PushNil);
+                    if let Some(object) = object {
+                        self.ensure_mod_obj(object);
+                    }
+                } else if *kind == b"..." {
+                    self.gen_str(b"...");
+                    if let Some(object) = object {
+                        self.ensure_mod_obj(object);
+                    }
+                } else {
+                    match self.prog.globals.get(*kind).copied() {
+                        Some(Global::Obj(obj)) if !self.prog.objs[obj].is_extern => {
+                            self.cg.write_op(Op::PushObj);
+                            self.cg.write4(self.prog.objs[obj].id);
+                            self.cg.note_push();
+                        }
+                        Some(Global::Meta(meta)) => {
+                            self.cg.write_op(Op::PushObj);
+                            self.cg.write4(self.prog.metas[meta].obj_id);
+                            self.cg.note_push();
+                            self.ensure_mod_obj(meta);
+                        }
+                        None | Some(Global::Obj(_)) => {
+                            self.out
+                                .link_errors
+                                .push(format!("undefined symbol \"{}\"", show_name(kind)));
+                            continue 'funcs;
+                        }
+                        Some(_) => {
+                            self.out.link_errors.push(format!(
+                                "parameter type \"{}\" is not an object",
+                                show_name(kind)
+                            ));
+                            continue 'funcs;
+                        }
+                    }
+                }
+                self.cg.note_push();
+            }
+            let argc = types.len();
+            if argc <= 255 {
+                self.cg.write_op(Op::New1);
+                self.cg.write(argc as u8);
+                self.cg.write(METACLASS_LIST);
+            } else {
+                self.cg.write_op(Op::New2);
+                self.cg.write2(argc as u16);
+                self.cg.write2(u16::from(METACLASS_LIST));
+            }
+            self.cg.write_op(Op::GetR0);
+            self.cg.note_pops(argc as i32);
+            self.cg.note_push();
+            for pushed in [func, base] {
+                self.cg.write_op(Op::PushFnPtr);
+                self.gen_func_ref(pushed);
+                self.cg.note_push();
+            }
+            if let Some(register) = register {
+                self.cg.write_op(Op::Call);
+                self.cg.write(3);
+                self.gen_func_ref(register);
+            }
+            self.cg.note_pops(3);
+            count += 1;
+        }
+        self.mm_count = count;
+        if count == 0 {
+            return;
+        }
+        const MISSING: &str = " is missing or invalid - \
+            check that the system library is included in the build";
+        match self.prog.globals.get(BUILD).copied() {
+            Some(Global::Func(build)) => {
+                self.cg.write_op(Op::Call);
+                self.cg.write(0);
+                self.gen_func_ref(build);
+            }
+            _ => {
+                self.out.link_errors.push(format!(
+                    "library support function \"_multiMethodBuildBindings\"{MISSING}"
+                ));
+                self.mm_count = 0;
+                return;
+            }
+        }
+        if register.is_none() {
+            self.out.link_errors.push(format!(
+                "library support function \"_multiMethodRegister\"{MISSING}"
+            ));
+            self.mm_count = 0;
+        }
+    }
+
+    /// Write the code the compiler writes itself when the program is
+    /// put together: each multi-method's own function, after the rest
+    /// of the code, and the code that tells the library of the
+    /// versions, with an object to run it before the program starts.
+    fn gen_multimethods(&mut self) {
+        let synthetic = |kind: StmtKind, varargs: bool| CodeBody {
+            lcltab: None,
+            stm: Stmt {
+                kind,
+                file: usize::MAX,
+                line: 0,
+            },
+            argc: 0,
+            opt_argc: 0,
+            varargs,
+            varargs_list_local: None,
+            local_cnt: 0,
+            self_valid: false,
+            replaced: false,
+            labels: Rc::default(),
+            end_file: usize::MAX,
+            end_line: 0,
+            closure: Closure::default(),
+        };
+        // Numbers for the bodies that no body the parser read has.
+        const FIRST: usize = usize::MAX / 2;
+        (self.cur_file, self.cur_line) = (usize::MAX, 0);
+        let mut stubs = 0;
+        for func in self.funcs_in_table_order() {
+            let sym = &self.prog.funcs[func];
+            if !sym.is_mm || sym.name.contains(&b'*') {
+                continue;
+            }
+            let body = synthetic(StmtKind::MmStub(func), true);
+            self.gen_code_body(&body, FIRST + 1 + stubs, Some(func), false);
+            self.prog.funcs[func].is_extern = false;
+            stubs += 1;
+        }
+        if stubs != 0
+            && !matches!(
+                self.prog.globals.get(b"_multiMethodCall".as_slice()),
+                Some(Global::Func(_))
+            )
+        {
+            self.out.link_errors.push(
+                "library support function \"_multiMethodCall\" is missing or invalid - \
+                 check that the system library is included in the build"
+                    .to_owned(),
+            );
+        }
+
+        // The code for the versions is always there, if only to return.
+        let mark = (
+            self.cg.ofs(),
+            self.out.code_anchors.len(),
+            self.out.fixups.len(),
+            self.out.prop_fixups.len(),
+            self.out.unspecified.len(),
+        );
+        let body = synthetic(StmtKind::MmInit, false);
+        let first_fixup = self.out.static_fixups.len();
+        self.gen_code_body(&body, FIRST, None, false);
+        self.move_to_static(mark, FIRST);
+        self.out.has_mm_init = true;
+        // The reference looks for functions that are declared and
+        // never defined before it writes this code, so a version that
+        // is only declared goes unnoticed here.
+        self.out.mm_init_fixups = first_fixup..self.out.static_fixups.len();
+        if self.mm_count != 0 {
+            let id = self.prog.next_obj_id;
+            self.prog.next_obj_id += 1;
+            self.out.objs.push(GenObj {
+                id,
+                is_class: false,
+                superclasses: Vec::new(),
+                props: vec![GenProp {
+                    id: 1,
+                    kind: datatype::CODEOFS,
+                    value: 0,
+                    target: Some(Target::StaticBody(FIRST)),
+                }],
+                icmod: false,
+                transient: false,
+            });
+            self.out.static_inits.push((id, 1));
+        }
+    }
+
     fn gen_unary(&mut self, opc: Op, sub: &Expr, discard: bool, for_condition: bool) {
         self.gen_expr(sub, discard, for_condition);
         if !discard {
@@ -5192,13 +5624,42 @@ impl Gen<'_> {
                 value: Value::FuncPtr(id),
                 ..
             }) => {
-                let id = *id;
+                let mut id = *id;
                 if !self.prog.funcs[id].has_proto {
                     let name = show_name(&self.prog.funcs[id].name);
                     self.error(format!(
                         "cannot call extern function {name} without an argument list definition"
                     ));
                     return;
+                }
+                // A call to a multi-method is a call to the library,
+                // with the arguments as a list and the multi-method.
+                // (With arguments spread from a list, the reference
+                // leaves out the instruction that makes the list.)
+                let (mut argc, mut varargs) = (argc, varargs);
+                if self.prog.funcs[id].is_mm_base {
+                    if varargs {
+                        self.cg.write_op(Op::VarArgc);
+                    }
+                    if argc <= 255 {
+                        self.cg.write_op(Op::New1);
+                        self.cg.write(argc as u8);
+                        self.cg.write(METACLASS_LIST);
+                    } else {
+                        self.cg.write_op(Op::New2);
+                        self.cg.write2(argc as u16);
+                        self.cg.write2(u16::from(METACLASS_LIST));
+                    }
+                    self.cg.note_pops(argc as i32);
+                    self.cg.write_op(Op::GetR0);
+                    self.cg.note_push();
+                    self.cg.write_op(Op::PushFnPtr);
+                    self.gen_func_ref(id);
+                    self.cg.note_push();
+                    let Some(call) = self.internal_func(b"_multiMethodCall", 1, true) else {
+                        return;
+                    };
+                    (id, argc, varargs) = (call, 2, false);
                 }
                 if varargs {
                     self.cg.write_op(Op::VarArgc);

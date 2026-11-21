@@ -3570,6 +3570,108 @@ _main(args)
 """
 
 
+# Multi-methods: functions with types for their parameters.
+programs["mm1"] = """#include <tadsgen.h>
+#include <tads.h>
+class Thing: object;
+class Box: Thing;
+_multiMethodRegister(base, func, [types]) { tadsSay('reg '); tadsSay(types.length()); tadsSay('\\n'); }
+_multiMethodBuildBindings() { tadsSay('build\\n'); }
+_multiMethodCall(base, args) { tadsSay('call '); tadsSay(args.length()); return 7; }
+_multiMethodCallInherited(from, [args]) { return 8; }
+put(Thing a, Box b) { return 1; }
+put(Box a, b) { return inherited(a, b); }
+put(a, String s, ...) { return inherited<Thing, Box>(a, s); }
+show(x) multimethod { return 0; }
+show(Thing x) { return 2; }
+_main(args)
+{
+    tadsSay(put(Thing, Box)); tadsSay(show(1)); local f = put; tadsSay(f(1, 2, 3)); tadsSay('\\n');
+}
+"""
+
+programs["mm2"] = """#include <tadsgen.h>
+#include <tads.h>
+class Thing: object;
+class Box: Thing;
+_multiMethodRegister(base, func, [types]) { }
+_multiMethodBuildBindings() { }
+_multiMethodCall(base, args) { return 7; }
+_multiMethodCallInherited(from, [args]) { return 8; }
+ab(Thing a) { return 1; }
+ba(Box a) { return 2; }
+ab(a) multimethod { return 3; }
+ba(Box a, List b, ...) { return 4; }
+ab(Thing a, [rest]) { return inherited(a); }
+modify ab(a) multimethod { return replaced(a) + 1; }
+replace ba(Box a) { return inherited<Box, List, ...>(a, [], 5); }
+zz() multimethod { return 0; }
+zz(a, b?) multimethod { return 1; }
+plain(Thing a) { return ({: inherited(a) }); }
+obj: object m(Thing) { return 1; } ;
+_main(args) { return [ab(1), ba(2), zz(), ab, plain(1)]; }
+"""
+
+mistakes["e_mm1"] = """class Thing: object;
+f(a) { }
+f(Thing a) { }
+g(Thing a) { }
+g(a) { }
+h(Thing a) { }
+h(Thing a) { }
+k(Nope a) { }
+enum red;
+m(red a, f b) { }
+n(a) multimethod multimethod { }
+o: object p(a) multimethod { } q(Thing a) { } ;
+r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+s(a) { return {x: 1 multimethod} ; }
+t(a multimethod) { }
+_main(args) { }
+"""
+
+mistakes["e_mm2"] = """class Thing: object;
+a(Thing x) { return inherited(x); }
+b(Thing x) { return inherited<Thing, Thing>(x); }
+c(x) { return inherited<Thing>(x); }
+d(Nope x) { return 1; }
+_main(args) { return [a(1), b(2), c(3), d(4)]; }
+"""
+
+mistakes["e_mm3"] = """class Thing: object;
+d(Nope x) { return 1; }
+_main(args) { return d(4); }
+"""
+
+mistakes["e_mm4"] = """class Thing: object;
+d(Thing x) { return 1; }
+_main(args) { return d; }
+"""
+
+mistakes["e_mm5"] = """class Thing: object;
+_multiMethodCall(a, b) { }
+_multiMethodBuildBindings() { }
+d(Thing x) { return 1; }
+_main(args) { return d(1); }
+"""
+
+mistakes["e_mm6"] = """class Thing: object;
+_multiMethodCall(a, b) { }
+_multiMethodRegister(a, b, c) { }
+d(Thing x) { return 1; }
+_main(args) { return d(1); }
+"""
+
+mistakes["e_mm7"] = """class Thing: object;
+extern function e1(Thing a);
+extern function e2(a) multimethod;
+extern function e3(Thing a, ...);
+e1(Thing a) { return 1; }
+e2(a) multimethod { return 2; }
+_main(args) { return [e1(1), e2(2), e3(3)]; }
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

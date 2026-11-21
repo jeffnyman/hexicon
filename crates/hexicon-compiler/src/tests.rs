@@ -2508,3 +2508,71 @@ fn a_question_about_a_name_is_answered_when_the_program_is_compiled() {
         ]
     );
 }
+
+/// What the library has for multi-methods, as little as will do.
+const MM_SUPPORT: &str = "_multiMethodRegister(base, func, params) { }\n\
+    _multiMethodBuildBindings() { }\n\
+    _multiMethodCall(base, args) { return nil; }\n\
+    _multiMethodCallInherited(from, [args]) { return nil; }\n";
+
+#[test]
+fn a_function_with_types_is_a_version_of_a_multi_method() {
+    let source = format!(
+        "{MM_SUPPORT}class Thing: object;\nclass Box: Thing;\n\
+         put(Thing a, Box b) {{ return 1; }}\n\
+         put(Box a, b) {{ return inherited(a, b); }}\n\
+         _main(args) {{ return put(Thing, Box); }}\n"
+    );
+    let compiled = compile_text(&source);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // A call to the multi-method makes a list of the arguments
+    // (NEW1 2, of the class of lists) and calls the library with it
+    // and the multi-method (CALL with two arguments).
+    assert!(has_bytes(code, &[0xC0, 2, 1, 0x8B, 0x0B]));
+    // The multi-method's own code takes whatever it is called with
+    // (PUSHPARLST 0) and does the same.
+    assert!(has_bytes(code, &[0x0D, 0, 0x0B]));
+    // Three objects: the two classes, and one whose only property is
+    // the code that tells the library of the two versions before the
+    // program starts.
+    let objs = block(&image, b"OBJS");
+    assert_eq!(objs[0..2], [3, 0]);
+    let last = &objs[6 + 12 + 16..];
+    assert_eq!(last[0..4], [3, 0, 0, 0]);
+    assert_eq!(last[8..10], [1, 0]);
+    assert_eq!(last[12..15], [1, 0, 11]);
+}
+
+#[test]
+fn multi_methods_have_their_own_mistakes() {
+    assert_eq!(
+        compile_messages(
+            "class Thing: object;\nenum red;\nf(a) { }\nf(Thing a) { }\ng(Thing a) { }\n\
+             g(Thing a) { }\nh(red a) { }\nk(a) { return inherited<Thing>(a); }\n\
+             _main(args) { }\n"
+        ),
+        [
+            "4: error: function \"f\" is already defined - can't redefine as a multi-method",
+            "6: error: function \"g*Thing;\" is already defined",
+            "7: error: parameter type \"red\" is not an object",
+        ]
+    );
+    // The library has to be there when the program is put together.
+    assert_eq!(
+        compile_messages(
+            "class Thing: object;\nd(Thing x) { return 1; }\n_main(args) { return d; }\n"
+        ),
+        [
+            "0: error: library support function \"_multiMethodCall\" is missing or invalid - \
+             check that the system library is included in the build",
+            "0: error: library support function \"_multiMethodBuildBindings\" is missing or \
+             invalid - check that the system library is included in the build",
+        ]
+    );
+}

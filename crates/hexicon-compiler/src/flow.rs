@@ -263,7 +263,8 @@ impl Flow<'_> {
                 flags | fin_flags
             }
             StmtKind::Throw(_) => flow::THROW,
-            StmtKind::ImplicitCtor(_) => flow::NEXT,
+            StmtKind::ImplicitCtor(_) | StmtKind::MmInit => flow::NEXT,
+            StmtKind::MmStub(_) => flow::RET_VAL,
             StmtKind::StaticPropInit(..) => flow::RET_VAL,
             StmtKind::Null | StmtKind::Expr(_) => flow::NEXT,
         }

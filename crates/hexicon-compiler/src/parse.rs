@@ -125,6 +125,16 @@ pub(crate) struct FuncSym {
     pub mod_proto: (usize, usize, bool),
     /// `replace` or `modify` was used on it before its definition.
     pub ext_redef: bool,
+    /// It is one version of a multi-method: a function defined with
+    /// types for its parameters, whose name has the types in it; or
+    /// it is the multi-method itself, which is what the name the
+    /// source uses means.
+    pub is_mm: bool,
+    /// It is a multi-method itself. No source defines it: a call to
+    /// it is a call to the library, which picks the version for the
+    /// arguments, and its own code is made when the program is put
+    /// together.
+    pub is_mm_base: bool,
 }
 
 impl FuncSym {
@@ -602,6 +612,8 @@ pub(crate) struct Program {
     pub dict_props: Vec<usize>,
     /// The grammar productions, in the order they were first named.
     pub gramprods: Vec<GramProd>,
+    /// The objects known only as the types of parameters.
+    pub type_refs: Vec<usize>,
 }
 
 /// What is known of a body that others are nested in.
@@ -701,7 +713,7 @@ impl Program {
         let funcs = self
             .funcs
             .iter()
-            .filter(|func| !func.is_extern)
+            .filter(|func| !func.is_extern || func.is_mm_base)
             // The next reading takes what is known of each one's
             // parameters for its whole declaration, even if all there
             // was to go on was an `extern` that said nothing of them.
@@ -947,6 +959,12 @@ pub(crate) struct Parser<'p, 'a> {
     transient: bool,
     /// The dictionary the words of the objects being read go in.
     cur_dict: Option<usize>,
+    /// The parameter list about to be read is a function's, whose
+    /// parameters can have types; and the types the last such list
+    /// had, if it had any: a type or none for each parameter in turn,
+    /// and whether the list ends with any number more.
+    types_ok: bool,
+    func_types: Option<(Vec<Option<Vec<u8>>>, bool)>,
     /// While the properties of an object written in an expression are
     /// being read: what each is given, in step with the properties.
     inline_values: Option<Vec<InlineValue>>,
@@ -1222,6 +1240,8 @@ impl<'p, 'a> Parser<'p, 'a> {
             prop_replace: false,
             transient: false,
             cur_dict: None,
+            types_ok: false,
+            func_types: None,
             inline_values: None,
             dict_defined: HashSet::new(),
             plus_prop: None,
@@ -1678,7 +1698,6 @@ impl<'p, 'a> Parser<'p, 'a> {
                         None
                     }
                     Some(prop) => {
-                        self.prog.props[prop].weak = false;
                         // A property can only come twice as one of the
                         // alternatives this one is among.
                         for (index, earlier) in items.iter().enumerate() {
@@ -2167,6 +2186,8 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
             Tok::LPar => {
                 self.next();
+                self.types_ok = true;
+                self.func_types = None;
                 self.parse_formal_list(&mut formals)?;
                 if matches!(self.cur(), Tok::LBrace | Tok::Eq) {
                     self.error(NO_BODY);
@@ -2185,6 +2206,17 @@ impl<'p, 'a> Parser<'p, 'a> {
                 return Ok(());
             }
         }
+        // With types, it is a version of a multi-method.
+        let func_types = self.func_types.take();
+        let is_mm = func_types.is_some();
+        let mut name = name;
+        if let Some((types, more)) = func_types {
+            let Some(version) = self.declare_mm_base(&name, &types, more, sym_file, sym_line)
+            else {
+                return Ok(());
+            };
+            name = version;
+        }
         if let Some(Global::Prop(prop)) = self.prog.globals.get(&name) {
             if self.prog.props[*prop].weak {
                 self.prog.globals.remove(&name);
@@ -2195,7 +2227,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                 let func = &self.prog.funcs[id];
                 if has_proto
                     && func.has_proto
-                    && (func.argc != formals.argc || func.varargs != formals.varargs)
+                    && (func.argc != formals.argc
+                        || func.varargs != formals.varargs
+                        || func.is_mm != is_mm)
                 {
                     self.tok.log_at(
                         sym_file,
@@ -2233,6 +2267,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                     mod_extern: false,
                     mod_proto: (0, 0, false),
                     ext_redef: false,
+                    is_mm,
+                    is_mm_base: false,
                 });
                 self.prog
                     .globals
@@ -2240,6 +2276,73 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
         }
         Ok(())
+    }
+
+    /// Declare the multi-method that a function with types for its
+    /// parameters is a version of, if it is not declared yet, and give
+    /// the version's own name. Nothing comes back if the name is a
+    /// function that is no multi-method.
+    fn declare_mm_base(
+        &mut self,
+        name: &[u8],
+        types: &[Option<Vec<u8>>],
+        more: bool,
+        sym_file: usize,
+        sym_line: u32,
+    ) -> Option<Vec<u8>> {
+        if let Some(Global::Prop(prop)) = self.prog.globals.get(name) {
+            if self.prog.props[*prop].weak {
+                self.prog.globals.remove(name);
+            }
+        }
+        match self.prog.globals.get(name).copied() {
+            Some(Global::Func(base)) => {
+                let base = &self.prog.funcs[base];
+                if !(base.is_extern && base.is_mm) {
+                    self.tok.log_at(
+                        sym_file,
+                        sym_line,
+                        Severity::Error,
+                        format!(
+                            "function \"{}\" is already defined - \
+                             can't redefine as a multi-method",
+                            Self::name(name)
+                        ),
+                    );
+                    return None;
+                }
+            }
+            Some(_) => self.tok.log_at(
+                sym_file,
+                sym_line,
+                Severity::Error,
+                format!(
+                    "symbol \"{}\" is already defined - can't redefine as function",
+                    Self::name(name)
+                ),
+            ),
+            None => {
+                self.prog.funcs.push(FuncSym {
+                    name: name.to_vec(),
+                    argc: 0,
+                    opt_argc: 0,
+                    varargs: true,
+                    has_retval: true,
+                    is_extern: true,
+                    has_proto: true,
+                    body: None,
+                    mod_bases: Vec::new(),
+                    mod_extern: false,
+                    mod_proto: (0, 0, false),
+                    ext_redef: false,
+                    is_mm: true,
+                    is_mm_base: true,
+                });
+                let base = self.prog.funcs.len() - 1;
+                self.prog.globals.insert(name.to_vec(), Global::Func(base));
+            }
+        }
+        Some(decorate_name(name, types, more))
     }
 
     /// Read `transient` and the object definition after it. Such an
@@ -2417,15 +2520,33 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
         }
         let body_ref = self.prog.body_refs.len();
-        let Some((mut body, has_retval)) =
-            self.parse_code_body(false, CbType::Normal, None, None)?
-        else {
+        self.types_ok = true;
+        self.func_types = None;
+        let parsed = self.parse_code_body(false, CbType::Normal, None, None);
+        self.types_ok = false;
+        let func_types = self.func_types.take();
+        let Some((mut body, has_retval)) = parsed? else {
             return Ok(());
         };
         body.closure.is_func = true;
         body.closure.func_proto = (body.argc, body.opt_argc, body.varargs);
         self.prog.last_labels = std::rc::Rc::clone(&body.labels);
         let (argc, opt_argc, varargs) = (body.argc, body.opt_argc, body.varargs);
+
+        // A function with types for its parameters is one version of a
+        // multi-method. The name the source gives it is the
+        // multi-method's, a function that takes anything and is
+        // defined nowhere in the source; the version's own name has
+        // the types in it.
+        let is_mm = func_types.is_some();
+        let mut name = name;
+        if let Some((types, more)) = func_types {
+            let Some(version) = self.declare_mm_base(&name, &types, more, sym_file, sym_line)
+            else {
+                return Ok(());
+            };
+            name = version;
+        }
 
         // A name that is a property only because its address was
         // taken is the function's now.
@@ -2458,7 +2579,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 let func = &self.prog.funcs[id];
                 let mut clash = !func.is_extern && redef == Redef::No;
                 if func.has_proto {
-                    clash |= func.argc != argc || func.varargs != varargs;
+                    clash |= func.argc != argc || func.varargs != varargs || func.is_mm != is_mm;
                 }
                 if clash {
                     let message = if func.is_extern || redef != Redef::No {
@@ -2527,6 +2648,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                     mod_extern: false,
                     mod_proto: (0, 0, false),
                     ext_redef: false,
+                    is_mm,
+                    is_mm_base: false,
                 });
                 let id = self.prog.funcs.len() - 1;
                 self.prog.globals.insert(name, Global::Func(id));
@@ -2630,6 +2753,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                     mod_extern: false,
                     mod_proto: (0, 0, false),
                     ext_redef: false,
+                    is_mm: false,
+                    is_mm_base: false,
                 });
                 self.prog
                     .globals
@@ -3116,7 +3241,6 @@ impl<'p, 'a> Parser<'p, 'a> {
         self.switches.clear();
 
         let mut formals = Formals {
-            typed_ok: cb_type == CbType::Normal,
             ..Formals::default()
         };
         let mut empty = false;
@@ -3238,6 +3362,10 @@ impl<'p, 'a> Parser<'p, 'a> {
                 "missing right parenthesis ')' at end of formal parameter list - found \"%\"",
             )
         };
+        // Only the list this was set for can have types: the lists of
+        // functions written inside the function cannot.
+        let types_ok = std::mem::take(&mut self.types_ok);
+        let mut types: Option<(Vec<Option<Vec<u8>>>, bool)> = None;
         let mut done = false;
         if self.cur() == end_tok {
             done = true;
@@ -3247,10 +3375,16 @@ impl<'p, 'a> Parser<'p, 'a> {
             match self.cur() {
                 Tok::Ellipsis => {
                     formals.varargs = true;
+                    if let Some(list) = &mut types {
+                        list.1 = true;
+                    }
                     done = self.after_ellipsis(end_tok, missing_end);
                 }
                 Tok::LBrack => {
                     formals.varargs = true;
+                    if let Some(list) = &mut types {
+                        list.1 = true;
+                    }
                     match self.next() {
                         Tok::RBrack => done = self.after_ellipsis(end_tok, missing_end),
                         Tok::Sym => {
@@ -3322,14 +3456,52 @@ impl<'p, 'a> Parser<'p, 'a> {
                     }
                 }
                 Tok::Sym => {
-                    let name = self.cur_text();
+                    let mut name = self.cur_text();
                     self.next();
-                    if !formals.count_only
-                        && formals.typed_ok
-                        && self.cur() == Tok::Sym
-                        && !self.cur_is_sym(b"multimethod")
-                    {
-                        self.unsupported("a parameter with a type");
+                    // In a function's list, two names are a type and a
+                    // parameter of that type, which makes the function
+                    // one version of a multi-method.
+                    let mut is_typed = false;
+                    if types_ok && self.cur() == Tok::Sym {
+                        let list = types.get_or_insert_with(|| (vec![None; formals.argc], false));
+                        list.0.push(Some(name.clone()));
+                        is_typed = true;
+                        match self.prog.globals.get(&name).copied() {
+                            // A type that is nothing yet is taken to
+                            // be an object defined somewhere else.
+                            None => {
+                                self.prog.objs.push(ObjSym {
+                                    name: name.clone(),
+                                    id: self.prog.next_obj_id,
+                                    is_extern: true,
+                                    is_class: false,
+                                    sc_names: Vec::new(),
+                                    sc_is_root: false,
+                                    templates: Vec::new(),
+                                    def: None,
+                                    mod_count: 0,
+                                    base_ids: Vec::new(),
+                                    undefined_redef: false,
+                                    declared_only: false,
+                                    ext_redef: false,
+                                    is_dict: false,
+                                    dict_hint: None,
+                                    is_gramprod: false,
+                                    gram: None,
+                                });
+                                self.prog.next_obj_id += 1;
+                                let obj = self.prog.objs.len() - 1;
+                                self.prog.globals.insert(name.clone(), Global::Obj(obj));
+                                self.prog.type_refs.push(obj);
+                            }
+                            Some(Global::Obj(_) | Global::Meta(_)) => {}
+                            Some(_) => self.error(format!(
+                                "parameter type \"{}\" is not an object",
+                                Self::name(&name)
+                            )),
+                        }
+                        name = self.cur_text();
+                        self.next();
                     }
                     // A colon after the name makes it a parameter
                     // passed by name.
@@ -3394,6 +3566,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                     }
                     if !named {
                         formals.argc += 1;
+                        if let (Some(list), false) = (&mut types, is_typed) {
+                            list.0.push(None);
+                        }
                     }
                     match self.cur() {
                         tok if tok == end_tok => {
@@ -3438,13 +3613,18 @@ impl<'p, 'a> Parser<'p, 'a> {
                 }
             }
         }
+        // `multimethod` after the list makes the function a version
+        // of a multi-method though no parameter has a type.
         if self.cur_is_sym(b"multimethod") {
-            if formals.typed_ok || formals.count_only {
-                self.unsupported("a multi-method");
+            if types_ok && end_tok == Tok::RPar {
+                types.get_or_insert_with(|| (vec![None; formals.argc], formals.varargs));
             } else {
                 self.error("'multimethod' is not allowed here");
             }
             self.next();
+        }
+        if types_ok {
+            self.func_types = types;
         }
         // The count is of the parameters that have to be there.
         formals.argc -= formals.opt_argc;
@@ -5790,8 +5970,78 @@ impl Parser<'_, '_> {
                 Expr::InhClass(name)
             }
             Tok::Lt => {
-                self.unsupported("\"inherited\" with a list of types");
-                return Some(Expr::constant(Value::Nil));
+                // `inherited<Type, *, ...>(args)`: in a version of a
+                // multi-method, the version for these types; `*` is a
+                // parameter of any type.
+                const REQ_TYPE: &str =
+                    "expected a type name in inherited<> type list, but found \"%\"";
+                const REQ_COMMA: &str =
+                    "expected a comma in inherited<> type list, but found \"%\"";
+                const REQ_GT: &str = "missing '>' in inherited<> type list (found \"%\")";
+                let mut types = Vec::new();
+                let mut more = false;
+                self.next();
+                loop {
+                    match self.cur() {
+                        Tok::Gt => {
+                            self.next();
+                            break;
+                        }
+                        Tok::Ellipsis => {
+                            more = true;
+                            if self.next() == Tok::Gt {
+                                self.next();
+                            } else {
+                                self.error_curtok(REQ_GT);
+                            }
+                            break;
+                        }
+                        Tok::Sym | Tok::Times => {
+                            types.push((self.cur() == Tok::Sym).then(|| self.cur_text()));
+                            match self.next() {
+                                Tok::Comma => {
+                                    self.next();
+                                }
+                                Tok::Gt => {
+                                    self.next();
+                                    break;
+                                }
+                                Tok::Sym | Tok::Ellipsis | Tok::Times => {
+                                    self.error_curtok(REQ_COMMA)
+                                }
+                                _ => {
+                                    self.error_curtok(REQ_COMMA);
+                                    self.next();
+                                }
+                            }
+                        }
+                        Tok::LPar => {
+                            self.error_curtok(REQ_GT);
+                            break;
+                        }
+                        Tok::Comma => {
+                            self.error_curtok(REQ_TYPE);
+                            self.next();
+                        }
+                        Tok::Sem | Tok::RPar | Tok::Eof => {
+                            self.error_curtok(REQ_TYPE);
+                            return None;
+                        }
+                        _ => {
+                            self.error_curtok(REQ_TYPE);
+                            let _ = self.skip_to_sem();
+                            return None;
+                        }
+                    }
+                }
+                if self.cur() != Tok::LPar {
+                    self.error_curtok(
+                        "argument list missing in inherited<> (expected '(', found \"%\")",
+                    );
+                    let _ = self.skip_to_sem();
+                    return None;
+                }
+                Expr::InhTypes(types, more)
             }
             _ => Expr::Inh,
         };
@@ -5868,10 +6118,7 @@ impl Parser<'_, '_> {
     /// that is nothing yet becomes a property.
     fn look_up_prop(&mut self, name: &[u8]) -> Option<usize> {
         match self.prog.globals.get(name) {
-            Some(Global::Prop(prop)) => {
-                self.prog.props[*prop].weak = false;
-                Some(*prop)
-            }
+            Some(Global::Prop(prop)) => Some(*prop),
             Some(_) => {
                 self.error(format!(
                     "symbol \"{}\" is already defined - can't redefine as property",
@@ -6490,10 +6737,7 @@ impl Parser<'_, '_> {
                 if self.next() == Tok::Sym {
                     let name = self.cur_text();
                     let prop = match self.prog.globals.get(&name).copied() {
-                        Some(Global::Prop(prop)) => {
-                            self.prog.props[prop].weak = false;
-                            Some(prop)
-                        }
+                        Some(Global::Prop(prop)) => Some(prop),
                         None => Some(self.prog.def_prop(&name)),
                         Some(_) => None,
                     };
@@ -8397,6 +8641,24 @@ impl Parser<'_, '_> {
     }
 }
 
+/// The name a version of a multi-method has: the multi-method's name,
+/// `*`, each parameter's type or nothing with `;` after it, and `...;`
+/// if any number of arguments more can follow.
+pub(crate) fn decorate_name(base: &[u8], types: &[Option<Vec<u8>>], more: bool) -> Vec<u8> {
+    let mut name = base.to_vec();
+    name.push(b'*');
+    for kind in types {
+        if let Some(kind) = kind {
+            name.extend_from_slice(kind);
+        }
+        name.push(b';');
+    }
+    if more {
+        name.extend_from_slice(b"...;");
+    }
+    name
+}
+
 /// The object a definition is of.
 enum FoundObj {
     /// An object of the program's, if the name could be one's; and if
@@ -8429,8 +8691,6 @@ struct Formals {
     count_only: bool,
     /// The list is that of `{a, b: expression}`, which ends at a colon.
     short_form: bool,
-    /// A parameter can be given a type.
-    typed_ok: bool,
     argc: usize,
     opt_argc: usize,
     varargs: bool,

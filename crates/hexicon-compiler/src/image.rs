@@ -204,9 +204,11 @@ pub(crate) fn write_image(
     code_layout.start_new_stream();
     // That is the code for static properties, and after it the
     // function that sets up multi-methods.
-    let stub_ofs = generated.static_code.len();
-    generated.static_code.extend_from_slice(&STATIC_INIT_STUB);
-    generated.static_anchors.push(Anchor { ofs: stub_ofs });
+    if !generated.has_mm_init {
+        let stub_ofs = generated.static_code.len();
+        generated.static_code.extend_from_slice(&STATIC_INIT_STUB);
+        generated.static_anchors.push(Anchor { ofs: stub_ofs });
+    }
     let static_addrs = code_layout.place(&generated.static_anchors, generated.static_code.len());
     code_layout.finish();
 
