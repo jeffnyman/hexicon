@@ -9,8 +9,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::{
-    Arg, AsiOp, BinOp, Catch, Closure, CodeBody, Enclosure, Expr, Finally, ForIn, LabelSym,
-    LocalId, Stmt, StmtKind, TabId, UnOp, Value, flow,
+    Arg, AsiOp, BinOp, Catch, Closure, CodeBody, ConstVal, Enclosure, Expr, Finally, ForIn,
+    InlineProp, InlineValue, LabelSym, LocalId, Stmt, StmtKind, TabId, UnOp, Value, flow,
 };
 use crate::flow::Flow;
 use crate::fold::{self, Folded};
@@ -947,6 +947,9 @@ pub(crate) struct Parser<'p, 'a> {
     transient: bool,
     /// The dictionary the words of the objects being read go in.
     cur_dict: Option<usize>,
+    /// While the properties of an object written in an expression are
+    /// being read: what each is given, in step with the properties.
+    inline_values: Option<Vec<InlineValue>>,
     /// The dictionary properties the object being read has given
     /// words for. An object written inside it starts the count again,
     /// and the object outside does not get its own back.
@@ -1219,6 +1222,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             prop_replace: false,
             transient: false,
             cur_dict: None,
+            inline_values: None,
             dict_defined: HashSet::new(),
             plus_prop: None,
             plus_stack: Vec::new(),
@@ -2914,8 +2918,25 @@ impl<'p, 'a> Parser<'p, 'a> {
         } else {
             CbType::AnonFn
         };
-        let is_method = cb_type == CbType::AnonMethod;
         self.next();
+        self.parse_anon_func_at(cb_type, cb_type == CbType::AnonMethod)
+    }
+
+    /// The name an expression is, if it is only a name: one of the
+    /// program's, or a local's.
+    fn sym_text(&self, expr: &Expr) -> Option<Vec<u8>> {
+        match expr {
+            Expr::Sym(name) => Some(name.clone()),
+            Expr::Local(id) => Some(self.prog.locals[*id].name.clone()),
+            _ => None,
+        }
+    }
+
+    /// Read an anonymous function from its parameters or its body on.
+    /// `is_method` says it has the `self` it is called with, which is
+    /// the same thing as the kind of body being a method's except for
+    /// a method of an object written in an expression (see there).
+    fn parse_anon_func_at(&mut self, cb_type: CbType, is_method: bool) -> Option<Expr> {
         let (enc, lcltab) = self.anon_symtab();
 
         // A function shares the `self` of the code it is in, if that
@@ -4984,9 +5005,72 @@ impl<'p, 'a> Parser<'p, 'a> {
 
     fn parse_call(&mut self, lhs: Expr) -> Option<Expr> {
         let args = self.parse_arg_list()?;
-        if let Expr::Sym(name) = &lhs {
-            if name == b"defined" || name == b"__objref" {
-                self.unsupported(&format!("\"{}\"", Self::name(name)));
+        // `defined(name)` asks whether a name means anything, and is
+        // true or nil when the program is compiled.
+        if matches!(&lhs, Expr::Sym(name) if name == b"defined") {
+            // The name can be a local's; it is asked about all the
+            // same as a name of the program's.
+            match args.as_slice() {
+                [arg] if self.sym_text(&arg.expr).is_some() => {
+                    let name = self.sym_text(&arg.expr).unwrap_or_default();
+                    let mut value = ConstVal::new(Value::Nil);
+                    value.set_bool(self.prog.globals.contains_key(&name));
+                    value.ctc = true;
+                    return Some(Expr::Const(value));
+                }
+                _ => self.error(
+                    "invalid syntax for defined() operator - argument must be a symbol name",
+                ),
+            }
+        }
+        // `__objref(name)` is the object, if the name is one's, and nil
+        // if not; `__objref(name, warn)` or `error` says so as well.
+        if matches!(&lhs, Expr::Sym(name) if name == b"__objref") {
+            const SYNTAX: &str = "invalid syntax for __objref() operator";
+            if args.len() > 2 {
+                self.error(SYNTAX);
+                return Some(lhs);
+            }
+            let mode = args.get(1).map(|arg| self.sym_text(&arg.expr));
+            let handling = match mode {
+                None => 0,
+                Some(Some(mode)) if mode == b"warn" => 1,
+                Some(Some(mode)) if mode == b"error" => 2,
+                Some(_) => {
+                    self.error(SYNTAX);
+                    return Some(lhs);
+                }
+            };
+            let first = args.first().map(|arg| self.sym_text(&arg.expr));
+            match first {
+                Some(Some(name)) => {
+                    let name = &name;
+                    let global = self.prog.globals.get(name).copied();
+                    if matches!(global, Some(Global::Obj(_))) {
+                        return Some(args[0].expr.clone());
+                    }
+                    if handling != 0 && !self.syntax_only {
+                        let message = if global.is_none() {
+                            format!("undefined symbol \"{}\"", Self::name(name))
+                        } else {
+                            format!(
+                                "symbol \"{}\" is not an object - illegal on left of '.'",
+                                Self::name(name)
+                            )
+                        };
+                        if handling == 1 {
+                            self.tok.log_warning(message);
+                        } else {
+                            self.error(message);
+                        }
+                    }
+                    let mut value = ConstVal::new(Value::Nil);
+                    value.ctc = true;
+                    return Some(Expr::Const(value));
+                }
+                // The reference reads an argument that is not there.
+                None => return Some(lhs),
+                Some(_) => self.error(SYNTAX),
             }
         }
         if args.iter().filter(|arg| arg.name.is_none()).count() > 127 {
@@ -5117,12 +5201,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     return Some(Expr::ArgCount);
                 }
                 Tok::Delegated => return self.parse_delegated(),
-                Tok::Object => {
-                    let shown = self.tok.cur_token_shown();
-                    self.unsupported(&format!("\"{shown}\" in an expression"));
-                    self.next();
-                    return Some(Expr::constant(Value::Nil));
-                }
+                Tok::Object => return self.parse_inline_object(false),
                 _ => {
                     self.error_curtok(
                         "expected integer, string, symbol, '[', or '(', but found \"%\"",
@@ -5528,6 +5607,165 @@ impl Parser<'_, '_> {
             }
         };
         (name.as_bytes().to_vec(), op_args, true)
+    }
+
+    /// Read an object written in an expression, from `object` on, or
+    /// from its superclasses if the colon has been read:
+    /// `object: Class { properties }`. It has no name and no templates,
+    /// and is made when the expression is evaluated.
+    fn parse_inline_object(&mut self, mut has_colon: bool) -> Option<Expr> {
+        if !has_colon && self.next() == Tok::Colon {
+            has_colon = true;
+            self.next();
+        }
+        let (file, line) = self.tok.last_pos();
+        let mut def = ObjDef {
+            sym: None,
+            is_class: false,
+            superclasses: Vec::new(),
+            props: Vec::new(),
+            file,
+            line,
+            is_modify: false,
+            mod_base: None,
+            prev_def: None,
+            mod_id: None,
+            replaced: false,
+            meta: None,
+            transient: false,
+            bad_template: false,
+            undesc_sc: false,
+            dict: None,
+            vocab: Vec::new(),
+        };
+        if has_colon {
+            self.parse_superclass_list(None, &mut def);
+        }
+        if self.cur() != Tok::LBrace {
+            self.error_curtok("expected inline object property list starting with '{' (found '%')");
+            return None;
+        }
+        self.next();
+        // What the object is written in may be an object's definition
+        // that is itself being read.
+        let outer_values = self.inline_values.replace(Vec::new());
+        let outer_unterm = self.unterm;
+        let outer_term_pos = self.term_pos;
+        let outer_replace = std::mem::take(&mut self.prop_replace);
+        self.unterm = false;
+        let result = self.parse_obj_prop_list(&mut def, true, false);
+        let values = std::mem::replace(&mut self.inline_values, outer_values);
+        self.unterm = outer_unterm;
+        self.term_pos = outer_term_pos;
+        self.prop_replace = outer_replace;
+        result.ok()?;
+        let props = def
+            .props
+            .into_iter()
+            .zip(values.unwrap_or_default())
+            .map(|(prop, value)| InlineProp {
+                prop: prop.prop,
+                value,
+                file: prop.file,
+                line: prop.line,
+            })
+            .collect();
+        Some(Expr::InlineObj {
+            superclasses: def.superclasses,
+            props,
+        })
+    }
+
+    /// Read the value of a property of an object written in an
+    /// expression. It is worked out each time the property is asked
+    /// for, by an anonymous method made of it, which can use the
+    /// locals of the code the object is written in.
+    fn parse_inline_prop_value(&mut self, file: usize, line: u32) -> Parsed<InlineValue> {
+        let old_local_symtab = self.local_symtab;
+        let old_enclosing_local_symtab = self.enclosing_local_symtab;
+        let old_enclosing = std::mem::take(&mut self.enclosing);
+        let old_local_cnt = self.local_cnt;
+        let old_max_local_cnt = self.max_local_cnt;
+        let old_has_local_ctx = self.has_local_ctx;
+        let old_local_ctx_var_num = self.local_ctx_var_num;
+        let old_next_ctx_arr_idx = self.next_ctx_arr_idx;
+        let old_self_valid = self.self_valid;
+        let old_self_referenced = self.self_referenced;
+        let old_full_ctx_referenced = self.full_ctx_referenced;
+        let old_local_ctx_needs_self = self.local_ctx_needs_self;
+        let old_local_ctx_needs_full = self.local_ctx_needs_full;
+
+        self.clear_local_ctx();
+        let (enc, lcltab) = self.anon_symtab();
+        self.local_symtab = Some(lcltab);
+        self.enclosing_local_symtab = self.prog.tabs[lcltab].parent;
+        self.self_valid = true;
+        self.local_cnt = 0;
+        self.max_local_cnt = 0;
+
+        let expr = self.parse_expr();
+        let value = expr.map(|expr| {
+            let has_retval = self.prog.has_return_value(&expr);
+            let kind = if has_retval {
+                StmtKind::Return(Some(expr.clone()))
+            } else {
+                StmtKind::Expr(expr.clone())
+            };
+            let mut body = CodeBody {
+                lcltab: Some(lcltab),
+                stm: Stmt { kind, file, line },
+                argc: 0,
+                opt_argc: 0,
+                varargs: false,
+                varargs_list_local: None,
+                local_cnt: self.local_cnt,
+                self_valid: true,
+                replaced: false,
+                labels: std::rc::Rc::default(),
+                end_file: file,
+                end_line: line,
+                closure: Closure {
+                    enclosing: self.cur_code_body,
+                    is_anon_method: true,
+                    ..Closure::default()
+                },
+            };
+            self.finish_local_ctx(&mut body, true);
+            body.closure.self_referenced = self.self_referenced;
+            body.closure.full_ctx_referenced = self.full_ctx_referenced;
+            body.closure.local_ctx_needs_self = self.local_ctx_needs_self;
+            body.closure.local_ctx_needs_full = self.local_ctx_needs_full;
+            (expr, body, has_retval)
+        });
+
+        self.local_symtab = old_local_symtab;
+        self.enclosing_local_symtab = old_enclosing_local_symtab;
+        self.enclosing = old_enclosing;
+        self.local_cnt = old_local_cnt;
+        self.max_local_cnt = old_max_local_cnt;
+        self.has_local_ctx = old_has_local_ctx;
+        self.local_ctx_var_num = old_local_ctx_var_num;
+        self.next_ctx_arr_idx = old_next_ctx_arr_idx;
+        self.self_valid = old_self_valid;
+        self.self_referenced = old_self_referenced;
+        self.full_ctx_referenced = old_full_ctx_referenced;
+        self.local_ctx_needs_self = old_local_ctx_needs_self;
+        self.local_ctx_needs_full = old_local_ctx_needs_full;
+        self.anon_finish(enc);
+
+        let Some((expr, body, has_retval)) = value else {
+            return Err(Stop);
+        };
+        let index = self.prog.bodies.len();
+        self.prog.bodies.push((body, None));
+        self.prog.nested.push(Top::Func(index));
+        Ok(InlineValue::Wrapped(
+            expr,
+            Expr::AnonFunc {
+                body: index,
+                has_retval,
+            },
+        ))
     }
 
     /// Read `delegated target.prop(args)`: the target's method, run
@@ -7278,49 +7516,77 @@ impl Parser<'_, '_> {
                 // An object of its own as the property's value, in
                 // braces: `name: Class { ... }`.
                 self.next();
-                let obj = self.new_anon_obj();
-                let replace = std::mem::take(&mut self.prop_replace);
-                self.obj_nested = true;
-                self.nested_def = None;
-                self.parse_object_body(Some(obj), false, true, None, None)?;
-                self.prop_replace = replace;
-                // It was the next definition after all, and the name
-                // perhaps that definition's.
-                if self.unterm {
-                    return Ok(());
+                if self.inline_values.is_some() {
+                    // In an object written in an expression it is
+                    // another such, made when that one is, and told
+                    // that the object it is written in is none.
+                    let Some(mut nested) = self.parse_inline_object(true) else {
+                        return Err(Stop);
+                    };
+                    if let Expr::InlineObj { props, .. } = &mut nested {
+                        props.push(InlineProp {
+                            prop: LEXICAL_PARENT_PROP,
+                            value: InlineValue::Eval(Expr::constant(Value::Obj(0))),
+                            file,
+                            line,
+                        });
+                    }
+                    let prop = self.look_up_prop(&name);
+                    if prop.is_some_and(|prop| self.prog.props[prop].vocab) {
+                        self.error("vocabulary property requires string value, but found \":\"");
+                    }
+                    defined_prop = prop;
+                    if let Some(prop) = prop {
+                        new_prop = Some(def.props.len());
+                        self.push_inline_prop(def, prop, InlineValue::Eval(nested), file, line);
+                    }
+                    no_value = true;
                 }
-                let Some(nested) = self.nested_def.take() else {
-                    return Err(Stop);
-                };
-                let prop = self.look_up_prop(&name);
-                if prop.is_some_and(|prop| self.prog.props[prop].vocab) {
-                    self.error("vocabulary property requires string value, but found \":\"");
-                }
-                defined_prop = prop;
-                if let Some(prop) = prop {
-                    let id = self.prog.objs[obj].id;
-                    new_prop = Some(def.props.len());
-                    def.props.push(ObjProp {
-                        prop,
-                        value: PropValue::Expr(Expr::constant(Value::Obj(id))),
+                if self.inline_values.is_none() {
+                    let obj = self.new_anon_obj();
+                    let replace = std::mem::take(&mut self.prop_replace);
+                    self.obj_nested = true;
+                    self.nested_def = None;
+                    self.parse_object_body(Some(obj), false, true, None, None)?;
+                    self.prop_replace = replace;
+                    // It was the next definition after all, and the name
+                    // perhaps that definition's.
+                    if self.unterm {
+                        return Ok(());
+                    }
+                    let Some(nested) = self.nested_def.take() else {
+                        return Err(Stop);
+                    };
+                    let prop = self.look_up_prop(&name);
+                    if prop.is_some_and(|prop| self.prog.props[prop].vocab) {
+                        self.error("vocabulary property requires string value, but found \":\"");
+                    }
+                    defined_prop = prop;
+                    if let Some(prop) = prop {
+                        let id = self.prog.objs[obj].id;
+                        new_prop = Some(def.props.len());
+                        def.props.push(ObjProp {
+                            prop,
+                            value: PropValue::Expr(Expr::constant(Value::Obj(id))),
+                            overwritable: false,
+                            is_static: false,
+                            file,
+                            line,
+                        });
+                    }
+                    // The object knows which object it is written in.
+                    let parent = def.sym.map(|obj| self.prog.objs[obj].id).or(def.mod_id);
+                    self.prog.objdefs[nested].props.push(ObjProp {
+                        prop: LEXICAL_PARENT_PROP,
+                        value: PropValue::Expr(Expr::constant(Value::Obj(parent.unwrap_or(0)))),
                         overwritable: false,
                         is_static: false,
                         file,
                         line,
                     });
+                    self.prog.nested.push(Top::Obj(nested));
+                    no_value = true;
                 }
-                // The object knows which object it is written in.
-                let parent = def.sym.map(|obj| self.prog.objs[obj].id).or(def.mod_id);
-                self.prog.objdefs[nested].props.push(ObjProp {
-                    prop: LEXICAL_PARENT_PROP,
-                    value: PropValue::Expr(Expr::constant(Value::Obj(parent.unwrap_or(0)))),
-                    overwritable: false,
-                    is_static: false,
-                    file,
-                    line,
-                });
-                self.prog.nested.push(Top::Obj(nested));
-                no_value = true;
             }
             Tok::Eq => {
                 self.next();
@@ -7371,6 +7637,26 @@ impl Parser<'_, '_> {
                 file,
                 line,
             });
+        } else if let (true, true) = (is_value, self.inline_values.is_some()) {
+            // In an object written in an expression: a value to work
+            // out each time the property is asked for, or with
+            // `static`, once when the object is made.
+            if is_vocab {
+                self.error_curtok("vocabulary property requires string value, but found \"%\"");
+            }
+            let value = if self.cur() == Tok::Static {
+                self.next();
+                let Some(expr) = self.parse_expr() else {
+                    return Err(Stop);
+                };
+                InlineValue::Eval(expr)
+            } else {
+                self.parse_inline_prop_value(file, line)?
+            };
+            if let Some(prop) = prop {
+                new_prop = Some(def.props.len());
+                self.push_inline_prop(def, prop, value, file, line);
+            }
         } else if is_value {
             if is_vocab {
                 self.error_curtok("vocabulary property requires string value, but found \"%\"");
@@ -7405,6 +7691,29 @@ impl Parser<'_, '_> {
             if is_vocab {
                 self.error_curtok("vocabulary property requires string value, but found \"%\"");
             }
+            if self.inline_values.is_some() {
+                // In an object written in an expression, a method is
+                // an anonymous method. The reference tells what kind
+                // of body it is reading by whether the word before it
+                // was `method`, which here it is not: so the body is
+                // read as an anonymous function's, and one that uses
+                // `self` asks for the context of the code around it,
+                // though as a method it has a `self` of its own.
+                if let (Some(method), Some(prop)) =
+                    (self.parse_anon_func_at(CbType::AnonFn, true), prop)
+                {
+                    new_prop = Some(def.props.len());
+                    self.push_inline_prop(def, prop, InlineValue::Method(method), file, line);
+                }
+                return self.finish_obj_prop(
+                    def,
+                    existing,
+                    new_prop,
+                    defined_prop,
+                    &name,
+                    obj_is_nested,
+                );
+            }
             if self.propset_depth != 0 {
                 self.insert_propset_params();
             }
@@ -7437,6 +7746,42 @@ impl Parser<'_, '_> {
             self.prog.bodies.push((body, None));
         }
 
+        self.finish_obj_prop(def, existing, new_prop, defined_prop, &name, obj_is_nested)
+    }
+
+    /// Give an object written in an expression a property.
+    fn push_inline_prop(
+        &mut self,
+        def: &mut ObjDef,
+        prop: usize,
+        value: InlineValue,
+        file: usize,
+        line: u32,
+    ) {
+        def.props.push(ObjProp {
+            prop,
+            value: PropValue::Expr(Expr::constant(Value::Nil)),
+            overwritable: false,
+            is_static: false,
+            file,
+            line,
+        });
+        if let Some(values) = &mut self.inline_values {
+            values.push(value);
+        }
+    }
+
+    /// What is checked of a property once it has been read: that the
+    /// object can have it, and has it only once.
+    fn finish_obj_prop(
+        &mut self,
+        def: &mut ObjDef,
+        existing: Option<Global>,
+        new_prop: Option<usize>,
+        defined_prop: Option<usize>,
+        name: &[u8],
+        obj_is_nested: bool,
+    ) -> Parsed<()> {
         // What a built-in class does itself, or a class it is a kind
         // of does, the program cannot do in its place.
         if let (Some(meta), Some(new_prop)) = (def.meta, new_prop) {
@@ -7448,7 +7793,7 @@ impl Parser<'_, '_> {
                 if native {
                     self.error(format!(
                         "intrinsic class property \"{}\" cannot be modified",
-                        Self::name(&name)
+                        Self::name(name)
                     ));
                 }
                 cur = super_meta;
@@ -7477,7 +7822,7 @@ impl Parser<'_, '_> {
         if obj_is_nested && existing == Some(Global::Prop(LEXICAL_PARENT_PROP)) {
             self.error(format!(
                 "property \"{}\" already defined in object",
-                Self::name(&name)
+                Self::name(name)
             ));
         } else if let Some(Global::Prop(prop)) = existing {
             let earlier = def
@@ -7492,7 +7837,7 @@ impl Parser<'_, '_> {
                 } else {
                     self.error(format!(
                         "property \"{}\" already defined in object",
-                        Self::name(&name)
+                        Self::name(name)
                     ));
                 }
             }

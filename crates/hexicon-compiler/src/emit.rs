@@ -11,8 +11,8 @@ use std::rc::Rc;
 use hexicon_bytecode::{Layout, Opcode as Op};
 
 use crate::ast::{
-    Arg, AsiOp, BinOp, Catch, Closure, CodeBody, ConstVal, Expr, Finally, ForIn, LabelSym, LocalId,
-    Stmt, StmtKind, TabId, UnOp, Value, flow,
+    Arg, AsiOp, BinOp, Catch, Closure, CodeBody, ConstVal, Expr, Finally, ForIn, InlineProp,
+    InlineValue, LabelSym, LocalId, Stmt, StmtKind, TabId, UnOp, Value, flow,
 };
 use crate::codegen::{CodeGen, Label};
 use crate::flow::Flow;
@@ -512,6 +512,9 @@ struct Gen<'p> {
     /// object in the output each definition became.
     cur_def: usize,
     def_objs: HashMap<usize, usize>,
+    /// The bodies that were read and turned out not to be wanted: no
+    /// code is generated for them.
+    dropped: HashSet<usize>,
     /// The body being generated.
     cur_body: usize,
 }
@@ -555,6 +558,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         cur_body: 0,
         cur_def: 0,
         def_objs: HashMap::new(),
+        dropped: HashSet::new(),
     };
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
     generator.last_labels = Rc::clone(&generator.prog.last_labels);
@@ -1006,6 +1010,45 @@ impl Gen<'_> {
             | Expr::CtxEle(_)
             | Expr::Replaced
             | Expr::ArgCount => expr,
+            Expr::InlineObj {
+                superclasses,
+                props,
+            } => {
+                let props = props
+                    .into_iter()
+                    .map(|mut prop| {
+                        (self.cur_file, self.cur_line) = (prop.file, prop.line);
+                        prop.value = match prop.value {
+                            InlineValue::Method(method) => InlineValue::Method(method),
+                            InlineValue::Eval(expr) => InlineValue::Eval(self.fold_expr(expr)),
+                            // A value that is a constant, or text to
+                            // display, is given outright, and the
+                            // method made to work it out is not wanted.
+                            // Not in the default value of a parameter,
+                            // though: there names are looked up and
+                            // nothing more, and the method stays.
+                            InlineValue::Wrapped(expr, method) => {
+                                let expr = self.fold_expr(expr);
+                                if self.resolve_only {
+                                    InlineValue::Method(method)
+                                } else if expr.is_const() || matches!(expr, Expr::DStr(_)) {
+                                    if let Expr::AnonFunc { body, .. } = method {
+                                        self.dropped.insert(body);
+                                    }
+                                    InlineValue::Eval(expr)
+                                } else {
+                                    InlineValue::Method(method)
+                                }
+                            }
+                        };
+                        prop
+                    })
+                    .collect();
+                Expr::InlineObj {
+                    superclasses,
+                    props,
+                }
+            }
             Expr::Delegated(target) => Expr::Delegated(Box::new(self.fold_expr(*target))),
             Expr::IsIn {
                 left,
@@ -1789,7 +1832,7 @@ impl Gen<'_> {
         is_constructor: bool,
     ) {
         self.in_constructor = is_constructor;
-        if body.replaced {
+        if body.replaced || self.dropped.contains(&body_index) {
             return;
         }
         // The header. The counts of locals and stack slots and the
@@ -3480,6 +3523,10 @@ impl Gen<'_> {
                     self.cg.note_push();
                 }
             }
+            Expr::InlineObj {
+                superclasses,
+                props,
+            } => self.gen_inline_obj(superclasses, props),
             Expr::CtxEle(which) => {
                 if !self.self_available {
                     match which {
@@ -4713,6 +4760,118 @@ impl Gen<'_> {
             self.cg.note_push();
         }
         self.cg.def_label(end_lbl);
+    }
+
+    /// Generate an object written in an expression: a new object of
+    /// its superclasses, with no constructor run, then each property
+    /// set on it, and then its own constructor if it has one. The
+    /// object is left on the stack, wanted or not.
+    fn gen_inline_obj(&mut self, superclasses: &[Vec<u8>], props: &[InlineProp]) {
+        for name in superclasses.iter().rev() {
+            match self.prog.globals.get(name).copied() {
+                Some(Global::Obj(obj)) => {
+                    if self.prog.objs[obj].is_extern {
+                        self.out.obj_refs.insert(obj);
+                    }
+                    self.cg.write_op(Op::PushObj);
+                    self.cg.write4(self.prog.objs[obj].id);
+                    self.cg.note_push();
+                }
+                Some(Global::Meta(meta)) => {
+                    self.cg.write_op(Op::PushObj);
+                    self.cg.write4(self.prog.metas[meta].obj_id);
+                    self.cg.note_push();
+                }
+                _ => self.undefined(name),
+            }
+        }
+        let Some(Global::Meta(tads_object)) =
+            self.prog.globals.get(b"TadsObject".as_slice()).copied()
+        else {
+            self.error("\"TadsObject\" is not defined or is not an intrinsic class");
+            return;
+        };
+        let Some(create) = self.named_prop(b"createInstanceOf") else {
+            return;
+        };
+        self.cg.write_op(Op::ObjCallProp);
+        self.cg.write(superclasses.len() as u8);
+        self.cg.write4(self.prog.metas[tads_object].obj_id);
+        self.write_prop_id(create);
+        self.cg.note_pops(superclasses.len() as i32);
+        self.cg.write_op(Op::GetR0);
+        self.cg.note_push();
+
+        let mut has_ctor = false;
+        for prop in props {
+            (self.cur_file, self.cur_line) = (prop.file, prop.line);
+            let id = self.prog.props[prop.prop].id;
+            match &prop.value {
+                // A method is bound to the object.
+                InlineValue::Method(method) | InlineValue::Wrapped(_, method) => {
+                    self.gen_expr(method, false, false);
+                    self.gen_set_method(id);
+                }
+                // Text to display is bound like a method.
+                InlineValue::Eval(Expr::DStr(text)) => {
+                    self.gen_str(text);
+                    self.gen_set_method(id);
+                }
+                InlineValue::Eval(expr) => {
+                    self.cg.write_op(Op::Dup);
+                    self.cg.note_push();
+                    self.gen_expr(expr, false, false);
+                    if !self.prog.has_return_value(expr) {
+                        self.cg.write_op(Op::PushNil);
+                        self.cg.note_push();
+                    }
+                    self.cg.write_op(Op::Swap);
+                    self.cg.write_op(Op::SetProp);
+                    self.write_prop_id(id);
+                    self.cg.note_pops(2);
+                }
+            }
+            has_ctor |= prop.prop == 0;
+        }
+        if has_ctor {
+            self.cg.write_op(Op::Dup);
+            self.cg.write_op(Op::CallProp);
+            self.cg.write(0);
+            self.write_prop_id(1);
+        }
+    }
+
+    /// The number of a property the compiler needs by name, which the
+    /// program has to have.
+    fn named_prop(&mut self, name: &[u8]) -> Option<u16> {
+        match self.prog.globals.get(name) {
+            Some(Global::Prop(prop)) => Some(self.prog.props[*prop].id),
+            _ => {
+                self.error(format!(
+                    "invalid '.' expression - symbol \"{}\" is not a property",
+                    show_name(name)
+                ));
+                None
+            }
+        }
+    }
+
+    /// Bind the value on top of the stack to the object under it as
+    /// the method of a property: `obj.setMethod(prop, value)`.
+    fn gen_set_method(&mut self, prop: u16) {
+        let Some(set_method) = self.named_prop(b"setMethod") else {
+            return;
+        };
+        self.cg.write_op(Op::PushPropId);
+        self.write_prop_id(prop);
+        self.cg.note_push();
+        self.cg.write_op(Op::GetSpN);
+        self.cg.write(2);
+        self.cg.note_push();
+        self.cg.write_op(Op::CallProp);
+        self.cg.write(2);
+        self.write_prop_id(set_method);
+        self.cg.note_pops(3);
     }
 
     fn gen_unary(&mut self, opc: Op, sub: &Expr, discard: bool, for_condition: bool) {

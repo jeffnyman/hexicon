@@ -127,6 +127,17 @@ intrinsic class Object 'root-object/030004'
     getSuperclassList();
     propDefined(prop, flags?);
 }
+intrinsic class TadsObject 'tads-object/030005': Object
+{
+    createInstance(...);
+    createClone();
+    createTransientInstance(...);
+    createInstanceOf(...);
+    createTransientInstanceOf(...);
+    setSuperclassList(lst);
+    getMethod(prop);
+    setMethod(prop, func);
+}
 intrinsic class Collection 'collection/030000': Object
 {
     createIterator();
@@ -458,6 +469,24 @@ class Program:
             return rng.choice(ENUMS)
         if rng.random() < 0.02:
             return "argcount"
+        if rng.random() < 0.03:
+            return self.inline_obj(scope, depth)
+        if rng.random() < 0.02:
+            # A question about a name, answered when the program is
+            # compiled.
+            names = [obj[0] for obj in self.objs if obj[0]] + ["fn0", "nowhere", "red"]
+            names += scope[:1]
+            name = rng.choice(names)
+            if rng.random() < 0.05:
+                return rng.choice(["defined(1)", f"__objref({name}, maybe)"])
+            return rng.choice(
+                [
+                    f"defined({name})",
+                    f"__objref({name})",
+                    f"__objref({name}, warn)",
+                    f"__objref({name}, error)",
+                ]
+            )
         # In a function defined with `modify`, the function as it was.
         if self.replaced_argc is not None and rng.random() < 0.08:
             if rng.random() < 0.15:
@@ -983,6 +1012,42 @@ class Program:
                 lines.append(f"    {prop} = {self.constant()}")
         lines.append("}")
         return lines
+
+    def inline_obj(self, scope, depth):
+        """An object written in an expression."""
+        rng = self.rng
+        # Only names that are objects: the reference stops with a
+        # memory fault on a superclass that is anything else.
+        named = [obj[0] for obj in self.objs if obj[0]]
+        text = "object"
+        if named and rng.random() < 0.6:
+            text += ": " + ", ".join(rng.sample(named, rng.randint(1, min(2, len(named)))))
+        parts = []
+        in_method = self.in_method
+        for prop in rng.sample(self.props, rng.randint(0, min(3, len(self.props)))):
+            kind = rng.random()
+            # A property's value has a `self`, the object's.
+            self.in_method = True
+            if kind < 0.35:
+                parts.append(f"{prop} = {self.expr(scope, depth - 2)}")
+            elif kind < 0.5:
+                parts.append(f"{prop} = {self.constant()}")
+            elif kind < 0.6:
+                self.in_method = in_method
+                parts.append(f"{prop} = static {self.expr(scope, depth - 2)}")
+            elif kind < 0.8:
+                params = rng.sample(NAMES, rng.randint(0, 2))
+                value = self.expr(list(scope) + params, depth - 2)
+                parts.append(f"{prop}({', '.join(params)}) {{ return ({value}); }}")
+            elif kind < 0.9 and depth > 2:
+                inner = self.inline_obj(scope, depth - 2)
+                if inner.startswith("object: "):
+                    inner = inner[len("object: ") :]
+                parts.append(f"{prop}: {inner}")
+            else:
+                parts.append(f'{prop} = "{rng.choice(WORDS)}"')
+        self.in_method = in_method
+        return text + " { " + " ".join(parts) + " }"
 
     def anon_expr(self, scope, depth):
         """A short anonymous function, perhaps called on the spot."""

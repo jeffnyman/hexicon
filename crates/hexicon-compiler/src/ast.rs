@@ -42,6 +42,31 @@ pub(crate) enum Value {
     ReStr(Vec<u8>),
 }
 
+/// A property of an object written in an expression.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InlineProp {
+    /// An index into the program's properties.
+    pub prop: usize,
+    pub value: InlineValue,
+    pub file: usize,
+    pub line: u32,
+}
+
+/// What such a property is given.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum InlineValue {
+    /// A method: an anonymous method, which can use the locals of the
+    /// code the object is written in.
+    Method(Expr),
+    /// A value, and the anonymous method that works it out each time
+    /// the property is asked for. If the value turns out to be a
+    /// constant, it is given outright and the method is not wanted.
+    Wrapped(Expr, Expr),
+    /// A value worked out once, when the object is made: one marked
+    /// `static`, or an object written inside this one.
+    Eval(Expr),
+}
+
 /// A constant in an expression.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConstVal {
@@ -215,6 +240,12 @@ pub(crate) enum Expr {
     Delegated(Box<Expr>),
     /// `argcount`: how many arguments the function was called with.
     ArgCount,
+    /// An object written in an expression (`object: Class { ... }`),
+    /// which is made each time the expression is evaluated.
+    InlineObj {
+        superclasses: Vec<Vec<u8>>,
+        props: Vec<InlineProp>,
+    },
     /// A list with an element that is not a constant.
     List(Vec<Expr>),
     /// A list of keys and values (`[key -> value, * -> default]`): a

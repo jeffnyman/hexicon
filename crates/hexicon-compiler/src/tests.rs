@@ -2439,3 +2439,72 @@ fn grammar_statements_have_their_own_mistakes() {
         ["0: error: grammar production \"nuon\" has no alternatives defined"]
     );
 }
+
+/// What a program needs to declare for objects written in expressions.
+const TADS_OBJECT: &str = "intrinsic class Object 'root-object/030004' { }\n\
+    intrinsic class TadsObject 'tads-object/030005': Object\n\
+    { createInstanceOf(...); setMethod(prop, meth); }\n";
+
+#[test]
+fn an_object_written_in_an_expression_is_made_when_it_is_evaluated() {
+    let source = format!(
+        "{TADS_OBJECT}class Thing: object;\n\
+         make(n) {{ return object: Thing {{ fixed = 7 size = n * 2 twice(x) {{ return x + n; }} }}; }}\n\
+         _main(args) {{ return make(1); }}\n"
+    );
+    let compiled = compile_text(&source);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let code = code(&image);
+    // The class is pushed and the object made with no constructor run
+    // (OBJCALLPROP with one argument); a constant is set on it
+    // outright (the object again, the value, SWAP, SETPROP).
+    assert!(has_bytes(code, &[0x67, 1]));
+    assert!(has_bytes(code, &[0x03, 7, 0x8D, 0xE5]));
+    // A value to work out and a method are each bound to the object
+    // as a method: the property, the object from under the value, and
+    // a call with two arguments.
+    let bound = code
+        .windows(4)
+        .filter(|bytes| bytes[0] == 0xA6 && bytes[1] == 2 && bytes[2] == 0x61 && bytes[3] == 2)
+        .count();
+    assert_eq!(bound, 2);
+
+    // The program has to have declared the class of its own objects.
+    assert_eq!(
+        compile_messages("_main(args) { return object { x = 1 }; }\n"),
+        ["1: error: \"TadsObject\" is not defined or is not an intrinsic class"]
+    );
+    assert_eq!(
+        compile_messages("class Thing: object;\n_main(args) { return object Thing { }; }\n")[..1],
+        ["2: error: expected inline object property list starting with '{' (found 'Thing')"]
+    );
+}
+
+#[test]
+fn a_question_about_a_name_is_answered_when_the_program_is_compiled() {
+    // `defined` is true or nil, and `__objref` the object or nil; a
+    // condition that is constant for that reason gets no warning.
+    assert_eq!(
+        compile_messages(
+            "a: object;\nf() { }\n_main(args)\n{\n    if (defined(nope))\n        return 1;\n\
+             local x = __objref(f, warn);\n    local y = __objref(nope, warn);\n\
+             return [defined(a), __objref(a), __objref(nope), x, y];\n}\n"
+        ),
+        [
+            "7: warning: symbol \"f\" is not an object - illegal on left of '.'",
+            "8: warning: undefined symbol \"nope\"",
+        ]
+    );
+    assert_eq!(
+        compile_messages("_main(args) { return [defined(1), __objref(1, 2, 3)]; }\n"),
+        [
+            "1: error: invalid syntax for defined() operator - argument must be a symbol name",
+            "1: error: invalid syntax for __objref() operator",
+        ]
+    );
+}

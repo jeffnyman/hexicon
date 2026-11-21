@@ -3444,6 +3444,132 @@ class vp(x): Match;
 """
 
 
+# Objects written in expressions, and questions about names.
+programs["inl1"] = """#include <tadsgen.h>
+#include <tads.h>
+class Thing: object name = 'thing' describe() { return 'a ' + name; };
+make(label, n)
+{
+    local count = 0;
+    return object: Thing {
+        name = label
+        size = n * 2
+        fixed = 7
+        text = 'const'
+        desc = "I am <<name>>. "
+        bump() { return ++count; }
+        twice(x) { return x * 2 + n; }
+        made = static (count + 100)
+        part: Thing { name = 'part of ' + label }
+        construct() { count = 10; }
+    };
+}
+other: object
+    m()
+    {
+        local o = object { v = self.w  f() { return self; } };
+        return o;
+    }
+    w = 5
+;
+say(v) { tadsSay(v); }
+_main(args)
+{
+    t3SetSay(say);
+    local a = make('box', 3), b = make('jar', 4);
+    say(a.describe()); say(' '); say(a.size); say(' '); say(a.fixed); say(a.text); say(' '); a.desc;
+    say(a.bump()); say(a.bump()); say(b.bump()); say(' '); say(a.twice(5)); say(' '); say(a.made); say(' ');
+    say(a.part.name); say(' '); say(a.part.lexicalParent == nil ? 'nil' : 'obj'); say('\\n');
+    local o = other.m(); say(o.v); say(o.f() == o ? ' same' : ' other'); say(o.ofKind(Thing) ? ' thing' : ' plain');
+    local e = object { };
+    say(e.ofKind(TadsObject) ? ' obj' : ' ?');
+    say(defined(Thing) ? ' def' : ' undef'); say(defined(nope) ? ' def' : ' undef'); say(defined(make) ? ' def' : ' undef');
+    say(__objref(Thing) == Thing ? ' ref' : ' noref'); say(__objref(nope) == nil ? ' nil' : ' ?');
+    say(__objref(make, warn) == nil ? ' nil' : ' ?'); say(__objref(nope2, warn) == nil ? ' nil' : ' ?');
+    if (defined(nope)) say('never');
+    say('\\n');
+}
+"""
+
+programs["inl2"] = """#include <tadsgen.h>
+#include <tads.h>
+class A: object name = 'A' who() { return name; };
+class B: object tag = 'B';
+holder: object
+    name = 'holder'
+    made = object: A, B { name = 'made' }
+    lazy = (object { v = 1 })
+    fresh() { return object: A { name = 'fresh!' owner = static self.name who() { return name + '?'; } }; }
+    chain(n)
+    {
+        local k = n;
+        return ({x: object { sum = x + k + n  inner: A { name = 'in' + k } get() { return ({: k++ }); } }});
+    }
+    grouped = static object { propertyset 'on*' { Start = 1 Stop() { return 2; } } operator +(o) { return 'plus'; } }
+;
+f(a, b?)
+{
+    for (local i = 0 ; i < 2 ; ++i)
+    {
+        local o = object: A { idx = i  desc = "<<idx>>;" };
+        o.desc;
+    }
+    return object { args = [a, b]  count = argcount };
+}
+say(v) { tadsSay(v); }
+_main(args)
+{
+    t3SetSay(say);
+    say(holder.made.who()); say(holder.made.tag); say(holder.lazy.v); say(holder.fresh().who());
+    local o = holder.chain(5)(10); say(o.sum); say(o.inner.name); local g = o.get(); say(g()); say(g()); say(o.sum); say('\\n');
+    say(holder.grouped.onStart); say(holder.grouped.onStop()); say(holder.grouped + 1); say(' ');
+    local r = f(1); say(r.count); say(r.args.length());
+    if (defined(A) && !defined(Zed)) say(' ok');
+    while (defined(Zed)) { say('never'); }
+    say(__objref(A, error).name); say(__objref(holder).name);
+    say('\\n');
+}
+"""
+
+mistakes["e_inl1"] = """class Thing: object;
+f() { }
+_main(args)
+{
+    local a = object Thing { };
+    local b = object: { };
+    local c = object: Thing;
+    local d = object { x = 1 x = 2 y };
+    local e = object { replace z = 1 };
+    local g = defined(1), h = defined(), i = defined(a, b);
+    local j = __objref(1), k = __objref(a, b, c), l = __objref(a, maybe);
+    local m = __objref(f, error), n = __objref(zip, error);
+    return [a, b, c, d, e, g, h, i, j, k, l, m, n];
+}
+"""
+
+mistakes["e_inl2"] = """class Thing: object;
+_main(args)
+{
+    local a = object: Thing { x = 1 };
+    local b = object { m() { return 1; } };
+    return [a, b];
+}
+"""
+
+mistakes["e_inl3"] = """#include <tadsgen.h>
+#include <tads.h>
+f() { }
+_main(args)
+{
+    local c = object { x = undefinedThing };
+    local d = object { m() { return undefinedOther; } };
+    local e = __objref(Nope, warn), g = __objref(f, warn);
+    object { };
+    return [c, d, e, g, defined(a), __objref(a)];
+}
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
