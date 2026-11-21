@@ -2,7 +2,8 @@
 
 use crate::emit;
 use crate::image;
-use crate::parse::{Exports, Global, Parser};
+use crate::link::{self, Linked, Module};
+use crate::parse::{Exports, Global, Parser, merge_exports};
 use crate::pp::{Diagnostic, Preprocessor, Severity, SourceFiles};
 
 /// What to compile, and how.
@@ -114,14 +115,26 @@ fn start<'a>(
 }
 
 /// Compile a program that is a single source file.
-///
-/// The source is read twice, as the reference compiler reads it: once
-/// to learn what the program defines, and once more, knowing that, to
-/// generate the code.
 pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptions) -> Compiled {
+    compile_program(files, &[source], options)
+}
+
+/// Compile a program from its source files, which are put together in
+/// the order given.
+///
+/// Each source is read twice, as the reference compiler reads it: once
+/// to learn what it defines, and once more, knowing what all of them
+/// define, to generate its code. Then what was generated for each is
+/// made into one program.
+pub fn compile_program(
+    files: &mut dyn SourceFiles,
+    sources: &[&str],
+    options: &CompileOptions,
+) -> Compiled {
     let mut compiled = Compiled::default();
 
-    let known = {
+    let mut exports = Vec::new();
+    for source in sources {
         let mut pp = match start(files, source, options) {
             Ok(pp) => pp,
             Err(diagnostic) => {
@@ -130,100 +143,106 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
             }
         };
         let prog = Parser::new(&mut pp, true, Exports::default()).parse_top();
-        compiled.diagnostics = pp.take_diagnostics();
+        compiled.diagnostics.append(&mut pp.take_diagnostics());
         if has_errors(&compiled.diagnostics) {
             return compiled;
         }
-        prog.exports()
-    };
+        exports.push(prog.exports());
+    }
+    let known = merge_exports(exports);
 
-    let mut pp = match start(files, source, options) {
-        Ok(pp) => pp,
-        Err(diagnostic) => {
-            compiled.diagnostics.push(diagnostic);
+    let mut modules = Vec::new();
+    for source in sources {
+        let mut pp = match start(files, source, options) {
+            Ok(pp) => pp,
+            Err(diagnostic) => {
+                compiled.diagnostics.push(diagnostic);
+                return compiled;
+            }
+        };
+        let mut prog = Parser::new(&mut pp, false, known.clone()).parse_top();
+        compiled.diagnostics.append(&mut pp.take_diagnostics());
+        if has_errors(&compiled.diagnostics) {
             return compiled;
         }
-    };
-    let mut prog = Parser::new(&mut pp, false, known).parse_top();
-    compiled.diagnostics.append(&mut pp.take_diagnostics());
-    if has_errors(&compiled.diagnostics) {
-        return compiled;
-    }
 
-    let mut generated = emit::generate(&mut prog);
-    for diagnostic in std::mem::take(&mut generated.diagnostics) {
-        // A problem that is nowhere in particular has no file. Nor has
-        // one found before any statement was come to.
-        let file = if diagnostic.file == usize::MAX || diagnostic.line == 0 {
-            String::new()
-        } else {
-            pp.file_name(diagnostic.file).to_owned()
+        let mut generated = emit::generate(&mut prog);
+        for diagnostic in std::mem::take(&mut generated.diagnostics) {
+            // A problem that is nowhere in particular has no file. Nor
+            // has one found before any statement was come to.
+            let file = if diagnostic.file == usize::MAX || diagnostic.line == 0 {
+                String::new()
+            } else {
+                pp.file_name(diagnostic.file).to_owned()
+            };
+            compiled.diagnostics.push(Diagnostic {
+                file,
+                line: diagnostic.line,
+                severity: diagnostic.severity,
+                message: diagnostic.message,
+            });
+        }
+        if has_errors(&compiled.diagnostics) {
+            return compiled;
+        }
+        // The reference writes an object file for each source, and
+        // names it when it finds something wrong on reading it back.
+        // Hexicon writes no such file; it gives the name the file
+        // would have.
+        let object_file = {
+            let name = source.rsplit(['/', '\\']).next().unwrap_or(source);
+            let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+            format!("{stem}.t3o")
         };
-        compiled.diagnostics.push(Diagnostic {
-            file,
-            line: diagnostic.line,
-            severity: diagnostic.severity,
-            message: diagnostic.message,
+        modules.push(Module {
+            prog,
+            out: generated,
+            object_file,
         });
-    }
-    if has_errors(&compiled.diagnostics) {
-        return compiled;
     }
 
     // Putting the program together: everything it refers to has to be
     // in it.
-    // The reference finds this when it reads back the object file it
-    // has written for the source, and names the file. Hexicon writes no
-    // such file; it gives the name the file would have.
-    let object_file = {
-        let name = source.rsplit(['/', '\\']).next().unwrap_or(source);
-        let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
-        format!("{stem}.t3o")
-    };
-    for (kind, name) in emit::early_redefs(&prog) {
-        compiled.diagnostics.push(Diagnostic {
-            file: String::new(),
-            line: 0,
-            severity: Severity::Error,
-            message: format!(
-                "modified or replaced {kind} \"{}\" found in object file \"{object_file}\" \
-                 before original {kind} definition was loaded",
-                crate::pp::show_name(&name)
-            ),
-        });
-    }
-    for name in emit::unresolved_externs(&prog, &generated) {
-        compiled.diagnostics.push(Diagnostic {
-            file: String::new(),
-            line: 0,
-            severity: Severity::Error,
-            message: format!(
-                "unresolved external reference \"{}\"",
-                crate::pp::show_name(&name)
-            ),
-        });
-    }
-    // A program has to have somewhere to start.
-    let has_main = matches!(
-        prog.globals.get(b"_main".as_slice()),
-        Some(Global::Func(func)) if generated.func_anchor.contains_key(func)
-    );
-    if !has_main && !prog.globals.contains_key(b"_main".as_slice()) {
-        compiled.diagnostics.push(Diagnostic {
-            file: String::new(),
-            line: 0,
-            severity: Severity::Error,
-            message: "function _main() is not defined".to_owned(),
-        });
-        return compiled;
-    }
-    for (severity, message) in emit::resolve_exports(&prog, &mut generated) {
+    let note = |compiled: &mut Compiled, severity: Severity, message: String| {
         compiled.diagnostics.push(Diagnostic {
             file: String::new(),
             line: 0,
             severity,
             message,
         });
+    };
+    let Linked {
+        mut prog,
+        out,
+        enum_ids,
+        errors,
+    } = link::link(modules);
+    for message in errors {
+        note(&mut compiled, Severity::Error, message);
+    }
+    let mut generated = emit::link_generate(&mut prog, out, enum_ids);
+    for name in emit::unresolved_externs(&prog, &generated) {
+        let message = format!(
+            "unresolved external reference \"{}\"",
+            crate::pp::show_name(&name)
+        );
+        note(&mut compiled, Severity::Error, message);
+    }
+    // A program has to have somewhere to start.
+    let has_main = matches!(
+        prog.globals.peek(b"_main".as_slice()),
+        Some(Global::Func(func)) if generated.func_anchor.contains_key(func)
+    );
+    if !has_main && prog.globals.peek(b"_main".as_slice()).is_none() {
+        note(
+            &mut compiled,
+            Severity::Error,
+            "function _main() is not defined".to_owned(),
+        );
+        return compiled;
+    }
+    for (severity, message) in emit::resolve_exports(&prog, &mut generated) {
+        note(&mut compiled, severity, message);
     }
     if has_errors(&compiled.diagnostics) {
         return compiled;
@@ -231,12 +250,7 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
     // What is found wrong as the image is put together, which the
     // reference does not get to if anything above was.
     for message in std::mem::take(&mut generated.link_errors) {
-        compiled.diagnostics.push(Diagnostic {
-            file: String::new(),
-            line: 0,
-            severity: Severity::Error,
-            message,
-        });
+        note(&mut compiled, Severity::Error, message);
     }
     if has_errors(&compiled.diagnostics) {
         return compiled;
@@ -247,12 +261,7 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
             compiled.image = Some(image.bytes);
             compiled.unspecified = image.unspecified;
         }
-        Err(message) => compiled.diagnostics.push(Diagnostic {
-            file: String::new(),
-            line: 0,
-            severity: Severity::Error,
-            message,
-        }),
+        Err(message) => note(&mut compiled, Severity::Error, message),
     }
     compiled
 }

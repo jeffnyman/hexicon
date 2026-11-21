@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Write random programs for comparing compilers.
 
-usage: gen-random.py <folder> <count> [seed]
+usage: gen-random.py <folder> <count> [seed [files]]
+
+With a number of files above one, each program is a folder of up to
+that many source files: the same program the seed gives as one file,
+with its definitions dealt out among them.
 
 Each program is made of the parts of the language Hexicon compiles so
 far: functions, locals, the statements that need no objects (labels,
@@ -1280,6 +1284,10 @@ class Program:
             tags = set()
             for _ in range(self.rng.randint(1, 5)):
                 parts.insert(self.rng.randint(0, len(parts)), self.grammar(tags))
+        # What a program of several source files is made from: the
+        # statements each file needs, and the definitions, each of
+        # which goes in one.
+        self.pieces = (list(lines), [list(part) for part in parts])
         for part in parts:
             lines += part
         enums = "enum red, green;\nenum token tokWord;\n"
@@ -1320,7 +1328,44 @@ class Program:
         for name, is_class, _ in self.objs:
             if name and is_class and self.rng.random() < 0.3:
                 ahead.append(f"{name} template 'tname' inherited [tlist]?;")
+        self.ahead = ahead
         return PRELUDE + enums + "\n".join(ahead + lines) + "\n"
+
+    def files(self, count):
+        """The same program as several source files.
+
+        Every file has the declarations; each definition is in one
+        file. A `modify` or `replace` goes in the file that has what it
+        changes or in a later one, and now and then in an earlier one.
+        """
+        self.text()
+        rng = random.Random(self.rng.random())
+        templates, parts = self.pieces
+        enums = "enum red, green;\nenum token tokWord;\n"
+        shared = [line for line in templates if line.startswith("string template")]
+        once = [line for line in templates if not line.startswith("string template")]
+        for line in self.ahead:
+            (once if line.startswith("class ") else shared).append(line)
+        files = [[] for _ in range(count)]
+        files[0] += once
+        home = {}
+        for part in parts:
+            words = part[0].replace("(", " ").replace(":", " ").split()
+            if words and words[0] in ("modify", "replace"):
+                # A second definition goes in the file that has the
+                # first or in one after it; now and then in one
+                # before, which is a mistake.
+                name = words[1] if len(words) > 1 else ""
+                if name == "class" and len(words) > 2:
+                    name = words[2]
+                first = home.get(name, 0)
+                which = rng.randrange(first, count) if rng.random() < 0.95 else rng.randrange(count)
+            else:
+                which = rng.randrange(count)
+                name = words[1] if words and words[0] in ("class", "grammar") and len(words) > 1 else (words[0] if words else "")
+                home.setdefault(name, which)
+            files[which] += part
+        return [PRELUDE + enums + "\n".join(shared + lines) + "\n" for lines in files]
 
 
 def main():
@@ -1329,8 +1374,19 @@ def main():
     folder, count = sys.argv[1], int(sys.argv[2])
     seed = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     os.makedirs(folder, exist_ok=True)
+    parts = int(sys.argv[4]) if len(sys.argv) > 4 else 1
     for index in range(count):
         rng = random.Random(seed * 100000 + index)
+        if parts > 1:
+            # A program of several source files is a folder of them.
+            program = os.path.join(folder, f"r{seed}_{index:04}")
+            os.makedirs(program, exist_ok=True)
+            # The program is the one the same seed gives as one file.
+            split = random.Random(seed * 7919 + index).randint(2, parts)
+            for part, text in enumerate(Program(rng).files(split)):
+                with open(os.path.join(program, f"m{part}.t"), "w", newline="\n") as out:
+                    out.write(text)
+            continue
         with open(
             os.path.join(folder, f"r{seed}_{index:04}.t"), "w", newline="\n"
         ) as out:

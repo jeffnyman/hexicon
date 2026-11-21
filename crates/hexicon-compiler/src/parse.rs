@@ -187,13 +187,9 @@ pub(crate) struct ObjSym {
     /// Its definition as it now stands: an index into
     /// [`Program::objdefs`].
     pub def: Option<usize>,
-    /// How many times `modify` has been applied to it, and the numbers
-    /// set aside for the definitions that were modified, the first
-    /// definition's first. Each `modify` leaves the definition before
-    /// it as an object of its own, with a number just before this
-    /// one's.
+    /// How many times `modify` has been applied to it. Each `modify`
+    /// leaves the definition before it as an object of its own.
     pub mod_count: usize,
-    pub base_ids: Vec<u32>,
     /// It was made by a `replace` or `modify` of a name that was
     /// nothing, on the first reading, which passes no such name on.
     pub undefined_redef: bool,
@@ -205,13 +201,14 @@ pub(crate) struct ObjSym {
     /// built into the virtual machine that holds the words the program
     /// gives its objects.
     pub is_dict: bool,
-    /// On the second reading, for an object the first reading knew:
-    /// the name of the dictionary its words went in then.
-    pub dict_hint: Option<Vec<u8>>,
     /// It is a grammar production (`grammar name: ...`): an object of
     /// a class built into the virtual machine that holds the ways a
     /// phrase of its kind can be made up.
     pub is_gramprod: bool,
+    /// The properties that `replace` before a property in a `modify`
+    /// of this object takes away from what it modifies, when that is
+    /// in another source file: indexes into [`Program::props`].
+    pub del_props: Vec<usize>,
     /// For an object that a `grammar` statement with a tag defines, to
     /// be made when a phrase is matched: the production it is for, as
     /// an index into [`Program::gramprods`], and its ways of making
@@ -285,17 +282,14 @@ pub(crate) struct MetaSym {
     /// It is known of from the reading before, and not declared yet in
     /// this one.
     pub is_ext: bool,
-    /// When the name was first met: see [`PropSym::seq`].
-    pub seq: u32,
     /// The built-in class it is declared to be a kind of: an index
     /// into [`Program::metas`].
     pub super_meta: Option<usize>,
-    /// How many times `modify` has been applied to it, and the numbers
-    /// set aside for the objects that hold what the program adds to
-    /// the class: one with nothing in it, and then one for each
-    /// `modify`, each the superclass of the next.
+    /// How many times `modify` has been applied to it. What the
+    /// program adds to the class is held in objects: one with nothing
+    /// in it, and then one for each `modify`, each the superclass of
+    /// the next.
     pub mod_count: usize,
-    pub mod_ids: Vec<u32>,
     /// The latest of those objects, which is the one the class is told
     /// about.
     pub mod_obj: Option<u32>,
@@ -315,7 +309,7 @@ pub(crate) struct MetaEntry {
 /// The built-in classes every image depends on, whether it uses them
 /// or not. One more, `intrinsic-class`, is added after whatever the
 /// program declares.
-const PREDEFINED_METACLASSES: [&str; 8] = [
+pub(crate) const PREDEFINED_METACLASSES: [&str; 8] = [
     "tads-object/000000",
     "list/000000",
     "dictionary2/030000",
@@ -338,17 +332,10 @@ pub(crate) struct PropSym {
     /// (`&name`) when it was nothing else. A function defined with the
     /// name afterward takes the name over.
     pub weak: bool,
-    /// When the name was first met, among the properties and built-in
-    /// classes: a count that goes on from [`SECOND_READING`] for those
-    /// first met on the second reading of the source.
-    pub seq: u32,
     /// Its values are words for a dictionary
     /// (`dictionary property noun;`).
     pub vocab: bool,
 }
-
-/// Where the count of names first met on the second reading starts.
-pub(crate) const SECOND_READING: u32 = 1 << 24;
 
 /// The value an object definition gives a property.
 #[derive(Debug)]
@@ -475,8 +462,6 @@ pub(crate) struct EnumSym {
     /// It was declared with `enum token`, as a kind of token for a
     /// grammar to match.
     pub is_token: bool,
-    /// When the name was first met: see [`PropSym::seq`].
-    pub seq: u32,
 }
 
 /// The properties every program has, in the order of their numbers,
@@ -539,20 +524,275 @@ pub(crate) fn global_hash(name: &[u8]) -> usize {
     name.iter().map(|&byte| usize::from(byte)).sum::<usize>() % GLOBAL_HASH_SIZE
 }
 
+/// The table of global names: what each means, when it went in, and
+/// whether anything has looked it up.
+///
+/// The reference keeps the names in chains, the newest first in each,
+/// and a good deal of what it writes is in the order of that table: so
+/// the order names went in is kept. And when it puts a program of
+/// several source files together, a name that one file knows of from
+/// another counts for that file only if the file used it, which for
+/// the reference is whether it ever looked the name up.
+#[derive(Debug, Default)]
+pub(crate) struct Globals {
+    map: HashMap<Vec<u8>, Global>,
+    seqs: HashMap<Vec<u8>, u32>,
+    next_seq: u32,
+    used: std::cell::RefCell<HashSet<Vec<u8>>>,
+}
+
+impl Globals {
+    /// What a name means, which counts as a use of it.
+    pub(crate) fn get(&self, name: &[u8]) -> Option<&Global> {
+        let found = self.map.get(name);
+        if found.is_some() {
+            self.mark_used(name);
+        }
+        found
+    }
+
+    /// What a name means, for the compiler's own purposes: no use of
+    /// it.
+    pub(crate) fn peek(&self, name: &[u8]) -> Option<&Global> {
+        self.map.get(name)
+    }
+
+    pub(crate) fn contains_key(&self, name: &[u8]) -> bool {
+        self.get(name).is_some()
+    }
+
+    pub(crate) fn mark_used(&self, name: &[u8]) {
+        let mut used = self.used.borrow_mut();
+        if !used.contains(name) {
+            used.insert(name.to_vec());
+        }
+    }
+
+    pub(crate) fn is_used(&self, name: &[u8]) -> bool {
+        self.used.borrow().contains(name)
+    }
+
+    /// Give a name a meaning. A name that had none goes in as the
+    /// newest, and so does one whose meaning changes: the reference
+    /// takes the old one out first.
+    pub(crate) fn insert(&mut self, name: Vec<u8>, global: Global) -> Option<Global> {
+        self.mark_used(&name);
+        self.insert_known(name, global)
+    }
+
+    /// The same, for a name another reading of the source or another
+    /// source file defined, which is no use of it.
+    pub(crate) fn insert_known(&mut self, name: Vec<u8>, global: Global) -> Option<Global> {
+        if self.map.get(&name) != Some(&global) {
+            self.seqs.insert(name.clone(), self.next_seq);
+            self.next_seq += 1;
+        }
+        self.map.insert(name, global)
+    }
+
+    pub(crate) fn remove(&mut self, name: &[u8]) -> Option<Global> {
+        self.seqs.remove(name);
+        self.map.remove(name)
+    }
+
+    /// Set the table up as it is when the names another reading or
+    /// another source file made known have gone in, in that order, and
+    /// nothing has been used yet. What the compiler itself put in
+    /// first stays first.
+    pub(crate) fn load_order(&mut self, order: &[Vec<u8>]) {
+        let mut own: Vec<(u32, Vec<u8>)> = self
+            .seqs
+            .iter()
+            .map(|(name, seq)| (*seq, name.clone()))
+            .collect();
+        own.sort_unstable();
+        self.seqs.clear();
+        self.next_seq = 0;
+        let known: HashSet<&[u8]> = order.iter().map(Vec::as_slice).collect();
+        let first = own
+            .iter()
+            .map(|(_, name)| name)
+            .filter(|name| !known.contains(name.as_slice()));
+        for name in first.chain(order) {
+            if self.map.contains_key(name) && !self.seqs.contains_key(name) {
+                self.seqs.insert(name.clone(), self.next_seq);
+                self.next_seq += 1;
+            }
+        }
+        self.used.borrow_mut().clear();
+    }
+
+    /// When a name went in: a count.
+    pub(crate) fn seq(&self, name: &[u8]) -> u32 {
+        self.seqs.get(name).copied().unwrap_or(u32::MAX)
+    }
+
+    /// Where a name comes in the table as the reference goes through
+    /// it: chain by chain, and in a chain the newest first.
+    pub(crate) fn place(&self, name: &[u8]) -> (usize, std::cmp::Reverse<u32>) {
+        (global_hash(name), std::cmp::Reverse(self.seq(name)))
+    }
+
+    /// The names, in the order of the table.
+    pub(crate) fn in_table_order(&self) -> Vec<(&[u8], Global)> {
+        let mut names: Vec<(&[u8], Global)> = self
+            .map
+            .iter()
+            .map(|(name, global)| (name.as_slice(), *global))
+            .collect();
+        names.sort_unstable_by_key(|(name, _)| self.place(name));
+        names
+    }
+}
+
 /// What one reading of the source passes on to the next: the names it
 /// defined, in the order the reference writes them to its symbol file,
 /// which is the order of its table of global names.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct Exports {
+    /// The names, in the order the reference's symbol file has them.
+    pub order: Vec<Vec<u8>>,
+    /// The names more than one source file made known. The reference
+    /// looks a name up when it reads it from a symbol file, to see if
+    /// it has it already, and that counts as a use of the name, in
+    /// every source file.
+    pub used: Vec<Vec<u8>>,
+    /// The sets of built-in functions the source declared, in order.
+    pub fnsets: Vec<Vec<u8>>,
     pub funcs: Vec<FuncSym>,
     pub objs: Vec<ObjSym>,
     /// The built-in classes declared, in the order they were, each with
     /// the virtual machine's name for it.
     pub metas: Vec<(MetaSym, Vec<u8>)>,
     /// Each with whether it is a property only for want of anything
-    /// else (see [`PropSym::weak`]), and when it was first met.
-    pub props: Vec<(Vec<u8>, bool, u32)>,
+    /// else (see [`PropSym::weak`]).
+    pub props: Vec<(Vec<u8>, bool)>,
     pub enums: Vec<EnumSym>,
+}
+
+/// What the source files of a program each made known, as each of them
+/// is to see it on its second reading. The reference reads the symbol
+/// files of all of them, in order, before it compiles any one: the
+/// first to define a name has it, but a name that is a property only
+/// for want of anything better gives way to anything else.
+pub(crate) fn merge_exports(all: Vec<Exports>) -> Exports {
+    enum Rec {
+        Func(FuncSym),
+        Obj(ObjSym),
+        Meta((MetaSym, Vec<u8>)),
+        Prop((Vec<u8>, bool)),
+        Enum(EnumSym),
+    }
+    // Each name that has gone in, with the file it came from, and
+    // whether it is still there.
+    let mut recs: Vec<Option<(usize, Rec)>> = Vec::new();
+    let mut names: Vec<Vec<u8>> = Vec::new();
+    let mut index: HashMap<Vec<u8>, usize> = HashMap::new();
+    let mut used: Vec<Vec<u8>> = Vec::new();
+    let mut all_fnsets: Vec<Vec<u8>> = Vec::new();
+    for (file, exports) in all.into_iter().enumerate() {
+        let Exports {
+            used: _,
+            fnsets,
+            order,
+            funcs,
+            objs,
+            metas,
+            props,
+            enums,
+        } = exports;
+        all_fnsets.extend(fnsets);
+        // Where each was in the file's own lists, whose order is kept.
+        let mut by_name: HashMap<Vec<u8>, (usize, Rec)> = HashMap::new();
+        let mut place = 0;
+        let mut add = |by_name: &mut HashMap<Vec<u8>, (usize, Rec)>, name: Vec<u8>, rec: Rec| {
+            by_name.insert(name, (place, rec));
+            place += 1;
+        };
+        for func in funcs {
+            add(&mut by_name, func.name.clone(), Rec::Func(func));
+        }
+        for obj in objs {
+            add(&mut by_name, obj.name.clone(), Rec::Obj(obj));
+        }
+        for meta in metas {
+            add(&mut by_name, meta.0.name.clone(), Rec::Meta(meta));
+        }
+        for prop in props {
+            add(&mut by_name, prop.0.clone(), Rec::Prop(prop));
+        }
+        for sym in enums {
+            add(&mut by_name, sym.name.clone(), Rec::Enum(sym));
+        }
+        for name in order {
+            let Some((place, rec)) = by_name.remove(&name) else {
+                continue;
+            };
+            if index.contains_key(&name) && !used.contains(&name) {
+                used.push(name.clone());
+            }
+            let old = index
+                .get(&name)
+                .and_then(|at| recs[*at].as_mut())
+                .map(|(_, rec)| rec);
+            // What each kind of name makes of one already there.
+            match (&rec, old) {
+                (Rec::Prop(_), Some(Rec::Prop(_))) | (Rec::Meta(_), Some(Rec::Meta(_))) => {
+                    continue;
+                }
+                (Rec::Prop((_, true)), Some(_)) => continue,
+                (Rec::Enum(new), Some(Rec::Enum(old))) => {
+                    old.is_token |= new.is_token;
+                    continue;
+                }
+                (Rec::Obj(new), Some(Rec::Obj(old)))
+                    if (new.is_dict && old.is_dict) || (new.is_gramprod && old.is_gramprod) =>
+                {
+                    continue;
+                }
+                _ => {}
+            }
+            let old_weak = matches!(
+                index.get(&name).and_then(|at| recs[*at].as_ref()),
+                Some((_, Rec::Prop((_, true))))
+            );
+            if old_weak {
+                let at = index.remove(&name).expect("the old one");
+                recs[at] = None;
+            } else if index.contains_key(&name) {
+                continue;
+            }
+            index.insert(name.clone(), recs.len());
+            recs.push(Some((file * (1 << 32) + place, rec)));
+            names.push(name);
+        }
+    }
+    let mut merged = Exports {
+        used: used
+            .into_iter()
+            .filter(|name| index.contains_key(name))
+            .collect(),
+        fnsets: all_fnsets,
+        ..Exports::default()
+    };
+    let mut kept: Vec<(usize, Rec)> = Vec::new();
+    for (rec, name) in recs.into_iter().zip(names) {
+        if let Some(rec) = rec {
+            merged.order.push(name);
+            kept.push(rec);
+        }
+    }
+    kept.sort_by_key(|(place, _)| *place);
+    for (_, rec) in kept {
+        match rec {
+            Rec::Func(func) => merged.funcs.push(func),
+            Rec::Obj(obj) => merged.objs.push(obj),
+            Rec::Meta(meta) => merged.metas.push(meta),
+            Rec::Prop(prop) => merged.props.push(prop),
+            Rec::Enum(sym) => merged.enums.push(sym),
+        }
+    }
+    merged
 }
 
 /// A program as the parser leaves it.
@@ -570,7 +810,7 @@ pub(crate) struct Program {
     pub fnsets: Vec<Vec<u8>>,
     /// The number of elements in the longest list in the source.
     pub max_list_cnt: usize,
-    pub globals: HashMap<Vec<u8>, Global>,
+    pub globals: Globals,
     /// The bodies of functions and methods, in the order the source has
     /// them, each with the function it defines if it is a function's.
     pub bodies: Vec<(CodeBody, Option<usize>)>,
@@ -591,9 +831,6 @@ pub(crate) struct Program {
     /// number, the one it is directly inside of as the parser saw it.
     /// A `catch` block is outside its `try` there.
     pub enclosure_parents: HashMap<usize, Option<usize>>,
-    /// The count that says when a property or a built-in class was
-    /// first met.
-    pub next_seq: u32,
     /// The names the program makes known to the virtual machine
     /// (`export`): each a name in the program, and the name the
     /// virtual machine knows it by.
@@ -612,8 +849,6 @@ pub(crate) struct Program {
     pub dict_props: Vec<usize>,
     /// The grammar productions, in the order they were first named.
     pub gramprods: Vec<GramProd>,
-    /// The objects known only as the types of parameters.
-    pub type_refs: Vec<usize>,
 }
 
 /// What is known of a body that others are nested in.
@@ -683,22 +918,30 @@ impl Program {
     /// Whether an expression leaves a value. A call to a function that
     /// is known not to return one does not, nor does a string that
     /// displays itself.
-    pub(crate) fn has_return_value(&self, expr: &Expr) -> bool {
+    ///
+    /// Where the names in the expression were looked up and nothing
+    /// more (`by_func`), as in a parameter's default value, a call to
+    /// a function is still known for one, and goes by the function.
+    pub(crate) fn has_return_value(&self, expr: &Expr, by_func: bool) -> bool {
         match expr {
             Expr::Call(func, _) => match &**func {
                 Expr::Sym(name) => match self.globals.get(name) {
                     Some(Global::Func(func)) => self.funcs[*func].has_retval,
                     _ => true,
                 },
+                Expr::Const(ConstVal {
+                    value: Value::FuncPtr(func),
+                    ..
+                }) if by_func => self.funcs[*func].has_retval,
                 Expr::AnonFunc { has_retval, .. } => *has_retval,
                 _ => true,
             },
-            Expr::Binary(BinOp::Comma, _, right) => self.has_return_value(right),
+            Expr::Binary(BinOp::Comma, _, right) => self.has_return_value(right, by_func),
             Expr::If(_, second, third) => {
-                self.has_return_value(second) || self.has_return_value(third)
+                self.has_return_value(second, by_func) || self.has_return_value(third, by_func)
             }
             Expr::IfNil(first, second) => {
-                self.has_return_value(first) || self.has_return_value(second)
+                self.has_return_value(first, by_func) || self.has_return_value(second, by_func)
             }
             Expr::DStr(_) | Expr::DStrEmbed(_) => false,
             Expr::OneOf(dbl, ..) => !dbl,
@@ -734,17 +977,14 @@ impl Program {
             .objs
             .iter()
             .filter(|obj| {
-                !obj.is_extern && !obj.undefined_redef && self.globals.contains_key(&obj.name)
+                !obj.is_extern && !obj.undefined_redef && self.globals.peek(&obj.name).is_some()
             })
             .map(|obj| ObjSym {
                 is_extern: true,
                 gram: None,
-                dict_hint: obj
-                    .def
-                    .and_then(|def| self.objdefs[def].dict)
-                    .map(|dict| self.objs[dict].name.clone()),
+                del_props: Vec::new(),
                 def: None,
-                base_ids: Vec::new(),
+                mod_count: 0,
                 ext_redef: false,
                 templates: Vec::new(),
                 ..obj.clone()
@@ -759,7 +999,6 @@ impl Program {
                     is_ext: true,
                     props: Vec::new(),
                     super_meta: None,
-                    mod_ids: Vec::new(),
                     mod_obj: None,
                     ..meta.clone()
                 };
@@ -771,10 +1010,28 @@ impl Program {
             .iter()
             .enumerate()
             .skip(SPECIAL_PROPS.len())
-            .filter(|(index, prop)| self.globals.get(&prop.name) == Some(&Global::Prop(*index)))
-            .map(|(_, prop)| (prop.name.clone(), prop.weak, prop.seq))
+            .filter(|(index, prop)| self.globals.peek(&prop.name) == Some(&Global::Prop(*index)))
+            .map(|(_, prop)| (prop.name.clone(), prop.weak))
             .collect();
+        let funcs: Vec<FuncSym> = funcs;
+        let props: Vec<(Vec<u8>, bool)> = props;
+        let metas: Vec<(MetaSym, Vec<u8>)> = metas;
+        let mut order: Vec<Vec<u8>> = funcs
+            .iter()
+            .map(|func| &func.name)
+            .chain(objs.iter().map(|obj| &obj.name))
+            .chain(metas.iter().map(|(meta, _)| &meta.name))
+            .chain(props.iter().map(|(name, ..)| name))
+            .chain(self.enums.iter().map(|sym| &sym.name))
+            .filter(|name| self.globals.peek(name).is_some())
+            .cloned()
+            .collect();
+        order.sort_unstable_by_key(|name| self.globals.place(name));
+        order.dedup();
         Exports {
+            order,
+            used: Vec::new(),
+            fnsets: self.fnsets.clone(),
             funcs,
             objs,
             metas,
@@ -783,90 +1040,11 @@ impl Program {
         }
     }
 
-    /// The number each value of an enumeration has in the image. Like
-    /// properties, they are numbered when the program is put together,
-    /// from one, in the order of the table of global names: see
-    /// [`Program::final_prop_ids`].
+    /// The number each value of an enumeration has while its source
+    /// file is compiled. The number it has in the image is given when
+    /// the program is put together.
     pub(crate) fn final_enum_ids(&self) -> Vec<u32> {
-        let mut order: Vec<usize> = (0..self.enums.len()).collect();
-        order.sort_by_key(|&index| {
-            let sym = &self.enums[index];
-            let new = sym.seq >= SECOND_READING;
-            let within = if new { u32::MAX - sym.seq } else { sym.seq };
-            (global_hash(&sym.name), !new, within)
-        });
-        let mut ids = vec![0; self.enums.len()];
-        for (place, index) in order.into_iter().enumerate() {
-            ids[index] = place as u32 + 1;
-        }
-        ids
-    }
-
-    /// The number each property has in the image, by the number it had
-    /// while compiling. The reference numbers properties when it puts
-    /// the program together, in the order of its table of global names
-    /// then: chain by chain, and in a chain the names first met on the
-    /// last reading of the source, newest first, and then those of the
-    /// reading before, oldest first. A built-in class's name there
-    /// brings the properties the class declares, in the order it
-    /// declares them. The properties every program has keep their
-    /// numbers.
-    ///
-    /// A name that stopped being a property gets no number. The second
-    /// value is the number the next property would get.
-    pub(crate) fn final_prop_ids(&self) -> (Vec<u16>, u16) {
-        let special = SPECIAL_PROPS.len();
-        let is_prop = |index: usize| {
-            index >= special
-                && self.globals.get(&self.props[index].name) == Some(&Global::Prop(index))
-        };
-        // The names in the table's order: properties, and built-in
-        // classes.
-        let key = |name: &[u8], seq: u32| {
-            let new = seq >= SECOND_READING;
-            let within = if new { u32::MAX - seq } else { seq };
-            (global_hash(name), !new, within)
-        };
-        // Each name's place in the table, and the property or the
-        // built-in class it is.
-        type Placed = ((usize, bool, u32), Option<usize>, Option<usize>);
-        let mut names: Vec<Placed> = (special..self.props.len())
-            .filter(|index| is_prop(*index))
-            .map(|index| {
-                let prop = &self.props[index];
-                (key(&prop.name, prop.seq), Some(index), None)
-            })
-            .chain(
-                self.metas
-                    .iter()
-                    .enumerate()
-                    .map(|(index, meta)| (key(&meta.name, meta.seq), None, Some(index))),
-            )
-            .collect();
-        names.sort_unstable();
-        let mut order: Vec<usize> = Vec::new();
-        let mut placed = vec![false; self.props.len()];
-        for (_, prop, meta) in names {
-            let props: &[usize] = match (&prop, meta) {
-                (Some(prop), _) => std::slice::from_ref(prop),
-                (None, Some(meta)) => &self.metas[meta].props,
-                (None, None) => &[],
-            };
-            for &index in props {
-                if is_prop(index) && !placed[index] {
-                    placed[index] = true;
-                    order.push(index);
-                }
-            }
-        }
-        // Indexed by the compile-time number, which starts at 1.
-        let mut ids: Vec<u16> = (0..=special as u16).collect();
-        ids.resize(self.props.len() + 1, 0);
-        let next = (special + 1 + order.len()) as u16;
-        for (place, index) in order.into_iter().enumerate() {
-            ids[usize::from(self.props[index].id)] = (special + 1 + place) as u16;
-        }
-        (ids, next)
+        (1..=self.enums.len() as u32).collect()
     }
 
     /// Find a built-in class in the table of them by the virtual
@@ -917,10 +1095,8 @@ impl Program {
             name: name.to_vec(),
             id: self.next_prop_id,
             weak: false,
-            seq: self.next_seq,
             vocab: false,
         });
-        self.next_seq += 1;
         self.next_prop_id += 1;
         self.globals
             .insert(name.to_vec(), Global::Prop(self.props.len() - 1));
@@ -1127,9 +1303,12 @@ impl<'p, 'a> Parser<'p, 'a> {
         for name in SPECIAL_PROPS {
             prog.def_prop(name.as_bytes());
         }
+        for name in &known.fnsets {
+            prog.add_fnset(name);
+        }
         for func in known.funcs {
             prog.globals
-                .insert(func.name.clone(), Global::Func(prog.funcs.len()));
+                .insert_known(func.name.clone(), Global::Func(prog.funcs.len()));
             prog.funcs.push(func);
         }
         for name in PREDEFINED_METACLASSES {
@@ -1138,93 +1317,47 @@ impl<'p, 'a> Parser<'p, 'a> {
                 sym: None,
             });
         }
-        // Objects and the objects that stand for built-in classes are
-        // numbered together, in the order of the table of global names:
-        // chain by chain, and in a chain as they were first met.
-        let mut numbered: Vec<(usize, u32, bool, usize)> =
-            known
-                .objs
-                .iter()
-                .enumerate()
-                .map(|(index, obj)| (global_hash(&obj.name), obj.id, false, index))
-                .chain(
-                    known.metas.iter().enumerate().map(|(index, (meta, _))| {
-                        (global_hash(&meta.name), meta.obj_id, true, index)
-                    }),
-                )
-                .collect();
-        numbered.sort_unstable();
+        // Objects and the objects that stand for built-in classes get
+        // numbers of this reading's own. The numbers they have in the
+        // image are given when the program is put together.
         let mut objs = known.objs;
         let mut metas = known.metas;
-        let mut dict_numbered = HashSet::new();
-        for (_, _, is_meta, index) in numbered {
-            if is_meta {
-                // The objects that hold what `modify` adds to the class
-                // come just after the object that stands for it.
-                let meta = &mut metas[index].0;
-                meta.obj_id = prog.next_obj_id;
-                if meta.mod_count != 0 {
-                    for _ in 0..=meta.mod_count {
-                        prog.next_obj_id += 1;
-                        meta.mod_ids.push(prog.next_obj_id);
-                    }
-                }
-                meta.mod_count = 0;
-            } else {
-                // A dictionary is numbered just before the first object
-                // whose words go in it, if that comes before its own
-                // turn: the reference writes it out ahead of the
-                // object, and numbers things as it reads them back.
-                if objs[index].is_dict {
-                    if !dict_numbered.insert(index) {
-                        continue;
-                    }
-                } else if let Some(hint) = objs[index].dict_hint.take() {
-                    let dict = objs.iter().position(|obj| obj.is_dict && obj.name == hint);
-                    if let Some(dict) = dict {
-                        if dict_numbered.insert(dict) {
-                            objs[dict].id = prog.next_obj_id;
-                            prog.next_obj_id += 1;
-                        }
-                    }
-                }
-                // The definitions a `modify` set aside come just
-                // before the object, the oldest first.
-                let obj = &mut objs[index];
-                for _ in 0..obj.mod_count {
-                    obj.base_ids.push(prog.next_obj_id);
-                    prog.next_obj_id += 1;
-                }
-                obj.mod_count = 0;
-                obj.id = prog.next_obj_id;
-            }
+        for obj in &mut objs {
+            obj.mod_count = 0;
+            obj.id = prog.next_obj_id;
+            prog.next_obj_id += 1;
+        }
+        for (meta, _) in &mut metas {
+            meta.mod_count = 0;
+            meta.obj_id = prog.next_obj_id;
             prog.next_obj_id += 1;
         }
         for obj in objs {
             prog.globals
-                .insert(obj.name.clone(), Global::Obj(prog.objs.len()));
+                .insert_known(obj.name.clone(), Global::Obj(prog.objs.len()));
             prog.objs.push(obj);
         }
         for (mut meta, vm_name) in metas {
             let index = prog.metas.len();
             meta.meta = prog.find_or_add_meta(&vm_name, Some(index));
-            prog.globals.insert(meta.name.clone(), Global::Meta(index));
+            prog.globals
+                .insert_known(meta.name.clone(), Global::Meta(index));
             prog.metas.push(meta);
         }
         for sym in known.enums {
             prog.globals
-                .insert(sym.name.clone(), Global::Enum(prog.enums.len()));
+                .insert_known(sym.name.clone(), Global::Enum(prog.enums.len()));
             prog.enums.push(sym);
         }
-        for (name, weak, seq) in known.props {
-            if !prog.globals.contains_key(&name) {
+        for (name, weak) in known.props {
+            if prog.globals.peek(&name).is_none() {
                 let prop = prog.def_prop(&name);
                 prog.props[prop].weak = weak;
-                prog.props[prop].seq = seq;
             }
         }
-        if !syntax_only {
-            prog.next_seq = SECOND_READING;
+        prog.globals.load_order(&known.order);
+        for name in &known.used {
+            prog.globals.mark_used(name);
         }
         Self {
             tok,
@@ -1508,7 +1641,9 @@ impl<'p, 'a> Parser<'p, 'a> {
     fn parse_template_def(&mut self, class: Option<Vec<u8>>) -> Parsed<()> {
         let mut class_sym = None;
         if let Some(name) = class {
-            match self.prog.globals.get(&name).copied() {
+            // (The reference looks the class up here without counting
+            // it as a use of the name.)
+            match self.prog.globals.peek(&name).copied() {
                 Some(Global::Obj(obj)) => class_sym = Some(obj),
                 Some(_) => {
                     self.error_curtok("symbol \"%\" is already defined - can't redefine as object");
@@ -1525,19 +1660,18 @@ impl<'p, 'a> Parser<'p, 'a> {
                         templates: Vec::new(),
                         def: None,
                         mod_count: 0,
-                        base_ids: Vec::new(),
                         undefined_redef: false,
                         declared_only: true,
                         ext_redef: false,
                         is_dict: false,
-                        dict_hint: None,
                         is_gramprod: false,
                         gram: None,
+                        del_props: Vec::new(),
                     });
                     class_sym = Some(self.prog.objs.len() - 1);
                     self.prog
                         .globals
-                        .insert(name, Global::Obj(self.prog.objs.len() - 1));
+                        .insert_known(name, Global::Obj(self.prog.objs.len() - 1));
                 }
             }
         }
@@ -2063,7 +2197,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         let value = if has_local_ctx {
             let kind = if let Some(prop) = static_prop {
                 StmtKind::StaticPropInit(expr, prop)
-            } else if self.prog.has_return_value(&expr) {
+            } else if self.prog.has_return_value(&expr, false) {
                 StmtKind::Return(Some(expr))
             } else {
                 StmtKind::Expr(expr)
@@ -2141,18 +2275,17 @@ impl<'p, 'a> Parser<'p, 'a> {
                     templates: Vec::new(),
                     def: None,
                     mod_count: 0,
-                    base_ids: Vec::new(),
                     undefined_redef: false,
                     declared_only: true,
                     ext_redef: false,
                     is_dict: false,
-                    dict_hint: None,
                     is_gramprod: false,
                     gram: None,
+                    del_props: Vec::new(),
                 });
                 self.prog
                     .globals
-                    .insert(name, Global::Obj(self.prog.objs.len() - 1));
+                    .insert_known(name, Global::Obj(self.prog.objs.len() - 1));
             }
             Some(Global::Obj(obj)) if self.prog.objs[obj].is_class == is_class => {}
             Some(_) => {
@@ -2625,6 +2758,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                             old.1 = None;
                             old.0.closure.func_id = None;
                         } else {
+                            body.closure.replaced_ext = Some(id);
                             func.mod_extern = true;
                             func.ext_redef = true;
                         }
@@ -2775,12 +2909,19 @@ impl<'p, 'a> Parser<'p, 'a> {
     /// version; of two declarations of a set, the later version is
     /// kept.
     fn add_fnset(&mut self, name: &[u8]) -> usize {
+        self.prog.add_fnset(name)
+    }
+}
+
+impl Program {
+    /// See [`Parser::add_fnset`].
+    pub(crate) fn add_fnset(&mut self, name: &[u8]) -> usize {
         // No more of a version is kept than the slash and six characters.
         const VERSION_LEN: usize = 7;
         let split = |text: &[u8]| text.iter().position(|&c| c == b'/').unwrap_or(text.len());
         let slash = split(name);
         let version = &name[slash..];
-        for (index, known) in self.prog.fnsets.iter_mut().enumerate() {
+        for (index, known) in self.fnsets.iter_mut().enumerate() {
             let known_slash = split(known);
             if known[..known_slash] != name[..slash] {
                 continue;
@@ -2806,10 +2947,12 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
             return index;
         }
-        self.prog.fnsets.push(name.to_vec());
-        self.prog.fnsets.len() - 1
+        self.fnsets.push(name.to_vec());
+        self.fnsets.len() - 1
     }
+}
 
+impl Parser<'_, '_> {
     /// Read `intrinsic 'set-name' { name(parameters); ... }`: the
     /// functions of a set built into the virtual machine, in the order
     /// the set has them.
@@ -3207,7 +3350,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         let Some(expr) = expr else {
             return Ok(None);
         };
-        let kind = if self.prog.has_return_value(&expr) {
+        let kind = if self.prog.has_return_value(&expr, false) {
             StmtKind::Return(Some(expr))
         } else {
             StmtKind::Expr(expr)
@@ -3480,19 +3623,20 @@ impl<'p, 'a> Parser<'p, 'a> {
                                     templates: Vec::new(),
                                     def: None,
                                     mod_count: 0,
-                                    base_ids: Vec::new(),
                                     undefined_redef: false,
                                     declared_only: false,
                                     ext_redef: false,
                                     is_dict: false,
-                                    dict_hint: None,
                                     is_gramprod: false,
                                     gram: None,
+                                    del_props: Vec::new(),
                                 });
                                 self.prog.next_obj_id += 1;
                                 let obj = self.prog.objs.len() - 1;
+                                // An object known only as the type of
+                                // a parameter has to be defined
+                                // somewhere: the name counts as used.
                                 self.prog.globals.insert(name.clone(), Global::Obj(obj));
-                                self.prog.type_refs.push(obj);
                             }
                             Some(Global::Obj(_) | Global::Meta(_)) => {}
                             Some(_) => self.error(format!(
@@ -5441,13 +5585,10 @@ impl Parser<'_, '_> {
                             meta: 0,
                             props: Vec::new(),
                             is_ext: false,
-                            seq: self.prog.next_seq,
                             super_meta: None,
                             mod_count: 0,
-                            mod_ids: Vec::new(),
                             mod_obj: None,
                         });
-                        self.prog.next_seq += 1;
                         self.prog.next_obj_id += 1;
                         let index = self.prog.metas.len() - 1;
                         self.prog.globals.insert(name, Global::Meta(index));
@@ -5586,12 +5727,7 @@ impl Parser<'_, '_> {
                             self.prog
                                 .globals
                                 .insert(name.clone(), Global::Enum(self.prog.enums.len()));
-                            self.prog.enums.push(EnumSym {
-                                name,
-                                is_token,
-                                seq: self.prog.next_seq,
-                            });
-                            self.prog.next_seq += 1;
+                            self.prog.enums.push(EnumSym { name, is_token });
                         }
                     }
                     match self.next() {
@@ -5885,7 +6021,7 @@ impl Parser<'_, '_> {
 
         let expr = self.parse_expr();
         let value = expr.map(|expr| {
-            let has_retval = self.prog.has_return_value(&expr);
+            let has_retval = self.prog.has_return_value(&expr, false);
             let kind = if has_retval {
                 StmtKind::Return(Some(expr.clone()))
             } else {
@@ -6177,21 +6313,14 @@ impl Parser<'_, '_> {
                 // objects of a kind of their own. The first is empty,
                 // and each `modify` makes another, whose superclass is
                 // the one before.
-                let done = self.prog.metas[meta].mod_count;
-                let id_for = |parser: &mut Self, place: usize| match parser.prog.metas[meta]
-                    .mod_ids
-                    .get(place)
-                {
-                    Some(id) => *id,
-                    None => {
-                        parser.prog.next_obj_id += 1;
-                        parser.prog.next_obj_id - 1
-                    }
+                let new_id = |parser: &mut Self| {
+                    parser.prog.next_obj_id += 1;
+                    parser.prog.next_obj_id - 1
                 };
                 let base = match self.prog.metas[meta].mod_obj {
                     Some(base) => base,
                     None => {
-                        let root = id_for(self, 0);
+                        let root = new_id(self);
                         let (file, line) = self.tok.last_pos();
                         self.prog.nested.push(Top::Obj(self.prog.objdefs.len()));
                         self.prog.objdefs.push(ObjDef {
@@ -6216,7 +6345,7 @@ impl Parser<'_, '_> {
                         root
                     }
                 };
-                let id = id_for(self, done + 1);
+                let id = new_id(self);
                 let meta_sym = &mut self.prog.metas[meta];
                 meta_sym.mod_count += 1;
                 meta_sym.mod_obj = Some(id);
@@ -6227,20 +6356,14 @@ impl Parser<'_, '_> {
                 // with a number of its own, and the only superclass of
                 // the new definition, which takes the name.
                 let sym = &mut self.prog.objs[obj];
-                let done = sym.mod_count;
                 sym.mod_count += 1;
                 if std::mem::take(&mut sym.is_extern) {
                     sym.ext_redef = true;
                 }
                 *is_class = sym.is_class;
                 let prev = sym.def;
-                let base_id = match sym.base_ids.get(done) {
-                    Some(id) => *id,
-                    None => {
-                        self.prog.next_obj_id += 1;
-                        self.prog.next_obj_id - 1
-                    }
-                };
+                self.prog.next_obj_id += 1;
+                let base_id = self.prog.next_obj_id - 1;
                 if let Some(prev) = prev {
                     let prev = &mut self.prog.objdefs[prev];
                     prev.mod_id = Some(base_id);
@@ -6291,14 +6414,13 @@ impl Parser<'_, '_> {
                     templates: Vec::new(),
                     def: None,
                     mod_count: 0,
-                    base_ids: Vec::new(),
                     undefined_redef: redef != Redef::No,
                     declared_only: false,
                     ext_redef: false,
                     is_dict: false,
-                    dict_hint: None,
                     is_gramprod: false,
                     gram: None,
+                    del_props: Vec::new(),
                 });
                 self.prog.next_obj_id += 1;
                 self.prog
@@ -6347,14 +6469,13 @@ impl Parser<'_, '_> {
                     templates: Vec::new(),
                     def: None,
                     mod_count: 0,
-                    base_ids: Vec::new(),
                     undefined_redef: false,
                     declared_only: false,
                     ext_redef: false,
                     is_dict: false,
-                    dict_hint: None,
                     is_gramprod: true,
                     gram: None,
+                    del_props: Vec::new(),
                 });
                 self.prog.next_obj_id += 1;
                 let obj = self.prog.objs.len() - 1;
@@ -6914,14 +7035,13 @@ impl Parser<'_, '_> {
                             templates: Vec::new(),
                             def: None,
                             mod_count: 0,
-                            base_ids: Vec::new(),
                             undefined_redef: false,
                             declared_only: false,
                             ext_redef: false,
                             is_dict: true,
-                            dict_hint: None,
                             is_gramprod: false,
                             gram: None,
+                            del_props: Vec::new(),
                         });
                         self.prog.next_obj_id += 1;
                         let obj = self.prog.objs.len() - 1;
@@ -7086,14 +7206,13 @@ impl Parser<'_, '_> {
             templates: Vec::new(),
             def: None,
             mod_count: 0,
-            base_ids: Vec::new(),
             undefined_redef: false,
             declared_only: false,
             ext_redef: false,
             is_dict: false,
-            dict_hint: None,
             is_gramprod: false,
             gram: None,
+            del_props: Vec::new(),
         });
         self.prog.next_obj_id += 1;
         self.prog.objs.len() - 1
@@ -8049,13 +8168,25 @@ impl Parser<'_, '_> {
         if let (true, Some(new_prop), false) = (self.prop_replace, new_prop, self.syntax_only) {
             let prop = def.props[new_prop].prop;
             let mut prev = def.prev_def;
+            // The first definition the source has may itself be a
+            // `modify`, of a definition in another source file: then
+            // the property is to go from that one too, when the
+            // program is put together.
+            let mut from_elsewhere = def.is_modify && def.prev_def.is_none();
             while let Some(index) = prev {
                 let base = &mut self.prog.objdefs[index];
                 if let Some(at) = base.props.iter().position(|other| other.prop == prop) {
                     base.props.remove(at);
                 }
                 base.vocab.retain(|(_, word_prop)| *word_prop != prop);
+                from_elsewhere = base.is_modify && base.prev_def.is_none();
                 prev = base.prev_def;
+            }
+            if let (true, Some(sym)) = (from_elsewhere, def.sym) {
+                let del_props = &mut self.prog.objs[sym].del_props;
+                if !del_props.contains(&prop) {
+                    del_props.push(prop);
+                }
             }
         }
 

@@ -2576,3 +2576,230 @@ fn multi_methods_have_their_own_mistakes() {
         ]
     );
 }
+
+/// Compile a program of several source files, put together in the
+/// order given.
+fn compile_files(sources: &[(&str, &str)]) -> Compiled {
+    let mut files = Files::default();
+    for (name, text) in sources {
+        files = files.with(name, text);
+    }
+    let names: Vec<&str> = sources.iter().map(|(name, _)| *name).collect();
+    crate::compile_program(&mut files, &names, &CompileOptions::default())
+}
+
+fn messages_of(compiled: Compiled) -> Vec<String> {
+    compiled
+        .diagnostics
+        .into_iter()
+        .map(|problem| format!("{}({}): {}", problem.file, problem.line, problem.message))
+        .collect()
+}
+
+#[test]
+fn a_program_can_be_several_source_files() {
+    // Each file uses what the other defines: a class, an object, a
+    // property, a value of an enumeration, and a function.
+    let one = "class Thing: object weight = 1 kind = heavy;\n\
+               enum light, heavy;\n\
+               _main(args) { return rock.weight + twice(rock.size) + (rock.kind == light ? 1 : 0); }\n";
+    let two = "rock: Thing weight = 7 size = 3 kind = light;\n\
+               twice(x) { return x * 2 + Thing.weight; }\n";
+    let compiled = compile_files(&[("one.t", one), ("two.t", two)]);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // Two objects, numbered 1 and 2 between them, and the object's
+    // one superclass is the class from the other file.
+    let objs = block(&image, b"OBJS");
+    assert_eq!(objs[0..2], [2, 0]);
+    let mut found = Vec::new();
+    let mut at = 6;
+    for _ in 0..2 {
+        let id = u32::from_le_bytes(objs[at..at + 4].try_into().unwrap());
+        let size = usize::from(u16::from_le_bytes([objs[at + 4], objs[at + 5]]));
+        let sc_count = u16::from_le_bytes([objs[at + 6], objs[at + 7]]);
+        let is_class = objs[at + 10] & 1 != 0;
+        let superclass =
+            (sc_count == 1).then(|| u32::from_le_bytes(objs[at + 12..at + 16].try_into().unwrap()));
+        found.push((id, is_class, superclass));
+        at += 6 + size;
+    }
+    found.sort_unstable();
+    let class = found
+        .iter()
+        .find(|(_, is_class, _)| *is_class)
+        .expect("the class");
+    let object = found
+        .iter()
+        .find(|(_, is_class, _)| !*is_class)
+        .expect("the object");
+    assert_eq!([found[0].0, found[1].0], [1, 2]);
+    assert_eq!(class.2, None);
+    assert_eq!(object.2, Some(class.0));
+
+    // The same program as one file is the same program: the code of
+    // the two is of one length.
+    let whole = compile_text(&format!("{one}{two}"));
+    let whole = whole.image.expect("an image");
+    assert_eq!(block(&whole, b"CPPG").len(), block(&image, b"CPPG").len());
+}
+
+#[test]
+fn what_two_files_both_define_is_found_when_they_are_put_together() {
+    let one = "f(x) { return 1; }\no: object;\n_main(args) { return f(1); }\n";
+    let two = "f(x) { return 2; }\no: object;\n";
+    assert_eq!(
+        messages_of(compile_files(&[("one.t", one), ("two.t", two)])),
+        [
+            "(0): symbol \"f\" (type: function) redefined in object file \"two.t3o\"",
+            "(0): symbol \"o\" (type: object) redefined in object file \"two.t3o\"",
+        ]
+    );
+}
+
+#[test]
+fn what_no_file_defines_is_unresolved() {
+    let one = "extern function nowhere(x);\n_main(args) { return nowhere(1) + there(2); }\n";
+    let two = "extern object nothing;\nthere(x) { return nothing; }\n";
+    assert_eq!(
+        messages_of(compile_files(&[("one.t", one), ("two.t", two)])),
+        [
+            "(0): unresolved external reference \"nothing\"",
+            "(0): unresolved external reference \"nowhere\"",
+        ]
+    );
+    // A mistake in a file is reported for that file, and nothing is
+    // put together.
+    let bad = "there(x) { return x +; }\n";
+    let messages = messages_of(compile_files(&[("one.t", one), ("bad.t", bad)]));
+    assert_eq!(messages.len(), 1, "{messages:?}");
+    assert!(messages[0].starts_with("bad.t(1): "), "{messages:?}");
+}
+
+#[test]
+fn what_each_file_adds_to_a_built_in_class_is_there_together() {
+    let decl = "intrinsic class Object 'root-object/030004' { }\n\
+                intrinsic class List 'list/030008': Object { }\n";
+    let one = format!(
+        "{decl}modify List first() {{ return self[1]; }};\n_main(args) {{ return [1].first() + [1, 2].second(); }}\n"
+    );
+    let two = format!("{decl}modify List second() {{ return self[2]; }};\n");
+    let compiled = compile_files(&[("one.t", &one), ("two.t", &two)]);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // Each file's additions are a chain of objects: an empty one, and
+    // one with the method. The second file's chain goes on top of the
+    // first's: its object with the method has the first file's for
+    // its superclass, and its empty one is left with nothing over it.
+    let mut pos = 69;
+    let mut found = None;
+    while pos < image.len() {
+        let size = u32::from_le_bytes(image[pos + 4..pos + 8].try_into().unwrap()) as usize;
+        let data = &image[pos + 10..pos + 10 + size];
+        // The block of the objects of the seventh of the classes every
+        // image has.
+        if &image[pos..pos + 4] == b"OBJS" && data[2..4] == [6, 0] {
+            found = Some(data);
+        }
+        pos += 10 + size;
+    }
+    let data = found.expect("the objects that add to built-in classes");
+    assert_eq!(data[0..2], [4, 0]);
+    let mut objs = Vec::new();
+    let mut at = 6;
+    for _ in 0..4 {
+        let id = u32::from_le_bytes(data[at..at + 4].try_into().unwrap());
+        let size = usize::from(u16::from_le_bytes([data[at + 4], data[at + 5]]));
+        let sc_count = u16::from_le_bytes([data[at + 6], data[at + 7]]);
+        let superclass =
+            (sc_count == 1).then(|| u32::from_le_bytes(data[at + 12..at + 16].try_into().unwrap()));
+        objs.push((id, superclass));
+        at += 6 + size;
+    }
+    objs.sort_unstable();
+    let ids: Vec<u32> = objs.iter().map(|(id, _)| *id).collect();
+    let (root1, top1, root2, top2) = (ids[0], ids[1], ids[2], ids[3]);
+    assert_eq!(
+        objs,
+        [
+            (root1, None),
+            (top1, Some(root1)),
+            (root2, None),
+            (top2, Some(top1)),
+        ]
+    );
+}
+
+#[test]
+fn a_second_definition_can_be_in_another_file() {
+    let one = "f(x) { return 1; }\ng(x) { return 10; }\n\
+               class Thing: object weight = 1 name = 'thing';\n\
+               _main(args) { return f(1) + g(2) + Thing.weight; }\n";
+    let two = "replace f(x) { return 2; }\nmodify g(x) { return replaced(x) + 1; }\n\
+               modify Thing replace weight = 5 size = 2;\n";
+    let compiled = compile_files(&[("one.t", one), ("two.t", two)]);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    // The class as the first file defined it is now an object of its
+    // own, with a new number, and without the property the second
+    // file's `replace` took away; the class's number is the new
+    // definition's, whose one superclass is the old.
+    let objs = block(&image, b"OBJS");
+    assert_eq!(objs[0..2], [2, 0]);
+    let mut found = Vec::new();
+    let mut at = 6;
+    for _ in 0..2 {
+        let id = u32::from_le_bytes(objs[at..at + 4].try_into().unwrap());
+        let size = usize::from(u16::from_le_bytes([objs[at + 4], objs[at + 5]]));
+        let sc_count = u16::from_le_bytes([objs[at + 6], objs[at + 7]]);
+        let prop_count = u16::from_le_bytes([objs[at + 8], objs[at + 9]]);
+        let superclass =
+            (sc_count == 1).then(|| u32::from_le_bytes(objs[at + 12..at + 16].try_into().unwrap()));
+        found.push((id, superclass, prop_count));
+        at += 6 + size;
+    }
+    found.sort_unstable();
+    assert_eq!(found, [(1, Some(2), 2), (2, None, 1)]);
+
+    // The function the second file replaced is not in the image, and
+    // the one it modified still is: the code is as long as it is when
+    // all of this is in one file.
+    let whole = compile_text(&format!("{one}{two}"));
+    assert!(whole.diagnostics.is_empty(), "{:?}", whole.diagnostics);
+    let whole = whole.image.expect("an image");
+    assert_eq!(block(&whole, b"CPPG").len(), block(&image, b"CPPG").len());
+}
+
+#[test]
+fn a_second_definition_has_to_come_after_the_first() {
+    let one = "modify later x = 1;\n_main(args) { return later.x; }\n";
+    let two = "later: object y = 2;\n";
+    assert_eq!(
+        messages_of(compile_files(&[("one.t", one), ("two.t", two)])),
+        [
+            "(0): modified or replaced object \"later\" found in object file \"one.t3o\" \
+             before original object definition was loaded",
+            "(0): symbol \"later\" (type: object) redefined in object file \"two.t3o\"",
+        ]
+    );
+    // The other way about, it is the object the first file defined
+    // that the second changes.
+    let compiled = compile_files(&[("two.t", two), ("one.t", one)]);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+}

@@ -6,7 +6,8 @@ usage: gen-cases.py <folder>
 The programs are for tools/compile-compare.sh. Most are a line or two:
 one way of writing something, or one mistake, to see that Hexicon makes
 of it what the reference compiler does, messages included. A program
-without a `_main` function is given an empty one.
+without a `_main` function is given an empty one. A program of several
+source files is a folder of them.
 
 Cases known to come out differently are not here; the compiler plan's
 findings say what they are and why.
@@ -3672,6 +3673,578 @@ _main(args) { return [e1(1), e2(2), e3(3)]; }
 """
 
 
+# Programs of several source files, put together in the order of the
+# files' names: what one file defines and another uses, what two files
+# both define, and what each adds to things they share.
+linked = {}
+
+linked["l_anon"] = {
+    "a": """#include <tads.h>
+class Room: object desc = 'room';
+object template 'name';
+Room 'hall';
+Room 'den' north = hall2 inner: Room { 'nested' } ;
+hall2: Room 'hall2';
+_main(args) { return object: Room { name = 'inline' m() { return hall2; } }; }
+""",
+    "b": """#include <tads.h>
+object template 'name';
+Room 'cellar';
++ property location;
+shed: Room 'shed';
++ Room 'inside shed';
+++ Room 'deeper' ;
+f() { return [new Room(), object: Room { desc = 'inline2' }, shed]; }
+""",
+}
+
+linked["l_dict"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+dictionary property noun, adjective;
+class Thing: object noun = 'thing' 'item';
+lamp: Thing noun = 'lamp' adjective = 'brass';
+_main(args) { return [lamp.noun, key.noun, key.adjective]; }
+""",
+    "b": """#include <tads.h>
+dictionary gDict;
+dictionary property noun, adjective, plural;
+key: Thing noun = 'key' adjective = 'brass' 'small' plural = 'keys';
+class Odd: Thing noun = 'oddity';
+strange: Odd, Thing adjective = 'strange';
+""",
+}
+
+linked["l_dupfunc"] = {
+    "a": """#include <tads.h>
+f(x) { return 1; }
+_main(args) { return f(1) + g(2); }
+""",
+    "b": """#include <tads.h>
+f(x) { return 2; }
+g(x) { return 3; }
+""",
+}
+
+linked["l_dupobj"] = {
+    "a": """#include <tads.h>
+o: object x = 1;
+class C: object;
+_main(args) { return o.x; }
+""",
+    "b": """#include <tads.h>
+o: object x = 2;
+class C: object;
+""",
+}
+
+linked["l_enum"] = {
+    "a": """#include <tads.h>
+enum red, green, blue;
+enum token tokWord;
+_main(args) { return [red, blue, tokPunct, yellow]; }
+""",
+    "b": """#include <tads.h>
+enum blue, yellow, red;
+enum token tokPunct, tokWord;
+f(x) { switch (x) { case red: return 1; case yellow: return 2; case tokWord: return 3; } return [green, blue]; }
+""",
+}
+
+linked["l_errgen"] = {
+    "a": """#include <tads.h>
+f(x) { return y; }
+_main(args) { return f(1) + g(2); }
+""",
+    "b": """#include <tads.h>
+g(x) { return 'a' - 1; }
+""",
+}
+
+linked["l_errparse"] = {
+    "a": """#include <tads.h>
+f(x) { return x; }
+_main(args) { return f(1) + g(2); }
+""",
+    "b": """#include <tads.h>
+g(x) { return x +; }
+h(x) { return undefinedThing(x); }
+""",
+}
+
+linked["l_errsym"] = {
+    "a": """#include <tads.h>
+f(x) { return x; }
+_main(args) { return f(1) + g(2); }
+""",
+    "b": """#include <tads.h>
+g(x) { return x; }
+g(x) { return x; }
+o: object;
+o: object;
+""",
+}
+
+linked["l_export"] = {
+    "a": """#include <tads.h>
+export f 'entry';
+export o;
+f(x) { return 1; }
+o: object;
+_main(args) { }
+""",
+    "b": """#include <tads.h>
+export g 'other';
+export f 'entry2';
+export p 'entry';
+export newProp;
+g(x) { return o; }
+p: object;
+""",
+}
+
+linked["l_gram"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+enum token tokWord;
+grammar np: 'the' noun->n_ : object;
+grammar np(short): noun->n_ : object;
+grammar cmd: 'take' np->obj_ | 'get' np->obj_ : object;
+_main(args) { return cmd; }
+""",
+    "b": """#include <tads.h>
+dictionary gDict;
+dictionary property noun, adjective;
+enum token tokWord;
+grammar np(adj): adjective->a_ np->n_ : object;
+grammar cmd(drop): 'drop' np->obj_ : object;
+grammar vp: tokWord->w_ * : object;
+grammar np: 'that' [badness 10] : object;
+rock: object noun = 'rock' adjective = 'grey';
+""",
+}
+
+linked["l_icmod"] = {
+    "a": """#include <tads.h>
+modify List first() { return self[1]; };
+modify Object describe() { return 'obj'; };
+_main(args) { return [[1].first(), [2].second(), args.describe()]; }
+""",
+    "b": """#include <tads.h>
+modify List second() { return self[2]; } first2() { return inherited(); };
+modify List third = 3;
+modify String shout() { return toUpper(); };
+""",
+    "c": """#include <tads.h>
+modify Object describe2() { return 'obj2'; };
+modify List fourth = 4;
+""",
+}
+
+linked["l_kind"] = {
+    "a": """#include <tads.h>
+thing(x) { return 1; }
+other: object x = 1;
+_main(args) { return thing(1) + other.x + red; }
+enum red;
+""",
+    "b": """#include <tads.h>
+thing: object y = 2;
+other(x) { return 2; }
+f() { return thing.y + other(1) + self.red; }
+""",
+}
+
+linked["l_mm"] = {
+    "a": """#include <tads.h>
+class Thing: object;
+class Box: Thing;
+put(Thing a, Box b) { return 1; }
+put(Box a, b) { return inherited(a, b); }
+_main(args) { return [put(Thing, Box), show(Thing), show];  }
+_multiMethodRegister(base, func, params) { }
+_multiMethodBuildBindings() { }
+""",
+    "b": """#include <tads.h>
+put(Thing a, Thing b) { return 3; }
+show(Box a) { return inherited<Thing>(a); }
+show(Thing a) { return put(a, a); }
+show(a) multimethod { return 0; }
+_multiMethodCall(base, args) { return nil; }
+_multiMethodCallInherited(from, [args]) { return nil; }
+""",
+}
+
+linked["l_nomain"] = {
+    "a": """#include <tads.h>
+f(x) { return g(x); }
+""",
+    "b": """#include <tads.h>
+g(x) { return 1; }
+""",
+}
+
+linked["l_props"] = {
+    "a": """#include <tads.h>
+a1: object alpha = 1 beta = 2 m() { return self.gamma + self.delta; };
+_main(args) { return [a1.alpha, &beta, &epsilon, a1.zeta]; }
+""",
+    "b": """#include <tads.h>
+b1: object gamma = 1 beta = 2 eta = 3 m() { return self.alpha + a1.theta; };
+f() { return [&epsilon, &iota]; }
+""",
+    "c": """#include <tads.h>
+c1: object iota = 1 kappa = 2;
+g() { return b1.eta + a1.alpha; }
+""",
+}
+
+linked["l_static"] = {
+    "a": """#include <tads.h>
+a1: object x = static (3.5 + 1) y = 1.25 pat = R'a+b' big = 99999999999;
+_main(args) { return [a1.x, b1.x, 2.5, R'x*']; }
+""",
+    "b": """#include <tads.h>
+b1: object x = static [a1.y, 7.5] y = 2.25 pat = R'a+b';
+f() { return [1.25, 99999999999, R'a+b']; }
+""",
+}
+
+linked["l_strings"] = {
+    "a": """#include <tads.h>
+f() { return ['same', 'only a', 'same', 'a string that is long enough not to be shared with others', "dq <<g()>> end"]; }
+_main(args) { local same = 1, onlyA = 2; return f() + g() + same + onlyA; }
+""",
+    "b": """#include <tads.h>
+g() { local same = 1, onlyB = 2; return ['same', 'only b', 'a string that is long enough not to be shared with others', same, onlyB]; }
+h(a, b:, c:?) { return a + b + (c ?? 0); }
+k() { return h(1, b: 2) + h(1, c: 3, b: 4); }
+""",
+}
+
+linked["l_unres"] = {
+    "a": """#include <tads.h>
+extern function nowhere(x);
+extern object nothing;
+extern class Missing;
+_main(args) { return nowhere(1) + g(2) + nothing.x; }
+""",
+    "b": """#include <tads.h>
+extern function elsewhere(x, y);
+g(x) { return elsewhere(x, x) + new Missing(); }
+""",
+}
+
+
+# A second definition in one file of what another file defines:
+# `modify` and `replace` of objects, functions, and grammar rules.
+linked["l_moderr2"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+enum red;
+f(a) { return 1; }
+o: object;
+_main(args) { return f(1); }
+""",
+    "b": """#include <tads.h>
+modify gDict x = 1;
+replace f(a, b) { return 2; }
+modify o x = 1;
+replace o: object y = 2;
+modify o z = 3;
+""",
+}
+
+linked["l_moderr3"] = {
+    "a": """#include <tads.h>
+modify later x = 1;
+_main(args) { return later.x; }
+""",
+    "b": """#include <tads.h>
+later: object y = 2;
+""",
+}
+
+linked["l_moderr4"] = {
+    "a": """#include <tads.h>
+replace gone: object x = 1;
+_main(args) { return gone.x; }
+""",
+    "b": """#include <tads.h>
+gone: object y = 2;
+""",
+}
+
+linked["l_modfunc"] = {
+    "a": """#include <tads.h>
+f(a) { return 1; }
+g(a) { return 10; }
+k(a) { return 100; }
+modify k(a) { return replaced(a) + 1; }
+_main(args) { tadsSay(toString(f(1) + g(2) + k(3)) + '\\n'); }
+""",
+    "b": """#include <tads.h>
+replace f(a) { return 2; }
+modify g(a) { return replaced(a) + 1; }
+modify k(a) { local r = replaced; return r(a) + 1000; }
+""",
+    "c": """#include <tads.h>
+modify f(a) { return replaced(a) + 5; }
+modify g(a) { return ({: replaced(a) * 2 })(); }
+replace k(a) { return 7; }
+""",
+}
+
+linked["l_modgram"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+grammar np(basic): 'the' noun->n_ : object x = 1;
+grammar np(other): 'a' noun->n_ : object x = 2;
+grammar vp(go): 'go' np->n_ : object;
+_main(args) { return np; }
+""",
+    "b": """#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+modify grammar np(basic): 'that' noun->n_ : y = 2;
+replace grammar np(other): 'some' noun->n_ : object z = 3;
+modify grammar vp(go): : w = 4;
+""",
+}
+
+linked["l_modmix"] = {
+    "a": """#include <tads.h>
+class Thing: object name = 'thing' describe() { return name; };
+rock: Thing name = 'rock';
+modify Thing describe() { return '[' + inherited() + ']'; };
+_main(args) { tadsSay(rock.describe() + ' ' + toString(rock.weight) + ' ' + [1,2].count2() + '\\n'); }
+""",
+    "b": """#include <tads.h>
+modify Thing weight = 5 describe() { return '<' + inherited() + '>'; };
+modify rock weight = 9;
+modify List count2() { return toString(length()); };
+""",
+    "c": """#include <tads.h>
+modify Thing replace weight = 6;
+modify rock describe() { return inherited() + '!'; };
+modify List count2() { return inherited() + '?'; };
+""",
+}
+
+linked["l_modobj"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+class Base: object b = 1;
+o: Base x = 1 y = 2 noun = 'old' m() { return 1; };
+_main(args) { return [o.x, h()]; }
+""",
+    "b": """#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+modify o replace x = 5 z = 3 noun = 'new' m() { return inherited() + 1; };
+h() { return o.z; }
+""",
+    "c": """#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+modify o replace y = 7 replace m() { return 9; } w = 1 noun = 'newer';
+modify o v = 2;
+modify Base c = 2;
+""",
+}
+
+linked["l_modstatic"] = {
+    "a": """#include <tads.h>
+o: object x = static [1, 2] y = static (x + [3]) m() { return 1; };
+p: object x = static [5];
+_main(args) { return o.x; }
+""",
+    "b": """#include <tads.h>
+modify o z = static (y + [4]) replace x = static [9];
+replace p: object w = static [6];
+""",
+}
+
+linked["l_repobj"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+class Base: object b = 1;
+o: Base x = 1 y = 2 noun = 'old' m() { return 1; };
+p: Base noun = 'pold';
+modify p noun = 'pmod' q = 1;
+_main(args) { return [o.x]; }
+""",
+    "b": """#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+replace o: object z = 3 noun = 'new';
+replace p: Base noun = 'pnew';
+replace class Base: object b = 2 c = 3;
+h() { return o.z; }
+""",
+}
+
+
+# A call in a parameter's default value to a function that returns nothing.
+programs["defval2"] = (
+    BUILTINS
+    + """
+f(a) { a = 1; }
+g(a, b = (a ? f(a) : 2)) { a = 1; }
+_main(args) { }
+"""
+)
+
+programs["defval3"] = (
+    BUILTINS
+    + """
+f(a, b = (a ? f(a) : 2)) { a = 1; }
+_main(args) { }
+"""
+)
+
+# Multi-methods and static properties both: which runs first.
+programs["mm10"] = (
+    BUILTINS
+    + """
+class Thing: object;
+o: object x = static [1, 2] y = static (x + [3]);
+put(Thing a) { return 1; }
+put(a) multimethod { return 2; }
+_multiMethodRegister(base, func, params) { }
+_multiMethodBuildBindings() { }
+_multiMethodCall(base, args) { return nil; }
+_multiMethodCallInherited(from, [args]) { return nil; }
+_main(args) { return [o.x, put(1)]; }
+"""
+)
+
+# A template for a class that the file does not otherwise use.
+linked["l_tplref"] = {
+    "a": """#include <tads.h>
+object template 'name';
+Cls0 template 'name' @loc;
+Other template "desc";
+first: object 'first';
+_main(args) { return first; }
+""",
+    "b": """#include <tads.h>
+object template 'name';
+Cls0 template 'name' @loc;
+class Cls0: object;
+class Other: object;
+second: Cls0 'second' @first;
+""",
+}
+
+
+# A mistake in one file or in several: the reference stops at the first
+# step of the build that fails.
+linked["l_err2a"] = {
+    "a": """#include <tads.h>
+f(x) { return x +; }
+_main(args) { return f(1); }
+""",
+    "b": """#include <tads.h>
+g(x) { return x -; }
+""",
+}
+
+linked["l_err2b"] = {
+    "a": """#include <tads.h>
+f(x) { return undefinedA(x); }
+_main(args) { return f(1) + 'a' - 1; }
+""",
+    "b": """#include <tads.h>
+g(x) { return undefinedB(x) + 'b' - 2; }
+""",
+}
+
+linked["l_err2c"] = {
+    "a": """#include <tads.h>
+f(x) { local unused; return 1; }
+_main(args) { return f(1); }
+""",
+    "b": """#include <tads.h>
+g(x) { local unused2; return x +; }
+""",
+}
+
+linked["l_err2d"] = {
+    "a": """#include <tads.h>
+#include "nothere.h"
+f(x) { return 1; }
+_main(args) { return f(1); }
+""",
+    "b": """#include <tads.h>
+g(x) { return 2; }
+""",
+}
+
+
+# The words of grammar rules go in the dictionary only from a file
+# that has an object for the dictionary.
+linked["l_gramdict1"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+grammar np: 'a' : object
+;
+_main(args) { return np; }
+""",
+    "b": """#include <tads.h>
+dictionary gDict;
+grammar cmd: 'b' : object
+;
+""",
+}
+
+linked["l_gramdict2"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+grammar np: 'a' : object
+;
+named: object;
+_main(args) { return np; }
+""",
+    "b": """#include <tads.h>
+dictionary gDict;
+grammar cmd: 'b' : object
+;
+object x = 1;
+""",
+}
+
+linked["l_gramdict3"] = {
+    "a": """#include <tads.h>
+dictionary gDict;
+grammar np: 'a' : object
+;
+class C: object;
+_main(args) { return np; }
+""",
+    "b": """#include <tads.h>
+grammar cmd: 'b' : object
+;
+dictionary gDict;
+grammar cmd: 'c' : object
+;
+later: object;
+""",
+}
+
+
+# A grammar rule's words in a program with no object for the dictionary.
+programs["gramdict1"] = """dictionary gDict;
+grammar np: 'a' : object
+;
+_main(args) { return np; }
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
@@ -3689,7 +4262,14 @@ def main():
             os.path.join(folder, name + ".t"), "w", newline="\n", encoding="utf-8"
         ) as out:
             out.write(text + "\n")
-    print(f"{len(programs) + len(mistakes)} programs in {folder}")
+    for name, files in linked.items():
+        os.makedirs(os.path.join(folder, name), exist_ok=True)
+        for file, text in files.items():
+            with open(
+                os.path.join(folder, name, file + ".t"), "w", newline="\n", encoding="utf-8"
+            ) as out:
+                out.write(text)
+    print(f"{len(programs) + len(mistakes) + len(linked)} programs in {folder}")
 
 
 main()

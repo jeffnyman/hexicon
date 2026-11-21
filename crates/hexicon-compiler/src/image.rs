@@ -244,6 +244,13 @@ pub(crate) fn write_image(
                 Target::Const(anchor) => const_addrs[*anchor],
                 Target::Body(body) => code_addrs[body_anchor[body]],
                 Target::StaticBody(body) => static_addrs[static_body_anchor[body]],
+                Target::Anchor(anchor) => code_addrs[*anchor],
+                Target::FuncBase(func) => {
+                    return Err(format!(
+                        "function \"{}\" is modified but not defined",
+                        String::from_utf8_lossy(&prog.funcs[*func].name)
+                    ));
+                }
             };
             stream[fixup.ofs..fixup.ofs + 4].copy_from_slice(&(addr as u32).to_le_bytes());
         }
@@ -432,7 +439,12 @@ pub(crate) fn write_image(
     // Of each kind, the transient ones are in a block after the rest,
     // which says that is what they are.
     let mut kinds: [Vec<crate::emit::GenObj>; 4] = Default::default();
-    for obj in std::mem::take(&mut generated.objs) {
+    for (index, obj) in std::mem::take(&mut generated.objs).into_iter().enumerate() {
+        // An object that another source file's `replace` took the
+        // place of is not in the image.
+        if generated.dead_objs.contains(&index) {
+            continue;
+        }
         kinds[2 * usize::from(obj.icmod) + usize::from(obj.transient)].push(obj);
     }
     for (kind, mut gen_objs) in kinds.into_iter().enumerate() {
@@ -463,6 +475,8 @@ pub(crate) fn write_image(
                     None => prop.value,
                     Some(Target::Const(anchor)) => const_addrs[*anchor] as u32,
                     Some(Target::Body(body)) => code_addrs[generated.body_anchor[body]] as u32,
+                    Some(Target::Anchor(anchor)) => code_addrs[*anchor] as u32,
+                    Some(Target::FuncBase(_)) => 0,
                     Some(Target::StaticBody(body)) => {
                         static_addrs[generated.static_body_anchor[body]] as u32
                     }

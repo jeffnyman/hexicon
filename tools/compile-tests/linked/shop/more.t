@@ -1,0 +1,32 @@
+// More goods, and the functions that work on them all.
+#include <systype.h>
+#include <tadsgen.h>
+#include <t3.h>
+
+dictionary shopWords;
+dictionary property noun;
+
+beans: Goods name = 'beans' price = 2 kind = tinned noun = 'beans' 'tin';
+
+total(lst)
+{
+    local sum = 0;
+    foreach (local item in lst)
+        sum += item.price;
+    return sum;
+}
+
+describeAll()
+{
+    return apple.label() + ', ' + rice.label() + ', ' + beans.label();
+}
+
+modify List
+    largest()
+    {
+        local best = self[1];
+        foreach (local x in self)
+            if (x > best) best = x;
+        return best;
+    }
+;

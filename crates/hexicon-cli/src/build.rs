@@ -1,10 +1,10 @@
-//! `hexicon build`: compile a source file into a program image.
+//! `hexicon build`: compile source files into a program image.
 
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hexicon_compiler::pp::Severity;
-use hexicon_compiler::{CompileOptions, compile};
+use hexicon_compiler::{CompileOptions, compile_program};
 
 use crate::preprocess::DiskFiles;
 
@@ -63,8 +63,10 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     let mut output: Option<&str> = None;
     let mut unspecified: Option<&str> = None;
     let mut rest = args;
-    let source = loop {
+    let mut sources: Vec<&str> = Vec::new();
+    loop {
         match rest {
+            [] => break,
             ["-I", dir, tail @ ..] => {
                 options.include_paths.push((*dir).to_owned());
                 rest = tail;
@@ -90,21 +92,28 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
                 unspecified = Some(path);
                 rest = tail;
             }
-            [source] if !source.starts_with('-') => break *source,
+            [source, tail @ ..] if !source.starts_with('-') => {
+                sources.push(source);
+                rest = tail;
+            }
             _ => {
                 eprint!("{usage}");
                 return ExitCode::from(2);
             }
         }
+    }
+    let Some(first) = sources.first() else {
+        eprint!("{usage}");
+        return ExitCode::from(2);
     };
-    // Without a name for the image, it goes beside the source.
-    let default_output = std::path::Path::new(source)
+    // Without a name for the image, it goes beside the first source.
+    let default_output = std::path::Path::new(first)
         .with_extension("t3")
         .to_string_lossy()
         .into_owned();
     let output = output.unwrap_or(&default_output);
 
-    let compiled = compile(&mut DiskFiles, source, &options);
+    let compiled = compile_program(&mut DiskFiles, &sources, &options);
     for problem in &compiled.diagnostics {
         let kind = match problem.severity {
             Severity::Error => "error",

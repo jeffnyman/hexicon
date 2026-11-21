@@ -5,19 +5,23 @@
 # usage: compile-compare.sh [-I dir]... file...
 #
 # Each file is compiled as a whole program on its own, without the
-# reference's default modules, so it needs a _main function. The two
+# reference's default modules, so it needs a _main function. A folder
+# in place of a file is a program of several source files: the .t files
+# in it, put together in the order of their names. The two
 # agree on a file if they report the same problems and, when there are
 # no errors, write the same image. The images and what each compiler
 # said are left in build/compile-compare.
 #
 # TADS_RUNNER says where the reference's sources are; the default is
-# ../_tads/tads-runner beside the repository.
+# ../_tads/tads-runner beside the repository. HEXICON says which
+# Hexicon to use, and COMPARE_OUT where to leave things, so that two
+# comparisons can run at once.
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 runner=${TADS_RUNNER:-$root/../_tads/tads-runner}
 ref=$root/build/reference/bin/t3make.exe
-hex=$root/target/release/hexicon
-out=$root/build/compile-compare
+hex=${HEXICON:-$root/target/release/hexicon}
+out=${COMPARE_OUT:-$root/build/compile-compare}
 mkdir -p "$out/obj"
 tab=$(printf '\t')
 # The reference takes a source file that does not say what character set
@@ -37,13 +41,18 @@ pass=0
 fail=0
 for file in "$@"; do
   name=$(echo "$file" | sed 's|[/\\:]|_|g')
-  src=$(native "$file")
+  src=()
+  if [ -d "$file" ]; then
+    for part in "$file"/*.t; do src+=("$(native "$part")"); done
+  else
+    src=("$(native "$file")")
+  fi
   rm -f "$out/$name.ref.t3" "$out/$name.hex.t3" "$out"/obj/*
   timeout 60 "$ref" -nodef -nopre -nobanner -a "${inc[@]}" \
     -Fo "$(native "$out/obj")" -Fy "$(native "$out/obj")" \
-    -o "$(native "$out/$name.ref.t3")" "$src" > "$out/$name.ref.log" 2>&1 < /dev/null
+    -o "$(native "$out/$name.ref.t3")" "${src[@]}" > "$out/$name.ref.log" 2>&1 < /dev/null
   timeout 60 "$hex" build "${inc[@]}" -cs "$charset" -o "$(native "$out/$name.hex.t3")" \
-    --unspecified "$(native "$out/$name.skip")" "$src" 2>&1 \
+    --unspecified "$(native "$out/$name.skip")" "${src[@]}" 2>&1 \
     | tr -d '\r' > "$out/$name.hex.msg"
   # What the reference says besides the problems it finds: the steps of
   # the build, each on a line starting with a tab, and the totals. A

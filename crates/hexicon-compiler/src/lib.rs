@@ -1,9 +1,8 @@
 //! The Hexicon compiler.
 //!
-//! [`compile`] turns a source file into a program image. So far it
-//! compiles programs made of functions; objects and the rest of the
-//! language are to come. The preprocessor ([`pp`]) can also be used on
-//! its own.
+//! [`compile_program`] turns the source files of a program into a
+//! program image, and [`compile`] does the same for a program that is
+//! one file. The preprocessor ([`pp`]) can also be used on its own.
 //!
 //! The compiler has no access to files, to a clock, or to a console of
 //! its own; whoever uses it supplies the files through
@@ -17,11 +16,12 @@ mod flow;
 mod fold;
 mod image;
 mod lex;
+mod link;
 mod parse;
 pub mod pp;
 mod ppexpr;
 
-pub use compile::{CompileOptions, Compiled, compile};
+pub use compile::{CompileOptions, Compiled, compile, compile_program};
 pub use lex::Tok;
 
 #[cfg(test)]

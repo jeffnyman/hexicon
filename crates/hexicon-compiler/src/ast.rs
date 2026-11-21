@@ -637,6 +637,9 @@ pub(crate) struct Closure {
     /// that is in the source.
     pub has_replaced: bool,
     pub replaced_base: Option<usize>,
+    /// The definition it modified is in another source file: the
+    /// function, as an index into the program's functions.
+    pub replaced_ext: Option<usize>,
     /// The function whose name still means this body, or meant it
     /// last: an index into the program's functions. A body that
     /// `modify` has put another in front of has none. While a body has

@@ -35,10 +35,11 @@ commands:
                                anywhere but writing only in the sandbox,
                                2 for the sandbox only, 3 for reading in
                                the sandbox only, 4 for nowhere (default 22)
-  build [options] <source>     compile a source file into a program image;
+  build [options] <source>...  compile a program image from its source
+                               files, put together in the order given;
                                the options are:
       -o <image.t3>            where to write the image (default: beside
-                               the source, with the extension .t3)
+                               the first source, with the extension .t3)
       -cs <name>               the character set of source files that do
                                not say what they are in (default: UTF-8)
       --unspecified <file>     list the parts of the image that mean

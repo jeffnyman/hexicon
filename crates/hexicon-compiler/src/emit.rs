@@ -41,6 +41,13 @@ pub(crate) enum Target {
     /// The same, for code that runs before the program starts, which
     /// is kept apart from the rest.
     StaticBody(usize),
+    /// A function as another source file defined it, before this
+    /// file's `modify` put a definition in front of that one: an index
+    /// into the program's functions.
+    FuncBase(usize),
+    /// An item in the code, whatever name it has now: an index into
+    /// the code's anchors.
+    Anchor(usize),
 }
 
 /// A word in a dictionary: its text, and each object it is a word for
@@ -68,6 +75,17 @@ pub(crate) struct GenProp {
     pub kind: u8,
     pub value: u32,
     pub target: Option<Target>,
+}
+
+/// What a number in the code or the constants is the number of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IdKind {
+    /// A property: two bytes.
+    Prop,
+    /// An object: four bytes.
+    Obj,
+    /// A value of an enumeration: four bytes.
+    Enum,
 }
 
 /// Four bytes in the code that are to hold an address once it is known
@@ -138,14 +156,11 @@ pub(crate) struct Generated {
     pub static_anchors: Vec<Anchor>,
     pub static_body_anchor: HashMap<usize, usize>,
     pub static_fixups: Vec<Fixup>,
-    pub static_prop_fixups: Vec<usize>,
+    pub static_id_fixups: Vec<(usize, IdKind)>,
     pub static_unspecified: Vec<usize>,
     /// The properties that code is the value of: each an object's
     /// number and a property's.
     pub static_inits: Vec<(u32, u16)>,
-    /// The objects the code names that were not defined when it was
-    /// generated: indexes into the program's objects.
-    pub obj_refs: HashSet<usize>,
     /// The objects, in the order they were generated.
     pub objs: Vec<GenObj>,
     /// For each built-in class in `metas`, the object that holds what
@@ -153,9 +168,17 @@ pub(crate) struct Generated {
     pub meta_mod_objs: Vec<u32>,
     /// The number the next property would get.
     pub next_prop_id: u16,
-    /// The number each property has in the image, by the number it
-    /// had while compiling.
-    pub prop_ids: Vec<u16>,
+    /// The generator gave up for too many errors.
+    pub gave_up: bool,
+    /// Places in the code that refer to a local's name, in the order
+    /// they were written. The names go into the constants when the
+    /// program is put together.
+    pub local_names: Vec<(usize, Vec<u8>)>,
+    /// Which object in `objs` each object definition became.
+    pub def_objs: HashMap<usize, usize>,
+    /// The number each value of an enumeration has in this code, by
+    /// its index in the program's.
+    pub enum_ids: Vec<u32>,
     /// What the image exports by name, besides what every image does.
     pub exports: Vec<GenExport>,
     /// The built-in classes the image depends on: the virtual
@@ -163,10 +186,13 @@ pub(crate) struct Generated {
     /// program declared it to have, and the number of the object that
     /// stands for the class, if the program declared it.
     pub metas: Vec<(Vec<u8>, Vec<u16>, Option<u32>)>,
-    /// Where in the code there are property numbers, and where in the
-    /// constants.
-    pub prop_fixups: Vec<usize>,
-    pub const_prop_fixups: Vec<usize>,
+    /// Where in the code there are the numbers of properties, objects,
+    /// and values of enumerations, and where in the constants. They
+    /// are the numbers the source file had for them when it was
+    /// compiled; the numbers they have in the image are given when the
+    /// program is put together.
+    pub id_fixups: Vec<(usize, IdKind)>,
+    pub const_id_fixups: Vec<(usize, IdKind)>,
     /// Places in the constants where two bytes are written that mean
     /// nothing.
     pub const_unspecified2: Vec<usize>,
@@ -203,9 +229,13 @@ pub(crate) struct Generated {
     /// multi-methods has been generated, with the rest of the code
     /// that runs before the program starts.
     pub has_mm_init: bool,
-    /// Which of the addresses to fill in, in the code that runs before
-    /// the program starts, are that code's.
-    pub mm_init_fixups: std::ops::Range<usize>,
+    /// The items in the code that are not to go in the image, a
+    /// function in another source file having taken their place with
+    /// `replace`: indexes into `code_anchors`.
+    pub dead_code: Vec<usize>,
+    /// The objects that are not to go in the image, likewise: indexes
+    /// into `objs`.
+    pub dead_objs: HashSet<usize>,
     /// Places in the code where two bytes are written that mean
     /// nothing.
     pub unspecified: Vec<usize>,
@@ -292,10 +322,7 @@ pub(crate) fn resolve_exports(
             });
         }
         let (kind, value, func) = match prog.globals.get(sym) {
-            Some(Global::Prop(prop)) => {
-                let id = generated.prop_ids[usize::from(prog.props[*prop].id)];
-                (datatype::PROP, u32::from(id), None)
-            }
+            Some(Global::Prop(prop)) => (datatype::PROP, u32::from(prog.props[*prop].id), None),
             Some(Global::Obj(obj)) => (datatype::OBJ, prog.objs[*obj].id, None),
             Some(Global::Func(func)) => (datatype::FUNCPTR, 0, Some(*func)),
             Some(_) => {
@@ -319,73 +346,20 @@ pub(crate) fn resolve_exports(
     problems
 }
 
-/// The functions that the code refers to but the program never defines,
-/// in the order the reference reports them: the order of its table of
-/// global names when it links.
-/// The functions `replace` or `modify` was used on before they were
-/// defined, in the order the reference comes to them when it puts the
-/// program together.
-pub(crate) fn early_redefs(prog: &Program) -> Vec<(&'static str, Vec<u8>)> {
-    let funcs = prog
-        .funcs
-        .iter()
-        .filter(|func| func.ext_redef)
-        .map(|func| ("function", func.name.clone()));
-    let objs = prog
-        .objs
-        .iter()
-        .filter(|obj| obj.ext_redef)
-        .map(|obj| ("object", obj.name.clone()));
-    let mut found: Vec<(&'static str, Vec<u8>)> = funcs.chain(objs).collect();
-    found.sort_by_key(|(_, name)| name_chain(name));
-    found
-}
-
-/// Which chain of the reference's table of global names a name is in.
-fn name_chain(name: &[u8]) -> usize {
-    name.iter().map(|&byte| usize::from(byte)).sum::<usize>() % LABEL_HASH_SIZE
-}
-
+/// The functions and objects that the program refers to and never
+/// defines, in the order the reference reports them: the order of its
+/// table of global names once it has put the program together.
 pub(crate) fn unresolved_externs(prog: &Program, generated: &Generated) -> Vec<Vec<u8>> {
-    let mut funcs: Vec<usize> = generated
-        .fixups
-        .iter()
-        .chain(
-            generated
-                .static_fixups
-                .iter()
-                .enumerate()
-                .filter(|(index, _)| !generated.mm_init_fixups.contains(index))
-                .map(|(_, fixup)| fixup),
-        )
-        .chain(&generated.const_fixups)
-        .filter_map(|fixup| match fixup.target {
-            Target::Func(func)
-                if prog.funcs[func].body.is_none() && !prog.funcs[func].is_mm_base =>
-            {
-                Some(func)
-            }
-            _ => None,
-        })
-        .collect();
-    funcs.sort_unstable();
-    funcs.dedup();
-    // And the objects `extern` declared that something uses and
-    // nothing defines.
-    let mut objs: Vec<usize> = generated
-        .obj_refs
-        .iter()
-        .copied()
-        .filter(|&obj| prog.objs[obj].is_extern)
-        .collect();
-    objs.sort_unstable();
-    let mut names: Vec<Vec<u8>> = funcs
+    prog.globals
+        .in_table_order()
         .into_iter()
-        .map(|func| prog.funcs[func].name.clone())
-        .chain(objs.into_iter().map(|obj| prog.objs[obj].name.clone()))
-        .collect();
-    names.sort_by_key(|name| name_chain(name));
-    names
+        .filter(|(_, global)| match global {
+            Global::Func(func) => !generated.func_anchor.contains_key(func),
+            Global::Obj(obj) => prog.objs[*obj].is_extern,
+            _ => false,
+        })
+        .map(|(name, _)| name.to_vec())
+        .collect()
 }
 
 /// Strings shorter than this are stored once however often they occur.
@@ -535,59 +509,68 @@ struct Gen<'p> {
     dropped: HashSet<usize>,
     /// How many versions of multi-methods the library is told of.
     mm_count: usize,
+    /// The code being generated is a parameter's default value.
+    in_defval: bool,
     /// The body being generated.
     cur_body: usize,
 }
 
-/// Generate the code for a program.
+impl<'p> Gen<'p> {
+    fn new(prog: &'p mut Program, out: Generated, enum_ids: Vec<u32>) -> Self {
+        let mut cg = CodeGen::new();
+        let mut out = out;
+        cg.code = std::mem::take(&mut out.code);
+        Gen {
+            prog,
+            cg,
+            out,
+            method_ofs: 0,
+            cur_frame: None,
+            frames: Vec::new(),
+            enclosing: Vec::new(),
+            switches: Vec::new(),
+            labels: Rc::default(),
+            last_labels: Rc::default(),
+            goto_labels: Vec::new(),
+            enum_ids,
+            exc_table: Vec::new(),
+            named_lists: Vec::new(),
+            named_tabs: Vec::new(),
+            resolve_only: false,
+            local_cnt: 0,
+            fin_ret_lcl: None,
+            cur_file: 0,
+            cur_line: 0,
+            interned: HashMap::new(),
+            local_names: Vec::new(),
+            errors: 0,
+            undefined_names: HashSet::new(),
+            self_available: false,
+            in_constructor: false,
+            member_ctx: Vec::new(),
+            gave_up: None,
+            closures: Vec::new(),
+            cur_body: 0,
+            cur_def: 0,
+            def_objs: HashMap::new(),
+            dropped: HashSet::new(),
+            mm_count: 0,
+            in_defval: false,
+        }
+    }
+}
+
+/// Generate the code for one source file: what the reference writes to
+/// an object file. The numbers of objects, properties, and values of
+/// enumerations in it are the file's own; [`crate::link`] gives them
+/// the numbers they have in the image.
 pub(crate) fn generate(prog: &mut Program) -> Generated {
     let mut bodies = std::mem::take(&mut prog.bodies);
     let mut objdefs = std::mem::take(&mut prog.objdefs);
     let top = prog.top.clone();
     let enum_ids = prog.final_enum_ids();
-    let mut generator = Gen {
-        prog,
-        cg: CodeGen::new(),
-        out: Generated::default(),
-        method_ofs: 0,
-        cur_frame: None,
-        frames: Vec::new(),
-        enclosing: Vec::new(),
-        switches: Vec::new(),
-        labels: Rc::default(),
-        last_labels: Rc::default(),
-        goto_labels: Vec::new(),
-        enum_ids,
-        exc_table: Vec::new(),
-        named_lists: Vec::new(),
-        named_tabs: Vec::new(),
-        resolve_only: false,
-        local_cnt: 0,
-        fin_ret_lcl: None,
-        cur_file: 0,
-        cur_line: 0,
-        interned: HashMap::new(),
-        local_names: Vec::new(),
-        errors: 0,
-        undefined_names: HashSet::new(),
-        self_available: false,
-        in_constructor: false,
-        member_ctx: Vec::new(),
-        gave_up: None,
-        closures: Vec::new(),
-        cur_body: 0,
-        cur_def: 0,
-        def_objs: HashMap::new(),
-        dropped: HashSet::new(),
-        mm_count: 0,
-    };
+    let mut generator = Gen::new(prog, Generated::default(), enum_ids);
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
-    // An object known only as the type of a parameter has to be
-    // defined somewhere.
-    generator
-        .out
-        .obj_refs
-        .extend(generator.prog.type_refs.iter().copied());
     generator.last_labels = Rc::clone(&generator.prog.last_labels);
     // Names are looked up, and what has become constant is worked out,
     // for the whole program before any code is generated.
@@ -698,12 +681,6 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
             }
         }
     }
-    let mut productions = Vec::new();
-    if generator.gave_up.is_none() {
-        productions = generator.merge_grammar();
-        generator.build_dictionaries(&objdefs, &productions);
-        generator.gen_multimethods();
-    }
     // Locals are checked for use once everything has been generated.
     for frames in scopes {
         for frame in frames {
@@ -714,69 +691,66 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
     if let Some(count) = generator.gave_up {
         generator.out.diagnostics.truncate(count);
     }
-    generator.finish_local_names();
-    let (prop_ids, next_prop_id) = generator.prog.final_prop_ids();
-    generator.out.prop_ids = prop_ids.clone();
-    generator.out.next_prop_id = next_prop_id;
+    generator.out.gave_up = generator.gave_up.is_some();
+    generator.out.local_names = std::mem::take(&mut generator.local_names);
+    generator.out.def_objs = std::mem::take(&mut generator.def_objs);
+    generator.out.enum_ids = std::mem::take(&mut generator.enum_ids);
     let mut out = generator.out;
     out.code = generator.cg.code;
-    // Properties get the numbers they have in the image.
-    for &ofs in &out.prop_fixups {
-        let id = u16::from_le_bytes([out.code[ofs], out.code[ofs + 1]]);
-        out.code[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
+    prog.bodies = bodies;
+    prog.objdefs = objdefs;
+    out
+}
+
+/// Generate what the compiler writes itself once the source files of a
+/// program have been put together: the dictionaries and the lists of
+/// words, the grammar productions, and the code for multi-methods.
+pub(crate) fn link_generate(prog: &mut Program, out: Generated, enum_ids: Vec<u32>) -> Generated {
+    let objdefs = std::mem::take(&mut prog.objdefs);
+    let gave_up = out.gave_up;
+    let mut generator = Gen::new(prog, out, enum_ids);
+    generator.def_objs = std::mem::take(&mut generator.out.def_objs);
+    generator.local_names = std::mem::take(&mut generator.out.local_names);
+    (generator.cur_file, generator.cur_line) = (usize::MAX, 0);
+    let mut productions = Vec::new();
+    if !gave_up {
+        productions = generator.merge_grammar();
+        generator.build_dictionaries(&objdefs, &productions);
+        generator.gen_multimethods();
     }
-    for &ofs in &out.static_prop_fixups {
-        let id = u16::from_le_bytes([out.static_code[ofs], out.static_code[ofs + 1]]);
-        out.static_code[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
-    }
-    for (_, prop) in &mut out.static_inits {
-        *prop = prop_ids[usize::from(*prop)];
-    }
-    for &ofs in &out.const_prop_fixups {
-        let id = u16::from_le_bytes([out.consts[ofs], out.consts[ofs + 1]]);
-        out.consts[ofs..ofs + 2].copy_from_slice(&prop_ids[usize::from(id)].to_le_bytes());
-    }
-    out.metas = generator
-        .prog
+    generator.finish_local_names();
+    generator.out.next_prop_id = generator.prog.next_prop_id;
+    let mut out = generator.out;
+    out.code = generator.cg.code;
+    let prog = &*generator.prog;
+    out.metas = prog
         .meta_table
         .iter()
         .map(|entry| {
-            let sym = entry.sym.map(|sym| &generator.prog.metas[sym]);
+            let sym = entry.sym.map(|sym| &prog.metas[sym]);
             let props = sym.map_or_else(Vec::new, |sym| {
-                sym.props
-                    .iter()
-                    .map(|prop| prop_ids[usize::from(generator.prog.props[*prop].id)])
-                    .collect()
+                sym.props.iter().map(|prop| prog.props[*prop].id).collect()
             });
             (entry.name.clone(), props, sym.map(|sym| sym.obj_id))
         })
         .collect();
-    out.meta_mod_objs = generator
-        .prog
+    out.meta_mod_objs = prog
         .meta_table
         .iter()
         .map(|entry| {
             entry
                 .sym
-                .and_then(|sym| generator.prog.metas[sym].mod_obj)
+                .and_then(|sym| prog.metas[sym].mod_obj)
                 .unwrap_or(0)
         })
         .collect();
-    for (_, words) in &mut out.dicts {
-        for (_, items) in words {
-            for (_, prop) in items {
-                *prop = prop_ids[usize::from(*prop)];
-            }
-        }
-    }
     // The productions as the image has them: the count of the ways a
     // phrase can be made up, and for each a score that is always zero,
     // how much worse it is than another, the class of the object made
     // when it matches, and the things to match, each as the property
     // the match is kept in, a kind, and what the kind needs.
     for (sym, alts) in &productions {
-        let prog = &*generator.prog;
-        let prop_id = |prop: usize| prop_ids[usize::from(prog.props[prop].id)];
+        let prop_id = |prop: usize| prog.props[prop].id;
         let mut data = Vec::new();
         data.extend_from_slice(&(alts.len() as u16).to_le_bytes());
         for alt in alts {
@@ -818,16 +792,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         }
         out.gramprods.push((prog.objs[*sym].id, data));
     }
-    for obj in &mut out.objs {
-        for prop in &mut obj.props {
-            prop.id = prop_ids[usize::from(prop.id)];
-            if prop.kind == datatype::PROP {
-                prop.value = u32::from(prop_ids[prop.value as usize]);
-            }
-        }
-    }
-    prog.bodies = bodies;
-    prog.objdefs = objdefs;
+    generator.prog.objdefs = objdefs;
     out
 }
 
@@ -1023,12 +988,7 @@ impl Gen<'_> {
                 {
                     Expr::Sym(name)
                 }
-                Some(Global::Obj(obj)) => {
-                    if self.prog.objs[*obj].is_extern {
-                        self.out.obj_refs.insert(*obj);
-                    }
-                    Expr::constant(Value::Obj(self.prog.objs[*obj].id))
-                }
+                Some(Global::Obj(obj)) => Expr::constant(Value::Obj(self.prog.objs[*obj].id)),
                 Some(Global::Enum(sym)) => Expr::constant(Value::Enum(self.enum_ids[*sym])),
                 Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_)) | None => Expr::Sym(name),
             },
@@ -1379,9 +1339,6 @@ impl Gen<'_> {
         for name in &def.superclasses {
             match self.prog.globals.get(name) {
                 Some(Global::Obj(superclass)) => {
-                    if self.prog.objs[*superclass].is_extern {
-                        self.out.obj_refs.insert(*superclass);
-                    }
                     obj.superclasses.push(self.prog.objs[*superclass].id);
                 }
                 Some(_) => {
@@ -1465,7 +1422,7 @@ impl Gen<'_> {
                         self.cg.ofs(),
                         self.out.code_anchors.len(),
                         self.out.fixups.len(),
-                        self.out.prop_fixups.len(),
+                        self.out.id_fixups.len(),
                         self.out.unspecified.len(),
                     );
                     self.gen_code_body(&bodies[*body].0, *body, None, prop.prop == 0);
@@ -1845,8 +1802,8 @@ impl Gen<'_> {
                 target: fixup.target,
             });
         }
-        for at in self.out.prop_fixups.drain(prop_fixups..) {
-            self.out.static_prop_fixups.push(moved(at));
+        for (at, kind) in self.out.id_fixups.drain(prop_fixups..) {
+            self.out.static_id_fixups.push((moved(at), kind));
         }
         for at in self.out.unspecified.drain(unspecified..) {
             self.out.static_unspecified.push(moved(at));
@@ -2084,7 +2041,7 @@ impl Gen<'_> {
             for entry in std::mem::take(&mut self.exc_table) {
                 self.cg.write2(entry.start_ofs as u16);
                 self.cg.write2(entry.end_ofs as u16);
-                self.cg.write4(entry.class);
+                self.write_obj_id(entry.class);
                 self.cg.write2(entry.handler_ofs as u16);
             }
         }
@@ -2258,8 +2215,14 @@ impl Gen<'_> {
             let stream_addr = stream_ofs;
             stream_ofs += len;
             page_rem -= len;
+            // A name from a function that a later source file replaced
+            // still has its place in the stream, and in the constants,
+            // but there is nowhere left that refers to it.
+            let gone = ofs == usize::MAX;
             if name.len() > SYM_MAX_LEN {
-                self.cg.write4_at(ofs, stream_addr as u32);
+                if !gone {
+                    self.cg.write4_at(ofs, stream_addr as u32);
+                }
                 continue;
             }
             let anchor = match known.get(&name) {
@@ -2277,10 +2240,12 @@ impl Gen<'_> {
                     anchor
                 }
             };
-            self.out.fixups.push(Fixup {
-                ofs,
-                target: Target::Const(anchor),
-            });
+            if !gone {
+                self.out.fixups.push(Fixup {
+                    ofs,
+                    target: Target::Const(anchor),
+                });
+            }
         }
     }
 
@@ -2719,7 +2684,7 @@ impl Gen<'_> {
                     self.cg.write_op(Op::ExpInherit);
                     self.cg.write(0);
                     self.cg.write2(1);
-                    self.cg.write4(*superclass);
+                    self.write_obj_id(*superclass);
                     self.cg.note_pops(2);
                 }
             }
@@ -2957,16 +2922,23 @@ impl Gen<'_> {
                 self.add_fixup(false, ofs + 1, Target::Func(*func));
                 (datatype::FUNCPTR, 0)
             }
-            Value::Obj(obj) => (datatype::OBJ, *obj),
+            Value::Obj(obj) => {
+                self.out.id_fixups.push((ofs + 1, IdKind::Obj));
+                (datatype::OBJ, *obj)
+            }
             Value::Float { .. } | Value::ReStr(_) => {
                 let id = self.gen_const_obj(&value.value).expect("an object");
+                self.out.id_fixups.push((ofs + 1, IdKind::Obj));
                 (datatype::OBJ, id)
             }
-            Value::Enum(id) => (datatype::ENUM, *id),
+            Value::Enum(id) => {
+                self.out.id_fixups.push((ofs + 1, IdKind::Enum));
+                (datatype::ENUM, *id)
+            }
             Value::Prop(prop) => {
                 // A property's number is two bytes; the other two are
                 // as the reference's memory had them.
-                self.out.prop_fixups.push(ofs + 1);
+                self.out.id_fixups.push((ofs + 1, IdKind::Prop));
                 self.out.unspecified.push(ofs + 3);
                 (datatype::PROP, u32::from(*prop))
             }
@@ -3361,14 +3333,21 @@ impl Gen<'_> {
                     self.add_fixup(true, at + 1, Target::Func(*func));
                     (datatype::FUNCPTR, 0)
                 }
-                Value::Obj(obj) => (datatype::OBJ, *obj),
+                Value::Obj(obj) => {
+                    self.out.const_id_fixups.push((at + 1, IdKind::Obj));
+                    (datatype::OBJ, *obj)
+                }
                 Value::Float { .. } | Value::ReStr(_) => {
                     let id = self.gen_const_obj(&element.value).expect("an object");
+                    self.out.const_id_fixups.push((at + 1, IdKind::Obj));
                     (datatype::OBJ, id)
                 }
-                Value::Enum(id) => (datatype::ENUM, *id),
+                Value::Enum(id) => {
+                    self.out.const_id_fixups.push((at + 1, IdKind::Enum));
+                    (datatype::ENUM, *id)
+                }
                 Value::Prop(prop) => {
-                    self.out.const_prop_fixups.push(at + 1);
+                    self.out.const_id_fixups.push((at + 1, IdKind::Prop));
                     self.out.const_unspecified2.push(at + 3);
                     (datatype::PROP, u32::from(*prop))
                 }
@@ -3405,23 +3384,9 @@ impl Gen<'_> {
     /// same in a nested function as in the function around it.
     fn replaced_func(&self) -> (bool, Option<usize>, (usize, usize, bool)) {
         const NONE: (bool, Option<usize>, (usize, usize, bool)) = (false, None, (0, 0, false));
-        let Some(mut closure) = self.closures.get(self.cur_body) else {
+        let Some(closure) = self.func_closure() else {
             return NONE;
         };
-        // Find the function this code is in, however deep.
-        if !closure.is_func {
-            let mut next = closure.enclosing;
-            loop {
-                let Some(body_ref) = next.map(|body| &self.prog.body_refs[body]) else {
-                    return NONE;
-                };
-                if let Some(body) = body_ref.func_body {
-                    closure = &self.closures[body];
-                    break;
-                }
-                next = body_ref.enclosing;
-            }
-        }
         // A body its function's name has not been taken from goes by
         // what the function modifies now, which a later `replace` or
         // `modify` may have changed.
@@ -3437,6 +3402,41 @@ impl Gen<'_> {
         )
     }
 
+    /// What the function the code being generated is in shares with
+    /// the bodies in and around it: the function's own, however deep
+    /// in it the code is.
+    fn func_closure(&self) -> Option<&Closure> {
+        let mut closure = self.closures.get(self.cur_body)?;
+        if !closure.is_func {
+            let mut next = closure.enclosing;
+            loop {
+                let body_ref = &self.prog.body_refs[next?];
+                if let Some(body) = body_ref.func_body {
+                    closure = &self.closures[body];
+                    break;
+                }
+                next = body_ref.enclosing;
+            }
+        }
+        Some(closure)
+    }
+
+    /// Where `replaced` goes: the body of the definition that `modify`
+    /// put this one in front of, or, if that is in another source
+    /// file, the function as it was before this file changed it.
+    fn replaced_target(&self, base: Option<usize>) -> Option<Target> {
+        if let Some(base) = base {
+            return Some(Target::Body(base));
+        }
+        let closure = self.func_closure()?;
+        match closure.func_id {
+            Some(func) => self.prog.funcs[func]
+                .mod_extern
+                .then_some(Target::FuncBase(func)),
+            None => closure.replaced_ext.map(Target::FuncBase),
+        }
+    }
+
     fn gen_expr(&mut self, expr: &Expr, discard: bool, for_condition: bool) {
         match expr {
             // The address of the function as it was before `modify`.
@@ -3446,10 +3446,10 @@ impl Gen<'_> {
                     self.error("'replaced' is not available in this context");
                 }
                 self.cg.write_op(Op::PushFnPtr);
-                if let Some(base) = base {
+                if let Some(target) = self.replaced_target(base) {
                     self.out.fixups.push(Fixup {
                         ofs: self.cg.ofs(),
-                        target: Target::Body(base),
+                        target,
                     });
                 }
                 self.cg.write4(0);
@@ -3491,16 +3491,16 @@ impl Gen<'_> {
                     }
                     Value::Obj(obj) => {
                         self.cg.write_op(Op::PushObj);
-                        self.cg.write4(*obj);
+                        self.write_obj_id(*obj);
                     }
                     Value::Float { .. } | Value::ReStr(_) => {
                         self.cg.write_op(Op::PushObj);
                         let id = self.gen_const_obj(&value.value).expect("an object");
-                        self.cg.write4(id);
+                        self.write_obj_id(id);
                     }
                     Value::Enum(id) => {
                         self.cg.write_op(Op::PushEnum);
-                        self.cg.write4(*id);
+                        self.write_enum_id(*id);
                     }
                     Value::Prop(prop) => {
                         self.cg.write_op(Op::PushPropId);
@@ -3685,13 +3685,13 @@ impl Gen<'_> {
                 // which the reference pushes wanted or not.
                 Some(Global::Meta(meta)) => {
                     self.cg.write_op(Op::PushObj);
-                    self.cg.write4(self.prog.metas[meta].obj_id);
+                    self.write_obj_id(self.prog.metas[meta].obj_id);
                     self.cg.note_push();
                 }
                 // A dictionary.
                 Some(Global::Obj(obj)) if !discard => {
                     self.cg.write_op(Op::PushObj);
-                    self.cg.write4(self.prog.objs[obj].id);
+                    self.write_obj_id(self.prog.objs[obj].id);
                     self.cg.note_push();
                 }
                 _ => {}
@@ -3881,7 +3881,7 @@ impl Gen<'_> {
     /// through a constant to leave a value whatever the function does.
     /// So only a call by a name that was never defined is looked up.
     fn has_return_value(&self, expr: &Expr) -> bool {
-        self.prog.has_return_value(expr)
+        self.prog.has_return_value(expr, self.in_defval)
     }
 
     /// Whether the outermost of the bodies a body is nested in keeps
@@ -4066,8 +4066,21 @@ impl Gen<'_> {
     /// Write a property's number into the code, and note where, for
     /// the number is not the one the image will have.
     fn write_prop_id(&mut self, id: u16) {
-        self.out.prop_fixups.push(self.cg.ofs());
+        self.out.id_fixups.push((self.cg.ofs(), IdKind::Prop));
         self.cg.write2(id);
+    }
+
+    /// Write an object's number in the code. Zero is no object.
+    fn write_obj_id(&mut self, id: u32) {
+        if id != 0 {
+            self.out.id_fixups.push((self.cg.ofs(), IdKind::Obj));
+        }
+        self.cg.write4(id);
+    }
+
+    fn write_enum_id(&mut self, id: u32) {
+        self.out.id_fixups.push((self.cg.ofs(), IdKind::Enum));
+        self.cg.write4(id);
     }
 
     /// Push the address of what a name stands for.
@@ -4089,7 +4102,7 @@ impl Gen<'_> {
             }
             Global::Obj(obj) => {
                 self.cg.write_op(Op::PushObj);
-                self.cg.write4(self.prog.objs[obj].id);
+                self.write_obj_id(self.prog.objs[obj].id);
                 self.cg.note_push();
             }
             Global::Func(func) => {
@@ -4175,7 +4188,7 @@ impl Gen<'_> {
             }
         };
         self.cg.write_op(Op::PushObj);
-        self.cg.write4(obj);
+        self.write_obj_id(obj);
         self.cg.note_push();
         if argc > 126 {
             self.error("'new' argument list exceeds machine limit (maximum 126)");
@@ -4430,7 +4443,7 @@ impl Gen<'_> {
                         self.cg.write_op(Op::ExpInherit);
                         self.cg.write(argc as u8);
                         self.write_prop_id(id);
-                        self.cg.write4(class);
+                        self.write_obj_id(class);
                         self.cg.note_pops(argc as i32);
                     }
                     None => {
@@ -4440,7 +4453,7 @@ impl Gen<'_> {
                         }
                         self.cg.write_op(Op::PtrExpInherit);
                         self.cg.write(argc as u8);
-                        self.cg.write4(class);
+                        self.write_obj_id(class);
                         self.cg.note_pops(argc as i32 + 1);
                     }
                 }
@@ -4486,13 +4499,13 @@ impl Gen<'_> {
                         self.cg.write_op(Op::ObjCallProp);
                         self.cg.write(argc as u8);
                     }
-                    self.cg.write4(*obj);
+                    self.write_obj_id(*obj);
                     self.write_prop_id(id);
                     self.cg.note_pops(argc as i32);
                 }
                 None => {
                     self.cg.write_op(Op::PushObj);
-                    self.cg.write4(*obj);
+                    self.write_obj_id(*obj);
                     self.cg.note_push();
                     if varargs {
                         self.cg.write_op(Op::Swap);
@@ -4533,7 +4546,7 @@ impl Gen<'_> {
                     }
                     Some(Global::Meta(meta)) => {
                         self.cg.write_op(Op::PushObj);
-                        self.cg.write4(self.prog.metas[meta].obj_id);
+                        self.write_obj_id(self.prog.metas[meta].obj_id);
                         self.cg.note_push();
                         self.gen_member_rhs(prop, is_expr, argc, varargs);
                     }
@@ -4659,7 +4672,7 @@ impl Gen<'_> {
                     self.cg.note_push();
                 } else if let Some(id) = obj_id {
                     self.cg.write_op(Op::PushObj);
-                    self.cg.write4(id);
+                    self.write_obj_id(id);
                     self.cg.note_push();
                 }
                 self.gen_propid(prop, is_expr, false);
@@ -4686,7 +4699,7 @@ impl Gen<'_> {
                 }
                 (Some(prop), Some(obj)) => {
                     self.cg.write_op(Op::ObjGetProp);
-                    self.cg.write4(obj);
+                    self.write_obj_id(obj);
                     self.write_prop_id(prop);
                 }
                 (Some(prop), None) => {
@@ -4733,7 +4746,7 @@ impl Gen<'_> {
                     self.cg.note_pop();
                 } else if let Some(obj) = obj_id {
                     self.cg.write_op(Op::ObjSetProp);
-                    self.cg.write4(obj);
+                    self.write_obj_id(obj);
                     self.write_prop_id(prop);
                     self.cg.note_pop();
                 } else {
@@ -4837,16 +4850,13 @@ impl Gen<'_> {
         for name in superclasses.iter().rev() {
             match self.prog.globals.get(name).copied() {
                 Some(Global::Obj(obj)) => {
-                    if self.prog.objs[obj].is_extern {
-                        self.out.obj_refs.insert(obj);
-                    }
                     self.cg.write_op(Op::PushObj);
-                    self.cg.write4(self.prog.objs[obj].id);
+                    self.write_obj_id(self.prog.objs[obj].id);
                     self.cg.note_push();
                 }
                 Some(Global::Meta(meta)) => {
                     self.cg.write_op(Op::PushObj);
-                    self.cg.write4(self.prog.metas[meta].obj_id);
+                    self.write_obj_id(self.prog.metas[meta].obj_id);
                     self.cg.note_push();
                 }
                 _ => self.undefined(name),
@@ -4863,7 +4873,7 @@ impl Gen<'_> {
         };
         self.cg.write_op(Op::ObjCallProp);
         self.cg.write(superclasses.len() as u8);
-        self.cg.write4(self.prog.metas[tads_object].obj_id);
+        self.write_obj_id(self.prog.metas[tads_object].obj_id);
         self.write_prop_id(create);
         self.cg.note_pops(superclasses.len() as i32);
         self.cg.write_op(Op::GetR0);
@@ -4888,7 +4898,7 @@ impl Gen<'_> {
                     self.cg.write_op(Op::Dup);
                     self.cg.note_push();
                     self.gen_expr(expr, false, false);
-                    if !self.prog.has_return_value(expr) {
+                    if !self.has_return_value(expr) {
                         self.cg.write_op(Op::PushNil);
                         self.cg.note_push();
                     }
@@ -5135,15 +5145,15 @@ impl Gen<'_> {
                         self.ensure_mod_obj(object);
                     }
                 } else {
-                    match self.prog.globals.get(*kind).copied() {
+                    match self.prog.globals.get(kind).copied() {
                         Some(Global::Obj(obj)) if !self.prog.objs[obj].is_extern => {
                             self.cg.write_op(Op::PushObj);
-                            self.cg.write4(self.prog.objs[obj].id);
+                            self.write_obj_id(self.prog.objs[obj].id);
                             self.cg.note_push();
                         }
                         Some(Global::Meta(meta)) => {
                             self.cg.write_op(Op::PushObj);
-                            self.cg.write4(self.prog.metas[meta].obj_id);
+                            self.write_obj_id(self.prog.metas[meta].obj_id);
                             self.cg.note_push();
                             self.ensure_mod_obj(meta);
                         }
@@ -5274,18 +5284,13 @@ impl Gen<'_> {
             self.cg.ofs(),
             self.out.code_anchors.len(),
             self.out.fixups.len(),
-            self.out.prop_fixups.len(),
+            self.out.id_fixups.len(),
             self.out.unspecified.len(),
         );
         let body = synthetic(StmtKind::MmInit, false);
-        let first_fixup = self.out.static_fixups.len();
         self.gen_code_body(&body, FIRST, None, false);
         self.move_to_static(mark, FIRST);
         self.out.has_mm_init = true;
-        // The reference looks for functions that are declared and
-        // never defined before it writes this code, so a version that
-        // is only declared goes unnoticed here.
-        self.out.mm_init_fixups = first_fixup..self.out.static_fixups.len();
         if self.mm_count != 0 {
             let id = self.prog.next_obj_id;
             self.prog.next_obj_id += 1;
@@ -5302,7 +5307,8 @@ impl Gen<'_> {
                 icmod: false,
                 transient: false,
             });
-            self.out.static_inits.push((id, 1));
+            // It runs before the code for static properties.
+            self.out.static_inits.insert(0, (id, 1));
         }
     }
 
@@ -5535,7 +5541,12 @@ impl Gen<'_> {
         self.resolve_only = true;
         let expr = self.fold_expr(expr);
         self.resolve_only = false;
+        // So a call in it to a function that returns nothing is still
+        // known for one, as it would not be elsewhere, where the
+        // function's name has become a constant.
+        self.in_defval = true;
         self.gen_expr(&expr, false, false);
+        self.in_defval = false;
     }
 
     /// Fill in an optional parameter: the argument if there is one,
@@ -5694,10 +5705,10 @@ impl Gen<'_> {
                 }
                 self.cg.write_op(Op::Call);
                 self.cg.write(argc as u8);
-                if let Some(base) = base {
+                if let Some(target) = self.replaced_target(base) {
                     self.out.fixups.push(Fixup {
                         ofs: self.cg.ofs(),
-                        target: Target::Body(base),
+                        target,
                     });
                 }
                 self.cg.write4(0);
