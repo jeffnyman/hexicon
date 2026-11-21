@@ -148,6 +148,8 @@ TEMPLATES = [
     ("<<the * thing>>", 1, "the {} thing"),
     ("<<big *>>", 1, "big {}"),
 ]
+# Words for the dictionary.
+VOCAB = ["lamp", "lantern", "brass", "key", "Key", "old lamp", "a", ""]
 # How a choice among alternatives in a string can end.
 ONE_OF_ENDINGS = [
     "",
@@ -241,6 +243,11 @@ class Program:
         self.props = rng.sample(PROPS, rng.randint(2, 8))
         # Whether the code being written is a method's.
         self.in_method = False
+        # Whether the program has dictionary properties, whose values
+        # are words: `noun` and `adjective`. There is at most one
+        # dictionary, since the reference puts words in the wrong one
+        # when there are several.
+        self.vocab = rng.random() < 0.5
         # How deep in embedded expressions the expression being written
         # is. `>>` there ends the expression, so no operator has it.
         self.embedding = 0
@@ -782,6 +789,10 @@ class Program:
             if rng.random() < 0.06:
                 lines += ["    " + line for line in self.propset(2, None)]
                 continue
+            # Words for the dictionary, now and then not as words.
+            if self.vocab and rng.random() < 0.15:
+                lines.append("    " + self.vocab_prop())
+                continue
             # A method that stands for an operator, now and then with
             # the wrong number of parameters.
             if rng.random() < 0.05:
@@ -827,6 +838,26 @@ class Program:
         lines.append("}" if braces else ";")
         return lines
 
+    def vocab_prop(self):
+        """A dictionary property with its words."""
+        rng = self.rng
+        name = rng.choice(["noun", "noun", "adjective"])
+        kind = rng.random()
+        if kind < 0.85:
+            words = rng.sample(VOCAB, rng.randint(1, 3))
+            return f"{name} = " + " ".join(f"'{word}'" for word in words)
+        return rng.choice(
+            [
+                f"{name} = 5",
+                f"{name} = ['a', 'b']",
+                f"{name}() {{ return 1; }}",
+                f"{name} = 'a' + 'b'",
+                f"{name} = static 'a'",
+                f"{name} = 'a', 'b'",
+                f"replace {name} = 'again'",
+            ]
+        )
+
     def nested_obj(self, prop, depth):
         """A property whose value is an object written in place."""
         rng = self.rng
@@ -840,7 +871,9 @@ class Program:
         lines = [head, "{"]
         for inner in rng.sample(self.props, rng.randint(0, min(3, len(self.props)))):
             kind = rng.random()
-            if depth and kind < 0.2:
+            if self.vocab and rng.random() < 0.15:
+                lines.append("    " + self.vocab_prop())
+            elif depth and kind < 0.2:
                 lines += ["    " + line for line in self.nested_obj(inner, depth - 1)]
             elif kind < 0.24:
                 lines.append("    lexicalParent = nil")
@@ -1071,6 +1104,16 @@ class Program:
         if self.rng.random() < 0.1:
             ahead.append("extern function neverCalled(a, b?);")
         ahead.append("object template 'tname' \"tdesc\"? @tloc?;")
+        # The dictionary and its properties; now and then the properties
+        # with no dictionary for their words to go in, or the
+        # dictionary after the first objects.
+        if self.vocab:
+            kind = self.rng.random()
+            if kind < 0.8:
+                ahead.append("dictionary gDict;")
+            ahead.append("dictionary property noun, adjective;")
+            if 0.8 <= kind < 0.9:
+                lines.insert(self.rng.randint(0, len(lines)), "dictionary gDict;")
         # The class a choice among alternatives in a string needs.
         if self.rng.random() < 0.6:
             ahead.append(

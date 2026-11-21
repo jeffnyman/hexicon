@@ -6,7 +6,7 @@
 //! local variables, the statements that need no objects, and
 //! expressions over numbers, strings, locals and function calls.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::ast::{
     Arg, AsiOp, BinOp, Catch, Closure, CodeBody, Enclosure, Expr, Finally, ForIn, LabelSym,
@@ -191,6 +191,13 @@ pub(crate) struct ObjSym {
     pub declared_only: bool,
     /// `replace` or `modify` was used on it before its definition.
     pub ext_redef: bool,
+    /// It is a dictionary (`dictionary name;`): an object of a class
+    /// built into the virtual machine that holds the words the program
+    /// gives its objects.
+    pub is_dict: bool,
+    /// On the second reading, for an object the first reading knew:
+    /// the name of the dictionary its words went in then.
+    pub dict_hint: Option<Vec<u8>>,
 }
 
 /// A class built into the virtual machine, as the name the program
@@ -266,6 +273,9 @@ pub(crate) struct PropSym {
     /// classes: a count that goes on from [`SECOND_READING`] for those
     /// first met on the second reading of the source.
     pub seq: u32,
+    /// Its values are words for a dictionary
+    /// (`dictionary property noun;`).
+    pub vocab: bool,
 }
 
 /// Where the count of names first met on the second reading starts.
@@ -275,6 +285,9 @@ pub(crate) const SECOND_READING: u32 = 1 << 24;
 #[derive(Debug)]
 pub(crate) enum PropValue {
     Expr(Expr),
+    /// The words the object has for a dictionary property, which are
+    /// known when the program is put together.
+    VocabList,
     /// A method: an index into [`Program::bodies`].
     Method(usize),
 }
@@ -329,6 +342,12 @@ pub(crate) struct ObjDef {
     /// its templates cannot be known.
     pub bad_template: bool,
     pub undesc_sc: bool,
+    /// The dictionary its words go in: the one that was current when
+    /// it was defined, as an index into [`Program::objs`].
+    pub dict: Option<usize>,
+    /// Its words, in the order the source has them, each with the
+    /// property it is a word for.
+    pub vocab: Vec<(Vec<u8>, usize)>,
 }
 
 /// One value in an object template: the kind of token the value starts
@@ -514,6 +533,11 @@ pub(crate) struct Program {
     pub body_refs: Vec<BodyRef>,
     /// The labels of the last function or method read.
     pub last_labels: std::rc::Rc<Vec<LabelSym>>,
+    /// The dictionaries, in the order they were first declared: indexes
+    /// into [`Program::objs`].
+    pub dicts: Vec<usize>,
+    /// The dictionary properties, the last declared first.
+    pub dict_props: Vec<usize>,
 }
 
 /// What is known of a body that others are nested in.
@@ -638,6 +662,10 @@ impl Program {
             })
             .map(|obj| ObjSym {
                 is_extern: true,
+                dict_hint: obj
+                    .def
+                    .and_then(|def| self.objdefs[def].dict)
+                    .map(|dict| self.objs[dict].name.clone()),
                 def: None,
                 base_ids: Vec::new(),
                 ext_redef: false,
@@ -813,6 +841,7 @@ impl Program {
             id: self.next_prop_id,
             weak: false,
             seq: self.next_seq,
+            vocab: false,
         });
         self.next_seq += 1;
         self.next_prop_id += 1;
@@ -851,6 +880,12 @@ pub(crate) struct Parser<'p, 'a> {
     prop_replace: bool,
     /// The object about to be read has `transient` before it.
     transient: bool,
+    /// The dictionary the words of the objects being read go in.
+    cur_dict: Option<usize>,
+    /// The dictionary properties the object being read has given
+    /// words for. An object written inside it starts the count again,
+    /// and the object outside does not get its own back.
+    dict_defined: HashSet<usize>,
     /// The property `+` before an object gives a value to
     /// (`+ property location;`).
     plus_prop: Option<usize>,
@@ -1035,6 +1070,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         numbered.sort_unstable();
         let mut objs = known.objs;
         let mut metas = known.metas;
+        let mut dict_numbered = HashSet::new();
         for (_, _, is_meta, index) in numbered {
             if is_meta {
                 // The objects that hold what `modify` adds to the class
@@ -1049,6 +1085,23 @@ impl<'p, 'a> Parser<'p, 'a> {
                 }
                 meta.mod_count = 0;
             } else {
+                // A dictionary is numbered just before the first object
+                // whose words go in it, if that comes before its own
+                // turn: the reference writes it out ahead of the
+                // object, and numbers things as it reads them back.
+                if objs[index].is_dict {
+                    if !dict_numbered.insert(index) {
+                        continue;
+                    }
+                } else if let Some(hint) = objs[index].dict_hint.take() {
+                    let dict = objs.iter().position(|obj| obj.is_dict && obj.name == hint);
+                    if let Some(dict) = dict {
+                        if dict_numbered.insert(dict) {
+                            objs[dict].id = prog.next_obj_id;
+                            prog.next_obj_id += 1;
+                        }
+                    }
+                }
                 // The definitions a `modify` set aside come just
                 // before the object, the oldest first.
                 let obj = &mut objs[index];
@@ -1100,6 +1153,8 @@ impl<'p, 'a> Parser<'p, 'a> {
             body_is_obj_prop: false,
             prop_replace: false,
             transient: false,
+            cur_dict: None,
+            dict_defined: HashSet::new(),
             plus_prop: None,
             plus_stack: Vec::new(),
             plus_cnt: 0,
@@ -1329,7 +1384,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Extern => self.parse_extern(),
                 Tok::Transient => self.parse_transient(suppress_error, &mut suppress_next_error),
                 Tok::Plus | Tok::Inc => self.parse_plus_object(),
-                Tok::Dictionary | Tok::Grammar => {
+                Tok::Dictionary => self.parse_dict(),
+                Tok::Grammar => {
                     if !suppress_error {
                         let shown = self.tok.cur_token_shown();
                         self.unsupported(&format!("a definition starting with \"{shown}\""));
@@ -1392,6 +1448,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                         undefined_redef: false,
                         declared_only: true,
                         ext_redef: false,
+                        is_dict: false,
+                        dict_hint: None,
                     });
                     class_sym = Some(self.prog.objs.len() - 1);
                     self.prog
@@ -1545,6 +1603,13 @@ impl<'p, 'a> Parser<'p, 'a> {
                     None => {
                         self.error(format!(
                             "symbol \"{}\" in object template is not a property",
+                            Self::name(&prop_name)
+                        ));
+                        None
+                    }
+                    Some(prop) if self.prog.props[prop].vocab => {
+                        self.error(format!(
+                            "property \"{}\" is a dictionary property - not valid in templates",
                             Self::name(&prop_name)
                         ));
                         None
@@ -1998,6 +2063,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                     undefined_redef: false,
                     declared_only: true,
                     ext_redef: false,
+                    is_dict: false,
+                    dict_hint: None,
                 });
                 self.prog
                     .globals
@@ -5545,6 +5612,10 @@ impl Parser<'_, '_> {
         let name = self.cur_text();
         let mut modify = None;
         let sym = match self.prog.globals.get(&name).copied() {
+            Some(Global::Obj(obj)) if redef != Redef::No && self.prog.objs[obj].is_dict => {
+                self.error("objects of this type cannot be modified or replaced");
+                None
+            }
             Some(Global::Meta(meta)) if redef == Redef::Modify => {
                 // What the program adds to a built-in class is kept in
                 // objects of a kind of their own. The first is empty,
@@ -5583,6 +5654,8 @@ impl Parser<'_, '_> {
                             transient: false,
                             bad_template: false,
                             undesc_sc: false,
+                            dict: None,
+                            vocab: Vec::new(),
                         });
                         root
                     }
@@ -5673,6 +5746,8 @@ impl Parser<'_, '_> {
                     undefined_redef: redef != Redef::No,
                     declared_only: false,
                     ext_redef: false,
+                    is_dict: false,
+                    dict_hint: None,
                 });
                 self.prog.next_obj_id += 1;
                 self.prog
@@ -5705,6 +5780,137 @@ impl Parser<'_, '_> {
     fn parse_anon_object(&mut self) -> Parsed<()> {
         let obj = self.new_anon_obj();
         self.parse_object_body(Some(obj), false, true, None, None)
+    }
+
+    /// Read `dictionary name;`, which makes the dictionary the one that
+    /// the words of the objects that follow go in, or
+    /// `dictionary property name, name;`, which says which properties
+    /// have words for values.
+    fn parse_dict(&mut self) -> Parsed<()> {
+        match self.next() {
+            Tok::Property => {
+                self.next();
+                self.parse_dict_props();
+                Ok(())
+            }
+            Tok::Sym => {
+                let name = self.cur_text();
+                match self.prog.globals.get(&name).copied() {
+                    None => {
+                        self.prog.objs.push(ObjSym {
+                            name: name.clone(),
+                            id: self.prog.next_obj_id,
+                            is_extern: false,
+                            is_class: false,
+                            sc_names: Vec::new(),
+                            sc_is_root: false,
+                            templates: Vec::new(),
+                            def: None,
+                            mod_count: 0,
+                            base_ids: Vec::new(),
+                            undefined_redef: false,
+                            declared_only: false,
+                            ext_redef: false,
+                            is_dict: true,
+                            dict_hint: None,
+                        });
+                        self.prog.next_obj_id += 1;
+                        let obj = self.prog.objs.len() - 1;
+                        self.prog.globals.insert(name, Global::Obj(obj));
+                        self.prog.dicts.push(obj);
+                        self.cur_dict = Some(obj);
+                    }
+                    Some(Global::Obj(obj)) if self.prog.objs[obj].is_dict => {
+                        // Declared before, here or on the first
+                        // reading.
+                        self.prog.objs[obj].is_extern = false;
+                        if !self.prog.dicts.contains(&obj) {
+                            self.prog.dicts.push(obj);
+                        }
+                        self.cur_dict = Some(obj);
+                    }
+                    // The reference reports these and then stops with
+                    // a memory fault.
+                    Some(Global::Obj(_)) => {
+                        self.error_curtok("redefining symbol \"%\" as dictionary object");
+                    }
+                    Some(_) => {
+                        self.error_curtok(
+                            "symbol \"%\" is already defined - can't redefine as object",
+                        );
+                    }
+                }
+                self.next();
+                self.parse_req_sem()
+            }
+            _ => {
+                self.error_curtok(
+                    "expected 'property' or object name after 'dictionary', but found \"%\"",
+                );
+                Ok(())
+            }
+        }
+    }
+
+    /// Read the names in `dictionary property name, name;`.
+    fn parse_dict_props(&mut self) {
+        const REQ_SYM: &str =
+            "expected property name in 'dictionary property' list, but found \"%\"";
+        const REQ_COMMA: &str = "expected comma in 'dictionary property' list, but found \"%\"";
+        loop {
+            if self.cur() == Tok::Sym {
+                let name = self.cur_text();
+                if let Some(prop) = self.look_up_prop(&name) {
+                    if !self.prog.props[prop].vocab {
+                        self.prog.props[prop].vocab = true;
+                        self.prog.dict_props.insert(0, prop);
+                    }
+                }
+                match self.next() {
+                    Tok::Comma => {
+                        self.next();
+                    }
+                    Tok::Sem => {
+                        self.next();
+                        return;
+                    }
+                    // A comma left out, it seems.
+                    Tok::Sym => self.error_curtok(REQ_COMMA),
+                    Tok::LBrace | Tok::RBrace | Tok::Eof => {
+                        self.error_curtok("expected ';', but found \"%\"");
+                        return;
+                    }
+                    _ => {
+                        self.error_curtok(REQ_COMMA);
+                        self.next();
+                        if self.cur() == Tok::Comma {
+                            self.next();
+                        } else if self.cur() == Tok::Sem {
+                            self.next();
+                            return;
+                        }
+                    }
+                }
+            } else {
+                self.error_curtok(REQ_SYM);
+                match self.cur() {
+                    Tok::Sem | Tok::LBrace | Tok::RBrace | Tok::Eof => return,
+                    Tok::Comma => {
+                        self.next();
+                    }
+                    _ => {
+                        self.next();
+                        if self.cur() == Tok::Comma {
+                            self.next();
+                        }
+                    }
+                }
+                if self.cur() == Tok::Sem {
+                    self.next();
+                    return;
+                }
+            }
+        }
     }
 
     /// Read an object that starts with `+` signs, which say what it is
@@ -5775,6 +5981,8 @@ impl Parser<'_, '_> {
             undefined_redef: false,
             declared_only: false,
             ext_redef: false,
+            is_dict: false,
+            dict_hint: None,
         });
         self.prog.next_obj_id += 1;
         self.prog.objs.len() - 1
@@ -5808,6 +6016,7 @@ impl Parser<'_, '_> {
         if !is_nested {
             self.unterm = false;
         }
+        self.dict_defined.clear();
         let mut def = ObjDef {
             sym,
             is_class,
@@ -5824,7 +6033,19 @@ impl Parser<'_, '_> {
             transient: std::mem::take(&mut self.transient),
             bad_template: false,
             undesc_sc: false,
+            dict: if meta.is_some() { None } else { self.cur_dict },
+            vocab: Vec::new(),
         };
+        // A definition that takes another's place with `replace` keeps
+        // the words the other had, and the dictionary they go in: the
+        // reference keeps both with the name.
+        if let Some(old) = sym.and_then(|obj| self.prog.objs[obj].def) {
+            let old = &self.prog.objdefs[old];
+            if old.replaced && modify.is_none() {
+                def.vocab = old.vocab.clone();
+                def.dict = old.dict;
+            }
+        }
         // A `modify` is transient if what it modifies is.
         if let Some((_, Some(prev))) = modify {
             def.transient = self.prog.objdefs[prev].transient;
@@ -5921,6 +6142,23 @@ impl Parser<'_, '_> {
         }
 
         self.parse_obj_prop_list(&mut def, braces, is_nested)?;
+        // A dictionary property the object has given no words for is
+        // there all the same, in case the object's classes have some.
+        if meta.is_none() {
+            for index in 0..self.prog.dict_props.len() {
+                let prop = self.prog.dict_props[index];
+                if !self.dict_defined.contains(&prop) {
+                    def.props.push(ObjProp {
+                        prop,
+                        value: PropValue::VocabList,
+                        overwritable: false,
+                        is_static: false,
+                        file,
+                        line,
+                    });
+                }
+            }
+        }
         if is_nested {
             // The object it is in puts it with the definitions that
             // are generated after the rest, unless it turned out not
@@ -6376,6 +6614,9 @@ impl Parser<'_, '_> {
         let mut new_prop = None;
         let mut is_value = false;
         let mut no_value = false;
+        // The property the name turned out to be, whatever came of
+        // reading its value.
+        let mut defined_prop = None;
         match self.next() {
             Tok::LPar | Tok::LBrace => {}
             Tok::Sem | Tok::RBrace | Tok::RPar | Tok::RBrack | Tok::Comma => {
@@ -6422,7 +6663,12 @@ impl Parser<'_, '_> {
                 let Some(nested) = self.nested_def.take() else {
                     return Err(Stop);
                 };
-                if let Some(prop) = self.look_up_prop(&name) {
+                let prop = self.look_up_prop(&name);
+                if prop.is_some_and(|prop| self.prog.props[prop].vocab) {
+                    self.error("vocabulary property requires string value, but found \":\"");
+                }
+                defined_prop = prop;
+                if let Some(prop) = prop {
                     let id = self.prog.objs[obj].id;
                     new_prop = Some(def.props.len());
                     def.props.push(ObjProp {
@@ -6466,9 +6712,40 @@ impl Parser<'_, '_> {
         } else {
             self.look_up_prop(&name)
         };
+        if !no_value {
+            defined_prop = prop;
+        }
+        let is_vocab = prop.is_some_and(|prop| self.prog.props[prop].vocab);
         if no_value {
             // Nothing to read; but the name is still checked below.
+        } else if let (true, true, Tok::SStr, Some(prop)) = (is_value, is_vocab, self.cur(), prop) {
+            // Words for a dictionary: one string after another. What
+            // the property's value is waits until the words the
+            // object's classes have are known.
+            if self.cur_dict.is_none() {
+                self.error("vocabulary property cannot be defined - no dictionary is active");
+            }
+            loop {
+                if def.sym.is_some() {
+                    def.vocab.push((self.cur_text(), prop));
+                }
+                if self.next() != Tok::SStr {
+                    break;
+                }
+            }
+            new_prop = Some(def.props.len());
+            def.props.push(ObjProp {
+                prop,
+                value: PropValue::VocabList,
+                overwritable: false,
+                is_static: false,
+                file,
+                line,
+            });
         } else if is_value {
+            if is_vocab {
+                self.error_curtok("vocabulary property requires string value, but found \"%\"");
+            }
             let is_static = self.cur() == Tok::Static;
             if is_static {
                 self.next();
@@ -6496,6 +6773,9 @@ impl Parser<'_, '_> {
                 });
             }
         } else {
+            if is_vocab {
+                self.error_curtok("vocabulary property requires string value, but found \"%\"");
+            }
             if self.propset_depth != 0 {
                 self.insert_propset_params();
             }
@@ -6556,6 +6836,7 @@ impl Parser<'_, '_> {
                 if let Some(at) = base.props.iter().position(|other| other.prop == prop) {
                     base.props.remove(at);
                 }
+                base.vocab.retain(|(_, word_prop)| *word_prop != prop);
                 prev = base.prev_def;
             }
         }
@@ -6578,12 +6859,18 @@ impl Parser<'_, '_> {
             if let Some(earlier) = earlier {
                 if def.props[earlier].overwritable {
                     def.props.remove(earlier);
+                    def.vocab.retain(|(_, word_prop)| *word_prop != prop);
                 } else {
                     self.error(format!(
                         "property \"{}\" already defined in object",
                         Self::name(&name)
                     ));
                 }
+            }
+        }
+        if let Some(prop) = defined_prop {
+            if self.prog.props[prop].vocab {
+                self.dict_defined.insert(prop);
             }
         }
         Ok(())
@@ -7051,6 +7338,8 @@ impl Parser<'_, '_> {
             transient: false,
             bad_template: false,
             undesc_sc: false,
+            dict: None,
+            vocab: Vec::new(),
         };
         let values = [
             (&b"numItems"[..], Value::Int(elements.len() as i32)),

@@ -3167,6 +3167,178 @@ _main(args)
 """
 
 
+# Dictionaries, and the words objects have in them.
+programs["dict1"] = (
+    BUILTINS
+    + """
+dictionary gDict;
+dictionary property noun, adjective, plural;
+class Thing: object
+    noun = 'thing' 'object'
+    name = 'x'
+;
+lamp: Thing
+    noun = 'lamp' 'lantern' 'Lamp'
+    adjective = 'brass' 'old'
+;
+key: Thing
+    adjective = 'brass'
+    noun = 'key'
+;
+Thing noun = 'anon' 'lamp';
+plain: object name = 'plain';
+class Sub: Thing plural = 'subs';
+sub1: Sub noun = 'sub';
+_main(args) { }
+"""
+)
+
+programs["dict2"] = """dictionary property noun, adjective;
+before: object name = 'no dict yet';
+dictionary gDict;
+class Thing: object noun = 'thing';
+lamp: Thing noun = 'lamp' adjective = 'brass';
+modify lamp noun = 'lantern' weight = 1;
+key: Thing noun = 'key' adjective = 'small';
+modify key replace noun = 'passkey';
+modify Thing adjective = 'generic';
+coin: Thing;
+replace coin: Thing noun = 'coin2';
+box: Thing
+    noun = 'box'
+    lid: Thing { noun = 'lid' adjective = 'hinged' }
+    adjective = 'wooden'
+;
+_main(args) { return gDict; }
+"""
+
+programs["dict4"] = """dictionary property noun;
+dictionary zDict;
+object noun = 'only anon';
+class K: object noun = 'k';
+K;
+K noun = 'more' 'k';
+_main(args) { }
+"""
+
+programs["dict5"] = """dictionary gDict;
+dictionary property noun, adjective, plural;
+class Top: object noun = 'top';
+class Mid: Top adjective = 'mid';
+class Low: Mid plural = 'lows';
+x1: Low noun = 'x1';
+class Other: object noun = 'other' plural = 'others';
+x2: Low, Other;
+x3: Other, Low adjective = 'x3';
+class Late: Low;
+zz: Late;
+aa: Late;
+_main(args) { }
+"""
+
+programs["dict6"] = """#include <dict.h>
+#include <tads.h>
+dictionary gDict;
+dictionary property noun, adjective, plural;
++ property location;
+object template 'name' @location?;
+class Thing: object
+    name = 'thing'
+    location = nil
+    noun = 'thing' 'object'
+;
+room: Thing 'room' noun = 'room' 'chamber';
++ lamp: Thing 'lamp' noun = 'lamp' 'lantern' adjective = 'brass' 'old' 'brass';
+++ wick: Thing 'wick'
+    noun = 'wick'
+    holder: Thing { name = 'holder' noun = 'holder' adjective = 'tiny' }
+    adjective = 'burnt'
+    propertyset 'x*' { y = 1 }
+;
++ Thing 'coin' noun = 'coin' 'coins' plural = 'coins';
+coin2: Thing noun = 'coin';
+replace coin2: Thing noun = 'token';
+class Fancy: Thing adjective = 'fancy';
+vase: Fancy noun = 'vase' noun2 = static ['a'];
+modify vase adjective = 'blue' replace noun = 'urn';
+transient ghost: Thing noun = 'ghost';
+say(v) { tadsSay(v); }
+names(lst) { local s = ''; foreach (local o in lst) s += o.name + ' '; return s; }
+show(o) { say(o.name); say(':'); say(o.noun); say('/'); say(o.adjective); say('/'); say(o.plural); say(' '); }
+_main(args)
+{
+    t3SetSay(say);
+    show(Thing); show(room); show(lamp); show(wick); show(wick.holder); show(coin2); say('| ');show(Fancy); show(vase); show(ghost);
+}
+"""
+
+programs["dict7"] = """dictionary property noun;
+dictionary third;
+C: object noun = 'inthird';
+dictionary first;
+a: object noun = 'infirst' 'both';
+dictionary second;
+b: object noun = 'insecond' 'both';
+_main(args) { return [first, second, third]; }
+"""
+
+mistakes["e_dict1"] = """dictionary property noun;
+a: object noun = 'x';
+dictionary;
+dictionary 5;
+dictionary property;
+dictionary property 5, adjective plural, , weight;
+dictionary property size;
+dictionary gDict;
+dictionary gDict;
+b: object
+    noun = 5
+    adjective = 'a' 'b' 5
+    plural() { }
+    size: object { }
+    weight = 'w', 'x'
+    noun = 'again'
+;
+object template 'noun';
+object template 'name' @adjective;
+c: gDict;
+d: object noun = 'x' + 'y';
+e: object noun = static 'x';
+f: object noun = ['x', 'y'];
+g: object noun = 'x' 'y' "z";
+class gDict: object;
+modify gDict x = 1;
+replace gDict: object;
+_main(args) { return gDict; }
+"""
+
+
+# A dictionary's name in code.
+programs["dict8"] = """dictionary gDict;
+dictionary property noun;
+c: gDict noun = 'c';
+d: object
+    m() { local y = gDict.foo; inherited gDict.foo(); return delegated gDict.foo(); }
+    p = gDict
+    q = [gDict]
+    r = static gDict
+;
+_main(args) { local x = &gDict; gDict.foo = 3; gDict.(&noun)(1); return [gDict + 1, x, d.p, gDict]; }
+"""
+
+mistakes["e_dict3"] = """dictionary gDict;
+dictionary property noun;
+c: gDict noun = 'c';
+d: object
+    m() { local y = gDict.foo; inherited gDict.foo(); return delegated gDict.foo(); }
+    p = gDict
+    q = [gDict]
+    r = static gDict
+;
+_main(args) { local x = new gDict; local z = new gDict(1); x = &gDict; gDict = 5; return gDict + 1; }
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

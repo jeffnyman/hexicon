@@ -41,6 +41,10 @@ pub(crate) enum Target {
     StaticBody(usize),
 }
 
+/// A word in a dictionary: its text, and each object it is a word for
+/// with the property.
+pub(crate) type DictWord = (Vec<u8>, Vec<(u32, u16)>);
+
 /// An object as it goes into the image.
 #[derive(Debug)]
 pub(crate) struct GenObj {
@@ -86,6 +90,10 @@ mod datatype {
     pub(super) const CODEOFS: u8 = 11;
     pub(super) const FUNCPTR: u8 = 12;
     pub(super) const ENUM: u8 = 15;
+    /// Not a kind of value the image has: the place of a list of the
+    /// words an object has for a dictionary property, until the list
+    /// is made.
+    pub(super) const VOCAB_LIST: u8 = 255;
 }
 
 /// The number of the list metaclass among those every image has.
@@ -176,6 +184,10 @@ pub(crate) struct Generated {
     /// The regular expressions, each an object: its number, and where
     /// its text is in the constants.
     pub rexpats: Vec<(u32, Target)>,
+    /// The dictionaries, each an object: its number, and its words in
+    /// the order the image has them, each with the objects it is a
+    /// word for and the property it is their word by.
+    pub dicts: Vec<(u32, Vec<DictWord>)>,
     /// Places in the code where two bytes are written that mean
     /// nothing.
     pub unspecified: Vec<usize>,
@@ -485,6 +497,10 @@ struct Gen<'p> {
     /// What each body shares with the bodies in and around it, by the
     /// body's index.
     closures: Vec<Closure>,
+    /// The definition whose object is being generated, and which
+    /// object in the output each definition became.
+    cur_def: usize,
+    def_objs: HashMap<usize, usize>,
     /// The body being generated.
     cur_body: usize,
 }
@@ -526,6 +542,8 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
         gave_up: None,
         closures: Vec::new(),
         cur_body: 0,
+        cur_def: 0,
+        def_objs: HashMap::new(),
     };
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
     generator.last_labels = Rc::clone(&generator.prog.last_labels);
@@ -537,6 +555,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
             Top::Obj(def) => {
                 for prop in &mut objdefs[def].props {
                     match &mut prop.value {
+                        PropValue::VocabList => {}
                         PropValue::Method(body) => {
                             let body = *body;
                             if bodies[body].0.closure.wraps_prop_expr {
@@ -631,8 +650,14 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                 generator.gen_code_body(&bodies[body].0, body, bodies[body].1, false);
                 scopes.push(std::mem::take(&mut generator.frames));
             }
-            Top::Obj(def) => generator.gen_object(&objdefs[def], &bodies, &mut scopes),
+            Top::Obj(def) => {
+                generator.cur_def = def;
+                generator.gen_object(&objdefs[def], &bodies, &mut scopes);
+            }
         }
+    }
+    if generator.gave_up.is_none() {
+        generator.build_dictionaries(&objdefs);
     }
     // Locals are checked for use once everything has been generated.
     for frames in scopes {
@@ -692,6 +717,13 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                 .unwrap_or(0)
         })
         .collect();
+    for (_, words) in &mut out.dicts {
+        for (_, items) in words {
+            for (_, prop) in items {
+                *prop = prop_ids[usize::from(*prop)];
+            }
+        }
+    }
     for obj in &mut out.objs {
         for prop in &mut obj.props {
             prop.id = prop_ids[usize::from(prop.id)];
@@ -889,6 +921,10 @@ impl Gen<'_> {
             Expr::Const(_) | Expr::Local(_) | Expr::AnonFunc { .. } => expr,
             Expr::Sym(name) => match self.prog.globals.get(&name) {
                 Some(Global::Func(func)) => Expr::constant(Value::FuncPtr(*func)),
+                // Only an object of the program's own kind is a
+                // constant. A dictionary, which is an object of a class
+                // built into the virtual machine, stays a name.
+                Some(Global::Obj(obj)) if self.prog.objs[*obj].is_dict => Expr::Sym(name),
                 Some(Global::Obj(obj)) => {
                     if self.prog.objs[*obj].is_extern {
                         self.out.obj_refs.insert(*obj);
@@ -1307,6 +1343,7 @@ impl Gen<'_> {
                 PropValue::Expr(Expr::DStr(text)) => {
                     (datatype::DSTRING, 0, Some(self.const_str_target(text)))
                 }
+                PropValue::VocabList => (datatype::VOCAB_LIST, 0, None),
                 PropValue::Expr(Expr::Const(value)) => match &value.value {
                     Value::Nil => (datatype::NIL, 0, None),
                     Value::True => (datatype::TRUE, 0, None),
@@ -1352,7 +1389,181 @@ impl Gen<'_> {
                 target: Some(Target::Body(index)),
             });
         }
+        self.def_objs.insert(self.cur_def, self.out.objs.len());
         self.out.objs.push(obj);
+    }
+
+    /// Put the words the program's objects have in their dictionaries,
+    /// and give each object's dictionary properties their values: a
+    /// list of the object's words for the property.
+    ///
+    /// The reference does this when it puts the program together,
+    /// going through its table of global names and then the objects
+    /// with no names. An object's words are its own and those of its
+    /// classes, which it takes when its turn comes if it is not a
+    /// class itself; a class gets its classes' words only if some
+    /// object of its kind has had its turn first.
+    fn build_dictionaries(&mut self, objdefs: &[ObjDef]) {
+        const BUCKETS: usize = 128;
+        // The definitions in the order of the table as it is when the
+        // program is put together: chain by chain, and in a chain the
+        // one with the highest number first, since the table is filled
+        // in the order of the numbers and the newest name in a chain
+        // is the first. A definition that `modify` set aside is in the
+        // table under a name made of its number.
+        let mut named: Vec<(usize, std::cmp::Reverse<u32>, usize)> = Vec::new();
+        for (index, obj) in self.prog.objs.iter().enumerate() {
+            if self.prog.globals.get(&obj.name) != Some(&Global::Obj(index)) {
+                continue;
+            }
+            if let Some(def) = obj.def {
+                let chain = crate::parse::global_hash(&obj.name);
+                named.push((chain, std::cmp::Reverse(obj.id), def));
+            }
+        }
+        for (index, def) in objdefs.iter().enumerate() {
+            if let (Some(id), None, false) = (def.mod_id, def.meta, def.replaced) {
+                let name = format!(" {id:x}");
+                let chain = crate::parse::global_hash(name.as_bytes());
+                named.push((chain, std::cmp::Reverse(id), index));
+            }
+        }
+        named.sort_unstable();
+        // Then the objects with no names, in the order they were made.
+        let unnamed = self
+            .prog
+            .objs
+            .iter()
+            .filter(|obj| obj.name == b".anon")
+            .filter_map(|obj| obj.def);
+        let order: Vec<usize> = named
+            .into_iter()
+            .map(|(_, _, def)| def)
+            .chain(unnamed)
+            .collect();
+
+        // Each definition's words, the first to be put in a dictionary
+        // first, and whether it has taken its classes' yet.
+        let mut words: Vec<Vec<(Vec<u8>, usize)>> =
+            objdefs.iter().map(|def| def.vocab.clone()).collect();
+        // The lists of words are put in the constants when the program
+        // is put together, and the reference then knows nothing of
+        // the strings that are there from before: a word is in the
+        // constants once for all the lists, but again if it is also a
+        // string somewhere in the program.
+        self.interned.clear();
+        let mut inherited = vec![false; objdefs.len()];
+        // Each dictionary's words: chains of them by the sum of their
+        // letters, the newest first in a chain, as an object's
+        // references are in a word.
+        let dict_objs = self.prog.dicts.clone();
+        let mut tables: Vec<Vec<Vec<DictWord>>> = vec![vec![Vec::new(); BUCKETS]; dict_objs.len()];
+        for def_index in order {
+            let def = &objdefs[def_index];
+            let id = match (def.mod_id, def.sym) {
+                (Some(id), _) => id,
+                (None, Some(sym)) => self.prog.objs[sym].id,
+                (None, None) => continue,
+            };
+            let dict = def
+                .dict
+                .and_then(|dict| dict_objs.iter().position(|obj| *obj == dict));
+            if let (Some(dict), false) = (dict, def.is_class) {
+                self.inherit_vocab(def_index, objdefs, &mut words, &mut inherited);
+                for (word, prop) in &words[def_index] {
+                    let hash = word
+                        .iter()
+                        .map(|byte| usize::from(byte.to_ascii_uppercase()))
+                        .sum::<usize>()
+                        % BUCKETS;
+                    let chain = &mut tables[dict][hash];
+                    let at = match chain.iter().position(|(text, _)| text == word) {
+                        Some(at) => at,
+                        None => {
+                            chain.insert(0, (word.clone(), Vec::new()));
+                            0
+                        }
+                    };
+                    let item = (id, self.prog.props[*prop].id);
+                    if !chain[at].1.contains(&item) {
+                        chain[at].1.insert(0, item);
+                    }
+                }
+            }
+            // The values of its dictionary properties.
+            let Some(&gen_obj) = self.def_objs.get(&def_index) else {
+                continue;
+            };
+            let mut at = 0;
+            while at < self.out.objs[gen_obj].props.len() {
+                let prop = &self.out.objs[gen_obj].props[at];
+                if prop.kind != datatype::VOCAB_LIST {
+                    at += 1;
+                    continue;
+                }
+                let prop_id = prop.id;
+                let list: Vec<ConstVal> = words[def_index]
+                    .iter()
+                    .filter(|(_, prop)| self.prog.props[*prop].id == prop_id)
+                    .map(|(word, _)| ConstVal::new(Value::SStr(word.clone())))
+                    .collect();
+                if list.is_empty() {
+                    // No words: no property.
+                    self.out.objs[gen_obj].props.remove(at);
+                    continue;
+                }
+                self.out.max_list_cnt = self.out.max_list_cnt.max(list.len());
+                let before = self.out.fixups.len();
+                self.add_const_list(&list, false, 0);
+                let target = self.out.fixups.remove(before).target;
+                let prop = &mut self.out.objs[gen_obj].props[at];
+                prop.kind = datatype::LIST;
+                prop.target = Some(target);
+                at += 1;
+            }
+        }
+        // The dictionaries go in the image in the order of their
+        // numbers.
+        for (dict, table) in dict_objs.iter().zip(tables) {
+            let id = self.prog.objs[*dict].id;
+            self.out
+                .dicts
+                .push((id, table.into_iter().flatten().collect()));
+        }
+        self.out.dicts.sort_by_key(|(id, _)| *id);
+    }
+
+    /// Give a definition the words of its classes, each of which takes
+    /// its own classes' first. They go in front of what it has, one at
+    /// a time, so that the last comes first.
+    fn inherit_vocab(
+        &self,
+        def_index: usize,
+        objdefs: &[ObjDef],
+        words: &mut [Vec<(Vec<u8>, usize)>],
+        inherited: &mut [bool],
+    ) {
+        if std::mem::replace(&mut inherited[def_index], true) {
+            return;
+        }
+        let def = &objdefs[def_index];
+        let superclasses: Vec<usize> = if def.is_modify {
+            def.prev_def.into_iter().collect()
+        } else {
+            def.superclasses
+                .iter()
+                .filter_map(|name| match self.prog.globals.get(name) {
+                    Some(Global::Obj(obj)) => self.prog.objs[*obj].def,
+                    _ => None,
+                })
+                .collect()
+        };
+        for superclass in superclasses {
+            self.inherit_vocab(superclass, objdefs, words, inherited);
+            for word in words[superclass].clone() {
+                words[def_index].insert(0, word);
+            }
+        }
     }
 
     /// Put a string in the constants for something outside the code to
@@ -3244,6 +3455,12 @@ impl Gen<'_> {
                     self.cg.write4(self.prog.metas[meta].obj_id);
                     self.cg.note_push();
                 }
+                // A dictionary.
+                Some(Global::Obj(obj)) if !discard => {
+                    self.cg.write_op(Op::PushObj);
+                    self.cg.write4(self.prog.objs[obj].id);
+                    self.cg.note_push();
+                }
                 _ => {}
             },
             Expr::DStr(text) => {
@@ -3710,6 +3927,10 @@ impl Gen<'_> {
                             self.cg.note_push();
                         }
                     }
+                    // A dictionary: the program cannot make another.
+                    Some(Global::Obj(_)) => {
+                        self.error("invalid 'new' - cannot create an instance of this type");
+                    }
                     Some(_) => self.error(INVALID),
                     None => self.undefined(name),
                 }
@@ -3871,6 +4092,19 @@ impl Gen<'_> {
             varargs,
             named,
         } = args;
+        // A property of a dictionary is got as any object's is whose
+        // number is known.
+        let as_const;
+        let obj = match obj {
+            Expr::Sym(name) => match self.prog.globals.get(name) {
+                Some(Global::Obj(dict)) => {
+                    as_const = Expr::constant(Value::Obj(self.prog.objs[*dict].id));
+                    &as_const
+                }
+                _ => obj,
+            },
+            other => other,
+        };
         match obj {
             Expr::Inh => {
                 self.need_self();
@@ -4126,6 +4360,7 @@ impl Gen<'_> {
             Expr::Sym(name) => {
                 match self.prog.globals.get(name).copied() {
                     Some(Global::Prop(prop)) => self.gen_prop_self(prop, false),
+                    Some(Global::Obj(dict)) => return (false, Some(self.prog.objs[dict].id)),
                     Some(_) => self.error(format!(
                         "symbol \"{}\" is not an object - illegal on left of '.'",
                         show_name(name)

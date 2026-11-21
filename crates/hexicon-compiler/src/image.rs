@@ -491,6 +491,38 @@ pub(crate) fn write_image(
         writer.block(b"OBJS", true, &objs);
     }
 
+    // The dictionaries, all in one block, which says its objects' sizes
+    // are four bytes: each is its number, the size of what follows,
+    // four bytes for the object that will compare words when the
+    // program runs, which is nothing yet, the count of words, and the
+    // words. A word is its length, its text with every byte's bits
+    // changed about, the count of its uses, and each use as an object
+    // and a property.
+    if !generated.dicts.is_empty() {
+        let mut objs = Vec::new();
+        objs.extend_from_slice(&(generated.dicts.len() as u16).to_le_bytes());
+        objs.extend_from_slice(&2u16.to_le_bytes());
+        objs.extend_from_slice(&1u16.to_le_bytes());
+        for (id, words) in &generated.dicts {
+            let mut data = vec![0; 4];
+            data.extend_from_slice(&(words.len() as u16).to_le_bytes());
+            for (text, items) in words {
+                let text = &text[..text.len().min(255)];
+                data.push(text.len() as u8);
+                data.extend(text.iter().map(|byte| byte ^ 0xBD));
+                data.extend_from_slice(&(items.len() as u16).to_le_bytes());
+                for (obj, prop) in items {
+                    data.extend_from_slice(&obj.to_le_bytes());
+                    data.extend_from_slice(&prop.to_le_bytes());
+                }
+            }
+            objs.extend_from_slice(&id.to_le_bytes());
+            objs.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            objs.extend_from_slice(&data);
+        }
+        writer.block(b"OBJS", true, &objs);
+    }
+
     // The objects that constants were made into: the numbers that are
     // not integers, and then the regular expressions. Each is its
     // number, the length of its data, and the data, and a block holds

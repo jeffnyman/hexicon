@@ -2200,3 +2200,132 @@ fn a_constant_division_gives_the_quotient_the_program_would_get() {
     assert_eq!(objs[6..18], [1, 0, 0, 0, 6, 0, 2, 0, 1, 0, 0, 0x25]);
     assert_eq!(objs[18..30], [2, 0, 0, 0, 6, 0, 2, 0, 0, 0, 0, 0x25]);
 }
+
+/// The dictionaries in an image: each one's number and its words, with
+/// how many uses each word has.
+fn dictionaries(image: &[u8]) -> Vec<(u32, Vec<(String, usize)>)> {
+    let mut found = Vec::new();
+    for objs in blocks(image, b"OBJS") {
+        // The dictionaries are of the third class every image has, in
+        // a block whose objects give their sizes in four bytes.
+        if objs[2..6] != [2, 0, 1, 0] {
+            continue;
+        }
+        let count = usize::from(u16::from_le_bytes([objs[0], objs[1]]));
+        let mut at = 6;
+        for _ in 0..count {
+            let id = u32::from_le_bytes(objs[at..at + 4].try_into().expect("four bytes"));
+            let size = u32::from_le_bytes(objs[at + 4..at + 8].try_into().expect("four bytes"));
+            let data = &objs[at + 8..at + 8 + size as usize];
+            at += 8 + size as usize;
+            let entries = usize::from(u16::from_le_bytes([data[4], data[5]]));
+            let mut words = Vec::new();
+            let mut pos = 6;
+            for _ in 0..entries {
+                let len = usize::from(data[pos]);
+                let text: Vec<u8> = data[pos + 1..pos + 1 + len]
+                    .iter()
+                    .map(|byte| byte ^ 0xBD)
+                    .collect();
+                pos += 1 + len;
+                let uses = usize::from(u16::from_le_bytes([data[pos], data[pos + 1]]));
+                pos += 2 + 6 * uses;
+                words.push((String::from_utf8_lossy(&text).into_owned(), uses));
+            }
+            found.push((id, words));
+        }
+    }
+    found
+}
+
+#[test]
+fn a_dictionary_holds_the_words_objects_have_for_its_properties() {
+    let compiled = compile_text(
+        "dictionary gDict;\ndictionary property noun, adjective;\n\
+         class Thing: object noun = 'thing';\n\
+         lamp: Thing noun = 'lamp' 'lantern' adjective = 'brass';\n\
+         key: Thing adjective = 'brass';\n_main(args) { return gDict; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let found = dictionaries(&image);
+    assert_eq!(found.len(), 1);
+    // The dictionary is numbered just before the first object whose
+    // words go in it. A class's words are its objects', not its own:
+    // `thing` is a word for the lamp and the key.
+    let (id, mut words) = found[0].clone();
+    assert_eq!(id, 1);
+    words.sort();
+    assert_eq!(
+        words,
+        [
+            ("brass".to_owned(), 2),
+            ("lamp".to_owned(), 1),
+            ("lantern".to_owned(), 1),
+            ("thing".to_owned(), 2),
+        ]
+    );
+    // The class and the two objects.
+    let objs = block(&image, b"OBJS");
+    assert_eq!(objs[0..2], [3, 0]);
+}
+
+#[test]
+fn words_go_in_the_dictionary_that_was_current() {
+    // The reference loses track when there are several dictionaries,
+    // and puts one's words in another; here each has its own.
+    let compiled = compile_text(
+        "dictionary property noun;\ndictionary first;\na: object noun = 'a' 'shared';\n\
+         dictionary second;\nb: object noun = 'b' 'shared';\nclass C: object noun = 'c';\n\
+         dictionary first;\nd: C noun = 'd';\n_main(args) { return [first, second]; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let mut found = dictionaries(&image);
+    assert_eq!(found.len(), 2);
+    for (_, words) in &mut found {
+        words.sort();
+    }
+    let names = |words: &[(String, usize)]| -> Vec<String> {
+        words.iter().map(|(word, _)| word.clone()).collect()
+    };
+    // `first` is numbered before `second`, whose first object is the
+    // class C, later in the table of names than `first` itself.
+    assert_eq!(names(&found[0].1), ["a", "c", "d", "shared"]);
+    assert_eq!(names(&found[1].1), ["b", "shared"]);
+}
+
+#[test]
+fn dictionary_words_have_their_own_mistakes() {
+    assert_eq!(
+        compile_messages(
+            "dictionary property noun;\na: object noun = 'x';\ndictionary gDict;\n\
+             b: object\n    noun = 5\n;\nobject template 'noun';\nmodify gDict x = 1;\n\
+             _main(args) { }\n"
+        ),
+        [
+            "2: error: vocabulary property cannot be defined - no dictionary is active",
+            "5: error: vocabulary property requires string value, but found \"5\"",
+            "7: error: property \"noun\" is a dictionary property - not valid in templates",
+            "8: error: empty template definition",
+            "8: error: objects of this type cannot be modified or replaced",
+        ]
+    );
+    // A name that is something else cannot be a dictionary's. The
+    // reference says so and then stops with a memory fault.
+    assert_eq!(
+        compile_messages("f() { }\na: object;\ndictionary f;\ndictionary a;\n_main(args) { }\n"),
+        [
+            "3: error: symbol \"f\" is already defined - can't redefine as object",
+            "4: error: redefining symbol \"a\" as dictionary object",
+        ]
+    );
+}
