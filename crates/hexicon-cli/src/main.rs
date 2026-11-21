@@ -2,6 +2,7 @@
 
 mod build;
 mod preprocess;
+mod resources;
 mod terminal;
 mod windows_zones;
 
@@ -61,11 +62,19 @@ commands:
                                in
       -nodef                   leave out the system library's _main
       -nopre, -pre             whether to run the program before the
-                               image is written (preinitialization is not
-                               done yet)
+                               image is written (default: -pre, unless -d)
+      -d                       build for debugging: no preinitialization
+                               by default, and resources linked to their
+                               files (the records for debugging are not
+                               written yet)
       -w0, -w1, -we            no warnings; warnings; warnings stop the
                                build
       -v                       list the sources as they are compiled
+      -res <file>...           after the modules: files and folders to
+                               bundle as resources, each as <file> or
+                               <file>=<name>, with -norecurse and
+                               -recurse for whether a folder's folders
+                               go too
       -a, -al, -q, -nobanner, -Fy <dir>, -Fo <dir>, -FC
                                taken, and of no effect: Hexicon writes no
                                symbol or object files, and builds

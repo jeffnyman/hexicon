@@ -199,6 +199,27 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     } else {
         (image, compiled.unspecified.clone())
     };
+    // The resources go on the end, after preinitialization: the files
+    // themselves, or in a build for debugging links to them.
+    let mut image = image;
+    if !project.resources.is_empty() {
+        let link = if project.debug { " link" } else { "" };
+        if project.verbose {
+            eprintln!("	add_resource{link}s -> {output}");
+        }
+        let resources = crate::resources::list(&project.resources);
+        let mut step = |message: &str| {
+            if project.verbose {
+                eprintln!("	{message}");
+            }
+        };
+        if let Err(message) =
+            crate::resources::bundle(&mut image, &output, &resources, project.debug, &mut step)
+        {
+            eprintln!("{message}");
+            return ExitCode::FAILURE;
+        }
+    }
     if let Err(error) = std::fs::write(&output, image) {
         eprintln!("hexicon: {output}: {error}");
         return ExitCode::FAILURE;

@@ -50,9 +50,129 @@ pub struct Project {
     pub warnings_as_errors: bool,
     /// Say what is being done (`-v`).
     pub verbose: bool,
+    /// The program is built for debugging (`-d`): its resources are
+    /// linked to their files rather than copied into the image.
+    pub debug: bool,
+    /// The files to bundle into the image as resources, in order: those
+    /// the libraries name, then those after `-res`.
+    pub resources: Vec<ResourceSpec>,
     /// What was said about the project that does not stop the build,
     /// in the words the reference uses: problems with libraries.
     pub messages: Vec<String>,
+}
+
+/// A file or a folder to bundle as resources.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResourceSpec {
+    /// The file or folder.
+    pub file: String,
+    /// The name to give it in the image (`file=alias`), if not the
+    /// file's own path written as a URL.
+    pub alias: Option<String>,
+    /// For a folder, whether the folders in it are bundled too.
+    pub recurse: bool,
+}
+
+/// A file bundled as a resource, and its name in the image.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Resource {
+    /// The file.
+    pub file: String,
+    /// The name the program asks for it by.
+    pub name: String,
+}
+
+/// What is in a folder, as [`expand_resources`] is told it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DirEntry {
+    /// The file's name, without the folder's.
+    pub name: String,
+    /// It is a folder.
+    pub is_dir: bool,
+    /// Hidden, or belonging to the system: such files are left out.
+    pub hidden: bool,
+}
+
+/// The files the resources name, each folder replaced by the files in
+/// it, in the order the system lists them, as the reference does. A
+/// file in a folder is named by the folder's name, a `/`, and its own.
+/// `list_dir` gives what is in a folder, or nothing for a path that is
+/// not one.
+pub fn expand_resources(
+    specs: &[ResourceSpec],
+    list_dir: &mut dyn FnMut(&str) -> Option<Vec<DirEntry>>,
+) -> Vec<Resource> {
+    fn add(
+        file: &str,
+        name: &str,
+        recurse: bool,
+        list_dir: &mut dyn FnMut(&str) -> Option<Vec<DirEntry>>,
+        out: &mut Vec<Resource>,
+    ) {
+        let Some(entries) = list_dir(file) else {
+            out.push(Resource {
+                file: file.to_owned(),
+                name: name.to_owned(),
+            });
+            return;
+        };
+        for entry in entries {
+            if entry.hidden || entry.name == "." || entry.name == ".." {
+                continue;
+            }
+            let full = build_full_path(file, &entry.name);
+            let mut full_name = name.to_owned();
+            if !full_name.is_empty() && !full_name.ends_with('/') {
+                full_name.push('/');
+            }
+            full_name.push_str(&entry.name);
+            if !entry.is_dir {
+                out.push(Resource {
+                    file: full,
+                    name: full_name,
+                });
+            } else if recurse {
+                add(&full, &full_name, true, list_dir, out);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for spec in specs {
+        let name = spec
+            .alias
+            .clone()
+            .unwrap_or_else(|| cvt_dir_url(&spec.file));
+        add(&spec.file, &name, spec.recurse, list_dir, &mut out);
+    }
+    out
+}
+
+/// A path written as a relative URL, as the reference writes it on
+/// Windows: with `/` between folders, a drive as `/C:`, and no `/` at
+/// the end.
+fn cvt_dir_url(path: &str) -> String {
+    let mut out = String::new();
+    let bytes = path.as_bytes();
+    let mut rest = path;
+    if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        out.push('/');
+        out.push_str(&path[..2]);
+        rest = &path[2..];
+        if !rest.starts_with(is_sep) {
+            out.push_str("./");
+        }
+    } else if bytes.len() >= 2 && is_sep(bytes[0] as char) && is_sep(bytes[1] as char) {
+        // A UNC path: the machine's name stays as it is, after a `/`.
+        let end = path[2..].find(is_sep).map_or(path.len(), |at| at + 2);
+        out.push('/');
+        out.push_str(&path[..end]);
+        rest = &path[end..];
+    }
+    out.extend(rest.chars().map(|c| if is_sep(c) { '/' } else { c }));
+    while out.len() > 1 && out.ends_with('/') {
+        out.pop();
+    }
+    out
 }
 
 /// Why there is nothing to build.
@@ -186,6 +306,10 @@ struct Reader<'f, 'a> {
     warnings_as_errors: bool,
     verbose: bool,
     source_text_group: bool,
+    resources: Vec<ResourceSpec>,
+    /// Whether a folder named after `-res` has its folders bundled too
+    /// (`-recurse`, which is the default, and `-norecurse`).
+    res_recurse: bool,
     messages: Vec<String>,
     lib_err: bool,
     opt_file: Option<String>,
@@ -219,6 +343,8 @@ pub fn read_project(
         warnings_as_errors: false,
         verbose: false,
         source_text_group: false,
+        resources: Vec::new(),
+        res_recurse: true,
         messages: Vec::new(),
         lib_err: false,
         opt_file: None,
@@ -302,6 +428,33 @@ fn parse_opt_file(text: &[u8]) -> Vec<String> {
 }
 
 impl Reader<'_, '_> {
+    /// What follows `-res`: files and folders, each as `file` or
+    /// `file=name`, and `-recurse` and `-norecurse` for the folders
+    /// after them.
+    fn parse_resources(&mut self, args: &[String]) -> Result<(), ProjectError> {
+        for arg in args {
+            match arg.as_str() {
+                "-recurse" => self.res_recurse = true,
+                "-norecurse" => self.res_recurse = false,
+                _ if arg.starts_with('-') => {
+                    return Err(ProjectError::Usage(format!("unknown option \"{arg}\"")));
+                }
+                _ => {
+                    let (file, alias) = match arg.split_once('=') {
+                        Some((file, alias)) => (file, Some(alias.to_owned())),
+                        None => (arg.as_str(), None),
+                    };
+                    self.resources.push(ResourceSpec {
+                        file: self.relative(file),
+                        alias,
+                        recurse: self.res_recurse,
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// A path the project file gives, made relative to the folder the
     /// project file is in.
     fn relative(&self, name: &str) -> String {
@@ -495,9 +648,8 @@ impl Reader<'_, '_> {
                     "-source" => is_source = true,
                     "-lib" => is_lib = true,
                     "-res" => {
-                        return Err(ProjectError::Usage(
-                            "resources (\"-res\") are not supported yet".to_owned(),
-                        ));
+                        // The rest are resources.
+                        return self.parse_resources(&args[at + 1..]);
                     }
                     _ => return Err(ProjectError::Usage(format!("unknown option \"{arg}\""))),
                 }
@@ -658,11 +810,13 @@ impl Reader<'_, '_> {
                     nodef |= self.process_lib(&full, &url);
                 }
                 "resource" => {
-                    say(
-                        self,
-                        linenum,
-                        "resources are not supported yet; this one is left out".to_owned(),
-                    );
+                    // Named as the library writes it, and with what is
+                    // in its folders if it is a folder.
+                    self.resources.push(ResourceSpec {
+                        file: full.clone(),
+                        alias: Some(value.to_owned()),
+                        recurse: true,
+                    });
                 }
                 "needmacro" => {
                     let mut words = value.splitn(2, char::is_whitespace);
@@ -687,6 +841,15 @@ impl Reader<'_, '_> {
     }
 
     fn finish(mut self) -> Result<Project, ProjectError> {
+        // What `-d` changes otherwise is done: no preinitialization by
+        // default, and links to the resources.
+        if self.debug {
+            self.messages.push(
+                "hexicon: the records for debugging (\"-d\") are not written yet; \
+                 the image is built without them"
+                    .to_owned(),
+            );
+        }
         // The system library's `_main` comes first, unless something
         // said not to.
         if !self.nodef {
@@ -787,6 +950,8 @@ impl Reader<'_, '_> {
             warnings: self.warnings,
             warnings_as_errors: self.warnings_as_errors,
             verbose: self.verbose,
+            debug: self.debug,
+            resources: self.resources,
             messages: self.messages,
         })
     }

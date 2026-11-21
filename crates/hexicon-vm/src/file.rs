@@ -14,6 +14,9 @@ use std::rc::Rc;
 
 use hexicon_host::{FileError, Sandbox, file_type};
 
+/// How the system ends a line in a text file.
+const NEWLINE: &str = if cfg!(windows) { "\r\n" } else { "\n" };
+
 use crate::error::{ErrParam, VmError, VmResult, code};
 use crate::hash;
 use crate::object::Object;
@@ -894,12 +897,19 @@ impl Vm {
     }
 
     /// Write a value to a text file: its text, in the file's character
-    /// set.
+    /// set, with each newline written as the system writes the end of a
+    /// line, as the reference does.
     fn file_write_text(&mut self, id: ObjId, value: Value) -> VmResult<()> {
         let charset = self.file(id).map_or(ObjId::INVALID, |file| file.charset);
         let map = self.charset_map(charset)?;
         let (_, text) = self.text_cast(value)?;
-        let bytes = map.encode(&String::from_utf8_lossy(&text));
+        let text = String::from_utf8_lossy(&text);
+        let text = if NEWLINE == "\n" {
+            text
+        } else {
+            text.replace('\n', NEWLINE).into()
+        };
+        let bytes = map.encode(&text);
         self.open_file(id)?.write(&bytes);
         Ok(())
     }

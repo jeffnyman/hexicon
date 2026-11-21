@@ -29,7 +29,10 @@ pub use compile::{
     CompileOptions, Compiled, RuntimeSymbol, RuntimeValue, compile, compile_program,
 };
 pub use lex::Tok;
-pub use project::{Project, ProjectError, ProjectPaths, read_project};
+pub use project::{
+    DirEntry, Project, ProjectError, ProjectPaths, Resource, ResourceSpec, expand_resources,
+    read_project,
+};
 
 #[cfg(test)]
 mod tests;

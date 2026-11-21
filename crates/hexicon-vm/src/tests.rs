@@ -1915,17 +1915,20 @@ fn text_file_reads_lines_with_any_ending() {
         ]
     );
 
-    // Text is written in the file's character set.
+    // Text is written in the file's character set, with the system's
+    // line ending for each newline.
     let name = vm.new_str("written");
     let file = file_call(&mut vm, None, OPEN_TEXT, &[name, Value::Int(2), charset]).expect("opens");
     let text = vm.new_str("caf\u{e9}\n");
     file_call(&mut vm, Some(file), WRITE, &[text]).expect("writes");
     file_call(&mut vm, Some(file), WRITE, &[Value::Int(42)]).expect("writes");
     file_call(&mut vm, Some(file), CLOSE, &[]).expect("closes");
-    assert_eq!(
-        host.file("written").as_deref(),
-        Some(b"caf\xe9\n42".as_slice())
-    );
+    let expected: &[u8] = if cfg!(windows) {
+        b"caf\xe9\r\n42"
+    } else {
+        b"caf\xe9\n42"
+    };
+    assert_eq!(host.file("written").as_deref(), Some(expected));
 }
 
 #[test]

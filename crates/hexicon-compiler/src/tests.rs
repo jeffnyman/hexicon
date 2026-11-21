@@ -3038,3 +3038,94 @@ fn the_program_s_macros_for_preinitialization() {
         .collect();
     assert!(chains.windows(2).all(|pair| pair[0] <= pair[1]));
 }
+
+#[test]
+fn resources_come_from_libraries_and_after_res() {
+    let mut files = Files::default()
+        .with("game/game.t3m", "-lib art/art\n-source start\n-res\nfront.png\n-norecurse\nmusic\nlogo.png=images/logo.png\n")
+        .with("game/art/art.tl", "source: art\nresource: pics\n")
+        .with("game/art/art.t", "")
+        .with("game/start.t", "");
+    let project = read(&mut files, &["-nodef", "-f", "game/game.t3m"]).expect("a project");
+    let spec = |file: String, alias: Option<&str>, recurse: bool| crate::ResourceSpec {
+        file,
+        alias: alias.map(str::to_owned),
+        recurse,
+    };
+    // A library's are named as it writes them, and include what is in
+    // their folders' folders; those after `-res` are relative to the
+    // project file, and `-norecurse` holds for what comes after it.
+    assert_eq!(
+        project.resources,
+        [
+            spec(sys_path(&["game", "art", "pics"]), Some("pics"), true),
+            spec(sys_path(&["game", "front.png"]), None, true),
+            spec(sys_path(&["game", "music"]), None, false),
+            spec(
+                sys_path(&["game", "logo.png"]),
+                Some("images/logo.png"),
+                false
+            ),
+        ]
+    );
+    assert!(!project.debug);
+}
+
+#[test]
+fn a_folder_of_resources_is_the_files_in_it() {
+    use crate::{DirEntry, Resource, ResourceSpec};
+    let entry = |name: &str, is_dir: bool, hidden: bool| DirEntry {
+        name: name.to_owned(),
+        is_dir,
+        hidden,
+    };
+    let sep = std::path::MAIN_SEPARATOR;
+    let mut list_dir = |path: &str| -> Option<Vec<DirEntry>> {
+        match path.replace(sep, "/").as_str() {
+            "g/pics" => Some(vec![
+                entry("a.png", false, false),
+                entry("sub", true, false),
+                entry("secret.png", false, true),
+                entry("z.png", false, false),
+            ]),
+            "g/pics/sub" => Some(vec![entry("b.png", false, false)]),
+            _ => None,
+        }
+    };
+    let spec = |file: &str, alias: Option<&str>, recurse: bool| ResourceSpec {
+        file: file.replace('/', &sep.to_string()),
+        alias: alias.map(str::to_owned),
+        recurse,
+    };
+    let names = |specs: &[ResourceSpec],
+                 list_dir: &mut dyn FnMut(&str) -> Option<Vec<DirEntry>>| {
+        crate::expand_resources(specs, list_dir)
+            .into_iter()
+            .map(|Resource { name, .. }| name)
+            .collect::<Vec<_>>()
+    };
+    // A file is named by its path, with `/`; a folder by its files, in
+    // the order listed, without hidden ones, and with what is in its
+    // folders too if it says so.
+    assert_eq!(
+        names(
+            &[spec("g/pics", None, true), spec("g/one.txt", None, true)],
+            &mut list_dir
+        ),
+        [
+            "g/pics/a.png",
+            "g/pics/sub/b.png",
+            "g/pics/z.png",
+            "g/one.txt"
+        ]
+    );
+    assert_eq!(
+        names(&[spec("g/pics", Some("art/"), false)], &mut list_dir),
+        ["art/a.png", "art/z.png"]
+    );
+    // A drive is written as the reference writes it.
+    assert_eq!(
+        names(&[spec("C:x.png", None, true)], &mut list_dir),
+        ["/C:./x.png"]
+    );
+}
