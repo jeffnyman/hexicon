@@ -203,6 +203,26 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
                 daytime: int(4)?,
             }
         }
+        MetaKind::StringBuffer => {
+            // The room, the step it grows by, the length, and the
+            // characters in 16 bits. Loading keeps the sizes within the
+            // limits, as the reference does.
+            let int = |at: usize| {
+                let bytes = data.get(at..at + 4).ok_or_else(bad)?;
+                Ok::<u32, VmError>(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+            };
+            let limit = |n: u32| n.clamp(16, crate::object::StrBuf::MAX_ROOM);
+            let room = limit(int(0)?);
+            let mut buffer = crate::object::StrBuf::new(room, limit(int(4)?));
+            let len = int(8)?.min(room) as usize;
+            for index in 0..len {
+                let unit = u32::from(u16_at(12 + 2 * index)?);
+                buffer
+                    .chars
+                    .push(char::from_u32(unit).unwrap_or('\u{fffd}'));
+            }
+            Object::StringBuffer(buffer)
+        }
         MetaKind::IntrinsicClass => {
             // A length, the index of the class in the dependency list,
             // the modifier object, and optionally the class state.
@@ -246,6 +266,7 @@ impl Vm {
             .map(|name| FunctionSet::from_image_name(name))
             .collect::<VmResult<Vec<_>>>()?;
 
+        crate::heap::reset();
         let mut objects = ObjectTable::new();
         for block in &image.object_blocks {
             let Some(kind) = meta.get(block.metaclass_index as usize).map(|e| e.kind) else {

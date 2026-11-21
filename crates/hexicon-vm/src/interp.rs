@@ -211,9 +211,7 @@ impl Vm {
             if argc_override.is_none() {
                 self.pc = pc as u32;
                 self.io.varargc = None;
-                if self.run_depth <= 1 {
-                    self.objects.at_safe_point();
-                }
+                self.objects.at_safe_point(self.run_depth);
             }
             let Some(&byte) = code.get(pc) else {
                 return Err(VmError::new(code::INVALID_OPCODE));

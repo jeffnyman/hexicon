@@ -192,6 +192,15 @@ impl LookupTable {
         if self.first_free == 0 {
             let count = self.slots.len();
             self.add_slots((count / 2).max(16));
+            // The reference allocates the table anew at its new size.
+            crate::heap::count(
+                crate::heap::lookup_bytes(self.buckets.len(), self.slots.len()),
+                if self.weak {
+                    "weakreflookuptable"
+                } else {
+                    "lookuptable"
+                },
+            );
         }
         let index = self.first_free as usize - 1;
         self.first_free = self.slots[index].next;

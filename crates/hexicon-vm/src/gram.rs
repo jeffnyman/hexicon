@@ -781,7 +781,8 @@ impl Vm {
         }
 
         // Build the trees, the last match found first.
-        let result = self.new_list(Vec::new());
+        // Made at its full length, as the reference makes it.
+        let result = self.new_list(vec![Value::Nil; parser.successes.len()]);
         self.push(result);
         let mut trees = Vec::with_capacity(parser.successes.len());
         let mut failed = None;
@@ -905,7 +906,9 @@ impl Vm {
         let alts = self.gram(id)?.alts.clone();
         let alt_class = self.predef.gram_alt_info;
         let token_class = self.predef.gram_alt_token_info;
-        let result = self.new_list(Vec::new());
+        // The lists are made at their full lengths, as the reference
+        // makes them.
+        let result = self.new_list(vec![Value::Nil; alts.len()]);
         self.push(result);
         let outcome = (|| -> VmResult<()> {
             let mut alt_objects = Vec::with_capacity(alts.len());
@@ -913,7 +916,7 @@ impl Vm {
                 let alt_object = if !alt_class.is_valid() {
                     Value::Nil
                 } else {
-                    let token_list = self.new_list(Vec::new());
+                    let token_list = self.new_list(vec![Value::Nil; alt.tokens.len()]);
                     self.push(token_list);
                     let mut token_objects = Vec::with_capacity(alt.tokens.len());
                     for token in &alt.tokens {

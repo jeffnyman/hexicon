@@ -674,7 +674,7 @@ impl Vm {
                 _ => return Err(VmError::new(code::EXCEPTION_OBJ_REQD)),
             }
         } else {
-            self.alloc_obj(Object::Tads(tads::TadsObject::new(Vec::new())))
+            self.alloc_obj(Object::Tads(tads::TadsObject::with_room(Vec::new(), 1)))
         };
         if self.predef.exception_message != INVALID_PROP {
             let message = match code::message(error.code) {
@@ -712,9 +712,16 @@ impl Vm {
     /// Run from an address until the function `base_depth` frames up
     /// returns.
     pub(crate) fn run_at(&mut self, start_pc: u32, base_depth: usize) -> VmResult<()> {
+        let depth = self.run_depth;
+        if depth > 0 {
+            self.objects.enter_nested(depth);
+        }
         self.run_depth += 1;
         let result = self.run_nested(start_pc, base_depth);
         self.run_depth -= 1;
+        if depth > 0 {
+            self.objects.leave_nested(depth, self.r0);
+        }
         result
     }
 

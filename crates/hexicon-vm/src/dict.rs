@@ -734,11 +734,12 @@ impl Vm {
                 let found = self
                     .dict_mut(id)?
                     .correct(&input, max_distance, builtin.as_deref());
-                let result = self.new_list(Vec::new());
+                // Made at their full lengths, as the reference makes them.
+                let result = self.new_list(vec![Value::Nil; found.len()]);
                 self.push(result);
                 let mut items = Vec::with_capacity(found.len());
                 for (word, distance, replacements) in found {
-                    let entry = self.new_list(Vec::new());
+                    let entry = self.new_list(vec![Value::Nil; 3]);
                     items.push(entry);
                     if let Some(Object::List(stored)) = self.objects.get_mut(result.obj_id()) {
                         *stored = items.clone().into();

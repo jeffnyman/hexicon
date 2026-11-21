@@ -43,6 +43,16 @@ pub(crate) struct StrComp {
     equivalents: HashMap<char, Equivalent>,
 }
 
+impl StrComp {
+    /// The bytes the reference allocates for a comparator: a fixed part
+    /// with a table of the first characters, an entry for each
+    /// equivalence, and its characters in 16 bits.
+    pub(crate) fn heap_bytes(&self) -> i64 {
+        let chars: usize = self.equivalents.values().map(|e| e.chars.len()).sum();
+        (2064 + 24 * self.equivalents.len() + 2 * chars) as i64
+    }
+}
+
 /// A string read a character at a time in its case-folded form, where
 /// one character can become several.
 struct Folded<'a> {

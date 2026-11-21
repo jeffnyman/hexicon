@@ -89,7 +89,7 @@ pub enum Object {
     /// A BigNumber: a decimal floating-point number.
     BigNumber(Box<Big>),
     /// A string buffer: text that can change in place.
-    StringBuffer(Vec<char>),
+    StringBuffer(StrBuf),
     /// A compiled regular expression.
     Pattern {
         /// The pattern as the program wrote it: a string value.
@@ -144,6 +144,9 @@ struct Slot {
     /// VM grows a vector by its own rules and writes the room it has
     /// to saved states and images.
     vec_alloc: u32,
+    /// For a vector, the size of the reference's heap cell its elements
+    /// are in. See [`crate::heap::realloc`].
+    vec_cell: u16,
 }
 
 /// Whether an object's finalizer has run.
@@ -189,8 +192,15 @@ pub struct ObjectTable {
     /// How many have been created since the collector last ran.
     allocs_since_gc: i32,
     /// The value of `serial` when the instruction now running at the
-    /// outermost level began. See [`ObjectTable::collect`].
+    /// innermost level began. See [`ObjectTable::collect_mark`].
     safe_serial: u32,
+    /// What the intrinsics at outer levels may be holding while program
+    /// code they called runs: for each such call, the level of the
+    /// intrinsic, and the serials of the objects it had created since its
+    /// instruction began (after the first, up to the second).
+    held_ranges: Vec<(u32, u32, u32)>,
+    /// The results such calls returned to an intrinsic, with its level.
+    held_results: Vec<(u32, Value)>,
     /// Objects from the image that have changed since it was loaded, as
     /// they were then. Restoring and restarting begin from these.
     image_state: std::collections::HashMap<u32, Object>,
@@ -270,6 +280,7 @@ impl ObjectTable {
                 mark: Mark::Unreachable,
                 pristine: false,
                 vec_alloc: 0,
+                vec_cell: 0,
             };
             // ID 0 is the invalid ID and is never on the free list.
             if id != 0 {
@@ -307,7 +318,12 @@ impl ObjectTable {
         if trace_alloc() {
             let kind = format!("{object:?}");
             let kind = kind.split(['(', ' ', '{']).next().unwrap_or("");
-            eprintln!("A {id} {kind}");
+            if let Object::String(text) = &object {
+                let text: String = String::from_utf8_lossy(text).chars().take(60).collect();
+                eprintln!("A {id} {kind} {text:?}");
+            } else {
+                eprintln!("A {id} {kind}");
+            }
         }
         self.unlink(id);
         self.serial = self.serial.wrapping_add(1);
@@ -318,6 +334,8 @@ impl ObjectTable {
         slot.finalize = Finalize::NotYet;
         slot.mark = Mark::Unreachable;
         slot.vec_alloc = vec_len(&object);
+        slot.vec_cell = crate::heap::cell_for(crate::heap::vector_bytes(slot.vec_alloc as usize));
+        count_object(&object, slot.vec_alloc);
         slot.object = Some(object);
         slot.in_root_set = false;
         slot.transient = false;
@@ -343,6 +361,8 @@ impl ObjectTable {
         self.unlink(id.0);
         let slot = &mut self.slots[id.0 as usize];
         slot.vec_alloc = vec_len(&object);
+        slot.vec_cell = crate::heap::cell_for(crate::heap::vector_bytes(slot.vec_alloc as usize));
+        count_object(&object, slot.vec_alloc);
         slot.object = Some(object);
         slot.in_root_set = true;
         slot.transient = transient;
@@ -405,8 +425,15 @@ impl ObjectTable {
         let Some(changes) = self.savepoints.pop_back() else {
             return false;
         };
-        for (id, object) in changes.into_iter().rev() {
+        for (id, mut object) in changes.into_iter().rev() {
             if let Some(slot) = self.slots.get_mut(id as usize) {
+                // Undoing changes to a string buffer's text does not take
+                // back the room it grew to, in the reference.
+                if let (Some(Object::StringBuffer(now)), Object::StringBuffer(then)) =
+                    (&slot.object, &mut object)
+                {
+                    then.room = now.room;
+                }
                 if slot.object.is_some() {
                     slot.object = Some(object);
                 }
@@ -468,10 +495,14 @@ impl ObjectTable {
             .map_or(0, |slot| slot.vec_alloc as usize)
     }
 
-    /// Give a vector room for so many elements.
+    /// Give a vector room for so many elements, as it is created.
     pub fn set_vector_alloc(&mut self, id: ObjId, count: usize) {
         if let Some(slot) = self.slots.get_mut(id.0 as usize) {
+            // It was counted with the room its elements take.
+            let before = crate::heap::vector_bytes(slot.vec_alloc as usize);
+            crate::heap::adjust(crate::heap::vector_bytes(count) - before, "vector");
             slot.vec_alloc = count as u32;
+            slot.vec_cell = crate::heap::cell_for(crate::heap::vector_bytes(count));
         }
     }
 
@@ -484,6 +515,8 @@ impl ObjectTable {
             let alloc = slot.vec_alloc as usize;
             if len > alloc {
                 slot.vec_alloc = (alloc + 16).max(len) as u32;
+                let bytes = crate::heap::vector_bytes(slot.vec_alloc as usize);
+                crate::heap::realloc(&mut slot.vec_cell, bytes, "vector");
             }
         }
     }
@@ -512,6 +545,41 @@ impl ObjectTable {
 pub(crate) fn trace_alloc() -> bool {
     static TRACE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *TRACE.get_or_init(|| std::env::var_os("HEXICON_TRACE_ALLOC").is_some())
+}
+
+/// Count the bytes the reference allocates for a new object.
+fn count_object(object: &Object, vector_room: u32) {
+    let kind = match object {
+        Object::Tads(_) => "tads-object",
+        Object::IntClassMod(_) => "int-class-mod",
+        Object::String(_) => "string",
+        Object::List(_) => "list",
+        Object::Vector(_) => "vector",
+        Object::AnonFn(_) => "anon-func-ptr",
+        Object::IndexedIter { .. } => "indexed-iterator",
+        Object::LookupIter { .. } => "lookuptable-iterator",
+        Object::LookupTable(table) if table.weak => "weakreflookuptable",
+        Object::LookupTable(_) => "lookuptable",
+        Object::Pattern { .. } => "regex-pattern",
+        Object::StringBuffer(_) => "stringbuffer",
+        Object::BigNumber(_) => "bignumber",
+        Object::ByteArray(_) => "bytearray",
+        Object::CharSet { .. } => "character-set",
+        Object::StrComp(_) => "string-comparator",
+        Object::GramProd(_) => "grammar-production",
+        Object::Dict(_) => "dictionary2",
+        Object::Class(_) => "intrinsic-class",
+        Object::File(_) => "file",
+        Object::Date { .. } => "date",
+        Object::TimeZone(_) => "timezone",
+        Object::FileName(_) => "filename",
+        Object::TempFile(_) => "tempfile",
+        Object::Opaque { .. } => "-",
+    };
+    crate::heap::count(
+        crate::heap::object_bytes(object, vector_room as usize),
+        kind,
+    );
 }
 
 /// The elements a vector or an anonymous function has, which is the room
@@ -580,12 +648,87 @@ fn references(object: &Object, out: &mut Vec<Value>) {
     }
 }
 
+/// The text of a string buffer, and the room the reference would have
+/// allocated for it, which an image or a saved game records.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StrBuf {
+    /// The characters.
+    pub chars: Vec<char>,
+    /// How many characters there is room for.
+    pub room: u32,
+    /// How many characters the room grows by, at a time.
+    pub step: u32,
+}
+
+impl StrBuf {
+    /// The most room a buffer can have.
+    pub const MAX_ROOM: u32 = 0x7fff_ffff;
+
+    /// An empty buffer with this much room, growing by this much.
+    pub fn new(room: u32, step: u32) -> StrBuf {
+        StrBuf {
+            chars: Vec::new(),
+            room,
+            step,
+        }
+    }
+
+    /// Make room for the characters there are now, in steps, as the
+    /// reference does before it adds them.
+    pub fn grow(&mut self) {
+        let len = self.chars.len() as u32;
+        if len > self.room {
+            let step = self.step.max(1);
+            self.room = len.div_ceil(step).saturating_mul(step);
+            crate::heap::count(crate::heap::strbuf_bytes(self), "stringbuffer");
+        }
+    }
+}
+
+impl std::ops::Deref for StrBuf {
+    type Target = Vec<char>;
+
+    fn deref(&self) -> &Vec<char> {
+        &self.chars
+    }
+}
+
 impl ObjectTable {
-    /// Note that an instruction is starting at the outermost level, with
-    /// no intrinsic function or method in the middle of its work.
+    /// Note that an instruction is starting at this level of nested
+    /// runs, with no intrinsic at this level in the middle of its work.
     #[inline]
-    pub fn at_safe_point(&mut self) {
+    pub fn at_safe_point(&mut self, depth: u32) {
         self.safe_serial = self.serial;
+        if self
+            .held_ranges
+            .last()
+            .is_some_and(|&(level, _, _)| level >= depth)
+            || self
+                .held_results
+                .last()
+                .is_some_and(|&(level, _)| level >= depth)
+        {
+            self.held_ranges.retain(|&(level, _, _)| level < depth);
+            self.held_results.retain(|&(level, _)| level < depth);
+        }
+    }
+
+    /// Note that an intrinsic at this level is calling program code,
+    /// which runs a level deeper: what it created before the call it may
+    /// still be holding.
+    pub fn enter_nested(&mut self, depth: u32) {
+        self.held_ranges
+            .push((depth, self.safe_serial, self.serial));
+    }
+
+    /// Note that program code an intrinsic at this level called has
+    /// returned this to it. What the code created and did not return is
+    /// garbage, as far as the intrinsic is concerned.
+    pub fn leave_nested(&mut self, depth: u32, result: Value) {
+        self.safe_serial = self.serial;
+        if matches!(result, Value::Obj(_)) {
+            self.held_results.push((depth, result));
+        }
     }
 
     /// Whether enough objects have been created that the collector
@@ -593,6 +736,7 @@ impl ObjectTable {
     #[inline]
     pub fn gc_due(&self) -> bool {
         self.allocs_since_gc >= ALLOCS_BETWEEN_GC
+            || crate::heap::since_gc() > crate::heap::BYTES_BETWEEN_GC
     }
 
     /// Start keeping the loaded state of image objects as they change.
@@ -696,15 +840,25 @@ impl ObjectTable {
     /// function or method is in the middle of its work, which is when
     /// `in_native` is set, it can be holding objects that nothing else
     /// refers to yet. Those are all newer than the last safe point, so
-    /// everything newer than that counts as a root too.
+    /// everything newer than that counts as a root too. So does what an
+    /// intrinsic at an outer level may be holding while program code it
+    /// called runs: what it created before the call, and what earlier
+    /// calls returned to it.
     pub fn collect_mark(&mut self, roots: &[Value], in_native: bool) -> Vec<ObjId> {
         self.allocs_since_gc = 0;
+        crate::heap::reset();
         let mut all_roots: Vec<Value> = roots.to_vec();
+        all_roots.extend(self.held_results.iter().map(|&(_, value)| value));
         let safe_serial = self.safe_serial;
+        let held = &self.held_ranges;
         for (id, slot) in self.slots.iter_mut().enumerate() {
             slot.mark = Mark::Unreachable;
             if slot.object.is_some()
-                && (slot.in_root_set || (in_native && slot.serial > safe_serial))
+                && (slot.in_root_set
+                    || (in_native && slot.serial > safe_serial)
+                    || held
+                        .iter()
+                        .any(|&(_, low, high)| slot.serial > low && slot.serial <= high))
             {
                 all_roots.push(Value::Obj(ObjId(id as u32)));
             }

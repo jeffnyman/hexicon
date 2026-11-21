@@ -2300,3 +2300,85 @@ fn a_run_before_the_image_is_written_is_kept_in_it() {
     let image = Image::parse(&rebuilt.bytes).expect("the rewritten image is well formed");
     assert_eq!(run(&image), ("base!!".to_owned(), Ok(())));
 }
+
+// ---- when the collector runs, and what it keeps ----
+
+#[test]
+fn what_a_callback_made_and_dropped_is_freed_while_its_caller_runs() {
+    let mut table = ObjectTable::new();
+    // An intrinsic, at the first level, makes an object it holds, then
+    // calls program code, which makes two and returns one.
+    table.at_safe_point(1);
+    let held = table.alloc(Object::String(b"held".as_slice().into()));
+    table.enter_nested(1);
+    table.at_safe_point(2);
+    let dropped = table.alloc(Object::String(b"dropped".as_slice().into()));
+    let returned = table.alloc(Object::String(b"returned".as_slice().into()));
+    table.leave_nested(1, Value::Obj(returned));
+
+    // A collection now, as the intrinsic goes on, keeps what it may be
+    // holding and frees the rest.
+    let candidates = table.collect_mark(&[], true);
+    assert_eq!(candidates, [dropped]);
+
+    // Once its instruction is over, none of it is protected.
+    table.at_safe_point(1);
+    let mut candidates = table.collect_mark(&[], false);
+    candidates.sort_by_key(|id| id.0);
+    let mut expected = vec![held, dropped, returned];
+    expected.sort_by_key(|id| id.0);
+    assert_eq!(candidates, expected);
+}
+
+#[test]
+fn six_megabytes_allocated_start_a_collection() {
+    crate::heap::reset();
+    let mut table = ObjectTable::new();
+    table.alloc(Object::String(vec![b'x'; 6 * 1024 * 1024 - 2].into()));
+    assert!(!table.gc_due(), "exactly 6 MB is not more than 6 MB");
+    table.alloc(Object::String(b"x".as_slice().into()));
+    assert!(table.gc_due());
+    table.collect_mark(&[], false);
+    assert!(!table.gc_due(), "a collection starts the count again");
+}
+
+#[test]
+fn a_block_that_outgrows_its_heap_cell_is_counted_twice() {
+    crate::heap::reset();
+    // A vector of 10 elements takes 70 bytes, in a cell of 128.
+    let mut cell = crate::heap::cell_for(crate::heap::vector_bytes(10));
+    assert_eq!(cell, 128);
+    // Growing within the cell counts the new size once.
+    crate::heap::realloc(&mut cell, crate::heap::vector_bytes(20), "vector");
+    assert_eq!(crate::heap::since_gc(), 128);
+    // Growing out of it counts it again, and moves to a bigger cell.
+    crate::heap::realloc(&mut cell, crate::heap::vector_bytes(36), "vector");
+    assert_eq!(crate::heap::since_gc(), 128 + 2 * 224);
+    assert_eq!(cell, 256);
+    // A block too big for any cell is counted once.
+    let mut cell = crate::heap::cell_for(600);
+    assert_eq!(cell, 0);
+    crate::heap::realloc(&mut cell, 900, "vector");
+    assert_eq!(crate::heap::since_gc(), 128 + 2 * 224 + 900);
+}
+
+#[test]
+fn a_string_buffer_grows_in_steps_and_undo_keeps_its_room() {
+    use crate::object::StrBuf;
+    let mut table = ObjectTable::new();
+    let id = table.alloc(Object::StringBuffer(StrBuf::new(16, 16)));
+    table.savepoint();
+    if let Some(Object::StringBuffer(buffer)) = table.get_mut(id) {
+        buffer.chars.extend("seventeen letters".chars());
+        buffer.grow();
+        assert_eq!(buffer.room, 32, "grown by a step of 16");
+    }
+    assert!(table.undo());
+    match table.get(id) {
+        Some(Object::StringBuffer(buffer)) => {
+            assert!(buffer.chars.is_empty());
+            assert_eq!(buffer.room, 32, "the room it grew to is not given back");
+        }
+        other => panic!("not a string buffer: {other:?}"),
+    }
+}

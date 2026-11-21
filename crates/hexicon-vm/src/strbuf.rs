@@ -1,7 +1,7 @@
 //! The string buffer intrinsic class: text that changes in place.
 
 use crate::error::{VmError, VmResult, code};
-use crate::object::Object;
+use crate::object::{Object, StrBuf};
 use crate::value::{NativeDesc, ObjId, Value};
 use crate::vm::Vm;
 
@@ -36,11 +36,19 @@ impl Vm {
         }
     }
 
-    fn strbuf_mut(&mut self, id: ObjId) -> VmResult<&mut Vec<char>> {
+    fn strbuf_mut(&mut self, id: ObjId) -> VmResult<&mut StrBuf> {
         match self.objects.get_mut(id) {
             Some(Object::StringBuffer(buffer)) => Ok(buffer),
             _ => Err(VmError::new(code::BAD_TYPE_BIF)),
         }
+    }
+
+    /// Replace characters of a string buffer, growing its room as needed.
+    fn strbuf_splice(&mut self, id: ObjId, at: i32, delete: i32, insert: &[char]) -> VmResult<()> {
+        let buffer = self.strbuf_mut(id)?;
+        splice(&mut buffer.chars, at, delete, insert);
+        buffer.grow();
+        Ok(())
     }
 
     /// The contents of a string buffer as UTF-8 text.
@@ -50,16 +58,26 @@ impl Vm {
     }
 
     /// Construct a string buffer. The arguments, an initial size and a
-    /// growth increment, only tune storage, which Hexicon manages itself.
+    /// growth increment, only tune storage, but the reference records
+    /// them in an image or a saved game, so Hexicon keeps them as it does.
     pub(crate) fn create_strbuf(&mut self, argc: u32) -> VmResult<ObjId> {
-        if argc > 2 {
-            return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
-        }
-        for index in 0..argc as usize {
-            self.int_arg(self.arg(index))?;
-        }
+        let (room, step) = match argc {
+            0 => (256, 256),
+            1 => {
+                let room = self.int_arg(self.arg(0))?;
+                let step = match room {
+                    ..256 => room,
+                    256..4096 => room / 2,
+                    _ => 2048,
+                };
+                (room, step)
+            }
+            2 => (self.int_arg(self.arg(0))?, self.int_arg(self.arg(1))?),
+            _ => return Err(VmError::new(code::WRONG_NUM_OF_ARGS)),
+        };
         self.discard(argc as usize);
-        Ok(self.alloc_obj(Object::StringBuffer(Vec::new())))
+        let limit = |n: i32| (n.max(16) as u32).min(StrBuf::MAX_ROOM);
+        Ok(self.alloc_obj(Object::StringBuffer(StrBuf::new(limit(room), limit(step)))))
     }
 
     /// The characters of a value converted to text.
@@ -106,21 +124,21 @@ impl Vm {
             // append(val)
             3 => {
                 let text = self.text_chars(self.arg(0))?;
-                self.strbuf_mut(id)?.extend(text);
+                self.strbuf_splice(id, len, 0, &text)?;
                 self_value
             }
             // insert(index, val)
             4 => {
                 let at = self.strbuf_pos(id, self.int_arg(self.arg(0))?);
                 let text = self.text_chars(self.arg(1))?;
-                splice(self.strbuf_mut(id)?, at, 0, &text);
+                self.strbuf_splice(id, at, 0, &text)?;
                 self_value
             }
             // copyChars(index, val): overwrite with the text.
             5 => {
                 let at = self.strbuf_pos(id, self.int_arg(self.arg(0))?);
                 let text = self.text_chars(self.arg(1))?;
-                splice(self.strbuf_mut(id)?, at, text.len() as i32, &text);
+                self.strbuf_splice(id, at, text.len() as i32, &text)?;
                 self_value
             }
             // deleteChars(index, count?)
@@ -131,7 +149,7 @@ impl Vm {
                 } else {
                     len
                 };
-                splice(self.strbuf_mut(id)?, at, count, &[]);
+                self.strbuf_splice(id, at, count, &[])?;
                 self_value
             }
             // splice(index, deleteCount, val)
@@ -139,7 +157,7 @@ impl Vm {
                 let at = self.strbuf_pos(id, self.int_arg(self.arg(0))?);
                 let delete = self.int_arg(self.arg(1))?;
                 let text = self.text_chars(self.arg(2))?;
-                splice(self.strbuf_mut(id)?, at, delete, &text);
+                self.strbuf_splice(id, at, delete, &text)?;
                 self_value
             }
             // substr(index, count?)
@@ -212,7 +230,7 @@ impl Vm {
                     .unwrap_or('\0')
             }
         };
-        self.strbuf_mut(id)?[at as usize] = c;
+        self.strbuf_mut(id)?.chars[at as usize] = c;
         Ok(())
     }
 }

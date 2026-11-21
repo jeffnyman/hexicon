@@ -193,19 +193,28 @@ impl Vm {
         // The description of this call that a callback's stack trace shows.
         let native = |vm: &Vm, name: &'static str| vm.native_call(name, self_value, index, argc);
         Ok(match index {
+            // These make their result first, as a copy of the list, and
+            // fill it in, as the reference does, so the objects the
+            // callback makes are numbered after it.
             method::SUBSET => {
                 let native = native(self, "List.subset");
+                let result = self.new_list(items.clone());
                 let kept = self.seq_subset(&items, self.arg(0), &native)?;
-                self.new_list(kept)
+                self.objects
+                    .replace(result.obj_id(), crate::object::Object::List(kept.into()));
+                result
             }
             method::MAP_ALL => {
                 let native = native(self, "List.mapAll");
+                let result = self.new_list(items.clone());
                 let function = self.arg(0);
                 let mut mapped = Vec::with_capacity(items.len());
                 for &item in &items {
                     mapped.push(self.call_value(function, &[item], native.clone())?);
                 }
-                self.new_list(mapped)
+                self.objects
+                    .replace(result.obj_id(), crate::object::Object::List(mapped.into()));
+                result
             }
             method::LENGTH => Value::Int(items.len() as i32),
             method::SUBLIST => {

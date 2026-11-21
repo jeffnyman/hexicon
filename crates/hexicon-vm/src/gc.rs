@@ -8,10 +8,8 @@
 //! object's ID is the next one handed out, and a program can see IDs: in
 //! the order `firstObj` and `nextObj` go through objects, for one. The
 //! reference VM collects before creating an object once 10,000 have been
-//! created since the last collection. Hexicon collects at the start of
-//! the instruction that would do that. An instruction that creates
-//! several objects can therefore collect a little earlier here than
-//! there.
+//! created since the last collection, or more than 6 MB allocated for
+//! them (see [`crate::heap`]), and Hexicon collects at the same moments.
 
 use crate::object::Object;
 use crate::tads;
@@ -87,13 +85,12 @@ impl Vm {
         }
         self.in_gc = true;
         if crate::object::trace_alloc() {
-            eprintln!("GC at {:#x} stack {}", self.pc, self.stack.len());
+            let why = if automatic { "at" } else { "asked at" };
+            eprintln!("GC {why} {:#x} stack {}", self.pc, self.stack.len());
         }
         let mut roots = self.gc_roots();
         roots.extend(keep);
-        let candidates = self
-            .objects
-            .collect_mark(&roots, automatic || self.run_depth > 1);
+        let candidates = self.objects.collect_mark(&roots, automatic);
         let with_finalizers: Vec<ObjId> = candidates
             .iter()
             .copied()

@@ -343,10 +343,10 @@ impl Vm {
             Object::StringBuffer(buffer) => {
                 // The space allocated, the amount to grow by, the length,
                 // and the text in UTF-16.
-                w.u32(buffer.len().max(1) as u32);
-                w.u32(16);
+                w.u32(buffer.room);
+                w.u32(buffer.step);
                 w.u32(buffer.len() as u32);
-                for &c in buffer {
+                for &c in buffer.iter() {
                     w.u16(u32::from(c) as usize);
                 }
             }
@@ -697,13 +697,15 @@ impl Vm {
                 Object::BigNumber(Box::new(Big::from_bytes(data).ok_or_else(bad)?))
             }
             MetaKind::StringBuffer => {
-                let allocated = r.u32()?;
-                r.u32()?;
-                let len = r.u32()?.min(allocated) as usize;
-                let mut buffer = Vec::with_capacity(len);
+                // A saved game's sizes are taken as they are.
+                let room = r.u32()?;
+                let mut buffer = crate::object::StrBuf::new(room, r.u32()?);
+                let len = r.u32()?.min(room) as usize;
                 for _ in 0..len {
                     let unit = r.u16()? as u32;
-                    buffer.push(char::from_u32(unit).unwrap_or('\u{fffd}'));
+                    buffer
+                        .chars
+                        .push(char::from_u32(unit).unwrap_or('\u{fffd}'));
                 }
                 Object::StringBuffer(buffer)
             }

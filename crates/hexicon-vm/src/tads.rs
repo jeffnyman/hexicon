@@ -41,15 +41,55 @@ pub struct TadsObject {
     /// The order in which to search superclasses when there is more than
     /// one, computed on first use.
     search_path: RefCell<Option<Rc<[ObjId]>>>,
+    /// The reference's hash table size and the number of properties it
+    /// has room for, which decide how many bytes it allocates. See
+    /// [`crate::heap`].
+    ref_hash: usize,
+    ref_room: usize,
+}
+
+/// The properties a new object has room for unless it says otherwise, in
+/// the reference.
+const PROP_ROOM: usize = 16;
+
+/// The reference's hash table size for an object with room asked for so
+/// many properties, and the room it gives it.
+fn ref_table(count: usize) -> (usize, usize) {
+    let hash = count.next_power_of_two().clamp(2, 256);
+    (hash, count.max(hash))
 }
 
 impl TadsObject {
     /// An object with the given superclasses and no properties.
     pub fn new(superclasses: Vec<ObjId>) -> Self {
+        Self::with_room(superclasses, PROP_ROOM)
+    }
+
+    /// An object with the given superclasses and no properties, that the
+    /// reference would give room for so many.
+    pub fn with_room(superclasses: Vec<ObjId>, props: usize) -> Self {
+        let (ref_hash, ref_room) = ref_table(props);
         Self {
             superclasses,
+            ref_hash,
+            ref_room,
             ..Self::default()
         }
+    }
+
+    /// The bytes the reference's header for this object takes.
+    pub(crate) fn heap_bytes(&self) -> i64 {
+        crate::heap::tads_bytes(self.superclasses.len(), self.ref_hash, self.ref_room)
+    }
+
+    /// Grow the reference's header to so many superclasses and room for
+    /// so many properties, counting what it allocates.
+    fn ref_expand(&mut self, superclasses: usize, props: usize) {
+        (self.ref_hash, self.ref_room) = ref_table(props);
+        crate::heap::count(
+            crate::heap::tads_bytes(superclasses, self.ref_hash, self.ref_room),
+            "tads-object",
+        );
     }
 
     /// Read an object from its image data: a superclass count, a property
@@ -58,8 +98,11 @@ impl TadsObject {
         let u16_at = |at: usize| Some(u16::from_le_bytes([*data.get(at)?, *data.get(at + 1)?]));
         let superclass_count = u16_at(0)? as usize;
         let prop_count = u16_at(2)? as usize;
+        let (ref_hash, ref_room) = ref_table(prop_count);
         let mut object = Self {
             load_flags: u16_at(4)?,
+            ref_hash,
+            ref_room,
             ..Self::default()
         };
         let mut pos = 6;
@@ -100,6 +143,17 @@ impl TadsObject {
 
     /// Append a property that is known not to be present.
     fn insert(&mut self, prop: PropId, value: Value) -> &mut PropEntry {
+        if self.entries.len() >= self.ref_room {
+            // The reference doubles the room, or adds half once it is
+            // large.
+            let room = self.ref_room;
+            let props = if room <= 128 {
+                room * 2
+            } else {
+                room + room / 2
+            };
+            self.ref_expand(self.superclasses.len(), props.max(1));
+        }
         if self.entries.len() >= self.buckets.len() {
             self.rehash((self.buckets.len() * 2).max(4));
         }
@@ -167,6 +221,9 @@ impl TadsObject {
 
     /// Replace the superclass list.
     pub fn set_superclasses(&mut self, superclasses: Vec<ObjId>) {
+        if superclasses.len() > self.superclasses.len() {
+            self.ref_expand(superclasses.len(), self.ref_room);
+        }
         self.superclasses = superclasses;
         self.invalidate_search_path();
     }

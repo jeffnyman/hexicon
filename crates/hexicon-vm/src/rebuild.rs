@@ -51,6 +51,8 @@ struct ConstMapper {
     addrs: HashMap<ObjId, u32>,
     /// The pages, and how much of each is used.
     pages: Vec<(Vec<u8>, usize)>,
+    /// For each page, the stretches that mean nothing.
+    page_unspecified: Vec<Vec<(usize, usize)>>,
 }
 
 impl ConstMapper {
@@ -64,6 +66,7 @@ impl ConstMapper {
             rem: page_size,
             addrs: HashMap::new(),
             pages: Vec::new(),
+            page_unspecified: Vec::new(),
         }
     }
 
@@ -91,17 +94,20 @@ impl ConstMapper {
         let used = self.next_free - self.base;
         let count = used.div_ceil(self.page_size.max(1));
         self.pages = (0..count).map(|_| (vec![0; self.page_size], 0)).collect();
+        self.page_unspecified = vec![Vec::new(); count];
     }
 
-    fn store(&mut self, id: ObjId, data: &[u8]) {
+    fn store(&mut self, id: ObjId, data: &Data) {
         let Some(addr) = self.addr(id) else {
             return;
         };
         let at = addr as usize - self.base;
         let (page, ofs) = (at / self.page_size, at % self.page_size);
         let (bytes, used) = &mut self.pages[page];
-        bytes[ofs..ofs + data.len()].copy_from_slice(data);
-        *used = (*used).max(ofs + data.len());
+        bytes[ofs..ofs + data.bytes.len()].copy_from_slice(&data.bytes);
+        *used = (*used).max(ofs + data.bytes.len());
+        self.page_unspecified[page]
+            .extend(data.unspecified.iter().map(|&(at, len)| (ofs + at, len)));
     }
 }
 
@@ -379,7 +385,11 @@ impl Vm {
                         data.extend_from_slice(&((mapper.first_page + index) as u32).to_le_bytes());
                         data.push(xor_mask);
                         data.extend(bytes[..*used].iter().map(|byte| byte ^ xor_mask));
-                        out.block(b"CPPG", &data, &[]);
+                        let unspecified: Vec<(usize, usize)> = mapper.page_unspecified[index]
+                            .iter()
+                            .map(|&(at, len)| (7 + at, len))
+                            .collect();
+                        out.block(b"CPPG", &data, &unspecified);
                     }
                     out.out.extend_from_slice(block.header);
                     out.out.extend_from_slice(block.data);
@@ -415,7 +425,7 @@ impl Vm {
             }
         };
         // The new values, worked out first, as the table is borrowed.
-        let mut store: Option<Vec<u8>> = None;
+        let mut store: Option<Data> = None;
         let replacement: Option<Object> = match self.objects.get(id) {
             Some(Object::Tads(tads) | Object::IntClassMod(tads)) => {
                 let changes: Vec<(u16, Value)> = tads
@@ -441,18 +451,18 @@ impl Vm {
             }
             Some(Object::List(items)) => {
                 let items: Vec<Value> = items.iter().map(|&v| to_const(v, &self.objects)).collect();
-                let mut data = Vec::with_capacity(2 + items.len() * Value::HOLDER_SIZE);
-                data.extend_from_slice(&(items.len() as u16).to_le_bytes());
-                for item in &items {
-                    data.extend_from_slice(&item.to_holder());
+                let mut data = Data::default();
+                data.u16(items.len());
+                for &item in &items {
+                    data.value(item);
                 }
                 store = Some(data);
                 Some(Object::List(items.into()))
             }
             Some(Object::String(text)) => {
-                let mut data = Vec::with_capacity(2 + text.len());
-                data.extend_from_slice(&(text.len() as u16).to_le_bytes());
-                data.extend_from_slice(text);
+                let mut data = Data::default();
+                data.u16(text.len());
+                data.raw(text);
                 store = Some(data);
                 None
             }
@@ -742,14 +752,13 @@ impl Vm {
                 d.raw(&big.to_bytes());
             }
             Object::StringBuffer(buffer) => {
-                d.u32(buffer.len().max(1) as u32);
-                d.u32(16);
+                // The room, the step it grows by, the length, and the
+                // characters, each in 16 bits, as the reference keeps them.
+                d.u32(buffer.room);
+                d.u32(buffer.step);
                 d.u32(buffer.len() as u32);
-                for &c in buffer {
-                    let mut units = [0u16; 2];
-                    for unit in c.encode_utf16(&mut units) {
-                        d.u16(usize::from(*unit));
-                    }
+                for &c in buffer.iter() {
+                    d.u16(u32::from(c) as usize & 0xffff);
                 }
             }
             Object::Pattern { source, .. } => d.value(*source),

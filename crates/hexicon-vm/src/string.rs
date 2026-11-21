@@ -743,9 +743,25 @@ impl Vm {
             None
         };
         // The list is made first, and the pieces after it, as in the
-        // reference, so that each is given the same object number.
+        // reference, so that each is given the same object number. The
+        // reference makes it as long as the limit, or as the number of
+        // pieces of a given length, counting the text's bytes, or ten,
+        // and lengthens it one element at a time after that.
         let list = self.alloc_obj(Object::List(Rc::from([])));
+        let mut room = match (limit, &target) {
+            (Some(limit), _) => limit,
+            (None, None) => text.len().div_ceil(piece_len),
+            (None, Some(_)) => 10,
+        };
+        crate::heap::adjust(5 * room as i64, "list");
+        let mut cell = crate::heap::cell_for(2 + 5 * room as i64);
         let mut pieces = Vec::new();
+        let mut make_room = |count: usize| {
+            if count > room {
+                room = count;
+                crate::heap::realloc(&mut cell, 2 + 5 * room as i64, "list");
+            }
+        };
         let mut pos = 0;
         while pos < text.len() && limit.is_none_or(|limit| pieces.len() + 1 < limit) {
             let (cut, skip) = match &target {
@@ -764,6 +780,7 @@ impl Vm {
                     None => break,
                 },
             };
+            make_room(pieces.len() + 1);
             pieces.push(self.new_string(&text[pos..cut]));
             pos = cut + skip;
             // An empty delimiter match consumes a character, so the
@@ -773,6 +790,7 @@ impl Vm {
             }
         }
         if pos < text.len() {
+            make_room(pieces.len() + 1);
             pieces.push(self.new_string(&text[pos..]));
         }
         self.objects.replace(list, Object::List(pieces.into()));
@@ -780,6 +798,31 @@ impl Vm {
     }
 
     // ---- replacing ----
+
+    /// Start a string that is built up a piece at a time, as the
+    /// reference does when it replaces text: with room for three times
+    /// the subject's bytes, to grow by what each piece needs and 512 more.
+    fn start_built_string(&mut self, subject_len: usize) -> BuiltString {
+        let id = self.alloc_obj(Object::String(Rc::from([])));
+        let room = subject_len * 3;
+        crate::heap::adjust(room as i64, "string");
+        BuiltString {
+            id,
+            room,
+            cell: crate::heap::cell_for(room as i64 + 2),
+        }
+    }
+
+    /// Finish a built string with its text. The reference gives back
+    /// room it did not use if that is 256 bytes or more.
+    fn finish_built_string(&mut self, mut built: BuiltString, text: Vec<u8>) -> Value {
+        built.make_room(text.len(), 0);
+        if built.room - text.len() >= 256 {
+            crate::heap::realloc(&mut built.cell, text.len() as i64 + 2, "string");
+        }
+        self.objects.replace(built.id, Object::String(text.into()));
+        Value::Obj(built.id)
+    }
 
     /// `String.findReplace` and `rexReplace`. The arguments are on the
     /// stack; for `rexReplace` the subject is the second of them and
@@ -907,6 +950,7 @@ impl Vm {
                 rule.found = None;
             }
             let mut out: Option<Vec<u8>> = None;
+            let mut built: Option<BuiltString> = None;
             let mut pos = skip;
             while pos < text.len() {
                 // Find the next match: of the current rule in serial
@@ -956,12 +1000,18 @@ impl Vm {
                 if limit > 0 {
                     limit -= 1;
                 }
+                if out.is_none() {
+                    built = Some(self.start_built_string(text.len()));
+                }
+                let built = built.as_mut().expect("made with the first match");
                 let out = out.get_or_insert_with(|| text[..skip].to_vec());
+                built.make_room(out.len(), match_pos - pos);
                 out.extend_from_slice(&text[pos..match_pos]);
 
                 match &rules[best].replacement {
                     Replacement::Text(replacement) => {
                         if !is_pattern && flags & REPLACE_FOLLOW_CASE == 0 {
+                            built.make_room(out.len(), replacement.len());
                             out.extend_from_slice(replacement);
                         } else {
                             // Follow the case of the matched text, and
@@ -977,6 +1027,9 @@ impl Vm {
                             while at < source.len() {
                                 let c = source[at];
                                 if !is_pattern || c != '%' || at + 1 == source.len() {
+                                    // The reference makes room for each
+                                    // character as it copies it.
+                                    built.make_room(out.len() + buffer.len(), 3);
                                     if follow && c.is_lowercase() && has_upper && !has_lower {
                                         buffer.extend(c.to_uppercase());
                                     } else if follow && c.is_lowercase() && has_upper && has_lower {
@@ -999,12 +1052,20 @@ impl Vm {
                                             if group < rules[best].group_count
                                                 && let Some((a, b)) = rules[best].groups[group]
                                             {
+                                                built.make_room(out.len(), b - a);
                                                 out.extend_from_slice(&text[a..b]);
                                             }
                                         }
-                                        '*' => out.extend_from_slice(matched),
-                                        '%' => out.push(b'%'),
+                                        '*' => {
+                                            built.make_room(out.len(), matched.len());
+                                            out.extend_from_slice(matched);
+                                        }
+                                        '%' => {
+                                            built.make_room(out.len(), 1);
+                                            out.push(b'%');
+                                        }
                                         other => {
+                                            built.make_room(out.len(), 4);
                                             buffer.push('%');
                                             buffer.push(other);
                                         }
@@ -1027,6 +1088,7 @@ impl Vm {
                         let result = self.call_value(function, &all[..count], native.clone())?;
                         if !result.is_nil() {
                             let replacement = self.require_str(result)?;
+                            built.make_room(out.len(), replacement.len());
                             out.extend_from_slice(&replacement);
                         }
                     }
@@ -1036,6 +1098,7 @@ impl Vm {
                 // After an empty match, copy a character and move on.
                 if match_len == 0 && pos < text.len() {
                     let next = next_char(&text, pos);
+                    built.make_room(out.len(), 3);
                     out.extend_from_slice(&text[pos..next]);
                     pos = next;
                 }
@@ -1050,9 +1113,9 @@ impl Vm {
                     break;
                 }
             }
-            if let Some(mut out) = out {
+            if let (Some(mut out), Some(built)) = (out, built) {
                 out.extend_from_slice(&text[pos.min(text.len())..]);
-                subject = self.new_string(out);
+                subject = self.finish_built_string(built, out);
             }
             // In serial mode, each rule in turn is applied to the result
             // of the one before.
@@ -1170,5 +1233,26 @@ impl Vm {
             Value::Int(char_count(&text[start..end]) as i32),
             matched,
         ]))
+    }
+}
+
+/// A string being built up a piece at a time, and the room the reference
+/// would have allocated for it so far.
+struct BuiltString {
+    id: ObjId,
+    /// The bytes there is room for.
+    room: usize,
+    /// The reference's heap cell. See [`crate::heap::realloc`].
+    cell: u16,
+}
+
+impl BuiltString {
+    /// Make room for `need` more bytes after the first `len`, growing by
+    /// 512 more than that when there is not enough.
+    fn make_room(&mut self, len: usize, need: usize) {
+        if len + need > self.room {
+            self.room = len + need + 512;
+            crate::heap::realloc(&mut self.cell, self.room as i64 + 2, "string");
+        }
     }
 }

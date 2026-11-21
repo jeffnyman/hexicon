@@ -25,6 +25,7 @@ mod file;
 mod gc;
 mod gram;
 mod hash;
+mod heap;
 pub mod identity;
 mod interp;
 mod io;

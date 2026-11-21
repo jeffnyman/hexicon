@@ -882,7 +882,8 @@ impl Vm {
                 let Some(original) = vm.objects.tads(id) else {
                     return Err(VmError::new(code::OBJ_VAL_REQD));
                 };
-                let mut clone = TadsObject::new(original.superclasses.clone());
+                let mut clone =
+                    TadsObject::with_room(original.superclasses.clone(), original.props().len());
                 for entry in original.props() {
                     clone.set(entry.prop, entry.value);
                 }

@@ -47,17 +47,24 @@ impl Vm {
             let id = self.new_table(LookupTable::new(256, macros.len(), false));
             for definition in &macros {
                 // Each macro is its expansion, its parameter names, and
-                // its flags.
+                // its flags. The reference makes the name, then the list,
+                // then what goes in it, in order, so the objects are made
+                // in that order here too.
                 let name = self.new_str(&definition.name);
+                let entry = self.new_list(vec![Value::Nil; 3]);
                 let expansion = self.new_str(&definition.expansion);
-                let mut parameters = Vec::with_capacity(definition.parameters.len());
+                let parameters = self.new_list(vec![Value::Nil; definition.parameters.len()]);
+                let mut names = Vec::with_capacity(definition.parameters.len());
                 for parameter in &definition.parameters {
-                    parameters.push(self.new_str(parameter));
+                    names.push(self.new_str(parameter));
                 }
-                let parameters = self.new_list(parameters);
                 let flags =
                     i32::from(definition.function_like) | i32::from(definition.varargs) << 1;
-                let entry = self.new_list(vec![expansion, parameters, Value::Int(flags)]);
+                if let (Value::Obj(entry), Value::Obj(parameters)) = (entry, parameters) {
+                    self.objects.replace(parameters, Object::List(names.into()));
+                    let items = vec![expansion, Value::Obj(parameters), Value::Int(flags)];
+                    self.objects.replace(entry, Object::List(items.into()));
+                }
                 let _ = self.table_set(id, name, entry);
             }
             self.macro_table = Some(id);

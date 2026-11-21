@@ -728,7 +728,7 @@ impl Vm {
             Some(len) => len,
             None => self.list_like_len(list)?.unwrap_or(0),
         };
-        let converted = self.new_list(Vec::new());
+        let converted = self.new_list(vec![Value::Nil; len]);
         self.push(converted);
         let mut items = Vec::with_capacity(len);
         let mut failed = None;
