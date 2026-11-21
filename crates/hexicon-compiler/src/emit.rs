@@ -17,7 +17,9 @@ use crate::ast::{
 use crate::codegen::{CodeGen, Label};
 use crate::flow::Flow;
 use crate::fold::{self, Folded};
-use crate::parse::{BifSym, Global, Local, ObjDef, Program, PropValue, Top, enum_order};
+use crate::parse::{
+    BifSym, Global, GramAlt, GramTokKind, Local, ObjDef, Program, PropValue, Top, enum_order,
+};
 use crate::pp::{MAX_ERRORS, Severity, TOO_MANY_ERRORS, show_name};
 
 /// The start of one item in a stream: a function in the code, or a
@@ -101,6 +103,9 @@ const METACLASS_LIST: u8 = 1;
 const METACLASS_VECTOR: u8 = 4;
 const METACLASS_ANON_FN: u8 = 5;
 const METACLASS_LOOKUP_TABLE: u8 = 7;
+/// The number of the property that a production's words are its words
+/// by, `miscVocab`.
+const MISC_VOCAB_PROP_ID: u16 = 5;
 /// The place in a context of the `self` of the method it was made in.
 const CTX_METHOD_CTX: u8 = 1;
 /// Which part of what a function knows about its call is the function
@@ -188,6 +193,12 @@ pub(crate) struct Generated {
     /// the order the image has them, each with the objects it is a
     /// word for and the property it is their word by.
     pub dicts: Vec<(u32, Vec<DictWord>)>,
+    /// The grammar productions, each an object: its number, and its
+    /// data as the image has it.
+    pub gramprods: Vec<(u32, Vec<u8>)>,
+    /// What was found wrong when the program was put together, that
+    /// is nowhere in particular in the source.
+    pub link_errors: Vec<String>,
     /// Places in the code where two bytes are written that mean
     /// nothing.
     pub unspecified: Vec<usize>,
@@ -656,8 +667,10 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
             }
         }
     }
+    let mut productions = Vec::new();
     if generator.gave_up.is_none() {
-        generator.build_dictionaries(&objdefs);
+        productions = generator.merge_grammar();
+        generator.build_dictionaries(&objdefs, &productions);
     }
     // Locals are checked for use once everything has been generated.
     for frames in scopes {
@@ -723,6 +736,55 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                 *prop = prop_ids[usize::from(*prop)];
             }
         }
+    }
+    // The productions as the image has them: the count of the ways a
+    // phrase can be made up, and for each a score that is always zero,
+    // how much worse it is than another, the class of the object made
+    // when it matches, and the things to match, each as the property
+    // the match is kept in, a kind, and what the kind needs.
+    for (sym, alts) in &productions {
+        let prog = &*generator.prog;
+        let prop_id = |prop: usize| prop_ids[usize::from(prog.props[prop].id)];
+        let mut data = Vec::new();
+        data.extend_from_slice(&(alts.len() as u16).to_le_bytes());
+        for alt in alts {
+            data.extend_from_slice(&0u16.to_le_bytes());
+            data.extend_from_slice(&(alt.badness as u16).to_le_bytes());
+            let obj = alt.obj.map_or(0, |obj| prog.objs[obj].id);
+            data.extend_from_slice(&obj.to_le_bytes());
+            data.extend_from_slice(&(alt.toks.len() as u16).to_le_bytes());
+            for tok in &alt.toks {
+                data.extend_from_slice(&tok.prop.map_or(0, prop_id).to_le_bytes());
+                match &tok.kind {
+                    GramTokKind::Prod(obj) => {
+                        data.push(1);
+                        data.extend_from_slice(&prog.objs[*obj].id.to_le_bytes());
+                    }
+                    GramTokKind::Speech(prop) => {
+                        data.push(2);
+                        data.extend_from_slice(&prop_id(*prop).to_le_bytes());
+                    }
+                    GramTokKind::Literal(text) => {
+                        data.push(3);
+                        data.extend_from_slice(&(text.len() as u16).to_le_bytes());
+                        data.extend_from_slice(text);
+                    }
+                    GramTokKind::TokType(sym) => {
+                        data.push(4);
+                        data.extend_from_slice(&generator.enum_ids[*sym].to_le_bytes());
+                    }
+                    GramTokKind::Star => data.push(5),
+                    GramTokKind::SpeechList(props) => {
+                        data.push(6);
+                        data.extend_from_slice(&(props.len() as u16).to_le_bytes());
+                        for prop in props {
+                            data.extend_from_slice(&prop_id(*prop).to_le_bytes());
+                        }
+                    }
+                }
+            }
+        }
+        out.gramprods.push((prog.objs[*sym].id, data));
     }
     for obj in &mut out.objs {
         for prop in &mut obj.props {
@@ -924,7 +986,11 @@ impl Gen<'_> {
                 // Only an object of the program's own kind is a
                 // constant. A dictionary, which is an object of a class
                 // built into the virtual machine, stays a name.
-                Some(Global::Obj(obj)) if self.prog.objs[*obj].is_dict => Expr::Sym(name),
+                Some(Global::Obj(obj))
+                    if self.prog.objs[*obj].is_dict || self.prog.objs[*obj].is_gramprod =>
+                {
+                    Expr::Sym(name)
+                }
                 Some(Global::Obj(obj)) => {
                     if self.prog.objs[*obj].is_extern {
                         self.out.obj_refs.insert(*obj);
@@ -1403,7 +1469,56 @@ impl Gen<'_> {
     /// classes, which it takes when its turn comes if it is not a
     /// class itself; a class gets its classes' words only if some
     /// object of its kind has had its turn first.
-    fn build_dictionaries(&mut self, objdefs: &[ObjDef]) {
+    /// Put together each grammar production's ways of making up its
+    /// phrase: those of the statements with no tag, in the order they
+    /// were read, and then those kept with the names of the classes
+    /// that statements with a tag defined, in the order of the table
+    /// of global names. A production with none, that no statement
+    /// declared, is probably a name spelled wrong.
+    fn merge_grammar(&mut self) -> Vec<(usize, Vec<GramAlt>)> {
+        let mut productions: Vec<(usize, Vec<GramAlt>)> = self
+            .prog
+            .gramprods
+            .iter()
+            .map(|prod| (prod.sym, prod.alts.clone()))
+            .collect();
+        let mut named: Vec<(usize, std::cmp::Reverse<u32>, usize)> = self
+            .prog
+            .objs
+            .iter()
+            .enumerate()
+            .filter(|(index, obj)| {
+                obj.gram.is_some() && self.prog.globals.get(&obj.name) == Some(&Global::Obj(*index))
+            })
+            .map(|(index, obj)| {
+                let chain = crate::parse::global_hash(&obj.name);
+                (chain, std::cmp::Reverse(obj.id), index)
+            })
+            .collect();
+        named.sort_unstable();
+        for (_, _, obj) in named {
+            if let Some((Some(prod), alts)) = &self.prog.objs[obj].gram {
+                productions[*prod].1.extend(alts.iter().cloned());
+            }
+        }
+        for (index, (sym, alts)) in productions.iter().enumerate() {
+            if alts.is_empty() && !self.prog.gramprods[index].declared {
+                self.out.link_errors.push(format!(
+                    "grammar production \"{}\" has no alternatives defined",
+                    show_name(&self.prog.objs[*sym].name)
+                ));
+            }
+            if alts.len() > 65535 {
+                self.out.link_errors.push(format!(
+                    "grammar production \"{}\" has too many (>65,535) rules",
+                    show_name(&self.prog.objs[*sym].name)
+                ));
+            }
+        }
+        productions
+    }
+
+    fn build_dictionaries(&mut self, objdefs: &[ObjDef], productions: &[(usize, Vec<GramAlt>)]) {
         const BUCKETS: usize = 128;
         // The definitions in the order of the table as it is when the
         // program is put together: chain by chain, and in a chain the
@@ -1458,6 +1573,43 @@ impl Gen<'_> {
         // references are in a word.
         let dict_objs = self.prog.dicts.clone();
         let mut tables: Vec<Vec<Vec<DictWord>>> = vec![vec![Vec::new(); BUCKETS]; dict_objs.len()];
+        // The words the productions have go in first: each is a word
+        // for its production, by a property kept for that.
+        let add_word =
+            |tables: &mut Vec<Vec<Vec<DictWord>>>, dict: usize, word: &[u8], item: (u32, u16)| {
+                let hash = word
+                    .iter()
+                    .map(|byte| usize::from(byte.to_ascii_uppercase()))
+                    .sum::<usize>()
+                    % BUCKETS;
+                let chain = &mut tables[dict][hash];
+                let at = match chain.iter().position(|(text, _)| text == word) {
+                    Some(at) => at,
+                    None => {
+                        chain.insert(0, (word.to_vec(), Vec::new()));
+                        0
+                    }
+                };
+                if !chain[at].1.contains(&item) {
+                    chain[at].1.insert(0, item);
+                }
+            };
+        for (sym, alts) in productions {
+            let id = self.prog.objs[*sym].id;
+            for alt in alts {
+                let dict = alt
+                    .dict
+                    .and_then(|dict| dict_objs.iter().position(|obj| *obj == dict));
+                let Some(dict) = dict else {
+                    continue;
+                };
+                for tok in &alt.toks {
+                    if let GramTokKind::Literal(word) = &tok.kind {
+                        add_word(&mut tables, dict, word, (id, MISC_VOCAB_PROP_ID));
+                    }
+                }
+            }
+        }
         for def_index in order {
             let def = &objdefs[def_index];
             let id = match (def.mod_id, def.sym) {
@@ -1471,23 +1623,7 @@ impl Gen<'_> {
             if let (Some(dict), false) = (dict, def.is_class) {
                 self.inherit_vocab(def_index, objdefs, &mut words, &mut inherited);
                 for (word, prop) in &words[def_index] {
-                    let hash = word
-                        .iter()
-                        .map(|byte| usize::from(byte.to_ascii_uppercase()))
-                        .sum::<usize>()
-                        % BUCKETS;
-                    let chain = &mut tables[dict][hash];
-                    let at = match chain.iter().position(|(text, _)| text == word) {
-                        Some(at) => at,
-                        None => {
-                            chain.insert(0, (word.clone(), Vec::new()));
-                            0
-                        }
-                    };
-                    let item = (id, self.prog.props[*prop].id);
-                    if !chain[at].1.contains(&item) {
-                        chain[at].1.insert(0, item);
-                    }
+                    add_word(&mut tables, dict, word, (id, self.prog.props[*prop].id));
                 }
             }
             // The values of its dictionary properties.

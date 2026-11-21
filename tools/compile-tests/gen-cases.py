@@ -3339,6 +3339,111 @@ _main(args) { local x = new gDict; local z = new gDict(1); x = &gDict; gDict = 5
 """
 
 
+# Grammar productions.
+programs["gram1"] = """#include <gramprod.h>
+#include <tads.h>
+dictionary gDict;
+dictionary property noun, adjective;
+enum token tokWord, tokInt;
+class Match: object;
+grammar nounPhrase(simple): noun->noun_ : Match
+    name = 'simple'
+;
+grammar nounPhrase(adj): adjective->adj_ nounPhrase->np_ : Match;
+grammar nounPhrase: 'the' nounPhrase->np_ | [badness 50] 'a' nounPhrase->np_ : Match;
+grammar command(take): ('take' | 'get' | 'pick' 'up') nounPhrase->dobj_ : Match
+    verb = 'take'
+;
+grammar command(put): 'put' nounPhrase->dobj_ ('in' | 'into' | ) nounPhrase->iobj_ ('please' | ) : Match;
+grammar command: <noun adjective>->word_ tokInt->num_ * : Match;
+grammar number: tokInt->val_ | tokWord : object;
+grammar empty: : object;
+grammar later;
+_main(args) { }
+"""
+
+programs["gram2"] = """#include <gramprod.h>
+#include <tads.h>
+dictionary gDict;
+dictionary property noun;
+enum token tokWord;
+class Match: object name = 'match';
+grammar np(a): noun->n_ : Match;
+grammar np(b): 'the' np->np_ : Match extra = 1;
+grammar np(c): 'c1' | 'c2' : Match;
+grammar vp(x): 'go' np->np_ : Match;
+modify grammar np(a): tokWord->w_ : more = 2;
+modify grammar np(b): : kept = 3;
+replace grammar np(c): 'c3' ('c4' | 'c5') : Match;
+grammar vp(x2): later->l_ 'q' : Match;
+grammar later(only): [badness 10 + 5] undefinedSub->u_ | [badness 3] 'z' : Match;
+grammar undefinedSub;
+lamp: object noun = 'lamp';
+grammar zz: (('a' | 'b') ('c' | 'd') | 'e') 'f' (| 'g') : object;
+say(v) { tadsSay(v); }
+_main(args)
+{
+    local m = np.parseTokens([['lamp', tokWord, 'lamp']], gDict);
+    say(m.length());
+    foreach (local x in np.getGrammarInfo()) { say(' '); say(x.gramMatchObj.grammarInfo()[1]); say('/'); say(x.gramMatchObj.grammarTag); }
+    say('\\n'); say(zz.getGrammarInfo().length());
+}
+"""
+
+mistakes["e_gram1"] = """class Match: object;
+f() { }
+enum plain;
+grammar;
+grammar 5;
+grammar np(a: 'x' : Match;
+grammar np(b) 'x' : Match;
+grammar np(c): f : Match;
+grammar np(d): Match : Match;
+grammar np(e): plain : Match;
+grammar np(f): 'x' -> 5 : Match;
+grammar np(g): 'x' -> f : Match;
+grammar np(h): <f 5> 'y' : Match;
+grammar np(i): <a b 'x' : Match;
+grammar np(j): * 'x' | 'y' * : Match;
+grammar np(k): 'x' [badness 5] : Match;
+grammar np(l): [goodness 5] 'x' : Match;
+grammar np(m): [5] 'x' : Match;
+grammar np(n): ('x' | 'y' : Match;
+grammar np(o): ('x' | 'y')->p_ 'z' : Match;
+grammar np(p): 5 + 'x' : Match;
+grammar np(a): 'dup' : Match;
+grammar f(a): 'x' : Match;
+grammar Match(a): 'x' : Match;
+grammar Match: 'x' : Match;
+modify grammar np: 'x' : ;
+replace grammar np: 'x' : Match;
+modify grammar np(zz): 'x' : ;
+grammar np(q): 'x' | : Match;
+grammar np(r): : Match;
+grammar np(s): 'x' ;
+grammar np(t): 'x' { }
+_main(args) { }
+"""
+
+mistakes["e_gram2"] = """class Match: object;
+
+grammar np(a): missing->m_ other : Match;
+grammar vp: np 'x' : Match;
+grammar declared;
+grammar np(b): declared 'y' : Match;
+_main(args) { return [np, vp, missing]; }
+"""
+
+mistakes["e_gram3"] = """class Match: object;
+grammar np(a): missing->m_ : Match;
+grammar vp(x): 'x' : Match;
+_main(args) { local x = new np; x = np.foo; np = 3; return vp(1); }
+modify np y = 1;
+replace vp: object;
+class vp(x): Match;
+"""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)

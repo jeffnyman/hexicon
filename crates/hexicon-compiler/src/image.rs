@@ -523,6 +523,20 @@ pub(crate) fn write_image(
         writer.block(b"OBJS", true, &objs);
     }
 
+    // The grammar productions, in a block like the dictionaries'.
+    if !generated.gramprods.is_empty() {
+        let mut objs = Vec::new();
+        objs.extend_from_slice(&(generated.gramprods.len() as u16).to_le_bytes());
+        objs.extend_from_slice(&3u16.to_le_bytes());
+        objs.extend_from_slice(&1u16.to_le_bytes());
+        for (id, data) in &generated.gramprods {
+            objs.extend_from_slice(&id.to_le_bytes());
+            objs.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            objs.extend_from_slice(data);
+        }
+        writer.block(b"OBJS", true, &objs);
+    }
+
     // The objects that constants were made into: the numbers that are
     // not integers, and then the regular expressions. Each is its
     // number, the length of its data, and the data, and a block holds

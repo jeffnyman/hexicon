@@ -148,6 +148,8 @@ TEMPLATES = [
     ("<<the * thing>>", 1, "the {} thing"),
     ("<<big *>>", 1, "big {}"),
 ]
+# The productions grammar statements are for.
+GRAM_PRODS = ["np", "vp", "cmd"]
 # Words for the dictionary.
 VOCAB = ["lamp", "lantern", "brass", "key", "Key", "old lamp", "a", ""]
 # How a choice among alternatives in a string can end.
@@ -858,6 +860,68 @@ class Program:
             ]
         )
 
+    def gram_row(self, depth):
+        """A row of things for a phrase to match, perhaps with groups."""
+        rng = self.rng
+        items = []
+        for _ in range(rng.randint(0, 4)):
+            kind = rng.random()
+            if kind < 0.3:
+                item = "'" + rng.choice(["take", "the", "up", "a", "Take"]) + "'"
+            elif kind < 0.5:
+                item = rng.choice(GRAM_PRODS)
+            elif kind < 0.65:
+                item = rng.choice(["noun", "adjective", "tokWord"])
+            elif kind < 0.72:
+                item = "<noun adjective>"
+            elif kind < 0.9 and depth:
+                alts = [self.gram_row(depth - 1) for _ in range(rng.randint(1, 3))]
+                items.append("(" + " | ".join(alts) + ")")
+                continue
+            else:
+                item = rng.choice(["red", "fn0", "obj0", "5", "<noun", "[badness 2]", "*"])
+            if rng.random() < 0.4:
+                item += "->" + rng.choice(["a_", "b_", "c_", "fn0", "5"])
+            items.append(item)
+        if rng.random() < 0.08:
+            items.append("*")
+        if rng.random() < 0.15:
+            items.insert(0, rng.choice(["[badness 10]", "[badness 2 + 3]", "[badness]", "[bad 1]"]))
+        return " ".join(items)
+
+    def grammar(self, tags):
+        """A statement that says how a phrase can be made up."""
+        rng = self.rng
+        prod = rng.choice(GRAM_PRODS)
+        head = "grammar " + prod
+        tag = None
+        if rng.random() < 0.7:
+            # A tag used before is a mistake, unless this changes what
+            # that one said.
+            tag = f"{prod}(t{rng.randint(0, 4)})"
+            if tag in tags:
+                head = rng.choice(["modify ", "replace ", ""]) + head
+            tags.add(tag)
+            head += tag[len(prod):]
+        elif rng.random() < 0.1:
+            return [head + ";"]
+        rows = " | ".join(self.gram_row(2) for _ in range(rng.randint(1, 3)))
+        if head.startswith("modify") and rng.random() < 0.5:
+            rows = ""
+        classes = [obj[0] for obj in self.objs if obj[0] and obj[1]]
+        superclass = "" if head.startswith("modify") else rng.choice(classes + ["object"])
+        lines = [f"{head}: {rows} : {superclass}"]
+        for prop in rng.sample(self.props, rng.randint(0, min(2, len(self.props)))):
+            if rng.random() < 0.5:
+                lines.append(f"    {prop} = {self.constant()}")
+            else:
+                self.in_method = True
+                body = self.function(prop, rng.randint(0, 1), False)
+                self.in_method = False
+                lines += ["    " + line for line in body]
+        lines.append(";")
+        return lines
+
     def nested_obj(self, prop, depth):
         """A property whose value is an object written in place."""
         rng = self.rng
@@ -1086,6 +1150,11 @@ class Program:
                 body = self.function(self.rng.choice(self.props), 1, False)
                 self.in_method = False
                 parts.append([f"modify {name}"] + ["    " + line for line in body] + [";"])
+        # Grammar, in a program with dictionary words, among the rest.
+        if self.vocab and self.rng.random() < 0.6:
+            tags = set()
+            for _ in range(self.rng.randint(1, 5)):
+                parts.insert(self.rng.randint(0, len(parts)), self.grammar(tags))
         for part in parts:
             lines += part
         enums = "enum red, green;\nenum token tokWord;\n"

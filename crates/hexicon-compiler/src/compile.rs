@@ -228,6 +228,19 @@ pub fn compile(files: &mut dyn SourceFiles, source: &str, options: &CompileOptio
     if has_errors(&compiled.diagnostics) {
         return compiled;
     }
+    // What is found wrong as the image is put together, which the
+    // reference does not get to if anything above was.
+    for message in std::mem::take(&mut generated.link_errors) {
+        compiled.diagnostics.push(Diagnostic {
+            file: String::new(),
+            line: 0,
+            severity: Severity::Error,
+            message,
+        });
+    }
+    if has_errors(&compiled.diagnostics) {
+        return compiled;
+    }
 
     match image::write_image(&prog, generated, &options.timestamp, &TOOL_DATA) {
         Ok(image) => {

@@ -2329,3 +2329,113 @@ fn dictionary_words_have_their_own_mistakes() {
         ]
     );
 }
+
+/// The grammar productions in an image: each one's number and, for
+/// each way it can be made up, how bad it is and how many things there
+/// are to match.
+fn productions(image: &[u8]) -> Vec<(u32, Vec<(u16, u16)>)> {
+    let mut found = Vec::new();
+    for objs in blocks(image, b"OBJS") {
+        // The productions are of the fourth class every image has, in
+        // a block whose objects give their sizes in four bytes.
+        if objs[2..6] != [3, 0, 1, 0] {
+            continue;
+        }
+        let count = usize::from(u16::from_le_bytes([objs[0], objs[1]]));
+        let mut at = 6;
+        for _ in 0..count {
+            let id = u32::from_le_bytes(objs[at..at + 4].try_into().expect("four bytes"));
+            let size = u32::from_le_bytes(objs[at + 4..at + 8].try_into().expect("four bytes"));
+            let data = &objs[at + 8..at + 8 + size as usize];
+            at += 8 + size as usize;
+            let alts = usize::from(u16::from_le_bytes([data[0], data[1]]));
+            let mut ways = Vec::new();
+            let mut pos = 2;
+            for _ in 0..alts {
+                let badness = u16::from_le_bytes([data[pos + 2], data[pos + 3]]);
+                let toks = u16::from_le_bytes([data[pos + 8], data[pos + 9]]);
+                pos += 10;
+                for _ in 0..toks {
+                    pos += 3 + match data[pos + 2] {
+                        1 | 4 => 4,
+                        2 => 2,
+                        3 => 2 + usize::from(u16::from_le_bytes([data[pos + 3], data[pos + 4]])),
+                        6 => {
+                            2 + 2 * usize::from(u16::from_le_bytes([data[pos + 3], data[pos + 4]]))
+                        }
+                        _ => 0,
+                    };
+                }
+                ways.push((badness, toks));
+            }
+            found.push((id, ways));
+        }
+    }
+    found
+}
+
+#[test]
+fn a_grammar_statement_says_how_a_phrase_is_made_up() {
+    let compiled = compile_text(
+        "dictionary gDict;\ndictionary property noun;\nclass Match: object;\n\
+         grammar np(plain): noun->n_ : Match;\n\
+         grammar np: 'the' np->np_ | [badness 50] 'a' np->np_ : Match;\n\
+         grammar cmd(put): 'put' np->d_ ('in' | 'into' | ) np->i_ ('now' | ) : Match;\n\
+         grammar later;\n_main(args) { return [np, cmd, later]; }\n",
+    );
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let found = productions(&image);
+    assert_eq!(found.len(), 3);
+    // The ways with no tag come first, in the order written, and then
+    // those of the classes with tags.
+    assert_eq!(found[0].1, [(0, 2), (50, 2), (0, 1)]);
+    // Groups in parentheses are written out, a row for every choice,
+    // the first group's choices changing fastest.
+    assert_eq!(found[1].1, [(0, 5), (0, 5), (0, 4), (0, 4), (0, 4), (0, 3)]);
+    // A production that is only declared has none.
+    assert_eq!(found[2].1, []);
+    // The words in the rows are in the dictionary, as words for their
+    // productions.
+    let mut words: Vec<String> = dictionaries(&image)[0]
+        .1
+        .iter()
+        .map(|(word, _)| word.clone())
+        .collect();
+    words.sort();
+    assert_eq!(words, ["a", "in", "into", "now", "put", "the"]);
+}
+
+#[test]
+fn grammar_statements_have_their_own_mistakes() {
+    assert_eq!(
+        compile_messages(
+            "class Match: object;\nf() { }\ngrammar np(a): f : Match;\n\
+             grammar np(b): 'x' -> 5 : Match;\ngrammar np(c): * 'x' : Match;\n\
+             grammar np(d): ('x' | 'y')->p_ : Match;\ngrammar np(a): 'dup' : Match;\n\
+             modify grammar np: 'x' : ;\n_main(args) { }\n"
+        ),
+        [
+            "3: error: object or property symbol required in 'grammar' token list (found \"f\")",
+            "4: error: '->' in 'grammar' token list must be followed by a property name (found \"5\")",
+            "4: error: invalid token \"5\" in 'grammar' token list",
+            "5: error: '*' must be the last token in a 'grammar' alternative list (found \"'x'\")",
+            "6: error: '->' is not allowed after parenthesized group in 'grammar' statement",
+            "7: error: object \"np(a)\" is already defined - can't redefine as object",
+            "8: error: 'modify/replace grammar' requires name-tag",
+        ]
+    );
+    // A production that nothing says how to make up, and no statement
+    // declares, is taken for a name spelled wrong; that is found out
+    // last of all.
+    assert_eq!(
+        compile_messages(
+            "class Match: object;\ngrammar np(a): nuon->n_ : Match;\n_main(args) { }\n"
+        ),
+        ["0: error: grammar production \"nuon\" has no alternatives defined"]
+    );
+}

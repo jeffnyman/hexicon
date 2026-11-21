@@ -198,6 +198,65 @@ pub(crate) struct ObjSym {
     /// On the second reading, for an object the first reading knew:
     /// the name of the dictionary its words went in then.
     pub dict_hint: Option<Vec<u8>>,
+    /// It is a grammar production (`grammar name: ...`): an object of
+    /// a class built into the virtual machine that holds the ways a
+    /// phrase of its kind can be made up.
+    pub is_gramprod: bool,
+    /// For an object that a `grammar` statement with a tag defines, to
+    /// be made when a phrase is matched: the production it is for, as
+    /// an index into [`Program::gramprods`], and its ways of making
+    /// the phrase up. They are the name's, and join the production's
+    /// own when the program is put together.
+    pub gram: Option<(Option<usize>, Vec<GramAlt>)>,
+}
+
+/// One way a phrase can be made up: a row of things to match.
+#[derive(Debug, Clone)]
+pub(crate) struct GramAlt {
+    /// The object made when it matches: an index into
+    /// [`Program::objs`].
+    pub obj: Option<usize>,
+    /// The dictionary that was current, which the words the row has
+    /// go in.
+    pub dict: Option<usize>,
+    /// How much worse than another it is (`[badness 50]`).
+    pub badness: i32,
+    pub toks: Vec<GramTok>,
+}
+
+/// One thing to match in such a row, and the property the match is
+/// kept in (`-> prop`).
+#[derive(Debug, Clone)]
+pub(crate) struct GramTok {
+    pub kind: GramTokKind,
+    pub prop: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum GramTokKind {
+    /// A word, as it is written.
+    Literal(Vec<u8>),
+    /// Any word the dictionary has for a property.
+    Speech(usize),
+    /// Any word the dictionary has for one of several properties.
+    SpeechList(Vec<usize>),
+    /// A phrase of another production: an index into
+    /// [`Program::objs`].
+    Prod(usize),
+    /// A token of a kind: an index into [`Program::enums`].
+    TokType(usize),
+    /// Whatever is left of the input.
+    Star,
+}
+
+/// A grammar production: the object that stands for it, whether a
+/// statement declared it without saying how it is made up, and the
+/// ways it can be, from the statements with no tag.
+#[derive(Debug)]
+pub(crate) struct GramProd {
+    pub sym: usize,
+    pub declared: bool,
+    pub alts: Vec<GramAlt>,
 }
 
 /// A class built into the virtual machine, as the name the program
@@ -442,6 +501,9 @@ pub(crate) const SPECIAL_PROPS: [&str; 25] = [
 /// Which of them is `sourceTextOrder`, and which `lexicalParent`.
 const SRC_ORDER_PROP: usize = 6;
 const LEXICAL_PARENT_PROP: usize = 5;
+/// And `grammarInfo` and `grammarTag`.
+const GRAMMAR_INFO_PROP: usize = 2;
+const GRAMMAR_TAG_PROP: usize = 3;
 
 /// How deep `propertyset` can be inside `propertyset`.
 const MAX_PROPSET_DEPTH: usize = 10;
@@ -538,6 +600,8 @@ pub(crate) struct Program {
     pub dicts: Vec<usize>,
     /// The dictionary properties, the last declared first.
     pub dict_props: Vec<usize>,
+    /// The grammar productions, in the order they were first named.
+    pub gramprods: Vec<GramProd>,
 }
 
 /// What is known of a body that others are nested in.
@@ -662,6 +726,7 @@ impl Program {
             })
             .map(|obj| ObjSym {
                 is_extern: true,
+                gram: None,
                 dict_hint: obj
                     .def
                     .and_then(|def| self.objdefs[def].dict)
@@ -1385,15 +1450,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Transient => self.parse_transient(suppress_error, &mut suppress_next_error),
                 Tok::Plus | Tok::Inc => self.parse_plus_object(),
                 Tok::Dictionary => self.parse_dict(),
-                Tok::Grammar => {
-                    if !suppress_error {
-                        let shown = self.tok.cur_token_shown();
-                        self.unsupported(&format!("a definition starting with \"{shown}\""));
-                    }
-                    suppress_next_error = true;
-                    self.next();
-                    Ok(())
-                }
+                Tok::Grammar => self.parse_grammar(Redef::No),
                 _ => {
                     if !suppress_error {
                         self.error_curtok(
@@ -1450,6 +1507,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                         ext_redef: false,
                         is_dict: false,
                         dict_hint: None,
+                        is_gramprod: false,
+                        gram: None,
                     });
                     class_sym = Some(self.prog.objs.len() - 1);
                     self.prog
@@ -2065,6 +2124,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                     ext_redef: false,
                     is_dict: false,
                     dict_hint: None,
+                    is_gramprod: false,
+                    gram: None,
                 });
                 self.prog
                     .globals
@@ -2245,14 +2306,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 self.transient = false;
                 result
             }
-            Tok::Grammar => {
-                let shown = self.tok.cur_token_shown();
-                self.unsupported(&format!(
-                    "\"replace\" of a definition starting with \"{shown}\""
-                ));
-                self.next();
-                Ok(())
-            }
+            Tok::Grammar => self.parse_grammar(Redef::Replace),
             _ => {
                 self.error_curtok(
                     "expected \"function\" or object name after \"replace\", but found \"%\"",
@@ -2267,11 +2321,7 @@ impl<'p, 'a> Parser<'p, 'a> {
     /// front of an earlier definition of the same function or object.
     fn parse_modify(&mut self) -> Parsed<()> {
         match self.next() {
-            Tok::Grammar => {
-                self.unsupported("\"modify\" of a definition starting with \"grammar\"");
-                self.next();
-                return Ok(());
-            }
+            Tok::Grammar => return self.parse_grammar(Redef::Modify),
             Tok::Function | Tok::Method => return self.parse_function(true, Redef::Modify),
             Tok::Sym => {
                 let is_lpar = self.next() == Tok::LPar;
@@ -5610,9 +5660,30 @@ impl Parser<'_, '_> {
     /// Read `name: superclasses properties ;`, from the name on.
     fn parse_object(&mut self, mut is_class: bool, redef: Redef) -> Parsed<()> {
         let name = self.cur_text();
+        let found = self.find_or_def_obj(&name, &mut is_class, redef);
+        self.next();
+        match found {
+            FoundObj::Meta(base, meta, id) => {
+                self.parse_object_body(None, is_class, false, Some((base, None)), Some((meta, id)))
+            }
+            FoundObj::Obj(sym, modify) => {
+                self.parse_object_body(sym, is_class, false, modify, None)
+            }
+        }
+    }
+
+    /// Find the object a definition is of, or make it: a new one, or
+    /// one there is already if the definition is to take its place or
+    /// go in front of it. `is_class` comes back as what the object is,
+    /// if it is known for one already.
+    fn find_or_def_obj(&mut self, name: &[u8], is_class: &mut bool, redef: Redef) -> FoundObj {
+        let name = name.to_vec();
         let mut modify = None;
         let sym = match self.prog.globals.get(&name).copied() {
-            Some(Global::Obj(obj)) if redef != Redef::No && self.prog.objs[obj].is_dict => {
+            Some(Global::Obj(obj))
+                if redef != Redef::No
+                    && (self.prog.objs[obj].is_dict || self.prog.objs[obj].is_gramprod) =>
+            {
                 self.error("objects of this type cannot be modified or replaced");
                 None
             }
@@ -5664,14 +5735,7 @@ impl Parser<'_, '_> {
                 let meta_sym = &mut self.prog.metas[meta];
                 meta_sym.mod_count += 1;
                 meta_sym.mod_obj = Some(id);
-                self.next();
-                return self.parse_object_body(
-                    None,
-                    is_class,
-                    false,
-                    Some((base, None)),
-                    Some((meta, id)),
-                );
+                return FoundObj::Meta(base, meta, id);
             }
             Some(Global::Obj(obj)) if redef == Redef::Modify => {
                 // The definition there is becomes an object of its own,
@@ -5683,7 +5747,7 @@ impl Parser<'_, '_> {
                 if std::mem::take(&mut sym.is_extern) {
                     sym.ext_redef = true;
                 }
-                is_class = sym.is_class;
+                *is_class = sym.is_class;
                 let prev = sym.def;
                 let base_id = match sym.base_ids.get(done) {
                     Some(id) => *id,
@@ -5695,7 +5759,7 @@ impl Parser<'_, '_> {
                 if let Some(prev) = prev {
                     let prev = &mut self.prog.objdefs[prev];
                     prev.mod_id = Some(base_id);
-                    is_class = prev.is_class;
+                    *is_class = prev.is_class;
                 }
                 modify = Some((base_id, prev));
                 Some(obj)
@@ -5748,6 +5812,8 @@ impl Parser<'_, '_> {
                     ext_redef: false,
                     is_dict: false,
                     dict_hint: None,
+                    is_gramprod: false,
+                    gram: None,
                 });
                 self.prog.next_obj_id += 1;
                 self.prog
@@ -5766,20 +5832,579 @@ impl Parser<'_, '_> {
                 Some(self.prog.objs.len() - 1)
             }
         };
-        if let (true, Some(obj)) = (is_class, sym) {
+        if let (true, Some(obj)) = (*is_class, sym) {
             self.prog.objs[obj].is_class = true;
         }
-        self.next();
         if redef == Redef::Modify && modify.is_none() {
             modify = Some((0, None));
         }
-        self.parse_object_body(sym, is_class, false, modify, None)
+        FoundObj::Obj(sym, modify)
     }
 
     /// Read an object without a name: `superclasses properties ;`.
     fn parse_anon_object(&mut self) -> Parsed<()> {
         let obj = self.new_anon_obj();
         self.parse_object_body(Some(obj), false, true, None, None)
+    }
+
+    /// Find the grammar production a name is, or make it one. Nothing
+    /// comes back if the name is something else.
+    fn declare_gramprod(&mut self, name: &[u8]) -> Option<usize> {
+        let obj = match self.prog.globals.get(name).copied() {
+            None => {
+                self.prog.objs.push(ObjSym {
+                    name: name.to_vec(),
+                    id: self.prog.next_obj_id,
+                    is_extern: false,
+                    is_class: false,
+                    sc_names: Vec::new(),
+                    sc_is_root: false,
+                    templates: Vec::new(),
+                    def: None,
+                    mod_count: 0,
+                    base_ids: Vec::new(),
+                    undefined_redef: false,
+                    declared_only: false,
+                    ext_redef: false,
+                    is_dict: false,
+                    dict_hint: None,
+                    is_gramprod: true,
+                    gram: None,
+                });
+                self.prog.next_obj_id += 1;
+                let obj = self.prog.objs.len() - 1;
+                self.prog.globals.insert(name.to_vec(), Global::Obj(obj));
+                obj
+            }
+            Some(Global::Obj(obj)) if self.prog.objs[obj].is_gramprod => {
+                self.prog.objs[obj].is_extern = false;
+                obj
+            }
+            Some(Global::Obj(_)) => {
+                self.error(format!(
+                    "redefining symbol \"{}\" as grammar production object",
+                    Self::name(name)
+                ));
+                return None;
+            }
+            Some(_) => {
+                self.error(format!(
+                    "symbol \"{}\" is already defined - can't redefine as object",
+                    Self::name(name)
+                ));
+                return None;
+            }
+        };
+        let known = self.prog.gramprods.iter().position(|prod| prod.sym == obj);
+        Some(known.unwrap_or_else(|| {
+            self.prog.gramprods.push(GramProd {
+                sym: obj,
+                declared: false,
+                alts: Vec::new(),
+            });
+            self.prog.gramprods.len() - 1
+        }))
+    }
+
+    /// Read a `grammar` statement, from `grammar` on:
+    /// `grammar name(tag): tokens : Class properties ;`. It says how a
+    /// phrase of the production `name` can be made up, and defines the
+    /// class of the object made when the phrase is matched.
+    /// `grammar name;` only declares the production.
+    fn parse_grammar(&mut self, redef: Redef) -> Parsed<()> {
+        let mut prod_name = b"?".to_vec();
+        let mut prod = None;
+        if self.next() == Tok::Sym {
+            prod_name = self.cur_text();
+            prod = self.declare_gramprod(&prod_name);
+        } else {
+            self.error_curtok("expected symbol name after 'grammar', but found \"%\"");
+        }
+        let mut name_tag = prod_name.clone();
+        let mut sub_tag = Vec::new();
+        let mut modify = None;
+        let mut is_named = false;
+        let gram_obj = if self.next() == Tok::LPar {
+            // With a tag, the class has a name: `name(tag)`.
+            self.next();
+            sub_tag = self.cur_text();
+            let room = (TOK_SYM_MAX_LEN * 2 + 32).saturating_sub(prod_name.len() + 2);
+            name_tag.push(b'(');
+            name_tag.extend_from_slice(&sub_tag[..sub_tag.len().min(room)]);
+            name_tag.push(b')');
+            if self.next() == Tok::RPar {
+                self.next();
+            } else {
+                self.error_curtok(
+                    "missing right parenthesis after name in 'grammar' - found \"%\"",
+                );
+            }
+            is_named = true;
+            let mut is_class = true;
+            match self.find_or_def_obj(&name_tag, &mut is_class, redef) {
+                FoundObj::Obj(sym, found_modify) => {
+                    modify = found_modify;
+                    sym
+                }
+                FoundObj::Meta(..) => None,
+            }
+        } else if redef == Redef::No && self.cur() == Tok::Sem {
+            // Only a declaration.
+            if let Some(prod) = prod {
+                self.prog.gramprods[prod].declared = true;
+            }
+            self.next();
+            return Ok(());
+        } else {
+            let obj = self.new_anon_obj();
+            if redef != Redef::No {
+                self.error("'modify/replace grammar' requires name-tag");
+            }
+            Some(obj)
+        };
+        if redef == Redef::Modify && modify.is_none() {
+            modify = Some((0, None));
+        }
+        if self.cur() == Tok::Colon {
+            self.next();
+        } else {
+            self.error_curtok("expected ':' after production name, but found \"%\"");
+        }
+        // The object is a class: the objects are made as phrases are
+        // matched.
+        if let Some(obj) = gram_obj {
+            self.prog.objs[obj].is_class = true;
+        }
+        let mut arrows = Vec::new();
+        if redef == Redef::Modify && self.cur() == Tok::Colon {
+            // A `modify` with nothing between the colons keeps the
+            // ways there were.
+            self.next();
+        } else {
+            // With a tag, the ways are kept with the name until the
+            // program is put together, in case a `modify` or a
+            // `replace` changes them; the production is looked up
+            // again for that.
+            let private = is_named && gram_obj.is_some();
+            if private {
+                prod = self.declare_gramprod(&prod_name);
+            }
+            let alts = self.parse_gram_alts(gram_obj, &mut arrows)?;
+            match (private, gram_obj, prod) {
+                (true, Some(obj), _) => self.prog.objs[obj].gram = Some((prod, alts)),
+                (false, _, Some(prod)) => self.prog.gramprods[prod].alts.extend(alts),
+                _ => {}
+            }
+        }
+
+        self.parse_object_body(gram_obj, true, true, modify, None)?;
+
+        // The class says what it is: its name, and then the properties
+        // its ways give values to; and its tag.
+        let Some(def) = gram_obj.and_then(|obj| self.prog.objs[obj].def) else {
+            return Ok(());
+        };
+        let (file, line) = (self.prog.objdefs[def].file, self.prog.objdefs[def].line);
+        let mut info = vec![Expr::constant(Value::SStr(name_tag))];
+        info.extend(
+            arrows
+                .into_iter()
+                .map(|prop: usize| Expr::Sym(self.prog.props[prop].name.clone())),
+        );
+        for (prop, value) in [
+            (GRAMMAR_INFO_PROP, Expr::list(info)),
+            (GRAMMAR_TAG_PROP, Expr::constant(Value::SStr(sub_tag))),
+        ] {
+            self.prog.objdefs[def].props.push(ObjProp {
+                prop,
+                value: PropValue::Expr(value),
+                overwritable: false,
+                is_static: false,
+                file,
+                line,
+            });
+        }
+        Ok(())
+    }
+
+    /// Read the ways a phrase can be made up, to the colon that ends
+    /// them. Parentheses group alternatives inside a row
+    /// (`('take' | 'get') nounPhrase`); the rows are first written out
+    /// in full, one for every choice, and then read.
+    fn parse_gram_alts(
+        &mut self,
+        gram_obj: Option<usize>,
+        arrows: &mut Vec<usize>,
+    ) -> Parsed<Vec<GramAlt>> {
+        const INVAL_TOK: &str = "invalid token \"%\" in 'grammar' token list";
+        const ARROW_REQ_PROP: &str =
+            "'->' in 'grammar' token list must be followed by a property name (found \"%\")";
+        let new_alt = |parser: &Self| GramAlt {
+            obj: gram_obj,
+            dict: parser.cur_dict,
+            badness: 0,
+            toks: Vec::new(),
+        };
+        let mut alts = vec![new_alt(self)];
+        // The rows in full go in front of the token that ended them.
+        let rows = self.parse_gram_or(0);
+        let mut list = Vec::new();
+        for (index, row) in rows.into_iter().enumerate() {
+            if index != 0 {
+                let mut or = SrcToken::new(Tok::Or);
+                or.text = b"|".to_vec();
+                list.push(or);
+            }
+            list.extend(row);
+        }
+        let current = self.tok.cur_token().clone();
+        self.tok.push_token(current);
+        for token in list.into_iter().rev() {
+            self.tok.push_token(token);
+        }
+        self.next();
+
+        loop {
+            let last = alts.len() - 1;
+            // What was read to match, if anything, for an arrow to
+            // give a property to.
+            let tok;
+            match self.cur() {
+                Tok::LBrack => {
+                    // `[badness number]`, before anything else.
+                    if !alts[last].toks.is_empty() {
+                        self.tok
+                            .log_warning("grammar qualifiers must precede all tokens");
+                    }
+                    let mut skip_to_close = false;
+                    let mut done = false;
+                    if self.next() == Tok::Sym {
+                        if self.cur_matches(b"badness") {
+                            alts[last].badness = self.parse_gram_qual_int("badness", &mut done);
+                        } else {
+                            self.error_curtok("invalid grammar qualifier \"%\"");
+                            skip_to_close = true;
+                        }
+                        if !skip_to_close {
+                            if self.cur() == Tok::RBrack {
+                                self.next();
+                            } else {
+                                self.error_curtok(
+                                    "']' required after grammar qualifier - found \"%\"",
+                                );
+                                skip_to_close = true;
+                            }
+                        }
+                    } else {
+                        self.error_curtok(
+                            "keyword required after '[' in grammar qualifier - found \"%\"",
+                        );
+                        skip_to_close = true;
+                    }
+                    if skip_to_close {
+                        self.parse_gram_qual_skip(&mut done);
+                    }
+                    if done {
+                        return Ok(alts);
+                    }
+                    continue;
+                }
+                Tok::Colon => {
+                    self.next();
+                    return Ok(alts);
+                }
+                Tok::Or => {
+                    alts.push(new_alt(self));
+                    self.next();
+                    continue;
+                }
+                Tok::SStr | Tok::DStr => {
+                    alts[last].toks.push(GramTok {
+                        kind: GramTokKind::Literal(self.cur_text()),
+                        prop: None,
+                    });
+                    tok = true;
+                }
+                Tok::Lt => {
+                    // `<noun adjective>`: a word of any of these.
+                    self.next();
+                    let mut props = Vec::new();
+                    loop {
+                        match self.cur() {
+                            Tok::Gt => break,
+                            Tok::Eof => {
+                                self.error_curtok(INVAL_TOK);
+                                return Err(Stop);
+                            }
+                            Tok::Sym => {
+                                let name = self.cur_text();
+                                let prop = match self.prog.globals.get(&name).copied() {
+                                    Some(Global::Prop(prop)) => {
+                                        self.prog.props[prop].weak = false;
+                                        Some(prop)
+                                    }
+                                    None => Some(self.prog.def_prop(&name)),
+                                    Some(_) => None,
+                                };
+                                match prop {
+                                    Some(prop) => props.push(prop),
+                                    None => self.error_curtok(
+                                        "property name required in list in 'grammar', \
+                                         but found \"%\"",
+                                    ),
+                                }
+                                self.next();
+                            }
+                            _ => {
+                                self.error_curtok(
+                                    "missing '>' in 'grammar' property list - found \"%\"",
+                                );
+                                break;
+                            }
+                        }
+                    }
+                    alts[last].toks.push(GramTok {
+                        kind: GramTokKind::SpeechList(props),
+                        prop: None,
+                    });
+                    tok = true;
+                }
+                Tok::Sym => {
+                    // A property is a word of that kind; an object, a
+                    // phrase of that production; a value of an
+                    // enumeration, a token of that kind. A name that
+                    // is nothing becomes a production, but not on the
+                    // first reading, which passes it over.
+                    let name = self.cur_text();
+                    let mut global = self.prog.globals.get(&name).copied();
+                    if global.is_none() && !self.syntax_only {
+                        let Some(prod) = self.declare_gramprod(&name) else {
+                            return Ok(alts);
+                        };
+                        global = Some(Global::Obj(self.prog.gramprods[prod].sym));
+                    }
+                    let kind = match global {
+                        None => None,
+                        Some(Global::Obj(obj)) => {
+                            if !self.prog.objs[obj].is_gramprod {
+                                self.error_curtok(
+                                    "object \"%\" is not valid in a grammar rule - \
+                                     only production names are allowed",
+                                );
+                            }
+                            Some(GramTokKind::Prod(obj))
+                        }
+                        Some(Global::Prop(prop)) => Some(GramTokKind::Speech(prop)),
+                        Some(Global::Enum(sym)) => {
+                            if !self.prog.enums[sym].is_token {
+                                self.error_curtok(
+                                    "enumerator \"%\" in 'grammar' list is not declared \
+                                     with 'enum token'",
+                                );
+                            }
+                            Some(GramTokKind::TokType(sym))
+                        }
+                        Some(_) => {
+                            self.error_curtok(
+                                "object or property symbol required in 'grammar' token list \
+                                 (found \"%\")",
+                            );
+                            None
+                        }
+                    };
+                    tok = kind.is_some();
+                    if let Some(kind) = kind {
+                        alts[last].toks.push(GramTok { kind, prop: None });
+                    }
+                }
+                Tok::Times => {
+                    alts[last].toks.push(GramTok {
+                        kind: GramTokKind::Star,
+                        prop: None,
+                    });
+                    self.next();
+                    if !matches!(self.cur(), Tok::Or | Tok::Colon) {
+                        self.error_curtok(
+                            "'*' must be the last token in a 'grammar' alternative list \
+                             (found \"%\")",
+                        );
+                    }
+                    continue;
+                }
+                Tok::Eof => {
+                    self.error_curtok(INVAL_TOK);
+                    return Err(Stop);
+                }
+                Tok::LBrace | Tok::RBrace | Tok::Sem => {
+                    // The end of the statement, it seems.
+                    self.error_curtok(INVAL_TOK);
+                    return Ok(alts);
+                }
+                _ => {
+                    self.error_curtok(INVAL_TOK);
+                    self.next();
+                    continue;
+                }
+            }
+            // `-> prop` after something to match keeps the match in
+            // the property.
+            if self.next() == Tok::Arrow {
+                if self.next() == Tok::Sym {
+                    let name = self.cur_text();
+                    let prop = match self.prog.globals.get(&name).copied() {
+                        Some(Global::Prop(prop)) => {
+                            self.prog.props[prop].weak = false;
+                            Some(prop)
+                        }
+                        None => Some(self.prog.def_prop(&name)),
+                        Some(_) => None,
+                    };
+                    match prop {
+                        Some(prop) => {
+                            if tok {
+                                if let Some(last_tok) = alts[last].toks.last_mut() {
+                                    last_tok.prop = Some(prop);
+                                }
+                            }
+                            if !arrows.contains(&prop) && arrows.len() < 100 {
+                                arrows.push(prop);
+                            }
+                        }
+                        None => self.error_curtok(ARROW_REQ_PROP),
+                    }
+                    self.next();
+                } else {
+                    self.error_curtok(ARROW_REQ_PROP);
+                }
+            }
+        }
+    }
+
+    /// Read alternatives separated by `|`, each a row, and write them
+    /// out in full: one row of tokens for every choice among the
+    /// groups in parentheses, the first group's choices changing
+    /// fastest.
+    fn parse_gram_or(&mut self, level: usize) -> Vec<Vec<SrcToken>> {
+        if level == 0 && self.cur() == Tok::Colon && !self.syntax_only {
+            self.tok
+                .log_warning("grammar rule is empty (add '()' if this is intentional)");
+        }
+        let mut rows = self.parse_gram_cat(level + 1);
+        while self.cur() == Tok::Or {
+            self.next();
+            if level == 0 && self.cur() == Tok::Colon && !self.syntax_only {
+                self.tok.log_warning(
+                    "grammar rule ends with '|' (add '()' if empty last rule is intentional)",
+                );
+            }
+            rows.extend(self.parse_gram_cat(level + 1));
+        }
+        rows
+    }
+
+    /// Read one row, up to a `|` or whatever ends the rows.
+    fn parse_gram_cat(&mut self, level: usize) -> Vec<Vec<SrcToken>> {
+        // The row's items, each as the rows it can be.
+        let mut items: Vec<Vec<Vec<SrcToken>>> = Vec::new();
+        loop {
+            match self.cur() {
+                Tok::LPar => {
+                    self.next();
+                    items.push(self.parse_gram_or(level + 1));
+                    if self.cur() == Tok::RPar {
+                        self.next();
+                    } else {
+                        self.error_curtok(
+                            "missing right parentheses after group in 'grammar' - found \"%\"",
+                        );
+                    }
+                    if self.cur() == Tok::Arrow {
+                        self.error(
+                            "'->' is not allowed after parenthesized group in 'grammar' statement",
+                        );
+                    }
+                }
+                Tok::Or
+                | Tok::Colon
+                | Tok::Sem
+                | Tok::LBrace
+                | Tok::RBrace
+                | Tok::Eof
+                | Tok::RPar => break,
+                _ => {
+                    items.push(vec![vec![self.tok.cur_token().clone()]]);
+                    self.next();
+                }
+            }
+        }
+        // Every choice: the first item that has several goes through
+        // them fastest.
+        let mut rows = Vec::new();
+        let mut choice = vec![0; items.len()];
+        loop {
+            rows.push(
+                items
+                    .iter()
+                    .zip(&choice)
+                    .flat_map(|(item, at)| item[*at].iter().cloned())
+                    .collect(),
+            );
+            let mut index = 0;
+            loop {
+                if index == items.len() {
+                    return rows;
+                }
+                choice[index] += 1;
+                if choice[index] < items[index].len() {
+                    break;
+                }
+                choice[index] = 0;
+                index += 1;
+            }
+        }
+    }
+
+    /// Read the number in `[badness number]`, from the word on. It has
+    /// to be a constant integer.
+    fn parse_gram_qual_int(&mut self, qual: &str, done: &mut bool) -> i32 {
+        self.next();
+        let expr = if self.cur() == Tok::RBrack {
+            None
+        } else {
+            self.parse_expr()
+        };
+        match expr
+            .as_ref()
+            .and_then(Expr::as_const)
+            .map(|value| &value.value)
+        {
+            Some(Value::Int(value)) => *value,
+            _ => {
+                self.error(format!(
+                    "grammar qualifier \"[{qual}]\" requires integer constant value"
+                ));
+                self.parse_gram_qual_skip(done);
+                0
+            }
+        }
+    }
+
+    /// After a mistake in `[...]`, pass over what is left of the
+    /// statement: the reference means to stop at the `]`, but goes on
+    /// to a semicolon or a brace.
+    fn parse_gram_qual_skip(&mut self, done: &mut bool) {
+        loop {
+            match self.next() {
+                Tok::RBrack => {
+                    self.next();
+                }
+                Tok::Eof | Tok::RBrace | Tok::LBrace | Tok::Sem => {
+                    *done = true;
+                    return;
+                }
+                _ => {}
+            }
+        }
     }
 
     /// Read `dictionary name;`, which makes the dictionary the one that
@@ -5813,6 +6438,8 @@ impl Parser<'_, '_> {
                             ext_redef: false,
                             is_dict: true,
                             dict_hint: None,
+                            is_gramprod: false,
+                            gram: None,
                         });
                         self.prog.next_obj_id += 1;
                         let obj = self.prog.objs.len() - 1;
@@ -5983,6 +6610,8 @@ impl Parser<'_, '_> {
             ext_redef: false,
             is_dict: false,
             dict_hint: None,
+            is_gramprod: false,
+            gram: None,
         });
         self.prog.next_obj_id += 1;
         self.prog.objs.len() - 1
@@ -7421,6 +8050,19 @@ impl Parser<'_, '_> {
         }
         (false, open_kw)
     }
+}
+
+/// The object a definition is of.
+enum FoundObj {
+    /// An object of the program's, if the name could be one's; and if
+    /// the definition is a `modify`, the number of the definition it
+    /// goes in front of, if that has one, and its index in
+    /// [`Program::objdefs`].
+    Obj(Option<usize>, Option<(u32, Option<usize>)>),
+    /// What a `modify` adds to a built-in class: the number of the
+    /// object it goes in front of, the class as an index into
+    /// [`Program::metas`], and the new object's number.
+    Meta(u32, usize, u32),
 }
 
 /// Whether a definition is of something new, or of something there is
