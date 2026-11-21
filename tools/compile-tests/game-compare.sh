@@ -6,10 +6,10 @@
 #
 # The games are airport (adv3Lite's tutorial game) and ditch3 (Return to
 # Ditch Day, on adv3). Each is copied to build/game-compare/<game>, and
-# its project file changed in three ways for the comparison: the
-# resources are left out (-res), as Hexicon does not bundle them yet;
-# the program is not run before the image is written (-nopre), as
-# Hexicon does not do that yet; and the image is named by this script.
+# its project file changed for the comparison: the resources are left
+# out (-res), as Hexicon does not bundle them yet, and the image is named
+# by this script. With NOPRE=1 the program is not run before the image
+# is written (-nopre).
 #
 # Environment:
 #   HEXICON      the hexicon executable (default: target/release/hexicon)
@@ -49,7 +49,9 @@ for game in "${games[@]}"; do
   mkdir -p "$d/obj"
   cp "$src"/*.t "$d/"
   cp "$src"/*.h "$d/" 2>/dev/null
-  sed -e '/^-res/,$d' -e 's/^-pre$/-nopre/' -e '/^-o /d' "$src/$game.t3m" > "$d/$game.t3m"
+  pre=()
+  [ "${NOPRE:-0}" = 1 ] && pre=(-e 's/^-pre$/-nopre/')
+  sed -e '/^-res/,$d' "${pre[@]}" -e '/^-o /d' "$src/$game.t3m" > "$d/$game.t3m"
   ( cd "$d" && timeout 600 "$ref" -nobanner -a -FL "$LIB" -FI "$INC" "${extra[@]}" \
       -o ref.t3 -f "$game.t3m" ) 2>&1 < /dev/null | tr -d '\r' \
     | grep -v -e $'^\t' -e '^Errors: ' -e '^Warnings: ' > "$d/ref.msg"

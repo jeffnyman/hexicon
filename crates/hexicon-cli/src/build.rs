@@ -121,11 +121,6 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     for line in &project.messages {
         eprintln!("{line}");
     }
-    if project.preinit {
-        eprintln!(
-            "hexicon: the program is not run before the image is written: preinitialization is not done yet (-nopre says not to)"
-        );
-    }
     let Some(output) = project.image.clone() else {
         eprint!("{usage}");
         return ExitCode::from(2);
@@ -178,20 +173,40 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     if warned && project.warnings_as_errors {
         return ExitCode::FAILURE;
     }
+    // The program is run once before the image is written, unless told
+    // not to, and the image is what that run leaves: preinitialization.
+    // It is given the program's symbols and macros, and no arguments,
+    // and goes by the name the reference gives its intermediate image.
+    let (image, image_unspecified) = if project.preinit {
+        if project.verbose {
+            eprintln!("	preinit -> {output}");
+        }
+        let name = std::path::Path::new(&output)
+            .with_extension("t3p")
+            .to_string_lossy()
+            .into_owned();
+        let symbols = (
+            compiled.symbols.iter().map(global_symbol).collect(),
+            compiled.macros.iter().map(runtime_macro).collect(),
+        );
+        match crate::preinit_image(&name, &image, &compiled.unspecified, &[], Some(symbols)) {
+            Ok(rebuilt) => (rebuilt.bytes, rebuilt.unspecified),
+            Err(message) => {
+                eprintln!("{message}");
+                return ExitCode::FAILURE;
+            }
+        }
+    } else {
+        (image, compiled.unspecified.clone())
+    };
     if let Err(error) = std::fs::write(&output, image) {
         eprintln!("hexicon: {output}: {error}");
         return ExitCode::FAILURE;
     }
     if let Some(path) = unspecified {
-        let list: String = compiled
-            .unspecified
+        let list: String = image_unspecified
             .iter()
-            .map(|(offset, len)| {
-                format!(
-                    "{offset} {len}
-"
-                )
-            })
+            .map(|(offset, len)| format!("{offset} {len}\n"))
             .collect();
         if let Err(error) = std::fs::write(path, list) {
             eprintln!("hexicon: {path}: {error}");
@@ -199,4 +214,53 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
         }
     }
     ExitCode::SUCCESS
+}
+
+/// A global symbol as the VM takes it.
+fn global_symbol(symbol: &hexicon_compiler::RuntimeSymbol) -> hexicon_image::GlobalSymbol {
+    use hexicon_compiler::RuntimeValue;
+    use hexicon_image::GlobalSymbolKind;
+    let kind = match symbol.value {
+        RuntimeValue::Function(code_offset) => GlobalSymbolKind::Function {
+            code_offset,
+            argc: 0,
+            varargs: false,
+            has_return: true,
+            optional_argc: 0,
+        },
+        RuntimeValue::Object(id) => GlobalSymbolKind::Object { id, modifier: 0 },
+        RuntimeValue::Property(id) => GlobalSymbolKind::Property {
+            id,
+            dictionary: false,
+        },
+        RuntimeValue::Enum(id) => GlobalSymbolKind::Enumerator { id, token: false },
+        RuntimeValue::BuiltIn { set, index } => GlobalSymbolKind::IntrinsicFunction {
+            index,
+            set,
+            has_return: true,
+            min_argc: 0,
+            max_argc: 0,
+            varargs: false,
+        },
+        RuntimeValue::Class(class_object) => GlobalSymbolKind::IntrinsicClass {
+            metaclass_index: 0,
+            class_object,
+        },
+    };
+    hexicon_image::GlobalSymbol {
+        name: String::from_utf8_lossy(&symbol.name).into_owned(),
+        kind,
+    }
+}
+
+/// A macro as the VM takes it.
+fn runtime_macro(mac: &hexicon_compiler::pp::LinkMacro) -> hexicon_image::Macro {
+    let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
+    hexicon_image::Macro {
+        name: text(&mac.name),
+        function_like: mac.has_args,
+        varargs: mac.has_varargs,
+        parameters: mac.params.iter().map(|param| text(param)).collect(),
+        expansion: text(&mac.expansion),
+    }
 }

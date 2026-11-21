@@ -543,7 +543,7 @@ impl Vm {
         };
         let mut dictionary = Dictionary::new(comparator);
         dictionary.modified = true;
-        Ok(self.objects.alloc(Object::Dict(Box::new(dictionary))))
+        Ok(self.alloc_obj(Object::Dict(Box::new(dictionary))))
     }
 
     pub(crate) fn dict_method(

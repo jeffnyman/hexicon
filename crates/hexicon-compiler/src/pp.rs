@@ -220,6 +220,26 @@ struct Macro {
     has_varargs: bool,
     /// The expansion, with the parameters replaced by markers.
     expansion: Vec<u8>,
+    /// The expansion as the source wrote it, and the parameters' names,
+    /// for the program's table of macros.
+    orig: Vec<u8>,
+    params: Vec<Vec<u8>>,
+}
+
+/// A macro as the program's table of macros has it, which a program can
+/// ask for when it is run before its image is written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkMacro {
+    /// The macro's name.
+    pub name: Vec<u8>,
+    /// Defined with a parameter list, even an empty one.
+    pub has_args: bool,
+    /// The last parameter stands for any number of arguments.
+    pub has_varargs: bool,
+    /// The parameters' names.
+    pub params: Vec<Vec<u8>>,
+    /// The expansion as the source wrote it.
+    pub expansion: Vec<u8>,
 }
 
 impl Macro {
@@ -259,6 +279,9 @@ pub struct Preprocessor<'a> {
     src_group_change: Option<bool>,
 
     macros: Vec<Macro>,
+    /// The names that were ever undefined, or defined anew in a
+    /// different way: the reference keeps these out of its object file.
+    undefs: std::collections::HashSet<Vec<u8>>,
     defines: HashMap<Vec<u8>, usize>,
 
     /// The line being worked on. See the note at the top of the file on
@@ -338,6 +361,7 @@ impl<'a> Preprocessor<'a> {
             all_once: false,
             src_group_change: None,
             macros: Vec::new(),
+            undefs: std::collections::HashSet::new(),
             defines: HashMap::new(),
             linebuf: Vec::new(),
             p: 0,
@@ -402,6 +426,8 @@ impl<'a> Preprocessor<'a> {
             argc: 0,
             has_varargs: false,
             expansion: expansion.as_bytes().to_vec(),
+            orig: expansion.as_bytes().to_vec(),
+            params: Vec::new(),
         });
         self.defines.insert(name.as_bytes().to_vec(), id);
     }
@@ -420,6 +446,8 @@ impl<'a> Preprocessor<'a> {
             argc: 0,
             has_varargs: false,
             expansion: Vec::new(),
+            orig: Vec::new(),
+            params: Vec::new(),
         });
         self.defines.insert(name.to_vec(), id);
     }
@@ -1143,8 +1171,40 @@ impl<'a> Preprocessor<'a> {
         if let Some(&id) = self.defines.get(name) {
             if self.macros[id].kind == MacroKind::Define {
                 self.defines.remove(name);
+                self.undefs.insert(name.to_vec());
             }
         }
+    }
+
+    /// The macros as the source left them, as the reference writes them
+    /// to its object file: those defined now, but for `__LINE__` and
+    /// `__FILE__` and any name that was ever undefined or defined anew,
+    /// in the order of the reference's table of them (chain by chain,
+    /// the sum of the name's bytes in 512, and in a chain the newest
+    /// first).
+    pub fn link_macros(&self) -> Vec<LinkMacro> {
+        let mut ids: Vec<usize> = self
+            .defines
+            .values()
+            .copied()
+            .filter(|&id| {
+                let mac = &self.macros[id];
+                mac.kind == MacroKind::Define && !self.undefs.contains(&mac.name)
+            })
+            .collect();
+        ids.sort_by_key(|&id| (macro_chain(&self.macros[id].name), std::cmp::Reverse(id)));
+        ids.into_iter()
+            .map(|id| {
+                let mac = &self.macros[id];
+                LinkMacro {
+                    name: mac.name.clone(),
+                    has_args: mac.has_args,
+                    has_varargs: mac.has_varargs,
+                    params: mac.params.clone(),
+                    expansion: mac.orig.clone(),
+                }
+            })
+            .collect()
     }
 
     /// What a macro without arguments expands to.
@@ -2372,6 +2432,7 @@ impl<'a> Preprocessor<'a> {
                 return;
             }
             self.warning(format!("redefinition of macro \"{}\"", show_name(&name)));
+            self.undefs.insert(name.clone());
         }
         let id = self.macros.len();
         self.macros.push(Macro {
@@ -2381,6 +2442,8 @@ impl<'a> Preprocessor<'a> {
             argc,
             has_varargs,
             expansion,
+            orig,
+            params,
         });
         self.defines.insert(name, id);
         self.clear_linebuf();
@@ -2855,6 +2918,11 @@ fn is_absolute(name: &str) -> bool {
 fn file_names_equal(a: &str, b: &str) -> bool {
     let normal = |name: &str| name.replace('\\', "/").to_ascii_lowercase();
     normal(a) == normal(b)
+}
+
+/// Which chain of the reference's table of macros a name is in.
+pub(crate) fn macro_chain(name: &[u8]) -> usize {
+    name.iter().map(|&byte| usize::from(byte)).sum::<usize>() % 512
 }
 
 /// A name as messages show it: a character that is not ASCII is given

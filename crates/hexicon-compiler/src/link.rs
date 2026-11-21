@@ -258,6 +258,15 @@ impl Linker {
         self.prog.next_obj_id - 1
     }
 
+    /// A number for an object the compiler made in front of another,
+    /// which goes in the table of global names under its number.
+    fn new_synthetic_id(&mut self) -> u32 {
+        let id = self.new_obj_id();
+        self.prog
+            .add_synthetic_obj(format!(" {id:x}").into_bytes(), id);
+        id
+    }
+
     /// The property a name is in the whole program, which it becomes
     /// if it is nothing yet. Nothing comes back if it is something
     /// else.
@@ -592,11 +601,11 @@ impl Linker {
                 .find(|def| def.is_modify && def.prev_def.is_none())
                 .and_then(|def| def.mod_base)
             {
-                let id = self.new_obj_id();
+                let id = self.new_synthetic_id();
                 maps.obj_ids.insert(local, id);
             }
             for local in own().filter_map(|def| def.mod_id) {
-                let id = self.new_obj_id();
+                let id = self.new_synthetic_id();
                 maps.obj_ids.insert(local, id);
             }
         }
@@ -773,7 +782,7 @@ impl Linker {
             .filter_map(|def| def.mod_id)
             .collect();
         for local in &chain {
-            let id = self.new_obj_id();
+            let id = self.new_synthetic_id();
             maps.obj_ids.insert(*local, id);
         }
         maps.meta_chains.insert(meta, chain);

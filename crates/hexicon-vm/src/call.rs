@@ -674,8 +674,7 @@ impl Vm {
                 _ => return Err(VmError::new(code::EXCEPTION_OBJ_REQD)),
             }
         } else {
-            self.objects
-                .alloc(Object::Tads(tads::TadsObject::new(Vec::new())))
+            self.alloc_obj(Object::Tads(tads::TadsObject::new(Vec::new())))
         };
         if self.predef.exception_message != INVALID_PROP {
             let message = match code::message(error.code) {

@@ -334,7 +334,7 @@ impl Vm {
             modified: true,
             ..GramProd::default()
         };
-        Ok(self.objects.alloc(Object::GramProd(Box::new(production))))
+        Ok(self.alloc_obj(Object::GramProd(Box::new(production))))
     }
 
     pub(crate) fn gram_method(

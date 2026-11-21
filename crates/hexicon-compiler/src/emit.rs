@@ -5363,6 +5363,8 @@ impl Gen<'_> {
         if self.mm_count != 0 {
             let id = self.prog.next_obj_id;
             self.prog.next_obj_id += 1;
+            self.prog
+                .add_synthetic_obj(b"<multiMethodInit>".to_vec(), id);
             self.out.objs.push(GenObj {
                 id,
                 is_class: false,

@@ -773,9 +773,7 @@ impl Vm {
             }
             argc -= 1;
         }
-        let id = self
-            .objects
-            .alloc(Object::Tads(TadsObject::new(superclasses)));
+        let id = self.alloc_obj(Object::Tads(TadsObject::new(superclasses)));
         if transient {
             self.objects.set_transient(id);
         }
@@ -834,9 +832,7 @@ impl Vm {
             }
             superclasses.push(class);
         }
-        let id = self
-            .objects
-            .alloc(Object::Tads(TadsObject::new(superclasses.clone())));
+        let id = self.alloc_obj(Object::Tads(TadsObject::new(superclasses.clone())));
         if transient {
             self.objects.set_transient(id);
         }
@@ -890,7 +886,7 @@ impl Vm {
                 for entry in original.props() {
                     clone.set(entry.prop, entry.value);
                 }
-                Ok(Value::Obj(vm.objects.alloc(Object::Tads(clone))))
+                Ok(Value::Obj(vm.alloc_obj(Object::Tads(clone))))
             })?,
             // createInstanceOf(...) and createTransientInstanceOf(...)
             4 | 5 => self.native_method(argc, NativeDesc::variable(0), |vm, argc| {

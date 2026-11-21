@@ -231,7 +231,7 @@ impl Vm {
             }
             Object::Vector(items) | Object::AnonFn(items) => {
                 // The space allocated, then the number in use.
-                w.u16(items.len().max(1));
+                w.u16(self.objects.vector_alloc(id).max(items.len()));
                 w.u16(items.len());
                 for &item in items {
                     w.value(item);
@@ -865,6 +865,11 @@ impl Vm {
             } else {
                 None
             };
+            // A vector's data starts with the room it has.
+            let data_room = r
+                .data
+                .get(r.pos..r.pos + 2)
+                .map(|room| usize::from(u16::from_le_bytes([room[0], room[1]])));
             let mut object = self.restore_object(kind, meta_index, existing, &mut r, &fixups)?;
             if matches!(object, Object::Dict(_)) {
                 dictionaries.push(id);
@@ -883,6 +888,13 @@ impl Vm {
             if id.is_valid() {
                 if let Some(slot) = self.objects.get_mut(id) {
                     *slot = object;
+                }
+                // A vector has the room the saved state says.
+                if matches!(kind, MetaKind::Vector | MetaKind::AnonFuncPtr) {
+                    if let Some(room) = data_room {
+                        let room = room.max(self.objects.vector_alloc(id));
+                        self.objects.set_vector_alloc(id, room);
+                    }
                 }
             }
         }

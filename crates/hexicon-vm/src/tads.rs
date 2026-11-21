@@ -151,6 +151,14 @@ impl TadsObject {
         }
     }
 
+    /// Give a property this object defines a new value, as it is when
+    /// the image is written: no change the program made.
+    pub fn set_value_in_place(&mut self, prop: PropId, value: Value) {
+        if let Some(index) = self.index_of(prop) {
+            self.entries[index].value = value;
+        }
+    }
+
     /// The properties this object defines directly, in the order they were
     /// added.
     pub fn props(&self) -> &[PropEntry] {

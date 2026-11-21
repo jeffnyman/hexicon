@@ -460,7 +460,7 @@ impl Vm {
 
     /// Create a string object.
     pub(crate) fn new_string(&mut self, text: impl Into<Rc<[u8]>>) -> Value {
-        Value::Obj(self.objects.alloc(Object::String(text.into())))
+        Value::Obj(self.alloc_obj(Object::String(text.into())))
     }
 
     /// Create a string object from Rust text.
@@ -468,9 +468,23 @@ impl Vm {
         self.new_string(text.as_bytes())
     }
 
+    /// Create an object. Once enough objects have been created since
+    /// the collector last ran, it runs first, as in the reference VM:
+    /// at the creation, with what is reachable then.
+    pub(crate) fn alloc_obj(&mut self, object: Object) -> ObjId {
+        if self.objects.gc_due() && !self.in_gc {
+            // What the new object refers to is in use, though the object
+            // is not in the table yet.
+            let mut keep = Vec::new();
+            crate::object::references_of(&object, &mut keep);
+            self.collect_garbage_keeping(true, keep);
+        }
+        self.objects.alloc(object)
+    }
+
     /// Create a list object.
     pub(crate) fn new_list(&mut self, items: impl Into<Rc<[Value]>>) -> Value {
-        Value::Obj(self.objects.alloc(Object::List(items.into())))
+        Value::Obj(self.alloc_obj(Object::List(items.into())))
     }
 
     /// The intrinsic class an object belongs to.

@@ -758,7 +758,7 @@ impl Vm {
     /// `new TimeZone(...)`.
     pub(crate) fn create_time_zone(&mut self, argc: u32) -> VmResult<ObjId> {
         let zone = self.zone_from_args(0, argc as usize)?;
-        Ok(self.objects.alloc(Object::TimeZone(zone)))
+        Ok(self.alloc_obj(Object::TimeZone(zone)))
     }
 
     /// Look up the zones of time zone objects that were read from an
@@ -979,7 +979,7 @@ impl Vm {
     // ---- dates ----
 
     pub(crate) fn new_date(&mut self, dayno: i32, daytime: i32) -> Value {
-        Value::Obj(self.objects.alloc(Object::Date { dayno, daytime }))
+        Value::Obj(self.alloc_obj(Object::Date { dayno, daytime }))
     }
 
     /// A Date for a count of seconds since the start of 1970.
@@ -1042,9 +1042,7 @@ impl Vm {
         let vector = match state {
             Value::Obj(id) if matches!(self.objects.get(id), Some(Object::Vector(_))) => id,
             _ => {
-                let id = self
-                    .objects
-                    .alloc(Object::Vector(vec![Value::Nil; LOCALE_DEFAULTS.len()]));
+                let id = self.alloc_obj(Object::Vector(vec![Value::Nil; LOCALE_DEFAULTS.len()]));
                 if let Some(Object::Class(class)) = self.objects.get_mut(class) {
                     class.class_state = Value::Obj(id);
                 }
@@ -1731,7 +1729,7 @@ impl Vm {
         } else {
             return Err(VmError::new(code::BAD_TYPE_BIF));
         };
-        Ok(self.objects.alloc(Object::Date { dayno, daytime }))
+        Ok(self.alloc_obj(Object::Date { dayno, daytime }))
     }
 
     /// A count of days from a number, for adding to a date: whole days,
@@ -1889,7 +1887,7 @@ impl Vm {
         let date = self.new_date(dayno, daytime);
         let parsed_zone = match &parsed.zone {
             Some(found) if !Rc::ptr_eq(found, &zone) => {
-                Value::Obj(self.objects.alloc(Object::TimeZone(found.clone())))
+                Value::Obj(self.alloc_obj(Object::TimeZone(found.clone())))
             }
             _ => Value::Nil,
         };

@@ -25,7 +25,9 @@ pub mod pp;
 mod ppexpr;
 mod project;
 
-pub use compile::{CompileOptions, Compiled, compile, compile_program};
+pub use compile::{
+    CompileOptions, Compiled, RuntimeSymbol, RuntimeValue, compile, compile_program,
+};
 pub use lex::Tok;
 pub use project::{Project, ProjectError, ProjectPaths, read_project};
 

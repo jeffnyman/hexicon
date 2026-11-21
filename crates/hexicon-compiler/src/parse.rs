@@ -1067,6 +1067,34 @@ impl Program {
         (1..=self.enums.len() as u32).collect()
     }
 
+    /// Give an object the compiler made, which the source cannot name, a
+    /// name in the table of global names: the reference names the
+    /// definitions `modify` set aside, and the objects that hold what is
+    /// added to built-in classes, by their numbers (`" 1a"`), and the
+    /// object that sets up multi-methods `<multiMethodInit>`.
+    pub(crate) fn add_synthetic_obj(&mut self, name: Vec<u8>, id: u32) {
+        self.objs.push(ObjSym {
+            name: name.clone(),
+            id,
+            is_extern: false,
+            is_class: false,
+            sc_names: Vec::new(),
+            sc_is_root: false,
+            templates: Vec::new(),
+            def: None,
+            mod_count: 0,
+            undefined_redef: false,
+            declared_only: false,
+            ext_redef: false,
+            is_dict: false,
+            is_gramprod: false,
+            gram: None,
+            del_props: Vec::new(),
+        });
+        let index = self.objs.len() - 1;
+        self.globals.insert_known(name, Global::Obj(index));
+    }
+
     /// Find a built-in class in the table of them by the virtual
     /// machine's name for it, or add it. The name has a version after a
     /// slash; of two versions, the table keeps the later.

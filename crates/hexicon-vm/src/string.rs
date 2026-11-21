@@ -150,7 +150,7 @@ impl Vm {
     pub(crate) fn new_pattern(&mut self, source: Value) -> VmResult<ObjId> {
         let text = self.require_str(source)?;
         let compiled = Rc::new(Pattern::compile(&text));
-        Ok(self.objects.alloc(Object::Pattern {
+        Ok(self.alloc_obj(Object::Pattern {
             source,
             compiled: Some(compiled),
         }))
@@ -742,6 +742,9 @@ impl Vm {
         } else {
             None
         };
+        // The list is made first, and the pieces after it, as in the
+        // reference, so that each is given the same object number.
+        let list = self.alloc_obj(Object::List(Rc::from([])));
         let mut pieces = Vec::new();
         let mut pos = 0;
         while pos < text.len() && limit.is_none_or(|limit| pieces.len() + 1 < limit) {
@@ -772,7 +775,8 @@ impl Vm {
         if pos < text.len() {
             pieces.push(self.new_string(&text[pos..]));
         }
-        Ok(self.new_list(pieces))
+        self.objects.replace(list, Object::List(pieces.into()));
+        Ok(Value::Obj(list))
     }
 
     // ---- replacing ----

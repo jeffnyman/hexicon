@@ -264,6 +264,15 @@ impl Vm {
                 if !objects.alloc_with_id(id, loaded, block.transient) {
                     return Err(VmError::new(code::OBJ_IN_USE));
                 }
+                // A vector has the room the image says, or at least
+                // room for its elements.
+                if matches!(kind, MetaKind::Vector | MetaKind::AnonFuncPtr) {
+                    if let Some(room) = object.data.get(..2) {
+                        let room = usize::from(u16::from_le_bytes([room[0], room[1]]));
+                        let room = room.max(objects.vector_alloc(id));
+                        objects.set_vector_alloc(id, room);
+                    }
+                }
             }
         }
 
@@ -419,15 +428,13 @@ impl Vm {
     /// that objects the program creates later get the same IDs.
     pub(crate) fn create_synthesized_objects(&mut self) -> VmResult<()> {
         let last_prop = self.predef.last_prop;
-        self.predef.last_prop_obj = self
-            .objects
-            .alloc(Object::Vector(vec![Value::Prop(last_prop)]));
+        self.predef.last_prop_obj = self.alloc_obj(Object::Vector(vec![Value::Prop(last_prop)]));
         if self.predef.exception_message == INVALID_PROP || self.exception_message_synthesized {
             self.predef.exception_message = self.alloc_prop_for_vm()?;
             self.exception_message_synthesized = true;
         }
-        self.predef.const_str_obj = self.objects.alloc(Object::String(Rc::from(&[][..])));
-        self.predef.const_lst_obj = self.objects.alloc(Object::List(Rc::from(&[][..])));
+        self.predef.const_str_obj = self.alloc_obj(Object::String(Rc::from(&[][..])));
+        self.predef.const_lst_obj = self.alloc_obj(Object::List(Rc::from(&[][..])));
         Ok(())
     }
 

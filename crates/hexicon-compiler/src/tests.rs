@@ -2945,3 +2945,96 @@ fn what_is_wrong_with_a_library_is_said_as_the_reference_says_it() {
         other => panic!("{other:?}"),
     }
 }
+
+#[test]
+fn the_program_s_symbols_for_preinitialization() {
+    use crate::RuntimeValue;
+    let one = "rock: object weight = 1;\n\
+               modify rock weight = 2;\n\
+               enum red;\n\
+               f() { return 1; }\n\
+               _main(args) { return f(); }\n";
+    let compiled = compile_files(&[("one.t", one)]);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let value = |name: &str| {
+        compiled
+            .symbols
+            .iter()
+            .find(|symbol| symbol.name == name.as_bytes())
+            .map(|symbol| symbol.value)
+    };
+    let Some(RuntimeValue::Object(rock)) = value("rock") else {
+        panic!("rock is an object");
+    };
+    assert!(matches!(value("weight"), Some(RuntimeValue::Property(_))));
+    assert!(matches!(value("red"), Some(RuntimeValue::Enum(_))));
+    let (Some(RuntimeValue::Function(f)), Some(RuntimeValue::Function(main))) =
+        (value("f"), value("_main"))
+    else {
+        panic!("f and _main are functions");
+    };
+    assert_ne!(f, main);
+    // The definition `modify` set aside is named by its number, after a
+    // space, so that no source can name it.
+    let set_aside: Vec<_> = compiled
+        .symbols
+        .iter()
+        .filter(|symbol| symbol.name.first() == Some(&b' '))
+        .collect();
+    assert_eq!(set_aside.len(), 1);
+    let RuntimeValue::Object(id) = set_aside[0].value else {
+        panic!("the definition set aside is an object");
+    };
+    assert_ne!(id, rock);
+    assert_eq!(set_aside[0].name, format!(" {id:x}").into_bytes());
+}
+
+#[test]
+fn the_program_s_macros_for_preinitialization() {
+    let one = "#define TWICE(x, rest...) ((x)  *  2)\n\
+               #define GONE 1\n\
+               #undef GONE\n\
+               #define SAME 1\n\
+               #define DIFFERENT 1\n\
+               _main(args) { }\n";
+    let two = "#define SAME 1\n#define DIFFERENT 2\n";
+    let compiled = compile_files(&[("one.t", one), ("two.t", two)]);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let find = |name: &str| {
+        compiled
+            .macros
+            .iter()
+            .find(|mac| mac.name == name.as_bytes())
+    };
+    let twice = find("TWICE").expect("TWICE is in the table");
+    assert!(twice.has_args && twice.has_varargs);
+    assert_eq!(twice.params, [b"x".to_vec(), b"rest".to_vec()]);
+    // The expansion is as the source wrote it.
+    assert_eq!(twice.expansion, b"((x)  *  2)");
+    // An undefined macro is not there, nor one two files define
+    // differently; one they define the same way is.
+    assert!(find("GONE").is_none());
+    assert!(find("DIFFERENT").is_none());
+    assert!(find("SAME").is_some());
+    // The compiler's own are there, with `__LINE__` and `__FILE__` as
+    // they are when no source is being read.
+    assert!(find("__TADS3").is_some());
+    assert_eq!(find("__LINE__").expect("__LINE__").expansion, b"0");
+    assert_eq!(find("__FILE__").expect("__FILE__").expansion, b"");
+    // In the order of the reference's table: by the sum of the name's
+    // bytes, in 512 chains.
+    let chains: Vec<usize> = compiled
+        .macros
+        .iter()
+        .map(|mac| crate::pp::macro_chain(&mac.name))
+        .collect();
+    assert!(chains.windows(2).all(|pair| pair[0] <= pair[1]));
+}

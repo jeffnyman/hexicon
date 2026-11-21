@@ -120,6 +120,16 @@ impl LookupTable {
         )
     }
 
+    /// Change every key and value in place, as when the image is
+    /// written and strings and lists become constants. The keys stay in
+    /// their chains: a constant hashes as the object did.
+    pub fn map_values(&mut self, mut map: impl FnMut(Value) -> Value) {
+        for slot in &mut self.slots {
+            slot.key = map(slot.key);
+            slot.value = map(slot.value);
+        }
+    }
+
     /// A table from its parts, as an image or a saved state holds them.
     /// The chains are kept as they come, since they were built with the
     /// same hash function. A link that points outside the table, which
@@ -408,7 +418,7 @@ impl Vm {
 
     /// Create a table object.
     pub(crate) fn new_table(&mut self, table: LookupTable) -> ObjId {
-        self.objects.alloc(Object::LookupTable(Box::new(table)))
+        self.alloc_obj(Object::LookupTable(Box::new(table)))
     }
 
     /// Construct a table from the arguments to `new`: nothing, a list of
@@ -578,7 +588,7 @@ impl Vm {
             self.new_table(copy)
         };
         Ok(Value::Obj(
-            self.objects.alloc(Object::LookupIter { table, slot: 0 }),
+            self.alloc_obj(Object::LookupIter { table, slot: 0 }),
         ))
     }
 

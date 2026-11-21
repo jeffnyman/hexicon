@@ -368,7 +368,7 @@ impl Vm {
     pub(crate) fn new_charset(&mut self, name: &[u8]) -> ObjId {
         let name = String::from_utf8_lossy(name).into_owned();
         let map = CharMap::load(&name).map(Rc::new);
-        self.objects.alloc(Object::CharSet { name, map })
+        self.alloc_obj(Object::CharSet { name, map })
     }
 
     /// `new CharacterSet(name)`.

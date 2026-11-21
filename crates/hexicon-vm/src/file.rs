@@ -357,7 +357,7 @@ impl Vm {
 
     /// A FileName object for a name.
     pub(crate) fn new_file_name(&mut self, path: &str) -> ObjId {
-        self.objects.alloc(Object::FileName(Box::new(FileNameObj {
+        self.alloc_obj(Object::FileName(Box::new(FileNameObj {
             path: path.to_owned(),
             special: 0,
             from_ui: 0,
@@ -777,7 +777,7 @@ impl Vm {
                 dirty: false,
             }),
         };
-        let id = self.objects.alloc(Object::File(Box::new(file)));
+        let id = self.alloc_obj(Object::File(Box::new(file)));
         self.objects.set_transient(id);
         self.io.open_files.push(id);
         Ok(Value::Obj(id))
@@ -1284,7 +1284,7 @@ impl Vm {
                 if matches!(arg, Value::Int(_)) || self.as_big(arg).is_some() {
                     let special = self.cast_to_int(arg)?;
                     let path = self.special_file_path(special)?.unwrap_or_default();
-                    return Ok(self.objects.alloc(Object::FileName(Box::new(FileNameObj {
+                    return Ok(self.alloc_obj(Object::FileName(Box::new(FileNameObj {
                         path,
                         special,
                         from_ui: 0,
@@ -1642,7 +1642,7 @@ impl Vm {
         let Some(name) = self.host.temp_file_name() else {
             return Err(VmError::new(code::CREATE_FILE));
         };
-        let id = self.objects.alloc(Object::TempFile(name));
+        let id = self.alloc_obj(Object::TempFile(name));
         self.objects.set_transient(id);
         Ok(id)
     }

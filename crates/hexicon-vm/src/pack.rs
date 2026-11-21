@@ -1681,7 +1681,7 @@ impl Vm {
     }
 
     pub(crate) fn new_bytes(&mut self, bytes: Vec<u8>) -> Value {
-        Value::Obj(self.objects.alloc(Object::ByteArray(bytes)))
+        Value::Obj(self.alloc_obj(Object::ByteArray(bytes)))
     }
 
     /// Pack arguments into a stream. Argument `first_arg` is the format

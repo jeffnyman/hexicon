@@ -391,7 +391,7 @@ impl Vm {
                 );
             }
         }
-        Ok(self.objects.alloc(Object::StrComp(Rc::new(comparator))))
+        Ok(self.alloc_obj(Object::StrComp(Rc::new(comparator))))
     }
 
     pub(crate) fn strcomp_method(

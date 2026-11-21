@@ -74,6 +74,10 @@ commands:
                                nothing, such as the time it was compiled,
                                each as an offset and a length; a comparison
                                of two images should skip them
+  preinit [--unspecified <file>] <image.t3> <new.t3> [args...]
+                               run a program as it is run before its
+                               image is written, and write the image it
+                               leaves, as the reference's t3pre does
   preprocess [options] <source>
                                write a source file's preprocessed text;
                                the options are:
@@ -150,6 +154,9 @@ fn main() -> ExitCode {
                 }
             }
         }
+    }
+    if let ["preinit", rest @ ..] = args.as_slice() {
+        return preinit(rest);
     }
     if let ["build", rest @ ..] = args.as_slice() {
         return build::run(rest, USAGE);
@@ -674,6 +681,115 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
     vm.flush_output();
     vm.close_files();
     code
+}
+
+/// Run a program as it is run before its image is written, and write
+/// the image it leaves: preinitialization. `path` is the image's name,
+/// and `data` the image; the program sees `program_args` as its
+/// arguments. Its output goes to the console, as when it runs.
+pub(crate) fn preinit_image(
+    path: &str,
+    data: &[u8],
+    unspecified: &[(usize, usize)],
+    program_args: &[String],
+    symbols: Option<(Vec<hexicon_image::GlobalSymbol>, Vec<hexicon_image::Macro>)>,
+) -> Result<hexicon_vm::RebuiltImage, String> {
+    let image = Image::parse(data).map_err(|error| error.to_string())?;
+    let file_base = Path::new(path)
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_default();
+    let console = Console {
+        sandbox: file_base.clone(),
+        file_base,
+        temp_count: 0,
+        terminal: None,
+        stall: false,
+        stalled: false,
+    };
+    let mut vm = Vm::new(&image, Box::new(console)).map_err(|error| error.to_string())?;
+    vm.set_image_name(path);
+    if let Some((symbols, macros)) = symbols {
+        vm.set_runtime_symbols(symbols, macros);
+    }
+    let result = vm.run_preinit(program_args);
+    if let Err(error) = result {
+        // As the reference's t3pre says it: the message's template,
+        // with nothing filled in.
+        let message = match &error {
+            hexicon_vm::VmError::Runtime(runtime) => {
+                match hexicon_vm::code::message(runtime.code) {
+                    Some(template) => format!("VM Error: {template}"),
+                    None => format!("VM Error: [no message: code {}]", runtime.code),
+                }
+            }
+            _ => vm.error_message(&error, true),
+        };
+        vm.flush_output();
+        return Err(message);
+    }
+    vm.flush_output();
+    let rebuilt = vm
+        .rewrite_image_keeping(data, unspecified)
+        .map_err(|error| vm.error_message(&error, false));
+    vm.close_files();
+    rebuilt
+}
+
+/// `hexicon preinit`: what the reference's `t3pre` does.
+fn preinit(args: &[&str]) -> ExitCode {
+    let mut unspecified = None;
+    let mut rest = args;
+    if let ["--unspecified", path, tail @ ..] = rest {
+        unspecified = Some(*path);
+        rest = tail;
+    }
+    let [input, output, program_args @ ..] = rest else {
+        eprint!("{USAGE}");
+        return ExitCode::from(2);
+    };
+    let data = match std::fs::read(input) {
+        Ok(data) => data,
+        Err(error) => {
+            eprintln!("hexicon: {input}: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    // The reference's t3pre gives the program its arguments starting
+    // one too early, with the name of the new image.
+    let program_args: Vec<String> = std::iter::once(output)
+        .chain(program_args.iter())
+        .map(|arg| (*arg).to_owned())
+        .collect();
+    match preinit_image(input, &data, &[], &program_args, None) {
+        Ok(rebuilt) => {
+            if let Err(error) = std::fs::write(output, &rebuilt.bytes) {
+                eprintln!("hexicon: {output}: {error}");
+                return ExitCode::FAILURE;
+            }
+            if let Some(path) = unspecified {
+                let list: String = rebuilt
+                    .unspecified
+                    .iter()
+                    .map(|(offset, len)| {
+                        format!(
+                            "{offset} {len}
+"
+                        )
+                    })
+                    .collect();
+                if let Err(error) = std::fs::write(path, list) {
+                    eprintln!("hexicon: {path}: {error}");
+                    return ExitCode::FAILURE;
+                }
+            }
+            ExitCode::SUCCESS
+        }
+        Err(message) => {
+            eprintln!("{message}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 fn load(path: &str) -> Result<(Image, usize), String> {

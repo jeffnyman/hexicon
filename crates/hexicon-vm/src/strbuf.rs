@@ -59,7 +59,7 @@ impl Vm {
             self.int_arg(self.arg(index))?;
         }
         self.discard(argc as usize);
-        Ok(self.objects.alloc(Object::StringBuffer(Vec::new())))
+        Ok(self.alloc_obj(Object::StringBuffer(Vec::new())))
     }
 
     /// The characters of a value converted to text.

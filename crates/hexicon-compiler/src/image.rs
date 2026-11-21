@@ -175,6 +175,9 @@ pub(crate) struct Image {
     /// fields that are written but never read. The reference compiler
     /// leaves some of them holding whatever was in its memory.
     pub unspecified: Vec<(usize, usize)>,
+    /// Where each function went in the code: its address, by its index
+    /// in the program's functions.
+    pub func_addrs: std::collections::HashMap<usize, u32>,
 }
 
 /// Write the image. `timestamp` is the 24 characters that record when
@@ -640,8 +643,14 @@ pub(crate) fn write_image(
     writer.block(b"SINI", true, &sini);
 
     writer.block(b"EOF ", true, &[]);
+    let func_addrs = generated
+        .func_anchor
+        .iter()
+        .map(|(&func, &anchor)| (func, code_addrs[anchor] as u32))
+        .collect();
     Ok(Image {
         bytes: writer.out,
         unspecified,
+        func_addrs,
     })
 }

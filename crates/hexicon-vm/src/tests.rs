@@ -162,6 +162,11 @@ impl ImageBuilder {
     }
 
     fn build(self, entry: u32, code: &Code, consts: &Consts) -> Image {
+        Image::parse(&self.build_bytes(entry, code, consts)).expect("the test image is well formed")
+    }
+
+    /// The image file's bytes.
+    fn build_bytes(self, entry: u32, code: &Code, consts: &Consts) -> Vec<u8> {
         fn block(data: &mut Vec<u8>, kind: &[u8; 4], body: &[u8]) {
             data.extend_from_slice(kind);
             data.extend_from_slice(&(body.len() as u32).to_le_bytes());
@@ -254,7 +259,7 @@ impl ImageBuilder {
         block(&mut data, b"SYMD", &body);
 
         block(&mut data, b"EOF ", &[]);
-        Image::parse(&data).expect("the test image is well formed")
+        data
     }
 }
 
@@ -2256,4 +2261,42 @@ fn characters_are_the_kinds_the_reference_says() {
     assert!(is_space(' ') && is_space('\t') && !is_vspace(' '));
     assert!(is_vspace('\n') && is_vspace('\r') && !is_space('\n'));
     assert!(!is_alpha('\0') && !is_punct('\0'));
+}
+
+#[test]
+fn a_run_before_the_image_is_written_is_kept_in_it() {
+    // _main() { obj1.name = obj1.name + '!'; tadsSay(obj1.name); }
+    let mut consts = Consts::default();
+    let base = consts.string("base");
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.op(Op::ObjGetProp).u32(1).u16(PROP_NAME);
+    code.op(Op::GetR0);
+    code.op(Op::PushStr).u32(consts.string("!"));
+    code.op(Op::Add);
+    code.op(Op::ObjSetProp).u32(1).u16(PROP_NAME);
+    code.op(Op::ObjGetProp).u32(1).u16(PROP_NAME);
+    code.op(Op::GetR0);
+    code.say().op(Op::RetNil);
+    let bytes = ImageBuilder::default()
+        .object(
+            1,
+            tads_object_data(&[], false, &[(PROP_NAME, holder(type_code::SSTRING, base))]),
+        )
+        .build_bytes(main, &code, &consts);
+
+    // Run it once before writing: the string it makes goes into the
+    // image as a constant.
+    let image = Image::parse(&bytes).expect("the test image is well formed");
+    let host = BufferHost::new();
+    let mut vm = Vm::new(&image, Box::new(host.clone())).expect("the image loads");
+    vm.run_preinit(&[])
+        .expect("the run before writing succeeds");
+    let rebuilt = vm.rewrite_image(&bytes).expect("the image is rewritten");
+    vm.flush_output();
+    assert_eq!(host.output(), "base!");
+
+    // The image written starts from there.
+    let image = Image::parse(&rebuilt.bytes).expect("the rewritten image is well formed");
+    assert_eq!(run(&image), ("base!!".to_owned(), Ok(())));
 }

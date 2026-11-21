@@ -37,6 +37,7 @@ mod object;
 mod ops;
 mod pack;
 mod props;
+mod rebuild;
 mod reflect;
 mod regex;
 mod rng;
@@ -55,6 +56,7 @@ mod vm;
 
 pub use charset::decode_text;
 pub use error::{ErrParam, RuntimeError, VmError, VmResult, code};
+pub use rebuild::RebuiltImage;
 pub use value::{ObjId, PropId, Value};
 pub use vm::{RunState, Vm};
 

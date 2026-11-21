@@ -35,7 +35,7 @@ impl Vm {
                 let Some(last) = vm.list_like_len(collection)? else {
                     return Err(VmError::new(code::CANNOT_INDEX_TYPE));
                 };
-                Ok(Value::Obj(vm.objects.alloc(Object::IndexedIter {
+                Ok(Value::Obj(vm.alloc_obj(Object::IndexedIter {
                     collection,
                     current: 0,
                     first: 1,

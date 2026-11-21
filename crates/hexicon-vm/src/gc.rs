@@ -75,12 +75,25 @@ impl Vm {
     /// own, before the creation of an object that the reference VM would
     /// not count toward the next collection.
     pub(crate) fn collect_garbage(&mut self, automatic: bool) {
+        self.collect_garbage_keeping(automatic, Vec::new());
+    }
+
+    /// Collect garbage, keeping what these values refer to as well: the
+    /// references of an object about to be created, which is not in the
+    /// table yet.
+    pub(crate) fn collect_garbage_keeping(&mut self, automatic: bool, keep: Vec<Value>) {
         if self.in_gc {
             return;
         }
         self.in_gc = true;
-        let roots = self.gc_roots();
-        let candidates = self.objects.collect_mark(&roots, self.run_depth > 1);
+        if crate::object::trace_alloc() {
+            eprintln!("GC at {:#x} stack {}", self.pc, self.stack.len());
+        }
+        let mut roots = self.gc_roots();
+        roots.extend(keep);
+        let candidates = self
+            .objects
+            .collect_mark(&roots, automatic || self.run_depth > 1);
         let with_finalizers: Vec<ObjId> = candidates
             .iter()
             .copied()

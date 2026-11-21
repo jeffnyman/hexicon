@@ -190,7 +190,7 @@ impl Vm {
                         }
                         None => items.push(b),
                     }
-                    Ok(Some(Value::Obj(self.objects.alloc(Object::Vector(items)))))
+                    Ok(Some(Value::Obj(self.alloc_obj(Object::Vector(items)))))
                 }
                 _ => Ok(None),
             },
@@ -222,9 +222,12 @@ impl Vm {
                 Some(Object::Date { .. }) => self.date_sub(id, b).map(Some),
                 Some(Object::List(_)) => self.list_remove(a, b).map(Some),
                 Some(Object::Vector(items)) => {
+                    // Made with room for all of the left side.
                     let items = items.clone();
                     let kept = self.without(&items, b)?;
-                    Ok(Some(Value::Obj(self.objects.alloc(Object::Vector(kept)))))
+                    let new = self.alloc_obj(Object::Vector(kept));
+                    self.objects.set_vector_alloc(new, items.len());
+                    Ok(Some(Value::Obj(new)))
                 }
                 _ => Ok(None),
             },
@@ -397,6 +400,7 @@ impl Vm {
                     items.resize(n as usize, Value::Nil);
                 }
                 items[n as usize - 1] = value;
+                self.objects.note_vector(id);
                 Ok(Some(container))
             }
             Some(Object::LookupTable(_)) => {

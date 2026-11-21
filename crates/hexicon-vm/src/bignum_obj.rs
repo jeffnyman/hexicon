@@ -77,7 +77,7 @@ pub(crate) enum Arith {
 impl Vm {
     /// Create a BigNumber object.
     pub(crate) fn new_big(&mut self, value: Big) -> Value {
-        Value::Obj(self.objects.alloc(Object::BigNumber(Box::new(value))))
+        Value::Obj(self.alloc_obj(Object::BigNumber(Box::new(value))))
     }
 
     /// The number a value holds, if it is a BigNumber object.
@@ -210,7 +210,7 @@ impl Vm {
             _ => return Err(VmError::new(code::NUM_VAL_REQD)),
         };
         self.discard(argc as usize);
-        Ok(self.objects.alloc(Object::BigNumber(Box::new(value))))
+        Ok(self.alloc_obj(Object::BigNumber(Box::new(value))))
     }
 
     /// Call a method of the BigNumber class.

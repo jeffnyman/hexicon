@@ -96,7 +96,7 @@ impl Vm {
     }
 
     fn new_vector(&mut self, items: Vec<Value>) -> Value {
-        Value::Obj(self.objects.alloc(Object::Vector(items)))
+        Value::Obj(self.alloc_obj(Object::Vector(items)))
     }
 
     /// Call a method of the vector class.
@@ -136,6 +136,22 @@ impl Vm {
     }
 
     fn vector_call(&mut self, id: ObjId, index: u16, argc: u32) -> VmResult<Value> {
+        let result = self.vector_call_inner(id, index, argc);
+        // A method that made the vector longer may have given it more
+        // room.
+        self.objects.note_vector(id);
+        result
+    }
+
+    /// A new vector of these elements, with room for so many.
+    fn new_vector_with_room(&mut self, items: Vec<Value>, room: usize) -> Value {
+        let value = self.new_vector(items);
+        let room = room.max(self.objects.vector_alloc(value.obj_id()));
+        self.objects.set_vector_alloc(value.obj_id(), room);
+        value
+    }
+
+    fn vector_call_inner(&mut self, id: ObjId, index: u16, argc: u32) -> VmResult<Value> {
         let self_value = Value::Obj(id);
         let len = self.vec_items(id)?.len();
         // Methods that report under another method's name in stack traces
@@ -221,7 +237,7 @@ impl Vm {
             5 => {
                 let items = self.vec_items(id)?.clone();
                 let kept = self.seq_subset(&items, self.arg(0), &native)?;
-                self.new_vector(kept)
+                self.new_vector_with_room(kept, items.len())
             }
             // applyAll(func): replace each element with the function's
             // result for it.
@@ -276,7 +292,9 @@ impl Vm {
                     mapped.push(self.call_value(function, &[item], native.clone())?);
                     position += 1;
                 }
-                self.new_vector(mapped)
+                // With the room the vector has.
+                let room = self.objects.vector_alloc(id);
+                self.new_vector_with_room(mapped, room)
             }
             // indexOf(val) and lastIndexOf(val)
             11 | 13 => {
@@ -314,7 +332,7 @@ impl Vm {
             18 => {
                 let items = self.vec_items(id)?.clone();
                 let unique = self.seq_unique(&items)?;
-                self.new_vector(unique)
+                self.new_vector_with_room(unique, items.len())
             }
             // appendUnique(val)
             19 => {
@@ -328,6 +346,9 @@ impl Vm {
                     }
                     None => items.push(other),
                 }
+                // The vector is made long enough for all of them before
+                // what is already there is taken out.
+                self.objects.note_vector_len(id, items.len());
                 let unique = self.seq_unique(&items)?;
                 *self.vec_items_mut(id)? = unique;
                 self_value

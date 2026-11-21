@@ -140,6 +140,10 @@ struct Slot {
     mark: Mark,
     /// The object's state as loaded from the image is already kept.
     pristine: bool,
+    /// For a vector, how many elements it has room for. The reference
+    /// VM grows a vector by its own rules and writes the room it has
+    /// to saved states and images.
+    vec_alloc: u32,
 }
 
 /// Whether an object's finalizer has run.
@@ -265,6 +269,7 @@ impl ObjectTable {
                 finalize: Finalize::Done,
                 mark: Mark::Unreachable,
                 pristine: false,
+                vec_alloc: 0,
             };
             // ID 0 is the invalid ID and is never on the free list.
             if id != 0 {
@@ -299,6 +304,11 @@ impl ObjectTable {
             self.add_page();
         }
         let id = self.first_free;
+        if trace_alloc() {
+            let kind = format!("{object:?}");
+            let kind = kind.split(['(', ' ', '{']).next().unwrap_or("");
+            eprintln!("A {id} {kind}");
+        }
         self.unlink(id);
         self.serial = self.serial.wrapping_add(1);
         self.allocs_since_gc += 1;
@@ -307,6 +317,7 @@ impl ObjectTable {
         slot.serial = serial;
         slot.finalize = Finalize::NotYet;
         slot.mark = Mark::Unreachable;
+        slot.vec_alloc = vec_len(&object);
         slot.object = Some(object);
         slot.in_root_set = false;
         slot.transient = false;
@@ -331,6 +342,7 @@ impl ObjectTable {
         }
         self.unlink(id.0);
         let slot = &mut self.slots[id.0 as usize];
+        slot.vec_alloc = vec_len(&object);
         slot.object = Some(object);
         slot.in_root_set = true;
         slot.transient = transient;
@@ -449,6 +461,41 @@ impl ObjectTable {
         self.slots.len() as u32
     }
 
+    /// How many elements a vector has room for.
+    pub fn vector_alloc(&self, id: ObjId) -> usize {
+        self.slots
+            .get(id.0 as usize)
+            .map_or(0, |slot| slot.vec_alloc as usize)
+    }
+
+    /// Give a vector room for so many elements.
+    pub fn set_vector_alloc(&mut self, id: ObjId, count: usize) {
+        if let Some(slot) = self.slots.get_mut(id.0 as usize) {
+            slot.vec_alloc = count as u32;
+        }
+    }
+
+    /// Note that a vector's length has changed, or has been this much
+    /// for a moment: one that outgrows its room is given 16 more
+    /// elements' room, or as much as it needs if that is more. Room is
+    /// never given back.
+    pub fn note_vector_len(&mut self, id: ObjId, len: usize) {
+        if let Some(slot) = self.slots.get_mut(id.0 as usize) {
+            let alloc = slot.vec_alloc as usize;
+            if len > alloc {
+                slot.vec_alloc = (alloc + 16).max(len) as u32;
+            }
+        }
+    }
+
+    /// Note a vector's length as it now is. See [`Self::note_vector_len`].
+    pub fn note_vector(&mut self, id: ObjId) {
+        if let Some(Object::Vector(items)) = self.get(id) {
+            let len = items.len();
+            self.note_vector_len(id, len);
+        }
+    }
+
     /// The IDs in use, in ascending order.
     pub fn ids(&self) -> impl Iterator<Item = ObjId> + '_ {
         self.slots
@@ -459,7 +506,29 @@ impl ObjectTable {
     }
 }
 
+/// Whether to list each object ID as it is handed out, and each
+/// collection, on standard error (`HEXICON_TRACE_ALLOC`): for comparing
+/// the order with the reference VM's.
+pub(crate) fn trace_alloc() -> bool {
+    static TRACE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *TRACE.get_or_init(|| std::env::var_os("HEXICON_TRACE_ALLOC").is_some())
+}
+
+/// The elements a vector or an anonymous function has, which is the room
+/// it has unless something says otherwise.
+fn vec_len(object: &Object) -> u32 {
+    match object {
+        Object::Vector(items) | Object::AnonFn(items) => items.len() as u32,
+        _ => 0,
+    }
+}
+
 // ---- garbage collection ----
+
+/// The values an object refers to, for an object not in the table.
+pub(crate) fn references_of(object: &Object, out: &mut Vec<Value>) {
+    references(object, out);
+}
 
 /// The values an object refers to. A weak-reference table does not count
 /// as referring to its values.

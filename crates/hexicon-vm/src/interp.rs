@@ -214,9 +214,6 @@ impl Vm {
                 if self.run_depth <= 1 {
                     self.objects.at_safe_point();
                 }
-                if self.objects.gc_due() {
-                    self.collect_garbage(true);
-                }
             }
             let Some(&byte) = code.get(pc) else {
                 return Err(VmError::new(code::INVALID_OPCODE));
@@ -1432,7 +1429,7 @@ impl Vm {
                 for _ in 1..argc {
                     items.push(self.pop());
                 }
-                Ok(self.objects.alloc(Object::AnonFn(items)))
+                Ok(self.alloc_obj(Object::AnonFn(items)))
             }
             MetaKind::Vector => {
                 if argc > 2 {
@@ -1477,14 +1474,26 @@ impl Vm {
                         None => Value::Nil,
                     });
                 }
+                // Room for the number asked for, ten if none was, or the
+                // elements copied if they are more.
+                let room = if argc == 0 {
+                    10
+                } else if let Value::Int(n) = self.arg(0) {
+                    n.max(0) as usize
+                } else {
+                    0
+                };
                 self.discard(argc as usize);
-                Ok(self.objects.alloc(Object::Vector(items)))
+                let id = self.alloc_obj(Object::Vector(items));
+                let room = room.max(self.objects.vector_alloc(id));
+                self.objects.set_vector_alloc(id, room);
+                Ok(id)
             }
             MetaKind::List => {
                 // The elements, in order.
                 let items: Vec<Value> = (0..argc as usize).map(|i| self.arg(i)).collect();
                 self.discard(argc as usize);
-                Ok(self.objects.alloc(Object::List(items.into())))
+                Ok(self.alloc_obj(Object::List(items.into())))
             }
             MetaKind::LookupTable => self.create_table(argc, false),
             MetaKind::WeakRefLookupTable => self.create_table(argc, true),
