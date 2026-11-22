@@ -121,6 +121,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hexicon-fuzz"
+version = "0.1.0"
+dependencies = [
+ "hexicon-host",
+ "hexicon-image",
+ "hexicon-vm",
+]
+
+[[package]]
 name = "hexicon-host"
 version = "0.1.0"
 

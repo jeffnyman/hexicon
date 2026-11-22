@@ -328,7 +328,7 @@ impl Vm {
                 next_arg += 1;
             }
         }
-        Ok(self.new_string(out))
+        self.try_new_string(out)
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -1961,7 +1961,7 @@ impl Vm {
                     &abbr,
                     offset,
                 );
-                self.new_string(out)
+                self.try_new_string(out)?
             }
             // compareTo(date)
             5 => {

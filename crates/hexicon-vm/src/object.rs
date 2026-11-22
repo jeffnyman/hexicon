@@ -1055,15 +1055,33 @@ impl ObjectTable {
         let mut all_roots: Vec<Value> = roots.to_vec();
         all_roots.extend(self.held_results.iter().map(|&(_, value)| value));
         let safe_serial = self.safe_serial;
-        let held = &self.held_ranges;
+        // The serials the intrinsics at each level may be holding, merged
+        // into ranges in order, so that each object is a search away from
+        // knowing whether it is in one, however deep the levels go.
+        let mut ranges: Vec<(u32, u32)> = self
+            .held_ranges
+            .iter()
+            .filter(|&&(_, low, high)| high > low)
+            .map(|&(_, low, high)| (low, high))
+            .collect();
+        ranges.sort_unstable();
+        let mut held: Vec<(u32, u32)> = Vec::with_capacity(ranges.len());
+        for (low, high) in ranges {
+            match held.last_mut() {
+                Some(last) if low <= last.1 => last.1 = last.1.max(high),
+                _ => held.push((low, high)),
+            }
+        }
+        let is_held = |serial: u32| {
+            let after = held.partition_point(|&(low, _)| low < serial);
+            after > 0 && serial <= held[after - 1].1
+        };
         for (id, slot) in self.slots.iter_mut().enumerate() {
             slot.mark = Mark::Unreachable;
             if slot.object.is_some()
                 && (slot.in_root_set
                     || (in_native && slot.serial > safe_serial)
-                    || held
-                        .iter()
-                        .any(|&(_, low, high)| slot.serial > low && slot.serial <= high))
+                    || is_held(slot.serial))
             {
                 all_roots.push(Value::Obj(ObjId(id as u32)));
             }

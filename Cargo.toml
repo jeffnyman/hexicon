@@ -9,6 +9,7 @@ members = [
     "crates/hexicon-compiler",
     "crates/hexicon-cli",
     "crates/hexicon-wasm",
+    "crates/hexicon-fuzz",
 ]
 
 [workspace.package]

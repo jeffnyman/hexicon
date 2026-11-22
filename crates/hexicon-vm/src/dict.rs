@@ -470,7 +470,7 @@ impl Vm {
             Comparator::Program(object) => {
                 let value = match value {
                     Some(value) => value,
-                    None => self.new_string(text),
+                    None => self.try_new_string(text)?,
                 };
                 self.push(value);
                 let native = NativeCall::named("HashComparator.calcHash");
@@ -499,7 +499,7 @@ impl Vm {
                 flags => Ok(Some(Value::Int(flags as i32))),
             },
             Comparator::Program(object) => {
-                let reference = self.new_string(reference);
+                let reference = self.try_new_string(reference)?;
                 self.push(reference);
                 self.push(value);
                 let native = NativeCall::named("HashComparator.matchValues");
@@ -695,7 +695,7 @@ impl Vm {
                         .get(word_index)
                         .cloned()
                     {
-                        let text = self.new_string(word.text.clone());
+                        let text = self.try_new_string(word.text.clone())?;
                         let mut entry_index = 0;
                         loop {
                             // The word is followed through the calls by
@@ -744,7 +744,7 @@ impl Vm {
                     if let Some(Object::List(stored)) = self.objects.get_mut(result.obj_id()) {
                         *stored = items.clone().into();
                     }
-                    let word = self.new_str(&word);
+                    let word = self.try_new_str(&word)?;
                     if let Some(Object::List(stored)) = self.objects.get_mut(entry.obj_id()) {
                         *stored = vec![word, Value::Int(distance), Value::Int(replacements)].into();
                     }

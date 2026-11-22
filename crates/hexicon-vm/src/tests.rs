@@ -2385,3 +2385,79 @@ fn a_string_buffer_grows_in_steps_and_undo_keeps_its_room() {
         other => panic!("not a string buffer: {other:?}"),
     }
 }
+
+// ---- damaged programs ----
+
+#[test]
+fn a_local_the_frame_lacks_is_an_error() {
+    let consts = Consts::default();
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.op(Op::GetLcl1).u8(40).say().op(Op::RetNil);
+
+    let image = ImageBuilder::default().build(main, &code, &consts);
+    assert_eq!(
+        run(&image).1,
+        Err("Unhandled exception: stack access is out of bounds".to_owned())
+    );
+}
+
+#[test]
+fn swapping_below_the_bottom_of_the_stack_is_an_error() {
+    let consts = Consts::default();
+    let mut code = Code::default();
+    // The program's arguments are all the stack holds.
+    let main = code.function(1, 0);
+    code.op(Op::Swap2).op(Op::RetNil);
+
+    let image = ImageBuilder::default().build(main, &code, &consts);
+    assert_eq!(
+        run(&image).1,
+        Err("Unhandled exception: stack access is out of bounds".to_owned())
+    );
+}
+
+#[test]
+fn a_list_that_holds_itself_overflows_the_stack() {
+    // Two constant lists, each holding the other: comparing them, or
+    // turning one into text, would go on for ever.
+    let mut consts = Consts::default();
+    let first = consts.bytes.len() as u32;
+    let second = first + 7;
+    consts.list(&[holder(crate::value::type_code::LIST, second)]);
+    consts.list(&[holder(crate::value::type_code::LIST, first)]);
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.op(Op::PushLst).u32(first).say().op(Op::RetNil);
+    let image = ImageBuilder::default().build(main, &code, &consts);
+    assert_eq!(
+        run(&image).1,
+        Err("Unhandled exception: stack overflow".to_owned())
+    );
+
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.op(Op::PushLst).u32(first).op(Op::PushLst).u32(second);
+    code.op(Op::Eq).say().op(Op::RetNil);
+    let image = ImageBuilder::default().build(main, &code, &consts);
+    assert_eq!(
+        run(&image).1,
+        Err("Unhandled exception: stack overflow".to_owned())
+    );
+}
+
+#[test]
+fn an_object_id_far_past_the_others_is_refused() {
+    let consts = Consts::default();
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.op(Op::RetNil);
+    let image = ImageBuilder::default()
+        .object(0x4000_0000, tads_object_data(&[], false, &[]))
+        .build(main, &code, &consts);
+    let loaded = Vm::new(&image, Box::new(BufferHost::new()));
+    assert!(matches!(
+        loaded,
+        Err(VmError::Runtime(error)) if error.code == code::OUT_OF_MEMORY
+    ));
+}

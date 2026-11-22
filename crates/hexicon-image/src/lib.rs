@@ -639,9 +639,10 @@ impl Loader {
         if slot.is_some() {
             return Err(ImageError::DuplicatePool(id));
         }
-        // Pages are filled in as their blocks arrive, so a hostile page
-        // count cannot make this allocation large: each slot is one word.
-        if page_count > 1 << 24 {
+        // Pages are filled in as their blocks arrive, but each one the
+        // definition claims takes a slot here. A program has thousands at
+        // most; a million pages of the usual size would be 2 GB.
+        if page_count > 1 << 20 {
             return Err(r.malformed("unreasonable page count"));
         }
         *slot = Some(Pool {

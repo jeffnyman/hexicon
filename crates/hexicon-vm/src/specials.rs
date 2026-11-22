@@ -412,13 +412,13 @@ impl Vm {
             }
             if tag_prop != INVALID_PROP {
                 let tag = if state.in_tag || state.in_entity {
-                    self.new_str(&state.tag)
+                    self.try_new_str(&state.tag)?
                 } else {
                     Value::Nil
                 };
                 self.set_prop(id, tag_prop, tag)?;
             }
         }
-        Ok(self.new_str(&converted))
+        self.try_new_str(&converted)
     }
 }

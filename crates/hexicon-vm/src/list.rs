@@ -434,7 +434,7 @@ impl Vm {
                     false => Vec::new(),
                 };
                 let text = self.seq_join(&items, &separator)?;
-                self.new_string(text)
+                self.try_new_string(text)?
             }
             method::INDEX_OF_MIN | method::MIN_VAL | method::INDEX_OF_MAX | method::MAX_VAL => {
                 let native = native(self, name_for_minmax(index));

@@ -561,7 +561,7 @@ impl Vm {
                     let (_, piece) = self.text_cast(self.arg(index))?;
                     text.extend_from_slice(&piece);
                 }
-                self.r0 = self.new_string(text);
+                self.r0 = self.try_new_string(text)?;
             }
             // getTime(type?)
             8 => {
@@ -671,7 +671,7 @@ impl Vm {
         if unit.len() * repeat as usize > 0xffff - 2 {
             return Err(VmError::new(code::BAD_VAL_BIF));
         }
-        Ok(self.new_string(unit.repeat(repeat as usize)))
+        self.try_new_string(unit.repeat(repeat as usize))
     }
 
     /// Convert a value to text, showing numbers in a radix. That reaches
@@ -709,7 +709,7 @@ impl Vm {
             }
         };
         let text: std::rc::Rc<[u8]> = text.into();
-        Ok((self.new_string(text.clone()), text))
+        Ok((self.try_new_string(text.clone())?, text))
     }
 
     /// `toInteger(val, radix?)`.

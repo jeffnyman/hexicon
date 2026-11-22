@@ -1,0 +1,20 @@
+[package]
+name = "hexicon-fuzz"
+description = "Feeds damaged program images and saved games to Hexicon's readers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+hexicon-host = { path = "../hexicon-host" }
+hexicon-image = { path = "../hexicon-image" }
+hexicon-vm = { path = "../hexicon-vm" }
+
+[lints]
+workspace = true
+
+[features]
+# Build the VM with its sampling profiler.
+profile = ["hexicon-vm/profile"]

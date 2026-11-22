@@ -52,33 +52,45 @@ impl Vm {
                     base = self.frames.last().map_or(0, |f| f.base as usize)
                 };
             }
+            // The operands of the instruction at `pc`. Damaged code can run
+            // off the end of the code, which is an invalid instruction.
+            macro_rules! operand {
+                ($n:expr) => {
+                    match code.get(pc..pc + $n) {
+                        Some(bytes) => bytes,
+                        None => return Err(VmError::new(code::INVALID_OPCODE)),
+                    }
+                };
+            }
             macro_rules! byte {
                 () => {{
-                    let v = code[pc];
+                    let v = operand!(1)[0];
                     pc += 1;
                     v
                 }};
             }
             macro_rules! word {
                 () => {{
-                    let v = u16::from_le_bytes([code[pc], code[pc + 1]]);
+                    let b = operand!(2);
+                    let v = u16::from_le_bytes([b[0], b[1]]);
                     pc += 2;
                     v
                 }};
             }
             macro_rules! dword {
                 () => {{
-                    let v =
-                        u32::from_le_bytes([code[pc], code[pc + 1], code[pc + 2], code[pc + 3]]);
+                    let b = operand!(4);
+                    let v = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
                     pc += 4;
                     v
                 }};
             }
             // The target of the branch operand at `pc`.
             macro_rules! target {
-                () => {
-                    (pc as isize + i16::from_le_bytes([code[pc], code[pc + 1]]) as isize) as usize
-                };
+                () => {{
+                    let b = operand!(2);
+                    (pc as isize + i16::from_le_bytes([b[0], b[1]]) as isize) as usize
+                }};
             }
             macro_rules! branch_if {
                 ($cond:expr) => {
@@ -112,15 +124,49 @@ impl Vm {
                     }
                 };
             }
+            // A local or an argument of the current frame, and setting
+            // one. Damaged code can name one the stack does not have,
+            // which is an error.
+            macro_rules! local_at {
+                ($n:expr) => {{
+                    let at = base + $n as usize;
+                    if at >= self.stack.len() {
+                        return Err(VmError::new(code::STACK_OUT_OF_BOUNDS));
+                    }
+                    at
+                }};
+            }
+            macro_rules! param_at {
+                ($n:expr) => {
+                    match base.checked_sub(1 + $n as usize) {
+                        Some(at) if at < self.stack.len() => at,
+                        _ => return Err(VmError::new(code::STACK_OUT_OF_BOUNDS)),
+                    }
+                };
+            }
             macro_rules! local {
                 ($n:expr) => {
-                    self.stack[base + $n as usize]
+                    self.stack[local_at!($n)]
                 };
             }
             macro_rules! param {
                 ($n:expr) => {
-                    self.stack[base - 1 - $n as usize]
+                    self.stack[param_at!($n)]
                 };
+            }
+            macro_rules! set_local {
+                ($n:expr, $value:expr) => {{
+                    let value = $value;
+                    let at = local_at!($n);
+                    self.stack[at] = value;
+                }};
+            }
+            macro_rules! set_param {
+                ($n:expr, $value:expr) => {{
+                    let value = $value;
+                    let at = param_at!($n);
+                    self.stack[at] = value;
+                }};
             }
             // Continue at an address returned by a call or return.
             macro_rules! jump {
@@ -190,10 +236,10 @@ impl Vm {
                     let operand: Value = $operand;
                     match (local!(index), operand) {
                         (Value::Int(a), Value::Int(b)) => {
-                            local!(index) = self.$int_op(a, b)?;
+                            set_local!(index, self.$int_op(a, b)?);
                         }
                         (current, _) => match self.$op(current, operand)? {
-                            Some(result) => local!(index) = result,
+                            Some(result) => set_local!(index, result),
                             None => {
                                 self.push(operand);
                                 let next = self.op_overload(
@@ -272,13 +318,16 @@ impl Vm {
                             return Err(VmError::new(code::INVALID_OPCODE));
                         };
                         pc += len;
-                        let string = self.new_string(text);
+                        let string = self.try_new_string(text)?;
                         self.push(string);
                     }
                     Opcode::PushParLst => {
                         let fixed = usize::from(byte!());
                         let argc = self.frames.last().map_or(0, |f| f.argc as usize);
-                        let items: Vec<Value> = (fixed..argc).map(|i| param!(i)).collect();
+                        let mut items = Vec::with_capacity(argc.saturating_sub(fixed));
+                        for i in fixed..argc {
+                            items.push(param!(i));
+                        }
                         let list = self.new_list(items);
                         self.push(list);
                     }
@@ -749,6 +798,9 @@ impl Vm {
                     // ---- stack manipulation ----
                     Opcode::Swap2 => {
                         let len = self.stack.len();
+                        if len < 4 {
+                            return Err(VmError::new(code::STACK_OUT_OF_BOUNDS));
+                        }
                         self.stack.swap(len - 1, len - 3);
                         self.stack.swap(len - 2, len - 4);
                     }
@@ -756,6 +808,9 @@ impl Vm {
                         let a = usize::from(byte!());
                         let b = usize::from(byte!());
                         let len = self.stack.len();
+                        if a.max(b) >= len {
+                            return Err(VmError::new(code::STACK_OUT_OF_BOUNDS));
+                        }
                         self.stack.swap(len - 1 - a, len - 1 - b);
                     }
                     Opcode::GetArgN0 => self.push(param!(0)),
@@ -797,6 +852,9 @@ impl Vm {
                     Opcode::GetR0 => self.push(self.r0),
                     Opcode::Swap => {
                         let len = self.stack.len();
+                        if len < 2 {
+                            return Err(VmError::new(code::STACK_OUT_OF_BOUNDS));
+                        }
                         self.stack.swap(len - 1, len - 2);
                     }
                     Opcode::PushCtxEle => {
@@ -828,11 +886,11 @@ impl Vm {
                     Opcode::GetSetLcl1R0 => {
                         let index = byte!();
                         self.push(self.r0);
-                        local!(index) = self.r0;
+                        set_local!(index, self.r0);
                     }
                     Opcode::GetSetLcl1 => {
                         let index = byte!();
-                        local!(index) = self.top(0);
+                        set_local!(index, self.top(0));
                     }
                     Opcode::DupR0 => {
                         self.push(self.r0);
@@ -845,7 +903,7 @@ impl Vm {
                         let count = usize::from(word!());
                         let mut matched = false;
                         for _ in 0..count {
-                            let case = Value::from_holder(&code[pc..pc + Value::HOLDER_SIZE]);
+                            let case = Value::from_holder(operand!(Value::HOLDER_SIZE));
                             pc += Value::HOLDER_SIZE;
                             if self.equals(value, case)? {
                                 pc = target!();
@@ -922,7 +980,8 @@ impl Vm {
                         pc = target!();
                     }
                     Opcode::LRet => {
-                        let index = u16::from_le_bytes([code[pc], code[pc + 1]]);
+                        let b = operand!(2);
+                        let index = u16::from_le_bytes([b[0], b[1]]);
                         let Value::Int(offset) = local!(index) else {
                             return Err(VmError::new(code::INT_VAL_REQD));
                         };
@@ -1069,7 +1128,7 @@ impl Vm {
                         let container = local!(local_index);
                         let value = self.pop();
                         match self.set_index(container, index, value)? {
-                            Some(result) => local!(local_index) = result,
+                            Some(result) => set_local!(local_index, result),
                             None => {
                                 self.push(value);
                                 self.push(index);
@@ -1148,47 +1207,47 @@ impl Vm {
                     }
                     Opcode::ZeroLcl1 => {
                         let index = byte!();
-                        local!(index) = Value::Int(0);
+                        set_local!(index, Value::Int(0));
                     }
                     Opcode::ZeroLcl2 => {
                         let index = word!();
-                        local!(index) = Value::Int(0);
+                        set_local!(index, Value::Int(0));
                     }
                     Opcode::NilLcl1 => {
                         let index = byte!();
-                        local!(index) = Value::Nil;
+                        set_local!(index, Value::Nil);
                     }
                     Opcode::NilLcl2 => {
                         let index = word!();
-                        local!(index) = Value::Nil;
+                        set_local!(index, Value::Nil);
                     }
                     Opcode::OneLcl1 => {
                         let index = byte!();
-                        local!(index) = Value::Int(1);
+                        set_local!(index, Value::Int(1));
                     }
                     Opcode::OneLcl2 => {
                         let index = word!();
-                        local!(index) = Value::Int(1);
+                        set_local!(index, Value::Int(1));
                     }
                     Opcode::SetLcl1 => {
                         let index = byte!();
-                        local!(index) = self.pop();
+                        set_local!(index, self.pop());
                     }
                     Opcode::SetLcl2 => {
                         let index = word!();
-                        local!(index) = self.pop();
+                        set_local!(index, self.pop());
                     }
                     Opcode::SetArg1 => {
                         let index = byte!();
-                        param!(index) = self.pop();
+                        set_param!(index, self.pop());
                     }
                     Opcode::SetArg2 => {
                         let index = word!();
-                        param!(index) = self.pop();
+                        set_param!(index, self.pop());
                     }
                     Opcode::SetLcl1R0 => {
                         let index = byte!();
-                        local!(index) = self.r0;
+                        set_local!(index, self.r0);
                     }
 
                     // ---- assigning to properties ----

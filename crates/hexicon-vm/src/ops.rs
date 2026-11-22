@@ -12,8 +12,28 @@ use crate::vm::{NativeCall, Return, Vm};
 impl Vm {
     // ---- equality and ordering ----
 
+    /// Work on a value inside another: converting a list to text
+    /// converts its elements, and comparing two compares theirs. A
+    /// collection can hold itself, which would go on for ever; past a
+    /// depth no program needs, it is a stack overflow. (The reference
+    /// crashes.)
+    pub(crate) fn nested<T>(&mut self, work: impl FnOnce(&mut Self) -> VmResult<T>) -> VmResult<T> {
+        const MAX_NESTING: u32 = 500;
+        if self.nesting >= MAX_NESTING {
+            return Err(VmError::new(code::STACK_OVERFLOW));
+        }
+        self.nesting += 1;
+        let result = work(self);
+        self.nesting -= 1;
+        result
+    }
+
     /// Whether two values are equal, as the `==` operator sees them.
     pub(crate) fn equals(&mut self, a: Value, b: Value) -> VmResult<bool> {
+        self.nested(|vm| vm.equals_inner(a, b))
+    }
+
+    fn equals_inner(&mut self, a: Value, b: Value) -> VmResult<bool> {
         // An object on either side decides for both.
         if let (Value::Obj(id), false) = (b, matches!(a, Value::Obj(_))) {
             return self.obj_equals(id, a);
@@ -261,7 +281,7 @@ impl Vm {
         let mut text = Vec::with_capacity(left.len() + right.len());
         text.extend_from_slice(&left);
         text.extend_from_slice(&right);
-        Ok(self.new_string(text))
+        self.try_new_string(text)
     }
 
     /// A list with another value appended. A list-like value contributes
@@ -538,7 +558,7 @@ impl Vm {
     pub(crate) fn text_of(&mut self, value: Value) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
         match self.text_raw(value)? {
             (Some(string), text) => Ok((string, text)),
-            (None, text) => Ok((self.new_string(text.clone()), text)),
+            (None, text) => Ok((self.try_new_string(text.clone())?, text)),
         }
     }
 
@@ -547,10 +567,14 @@ impl Vm {
     /// string, and `nil` an empty one. A list becomes its elements joined
     /// with commas, in one new string.
     pub(crate) fn text_cast(&mut self, value: Value) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
+        self.nested(|vm| vm.text_cast_inner(value))
+    }
+
+    fn text_cast_inner(&mut self, value: Value) -> VmResult<(Value, std::rc::Rc<[u8]>)> {
         match value {
             Value::Nil => {
                 let text: std::rc::Rc<[u8]> = Vec::new().into();
-                Ok((self.new_string(text.clone()), text))
+                Ok((self.try_new_string(text.clone())?, text))
             }
             Value::Int(_) | Value::True => self.text_of(value),
             _ if self.anon_fn_len(value).is_some() => self.join_text(value, b","),
@@ -589,7 +613,7 @@ impl Vm {
             None => self.list_like_len(list)?.unwrap_or(0),
         };
         // The reference creates the result before it converts anything.
-        let result = self.new_string(Vec::new());
+        let result = self.try_new_string(Vec::new())?;
         self.push(result);
         let mut text = Vec::new();
         let mut failed = None;
@@ -615,6 +639,9 @@ impl Vm {
         self.discard(1);
         if let Some(error) = failed {
             return Err(error);
+        }
+        if text.len() > crate::vm::MAX_STRING_LEN {
+            return Err(VmError::new(code::STR_TOO_LONG));
         }
         let text: std::rc::Rc<[u8]> = text.into();
         if let Some(Object::String(stored)) = self.objects.get_mut(result.obj_id()) {
@@ -655,33 +682,33 @@ impl Vm {
             }
             Some(Object::BigNumber(big)) => {
                 let text: std::rc::Rc<[u8]> = big.to_text().into_bytes().into();
-                return Ok((self.new_string(text.clone()), text));
+                return Ok((self.try_new_string(text.clone())?, text));
             }
             // A byte array converts a byte to the character with its code.
             Some(Object::ByteArray(bytes)) => {
                 let text: std::rc::Rc<[u8]> =
                     crate::bytearray::latin1_text(bytes).into_bytes().into();
-                return Ok((self.new_string(text.clone()), text));
+                return Ok((self.try_new_string(text.clone())?, text));
             }
             Some(Object::StringBuffer(_)) => {
                 let text: std::rc::Rc<[u8]> = self.strbuf_text(id).unwrap_or_default().into();
-                return Ok((self.new_string(text.clone()), text));
+                return Ok((self.try_new_string(text.clone())?, text));
             }
             // A date converts to the date and time in the local zone, and
             // a time zone to its name.
             Some(Object::Date { .. }) => {
                 let text: std::rc::Rc<[u8]> = self.date_text(id).into_bytes().into();
-                return Ok((self.new_string(text.clone()), text));
+                return Ok((self.try_new_string(text.clone())?, text));
             }
             Some(Object::TimeZone(_)) => {
                 let name = self.zone_name(id).unwrap_or_default();
                 let text: std::rc::Rc<[u8]> = name.into_bytes().into();
-                return Ok((self.new_string(text.clone()), text));
+                return Ok((self.try_new_string(text.clone())?, text));
             }
             // A file name converts to the name.
             Some(Object::FileName(name)) => {
                 let text: std::rc::Rc<[u8]> = name.path.clone().into_bytes().into();
-                return Ok((self.new_string(text.clone()), text));
+                return Ok((self.try_new_string(text.clone())?, text));
             }
             // A pattern converts to the text it was compiled from.
             Some(Object::Pattern { source, .. }) => {
@@ -725,7 +752,7 @@ impl Vm {
         let mut bytes = fallback.into_bytes();
         bytes.push(0);
         let text: std::rc::Rc<[u8]> = bytes.into();
-        Ok((self.new_string(text.clone()), text))
+        Ok((self.try_new_string(text.clone())?, text))
     }
 
     /// The text of a list as an explicit conversion gives it: each
@@ -751,7 +778,7 @@ impl Vm {
                 // one.
                 Ok((Some(string @ Value::Obj(_)), _)) => items.push(string),
                 Ok((_, text)) => {
-                    let string = self.new_string(text);
+                    let string = self.try_new_string(text)?;
                     items.push(string);
                 }
                 Err(error) => {

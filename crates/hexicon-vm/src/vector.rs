@@ -464,7 +464,7 @@ impl Vm {
                 };
                 let items = self.vec_items(id)?.clone();
                 let text = self.seq_join(&items, &separator)?;
-                self.new_string(text)
+                self.try_new_string(text)?
             }
             // indexOfMin, minVal, indexOfMax, maxVal
             32..=35 => {

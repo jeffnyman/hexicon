@@ -927,7 +927,7 @@ impl Vm {
                                 TokenMatch::AnySpeech(props) => self.new_list(
                                     props.iter().map(|&p| Value::Prop(p)).collect::<Vec<_>>(),
                                 ),
-                                TokenMatch::Literal(text) => self.new_string(text.clone()),
+                                TokenMatch::Literal(text) => self.try_new_string(text.clone())?,
                                 TokenMatch::TokenType(kind) => Value::Enum(*kind),
                                 TokenMatch::Star | TokenMatch::Undefined => Value::Nil,
                             };

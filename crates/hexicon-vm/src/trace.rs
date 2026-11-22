@@ -197,7 +197,12 @@ impl Vm {
         if level.offset != 0 {
             let base = frame.base as usize;
             frame_args = (0..frame.argc as usize)
-                .map(|index| self.stack[base - 1 - index])
+                .map(|index| {
+                    base.checked_sub(1 + index)
+                        .and_then(|at| self.stack.get(at))
+                        .copied()
+                        .unwrap_or(Value::Nil)
+                })
                 .collect();
         }
         let has_details = level.offset != 0 || level.native.is_some();
@@ -260,7 +265,7 @@ impl Vm {
                 self.push(Value::Obj(table));
                 pushed += 1;
                 for (name, slot) in args.into_iter().rev() {
-                    let key = self.new_string(name);
+                    let key = self.try_new_string(name)?;
                     let value = self.stack[slot];
                     self.table_set(table, key, value)?;
                 }
@@ -316,7 +321,7 @@ impl Vm {
         for sym in self.scope_syms(level.func, scope) {
             let name = match sym.pool {
                 Some(at) => Value::SString(at),
-                None => self.new_string(sym.name),
+                None => self.try_new_string(sym.name)?,
             };
             if self.table_get(table, name)?.is_some() {
                 continue;
@@ -501,7 +506,7 @@ impl Vm {
         }
         let mut items = Vec::with_capacity(names.len());
         for name in names {
-            let string = self.new_string(name);
+            let string = self.try_new_string(name)?;
             self.push(string);
             items.push(string);
         }

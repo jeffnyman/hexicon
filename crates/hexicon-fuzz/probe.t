@@ -1,0 +1,114 @@
+/*
+ *   The program the fuzzer restores damaged saved games into. Run with
+ *   "save", it builds objects of most kinds and saves them; run with
+ *   "restore", it restores a saved game and walks what it finds.
+ */
+
+#include <tads.h>
+#include <bignum.h>
+#include <strbuf.h>
+#include <bytearr.h>
+#include <dict.h>
+#include <dynfunc.h>
+#include <date.h>
+
+dictionary probeDict;
+dictionary property noun;
+
+class Item: object
+    name = 'item'
+    count = 0
+    next = nil
+;
+
+holder: object
+    items = []
+    vec = nil
+    table = nil
+    weak = nil
+    buf = nil
+    big = nil
+    bytes = nil
+    pat = nil
+    fn = nil
+    dyn = nil
+    when = nil
+    text = 'holder'
+;
+
+build()
+{
+    local prev = nil;
+    for (local i = 1 ; i <= 40 ; ++i)
+    {
+        local it = new Item();
+        it.name = 'item ' + i;
+        it.count = i * 3;
+        it.next = prev;
+        prev = it;
+        holder.items += it;
+        probeDict.addWord(it, 'word' + i, &noun);
+    }
+    holder.vec = new Vector(10, holder.items.sublist(1, 10));
+    holder.table = new LookupTable(16, 32);
+    holder.weak = new WeakRefLookupTable(16, 32);
+    for (local i = 1 ; i <= 20 ; ++i)
+    {
+        holder.table['k' + i] = holder.items[i];
+        holder.weak[i] = new Item();
+    }
+    holder.buf = new StringBuffer(64);
+    holder.buf.append('some text in a buffer');
+    holder.big = new BigNumber('3.14159265358979323846');
+    holder.bytes = new ByteArray(32);
+    for (local i = 1 ; i <= 32 ; ++i)
+        holder.bytes[i] = i * 7;
+    holder.pat = new RexPattern('<alpha>+%d*');
+    local base = 5;
+    holder.fn = {x: x + base + holder.items.length()};
+    holder.dyn = new DynamicFunc('function(x) { return [x, x * 2]; }');
+    holder.when = new Date(2020, 5, 17);
+}
+
+show()
+{
+    "items: <<holder.items.length()>>\n";
+    local total = 0;
+    foreach (local it in holder.items)
+    {
+        if (dataType(it) == TypeObject && it.ofKind(Item))
+            total += it.count;
+    }
+    "total: <<total>>\n";
+    "vec: <<holder.vec.length()>>\n";
+    "table: <<holder.table.keysToList().length()>>\n";
+    "weak: <<holder.weak.keysToList().length()>>\n";
+    "buf: <<toString(holder.buf)>>\n";
+    "big: <<holder.big * 2>>\n";
+    "bytes: <<holder.bytes.length()>>\n";
+    "match: <<rexMatch(holder.pat, 'abc123')>>\n";
+    "fn: <<(holder.fn)(1)>>\n";
+    "dyn: <<(holder.dyn)(4)[2]>>\n";
+    "when: <<holder.when.formatDate('%Y-%m-%d')>>\n";
+    "dict: <<probeDict.findWord('word3').length()>>\n";
+}
+
+main(args)
+{
+    if (args.length() >= 2 && args[2] == 'save')
+    {
+        build();
+        saveGame('fuzz.sav');
+        show();
+        return;
+    }
+    try
+    {
+        restoreGame('fuzz.sav');
+        show();
+    }
+    catch (Exception e)
+    {
+        "error: <<e.displayException()>>\n";
+    }
+}

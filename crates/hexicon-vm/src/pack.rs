@@ -1492,7 +1492,7 @@ impl Packer<'_> {
                 }
                 text.push(char::from_u32(c).unwrap_or('?'));
             }
-            return Ok(self.vm.new_str(&text));
+            return self.vm.try_new_str(&text);
         }
 
         let mut count = i64::from(t.get_count());
@@ -1500,7 +1500,7 @@ impl Packer<'_> {
             count = conv.bytes_to_count(count);
         }
         if count == 0 {
-            return Ok(self.vm.new_str(""));
+            return self.vm.try_new_str("");
         }
         if t.count == ITER_STAR || t.up_to_count {
             // Take what there is.
@@ -1527,13 +1527,13 @@ impl Packer<'_> {
                 // becomes a question mark.
                 let bytes = self.ds.read(count)?;
                 let text = String::from_utf8_lossy(&bytes).replace('\u{fffd}', "?");
-                self.vm.new_str(text.trim_end_matches(pad))
+                self.vm.try_new_str(text.trim_end_matches(pad))?
             }
-            _ if count == 0 => self.vm.new_str(""),
+            _ if count == 0 => self.vm.try_new_str("")?,
             Conv::Latin1 => {
                 let bytes = self.ds.read(count)?;
                 let text: String = bytes.iter().map(|&b| char::from(b)).collect();
-                self.vm.new_str(text.trim_end_matches(pad))
+                self.vm.try_new_str(text.trim_end_matches(pad))?
             }
             Conv::Ucs2 { big_endian } => {
                 let bytes = self.ds.read(count * 2)?;
@@ -1548,7 +1548,7 @@ impl Packer<'_> {
                         char::from_u32(unit.into()).unwrap_or('?')
                     })
                     .collect();
-                self.vm.new_str(text.trim_end_matches(pad))
+                self.vm.try_new_str(text.trim_end_matches(pad))?
             }
             Conv::Hex { high_first } => {
                 let bytes = self.ds.read(count.div_ceil(2))?;
@@ -1566,7 +1566,7 @@ impl Packer<'_> {
                             .to_ascii_uppercase()
                     })
                     .collect();
-                self.vm.new_str(&text)
+                self.vm.try_new_str(&text)?
             }
         };
 
@@ -1576,7 +1576,7 @@ impl Packer<'_> {
             if let Some(text) = self.vm.as_str(value) {
                 if let Some(nul) = text.iter().position(|&b| b == 0) {
                     let cut = text[..nul].to_vec();
-                    return Ok(self.vm.new_string(cut));
+                    return self.vm.try_new_string(cut);
                 }
             }
         }

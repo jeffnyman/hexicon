@@ -22,8 +22,15 @@ pub(crate) const CONSOLE_WIDTH: usize = 80;
 /// index. Pages the image does not supply read as zeros.
 fn flatten(pool: &Pool) -> Rc<[u8]> {
     let page_size = pool.page_size() as usize;
-    let mut data = vec![0u8; page_size * pool.page_count()];
-    for index in 0..pool.page_count() {
+    // Up to the last page the image supplies: a damaged definition can
+    // claim millions of pages the image does not have, and an address
+    // past the end is caught when it is read.
+    let used = (0..pool.page_count())
+        .rev()
+        .find(|&index| pool.page(index).is_some())
+        .map_or(0, |index| index + 1);
+    let mut data = vec![0u8; page_size * used];
+    for index in 0..used {
         if let Some(page) = pool.page(index) {
             let len = page.len().min(page_size);
             data[index * page_size..index * page_size + len].copy_from_slice(&page[..len]);
@@ -268,6 +275,17 @@ impl Vm {
         if image.code_pool.page_count() < 1 {
             return Err(VmError::new(code::IMAGE_NO_CODE));
         }
+        // As in the reference, a pool's pages are a power of two in size,
+        // and every page the pool has is in the image.
+        for pool in [&image.code_pool, &image.constant_pool] {
+            let size = pool.page_size();
+            if size != 0 && !size.is_power_of_two() {
+                return Err(VmError::new(code::BAD_POOL_PAGE_SIZE));
+            }
+            if pool.loaded_page_count() != pool.page_count() {
+                return Err(VmError::new(code::LOAD_UNDEF_PAGE));
+            }
+        }
 
         let mut meta = MetaTable::new();
         for dependency in &image.metaclasses {
@@ -283,11 +301,19 @@ impl Vm {
 
         crate::heap::reset();
         let mut objects = ObjectTable::new();
+        // Object IDs are a few times as many as the objects at most, in
+        // any image a compiler writes. A damaged one could name an ID in
+        // the billions, which would take as much memory to hold.
+        let count: usize = image.object_blocks.iter().map(|b| b.objects.len()).sum();
+        let id_limit = 16 * count as u64 + 65_536;
         for block in &image.object_blocks {
             let Some(kind) = meta.get(block.metaclass_index as usize).map(|e| e.kind) else {
                 return Err(VmError::new(code::BAD_METACLASS_INDEX));
             };
             for object in &block.objects {
+                if u64::from(object.id) >= id_limit {
+                    return Err(VmError::new(code::OUT_OF_MEMORY));
+                }
                 let id = ObjId(object.id);
                 let loaded = load_object(kind, block.metaclass_index, &object.data)?;
                 // An intrinsic class object tells the VM which object
@@ -353,6 +379,7 @@ impl Vm {
             exception_message_synthesized: false,
             run_depth: 0,
             in_gc: false,
+            nesting: 0,
             big_cache: Default::default(),
             symbol_table: None,
             macro_table: None,

@@ -61,6 +61,10 @@ impl Vm {
         prof_scope!(crate::prof::CALL);
         self.r0 = Value::Nil;
         let header = self.function_header(func)?;
+        // Only damaged code calls with more arguments than there are.
+        if argc as usize > self.stack.len() {
+            return Err(VmError::new(code::STACK_OUT_OF_BOUNDS));
+        }
         self.check_stack(header.stack_depth as usize + crate::vm::FRAME_OVERHEAD)?;
         if !header.accepts(argc) {
             return Err(match &native {

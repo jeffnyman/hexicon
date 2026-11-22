@@ -914,7 +914,7 @@ impl Vm {
             4 => {
                 Self::check_argc(argc, 0)?;
                 self.r0 = match self.read_line(false)? {
-                    Some(line) => self.new_string(line),
+                    Some(line) => self.try_new_string(line)?,
                     None => Value::Nil,
                 };
             }
@@ -928,7 +928,7 @@ impl Vm {
                         self.read_key()?.unwrap_or_else(|| b"[eof]".to_vec())
                     }
                 };
-                self.r0 = self.new_string(key.clone());
+                self.r0 = self.try_new_string(key.clone())?;
                 self.log_event(b"key", Some(&key));
             }
             // inputEvent(timeout?)
@@ -962,7 +962,7 @@ impl Vm {
                 let tag = event_tag(event).as_bytes();
                 match event {
                     EVT_KEY | EVT_HREF => {
-                        let text = self.new_string(param.clone());
+                        let text = self.try_new_string(param.clone())?;
                         self.set_list_item(list, 1, text);
                         self.log_event(tag, Some(&param));
                     }
@@ -1134,7 +1134,7 @@ impl Vm {
                 let has_text = matches!(event, EVT_LINE | EVT_TIMEOUT);
                 let list = self.event_list(event, if has_text { 2 } else { 1 });
                 if has_text {
-                    let text = self.new_string(line);
+                    let text = self.try_new_string(line)?;
                     self.set_list_item(list, 1, text);
                 }
                 self.r0 = list;

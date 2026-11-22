@@ -445,7 +445,7 @@ impl Vm {
             // getName()
             1 => {
                 let name = name.clone();
-                self.new_str(&name)
+                self.try_new_str(&name)?
             }
             // isMappingKnown()
             2 => Value::logical(known),

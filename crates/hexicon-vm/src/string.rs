@@ -354,7 +354,7 @@ impl Vm {
         }
         self.native_method(argc, NativeDesc::variable(1), |vm, argc| {
             let packed = vm.pack(0, argc as usize, crate::pack::Stream::growable())?;
-            Ok(vm.new_str(&crate::bytearray::latin1_text(&packed.data)))
+            vm.try_new_str(&crate::bytearray::latin1_text(&packed.data))
         })
         .map(Some)
     }
@@ -388,7 +388,7 @@ impl Vm {
                 } else {
                     count
                 };
-                self.new_string(&text[starts[from]..starts[to]])
+                self.try_new_string(&text[starts[from]..starts[to]])?
             }
             // toUpper(), toLower(), toTitleCase(), toFoldedCase()
             3 | 4 | 22 | 23 => {
@@ -413,7 +413,7 @@ impl Vm {
                         _ => out.extend(c.to_lowercase()),
                     }
                 }
-                self.new_str(&out)
+                self.try_new_str(&out)?
             }
             // find(target, index?) and findLast(target, index?)
             5 | 26 => self.string_find(self_value, &text, argc, index == 5)?,
@@ -479,7 +479,7 @@ impl Vm {
                     }
                     previous_was_space = is_space;
                 }
-                self.new_str(&out)
+                self.try_new_str(&out)?
             }
             // startsWith(str) and endsWith(str)
             8 | 9 => {
@@ -509,7 +509,7 @@ impl Vm {
                 let mut out = text[..starts[start as usize]].to_vec();
                 out.extend_from_slice(&insert);
                 out.extend_from_slice(&text[starts[(start + delete) as usize]..]);
-                self.new_string(out)
+                self.try_new_string(out)?
             }
             // split(delimiter?, limit?)
             13 => self.string_split(self_value, &text, argc)?,
@@ -525,7 +525,7 @@ impl Vm {
                         _ => out.push_str(&format!("%{byte:02X}")),
                     }
                 }
-                self.new_str(&out)
+                self.try_new_str(&out)?
             }
             // urlDecode()
             17 => {
@@ -545,7 +545,7 @@ impl Vm {
                 }
                 // The result has to be valid text.
                 let valid = String::from_utf8_lossy(&out).replace('\u{fffd}', "?");
-                self.new_str(&valid)
+                self.try_new_str(&valid)?
             }
             // compareTo(str): by character code, then by length.
             24 => {
@@ -629,8 +629,8 @@ impl Vm {
                 self.new_bytes(bytes)
             }
             // sha256() and digestMD5(): of the text as UTF-8.
-            18 => self.new_str(&crate::hash::hex(&crate::hash::sha256(&text))),
-            19 => self.new_str(&crate::hash::hex(&crate::hash::md5(&text))),
+            18 => self.try_new_str(&crate::hash::hex(&crate::hash::sha256(&text)))?,
+            19 => self.try_new_str(&crate::hash::hex(&crate::hash::md5(&text)))?,
             // unpackBytes(format): the characters are taken as bytes.
             21 => {
                 let stream = crate::pack::Stream::from_text(&text);
@@ -703,7 +703,7 @@ impl Vm {
             let Some((start, len)) = self.find_forward(subject, text, pos, &target, true) else {
                 break;
             };
-            let matched = self.new_string(&text[start..start + len]);
+            let matched = self.try_new_string(&text[start..start + len])?;
             let element = match callback {
                 None => matched,
                 Some((function, min, max)) => {
@@ -723,7 +723,7 @@ impl Vm {
                             .then(|| self.last_match.groups.get(group).copied().flatten())
                             .flatten();
                         args.push(match range {
-                            Some((a, b)) => self.new_string(&text[a..b]),
+                            Some((a, b)) => self.try_new_string(&text[a..b])?,
                             None => Value::Nil,
                         });
                     }
@@ -796,7 +796,7 @@ impl Vm {
                 },
             };
             make_room(pieces.len() + 1);
-            pieces.push(self.new_string(&text[pos..cut]));
+            pieces.push(self.try_new_string(&text[pos..cut])?);
             pos = cut + skip;
             // An empty delimiter match consumes a character, so the
             // split makes progress.
@@ -806,7 +806,7 @@ impl Vm {
         }
         if pos < text.len() {
             make_room(pieces.len() + 1);
-            pieces.push(self.new_string(&text[pos..]));
+            pieces.push(self.try_new_string(&text[pos..])?);
         }
         self.objects.replace(list, Object::List(pieces.into()));
         Ok(Value::Obj(list))
@@ -830,13 +830,16 @@ impl Vm {
 
     /// Finish a built string with its text. The reference gives back
     /// room it did not use if that is 256 bytes or more.
-    fn finish_built_string(&mut self, mut built: BuiltString, text: Vec<u8>) -> Value {
+    fn finish_built_string(&mut self, mut built: BuiltString, text: Vec<u8>) -> VmResult<Value> {
+        if text.len() > crate::vm::MAX_STRING_LEN {
+            return Err(VmError::new(code::STR_TOO_LONG));
+        }
         built.make_room(text.len(), 0);
         if built.room - text.len() >= 256 {
             crate::heap::realloc(&mut built.cell, text.len() as i64 + 2, "string");
         }
         self.objects.replace(built.id, Object::String(text.into()));
-        Value::Obj(built.id)
+        Ok(Value::Obj(built.id))
     }
 
     /// `String.findReplace` and `rexReplace`. The arguments are on the
@@ -1096,7 +1099,7 @@ impl Vm {
                         // the original string, as far as it has
                         // parameters for them.
                         let (function, max_args) = (*function, *max_args);
-                        let matched_value = self.new_string(matched);
+                        let matched_value = self.try_new_string(matched)?;
                         let position = Value::Int(char_count(&text[..match_pos]) as i32 + 1);
                         let all = [matched_value, position, subject];
                         let count = if max_args < 0 { 3 } else { max_args.min(3) } as usize;
@@ -1130,7 +1133,7 @@ impl Vm {
             }
             if let (Some(mut out), Some(built)) = (out, built) {
                 out.extend_from_slice(&text[pos.min(text.len())..]);
-                subject = self.finish_built_string(built, out);
+                subject = self.finish_built_string(built, out)?;
             }
             // In serial mode, each rule in turn is applied to the result
             // of the one before.
@@ -1209,7 +1212,7 @@ impl Vm {
         };
         Ok(match found {
             Some((offset, len)) => {
-                let matched = self.new_string(&text[offset..offset + len]);
+                let matched = self.try_new_string(&text[offset..offset + len])?;
                 self.new_list(vec![
                     Value::Int(char_count(&text[..offset]) as i32 + 1),
                     Value::Int(char_count(&text[offset..offset + len]) as i32),
@@ -1242,7 +1245,7 @@ impl Vm {
         if end > text.len() || start > end {
             return Ok(Value::Nil);
         }
-        let matched = self.new_string(&text[start..end]);
+        let matched = self.try_new_string(&text[start..end])?;
         Ok(self.new_list(vec![
             Value::Int(char_count(&text[..start]) as i32 + 1),
             Value::Int(char_count(&text[start..end]) as i32),

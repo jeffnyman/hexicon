@@ -301,7 +301,7 @@ impl Vm {
                     flags,
                     fill.as_deref(),
                 );
-                self.new_str(&text)
+                self.try_new_str(&text)?
             }
             // equalRound(num)
             2 => match self.to_big(self.arg(0)) {

@@ -847,7 +847,7 @@ impl Vm {
             text.push('\n');
         }
         open.pos = next;
-        Ok(self.new_str(&text))
+        self.try_new_str(&text)
     }
 
     /// Read a value from a data file, or nil at the end of the file.
@@ -1007,7 +1007,7 @@ impl Vm {
                 let name = self
                     .path_of(self.arg(0))
                     .ok_or_else(|| VmError::new(code::BAD_TYPE_BIF))?;
-                Ok(self.new_str(root_name(&name)))
+                Ok(self.try_new_str(root_name(&name))?)
             }
             // deleteFile(name)
             _ => {
@@ -1212,12 +1212,12 @@ impl Vm {
             // sha256(length?)
             23 => {
                 let input = self.file_hash_input(id, argc)?;
-                self.new_str(&hash::hex(&hash::sha256(&input)))
+                self.try_new_str(&hash::hex(&hash::sha256(&input)))?
             }
             // digestMD5(length?)
             24 => {
                 let input = self.file_hash_input(id, argc)?;
-                self.new_str(&hash::hex(&hash::md5(&input)))
+                self.try_new_str(&hash::hex(&hash::md5(&input)))?
             }
             _ => Value::Nil,
         })
@@ -1410,11 +1410,11 @@ impl Vm {
         let path = name.path.clone();
         Ok(match index {
             // getName()
-            1 => self.new_str(&path),
+            1 => self.try_new_str(&path)?,
             // getBaseName()
             2 => match root_name(&path) {
                 "" => Value::Nil,
-                root => self.new_str(root),
+                root => self.try_new_str(root)?,
             },
             // getPath()
             3 => match path_name(&path) {
@@ -1422,7 +1422,7 @@ impl Vm {
                 dir => Value::Obj(self.new_file_name(dir)),
             },
             // toUniversal()
-            5 => self.new_str(&path),
+            5 => self.try_new_str(&path)?,
             // addToPath(name)
             6 => {
                 let Some(name) = self.path_of(self.arg(0)) else {
@@ -1434,7 +1434,7 @@ impl Vm {
             7 => Value::logical(is_absolute(&path)),
             // getAbsolutePath()
             8 => match self.host.absolute_path(&path) {
-                Some(full) => self.new_str(&full),
+                Some(full) => self.try_new_str(&full)?,
                 None => Value::Nil,
             },
             // getFileType()
@@ -1460,7 +1460,7 @@ impl Vm {
                     return Ok(Value::Nil);
                 };
                 let target = match &info.link_target {
-                    Some(target) if info.kind & file_type::LINK != 0 => self.new_str(target),
+                    Some(target) if info.kind & file_type::LINK != 0 => self.try_new_str(target)?,
                     _ => Value::Nil,
                 };
                 let size = match i32::try_from(info.size) {
@@ -1676,7 +1676,7 @@ impl Vm {
             }
             Ok(if index == 1 {
                 // getFilename()
-                vm.new_str(&name)
+                vm.try_new_str(&name)?
             } else {
                 // deleteFile(). The object goes on naming the file.
                 vm.sync_files();

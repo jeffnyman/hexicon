@@ -481,7 +481,7 @@ impl Vm {
             for sym in &syms {
                 let key = match sym.pool {
                     Some(at) => Value::SString(at),
-                    None => self.new_string(sym.name.clone()),
+                    None => self.try_new_string(sym.name.clone())?,
                 };
                 self.push(key);
                 let present = self.table_get(table, key)?.is_some();

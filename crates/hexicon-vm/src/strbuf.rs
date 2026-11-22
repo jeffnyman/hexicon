@@ -168,14 +168,14 @@ impl Vm {
                 } else {
                     len
                 };
-                self.strbuf_substr(id, at, count)
+                self.strbuf_substr(id, at, count)?
             }
             _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
         })
     }
 
     /// Part of a buffer, as a new string.
-    fn strbuf_substr(&mut self, id: ObjId, at: i32, count: i32) -> Value {
+    fn strbuf_substr(&mut self, id: ObjId, at: i32, count: i32) -> VmResult<Value> {
         let text: String = match self.strbuf(id) {
             Some(buffer) => {
                 let len = buffer.len() as i32;
@@ -185,7 +185,7 @@ impl Vm {
             }
             None => String::new(),
         };
-        self.new_str(&text)
+        self.try_new_str(&text)
     }
 
     /// Index a string buffer: the character at a position, as a string.
@@ -197,7 +197,7 @@ impl Vm {
         if at < 0 || at >= self.strbuf(id).map_or(0, |b| b.len() as i32) {
             return Err(VmError::new(code::INDEX_OUT_OF_RANGE));
         }
-        Ok(self.strbuf_substr(id, at, 1))
+        self.strbuf_substr(id, at, 1)
     }
 
     /// Assign to a position of a string buffer: a character code, or the

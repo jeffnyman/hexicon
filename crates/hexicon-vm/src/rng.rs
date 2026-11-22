@@ -866,7 +866,7 @@ impl Vm {
             if let Some(template) = self.as_str(arg) {
                 let template = String::from_utf8_lossy(&template).into_owned();
                 let text = rand_text(&template, &mut self.rng);
-                self.r0 = self.new_str(&text);
+                self.r0 = self.try_new_str(&text)?;
                 return Ok(());
             }
         }

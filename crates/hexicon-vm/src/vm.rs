@@ -336,6 +336,9 @@ pub enum RunState {
     Suspended,
 }
 
+/// The most bytes a string can hold.
+pub(crate) const MAX_STRING_LEN: usize = 65_535;
+
 /// A T3 virtual machine with a program loaded.
 pub struct Vm {
     /// The code pool, as one contiguous array, and after it the code
@@ -389,6 +392,9 @@ pub struct Vm {
     pub(crate) run_depth: u32,
     /// The collector is running, and must not start again.
     pub(crate) in_gc: bool,
+    /// How deep the VM is in converting or comparing values that hold
+    /// values: see [`Vm::nested`].
+    pub(crate) nesting: u32,
     /// The most recent regular expression match.
     pub(crate) last_match: crate::string::LastMatch,
     /// Patterns given as strings, compiled, by their text. Compiling a
@@ -420,12 +426,23 @@ impl Vm {
     /// The value `depth` slots below the top of the stack.
     #[inline]
     pub(crate) fn top(&self, depth: usize) -> Value {
-        self.stack[self.stack.len() - 1 - depth]
+        // Only damaged code reaches below the bottom; it finds nil.
+        match self.stack.len().checked_sub(1 + depth) {
+            Some(at) => self.stack[at],
+            None => Value::Nil,
+        }
     }
 
     /// The slot `depth` slots below the top of the stack.
     #[inline]
     pub(crate) fn top_mut(&mut self, depth: usize) -> &mut Value {
+        // Only damaged code reaches below the bottom; the stack is made
+        // deep enough for it, with nil.
+        if self.stack.len() <= depth {
+            let missing = depth + 1 - self.stack.len();
+            self.stack
+                .splice(0..0, std::iter::repeat_n(Value::Nil, missing));
+        }
         let index = self.stack.len() - 1 - depth;
         &mut self.stack[index]
     }
@@ -472,6 +489,23 @@ impl Vm {
     /// Create a string object.
     pub(crate) fn new_string(&mut self, text: impl Into<Rc<[u8]>>) -> Value {
         Value::Obj(self.alloc_obj(Object::String(text.into())))
+    }
+
+    /// Create a string object, unless it is longer than a string can be:
+    /// a string's length is 16 bits in every saved form, so the
+    /// reference allows no more than 65,535 bytes.
+    pub(crate) fn try_new_string(&mut self, text: impl Into<Rc<[u8]>>) -> VmResult<Value> {
+        let text = text.into();
+        if text.len() > MAX_STRING_LEN {
+            return Err(VmError::new(code::STR_TOO_LONG));
+        }
+        Ok(self.new_string(text))
+    }
+
+    /// Create a string object from Rust text, unless it is longer than a
+    /// string can be.
+    pub(crate) fn try_new_str(&mut self, text: &str) -> VmResult<Value> {
+        self.try_new_string(text.as_bytes())
     }
 
     /// Create a string object from Rust text.

@@ -99,6 +99,11 @@ fn start() {
         let mut next = Instant::now();
         let mut local: HashMap<(u32, u32), u64> = HashMap::new();
         let mut taken: u64 = 0;
+        // HEXICON_PROF_LIVE says what the VM is doing every 50 ms, on
+        // standard error, for finding where a run that never ends, or
+        // ends in a crash, is.
+        let live = std::env::var_os("HEXICON_PROF_LIVE").is_some();
+        let mut last_live = Instant::now();
         while !STOP.load(Relaxed) {
             let now = Instant::now();
             if now < next {
@@ -107,6 +112,10 @@ fn start() {
             }
             next = now + period;
             let tag = TAG.load(Relaxed);
+            if live && now.duration_since(last_live) > Duration::from_millis(50) {
+                last_live = now;
+                eprintln!("live: {}", tag_name(tag));
+            }
             let op = if tag == INTERP {
                 OP.load(Relaxed)
             } else {

@@ -262,7 +262,7 @@ impl Vm {
                     Some(map) => map.decode(part),
                     None => latin1_text(part),
                 };
-                self.new_str(&text)
+                self.try_new_str(&text)?
             }
             // readInt(index, format)
             6 => {
@@ -330,7 +330,7 @@ impl Vm {
                     (count as usize).min(len + 1 - start)
                 };
                 let digest = hash::sha256(&self.bytes(id)[start - 1..start - 1 + count]);
-                self.new_str(&hash::hex(&digest))
+                self.try_new_str(&hash::hex(&digest))?
             }
             // digestMD5(start?, length?)
             11 => {
@@ -338,7 +338,7 @@ impl Vm {
                 let start = start.clamp(1, len as i64 + 1) as usize;
                 let count = count.clamp(0, (len + 1 - start) as i64) as usize;
                 let digest = digest_md5(self.bytes(id), start, count);
-                self.new_str(&hash::hex(&digest))
+                self.try_new_str(&hash::hex(&digest))?
             }
             _ => Value::Nil,
         })
