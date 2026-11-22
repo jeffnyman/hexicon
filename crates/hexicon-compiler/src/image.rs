@@ -180,14 +180,28 @@ pub(crate) struct Image {
     pub func_addrs: std::collections::HashMap<usize, u32>,
 }
 
+/// What an image compiled for debugging has besides the program.
+pub(crate) struct DebugRecords {
+    /// The source files of all the modules, in order, a file that two
+    /// modules read once for each.
+    pub files: Vec<String>,
+    /// The number each value of an enumeration has in the image.
+    pub enum_ids: Vec<u32>,
+    /// The macros, as the `MACR` block has them, and the stretches of
+    /// it that are the date and time of the compilation.
+    pub macros: Vec<u8>,
+    pub macros_unspecified: Vec<(usize, usize)>,
+}
+
 /// Write the image. `timestamp` is the 24 characters that record when
 /// the program was compiled, and `tool_data` four bytes for the
-/// compiler's own use.
+/// compiler's own use. A program compiled for debugging has `debug`.
 pub(crate) fn write_image(
     prog: &Program,
     mut generated: Generated,
     timestamp: &[u8; 24],
     tool_data: &[u8; 4],
+    debug: Option<&DebugRecords>,
 ) -> Result<Image, String> {
     // Where the constants go. Pages are sized for twice the largest
     // item, unless that is large already.
@@ -642,6 +656,45 @@ pub(crate) fn write_image(
     }
     writer.block(b"SINI", true, &sini);
 
+    if let Some(debug) = debug {
+        // The functions in the order the reference made them, each with
+        // its address and its code: those a `replace` dropped are where
+        // they were, at address zero.
+        let mut methods: Vec<(usize, &[u8])> = Vec::new();
+        let mut dropped = generated.dropped_code.iter().peekable();
+        for (index, (anchor, &addr)) in generated.code_anchors.iter().zip(&code_addrs).enumerate() {
+            while let Some((_, code)) = dropped.next_if(|(before, _)| *before <= index) {
+                methods.push((0, code));
+            }
+            methods.push((addr, &generated.code[anchor.ofs..]));
+        }
+        methods.extend(dropped.map(|(_, code)| (0, code.as_slice())));
+        let srcf = source_files_block(debug, &methods);
+        writer.block(b"SRCF", false, &srcf);
+        let func_addr = |func: usize| func_anchor_addr(&generated, &code_addrs, func);
+        writer.block(
+            b"GSYM",
+            false,
+            &global_symbols_block(prog, &debug.enum_ids, &func_addr),
+        );
+        // The address of each function in the program's code, not that
+        // which runs before it starts.
+        let mut mhls = Vec::new();
+        mhls.extend_from_slice(&(methods.len() as u32).to_le_bytes());
+        for &(addr, _) in &methods {
+            mhls.extend_from_slice(&(addr as u32).to_le_bytes());
+        }
+        writer.block(b"MHLS", false, &mhls);
+        let at = writer.out.len() + 10;
+        unspecified.extend(
+            debug
+                .macros_unspecified
+                .iter()
+                .map(|&(ofs, len)| (at + ofs, len)),
+        );
+        writer.block(b"MACR", false, &debug.macros);
+    }
+
     writer.block(b"EOF ", true, &[]);
     let func_addrs = generated
         .func_anchor
@@ -653,4 +706,177 @@ pub(crate) fn write_image(
         unspecified,
         func_addrs,
     })
+}
+
+/// The source files, each with the address of the code of each of its
+/// lines that has any. The lines are read from the functions' tables,
+/// in the order of the functions; a line's first address is the one
+/// kept. A file that an earlier module read too has its lines with
+/// that one, and says which it is.
+fn source_files_block(debug: &DebugRecords, methods: &[(usize, &[u8])]) -> Vec<u8> {
+    let orig: Vec<usize> = (0..debug.files.len())
+        .map(|index| {
+            debug.files[..index]
+                .iter()
+                .position(|name| *name == debug.files[index])
+                .unwrap_or(index)
+        })
+        .collect();
+    let mut lines: Vec<std::collections::BTreeMap<u32, u32>> =
+        vec![std::collections::BTreeMap::new(); debug.files.len()];
+    for &(addr, code) in methods {
+        let u16_at = |at: usize| usize::from(u16::from_le_bytes([code[at], code[at + 1]]));
+        let table = u16_at(8);
+        if table == 0 {
+            continue;
+        }
+        for rec in 0..u16_at(table) {
+            let at = table + 2 + 10 * rec;
+            let ofs = u16_at(at);
+            let file = u16_at(at + 2);
+            let line = u32::from_le_bytes(code[at + 4..at + 8].try_into().expect("four bytes"));
+            let Some(&file) = orig.get(file) else {
+                continue;
+            };
+            // An address of zero is no address, to the reference.
+            let entry = lines[file].entry(line).or_insert(0);
+            if *entry == 0 {
+                *entry = (addr + ofs) as u32;
+            }
+        }
+    }
+    let mut block = Vec::new();
+    block.extend_from_slice(&(debug.files.len() as u16).to_le_bytes());
+    block.extend_from_slice(&8u16.to_le_bytes());
+    for (index, name) in debug.files.iter().enumerate() {
+        let start = block.len();
+        block.extend_from_slice(&0u32.to_le_bytes());
+        block.extend_from_slice(&(orig[index] as u16).to_le_bytes());
+        block.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        block.extend_from_slice(name.as_bytes());
+        let lines: Vec<(u32, u32)> = lines[index]
+            .iter()
+            .filter(|(_, addr)| **addr != 0)
+            .map(|(&line, &addr)| (line, addr))
+            .collect();
+        block.extend_from_slice(&(lines.len() as u32).to_le_bytes());
+        for (line, addr) in lines {
+            block.extend_from_slice(&line.to_le_bytes());
+            block.extend_from_slice(&addr.to_le_bytes());
+        }
+        let size = (block.len() - start) as u32;
+        block[start..start + 4].copy_from_slice(&size.to_le_bytes());
+    }
+    block
+}
+
+/// The program's global names, in the order of the reference's table,
+/// each with its kind and what the debugger needs to know of it. Names
+/// that start with a period are the compiler's own, and left out.
+fn global_symbols_block(
+    prog: &Program,
+    enum_ids: &[u32],
+    func_addr: &dyn Fn(usize) -> Option<usize>,
+) -> Vec<u8> {
+    // Each definition a `modify` set aside knows the object that set it
+    // aside: the reference's symbol for it, which a `replace` after it
+    // takes over, so that it is the number of the definition that
+    // replaced it if one did.
+    let def_id = |def: &crate::parse::ObjDef| def.mod_id.or(def.sym.map(|sym| prog.objs[sym].id));
+    let mut modifying: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
+    for (index, def) in prog.objdefs.iter().enumerate() {
+        let Some(base) = def.mod_base else {
+            continue;
+        };
+        let mut last = def;
+        let mut later = prog.objdefs[index + 1..]
+            .iter()
+            .filter(|other| other.sym == def.sym);
+        while last.replaced {
+            match later.next() {
+                Some(next) => last = next,
+                None => break,
+            }
+        }
+        if let Some(id) = def_id(last) {
+            modifying.insert(base, id);
+        }
+    }
+    // Each object that holds what a `modify` adds to a built-in class
+    // knows the one made for the next, in whichever file it is. (Each
+    // file's chain starts with an empty object of its own, which has no
+    // name.)
+    let mut last_mod: std::collections::HashMap<usize, u32> = std::collections::HashMap::new();
+    for def in &prog.objdefs {
+        if let (Some(meta), Some(id), Some(_)) = (def.meta, def.mod_id, def.mod_base) {
+            if let Some(prev) = last_mod.insert(meta, id) {
+                modifying.insert(prev, id);
+            }
+        }
+    }
+    let mut count = 0u32;
+    let mut entries = Vec::new();
+    for (name, global) in prog.globals.in_table_order() {
+        if name.first() == Some(&b'.') {
+            continue;
+        }
+        let mut data = Vec::new();
+        let kind: u16 = match global {
+            Global::Func(func) => {
+                let f = &prog.funcs[func];
+                let addr = func_addr(func).unwrap_or(0) as u32;
+                data.extend_from_slice(&addr.to_le_bytes());
+                data.extend_from_slice(&(f.argc as u16).to_le_bytes());
+                data.push(u8::from(f.varargs));
+                data.push(u8::from(f.has_retval));
+                data.extend_from_slice(&(f.opt_argc as u16).to_le_bytes());
+                1
+            }
+            Global::Obj(obj) => {
+                let id = prog.objs[obj].id;
+                data.extend_from_slice(&id.to_le_bytes());
+                data.extend_from_slice(&modifying.get(&id).copied().unwrap_or(0).to_le_bytes());
+                2
+            }
+            Global::Prop(prop) => {
+                data.extend_from_slice(&prog.props[prop].id.to_le_bytes());
+                // Whether it is a dictionary property, which the
+                // reference does not keep in its object files, so that
+                // after linking no property is one.
+                data.push(0);
+                3
+            }
+            Global::Bif(bif) => {
+                let b = &prog.bifs[bif];
+                data.extend_from_slice(&(b.index as u16).to_le_bytes());
+                data.extend_from_slice(&(b.set as u16).to_le_bytes());
+                // A built-in function is taken to return a value.
+                data.push(1);
+                data.extend_from_slice(&(b.min_argc as u16).to_le_bytes());
+                data.extend_from_slice(&(b.max_argc as u16).to_le_bytes());
+                data.push(u8::from(b.varargs));
+                6
+            }
+            Global::Meta(meta) => {
+                let m = &prog.metas[meta];
+                data.extend_from_slice(&(m.meta as u16).to_le_bytes());
+                data.extend_from_slice(&m.obj_id.to_le_bytes());
+                9
+            }
+            Global::Enum(sym) => {
+                data.extend_from_slice(&enum_ids.get(sym).copied().unwrap_or(0).to_le_bytes());
+                data.push(u8::from(prog.enums[sym].is_token));
+                10
+            }
+        };
+        entries.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        entries.extend_from_slice(&(data.len() as u16).to_le_bytes());
+        entries.extend_from_slice(&kind.to_le_bytes());
+        entries.extend_from_slice(name);
+        entries.extend_from_slice(&data);
+        count += 1;
+    }
+    let mut block = count.to_le_bytes().to_vec();
+    block.extend_from_slice(&entries);
+    block
 }

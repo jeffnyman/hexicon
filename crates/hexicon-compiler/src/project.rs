@@ -841,15 +841,6 @@ impl Reader<'_, '_> {
     }
 
     fn finish(mut self) -> Result<Project, ProjectError> {
-        // What `-d` changes otherwise is done: no preinitialization by
-        // default, and links to the resources.
-        if self.debug {
-            self.messages.push(
-                "hexicon: the records for debugging (\"-d\") are not written yet; \
-                 the image is built without them"
-                    .to_owned(),
-            );
-        }
         // The system library's `_main` comes first, unless something
         // said not to.
         if !self.nodef {
@@ -943,6 +934,7 @@ impl Reader<'_, '_> {
                 default_charset: self.charset,
                 source_text_group: self.source_text_group,
                 module_names,
+                debug: self.debug,
                 ..CompileOptions::default()
             },
             image: self.image,

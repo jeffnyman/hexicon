@@ -362,6 +362,10 @@ pub(crate) struct ObjProp {
     pub is_static: bool,
     pub file: usize,
     pub line: u32,
+    /// For a value read from the source, the reference's parser's
+    /// statement position after it. Code made to work the value out
+    /// has its statement there, for the debugger.
+    pub body_pos: Option<(usize, u32)>,
 }
 
 /// An object definition.
@@ -856,6 +860,9 @@ pub(crate) struct Program {
     pub body_refs: Vec<BodyRef>,
     /// The labels of the last function or method read.
     pub last_labels: std::rc::Rc<Vec<LabelSym>>,
+    /// Where the parser's statement position was when it finished the
+    /// file: where the statements the compiler makes afterward are.
+    pub end_pos: (usize, u32),
     /// The dictionaries, in the order they were first declared: indexes
     /// into [`Program::objs`].
     pub dicts: Vec<usize>,
@@ -1072,6 +1079,19 @@ impl Program {
     /// definitions `modify` set aside, and the objects that hold what is
     /// added to built-in classes, by their numbers (`" 1a"`), and the
     /// object that sets up multi-methods `<multiMethodInit>`.
+    /// Add a property for a name that is exported and nothing else, as
+    /// the reference does when it takes it to be one.
+    pub(crate) fn add_assumed_prop(&mut self, name: Vec<u8>, id: u16) {
+        let index = self.props.len();
+        self.props.push(PropSym {
+            name: name.clone(),
+            id,
+            weak: false,
+            vocab: false,
+        });
+        self.globals.insert_known(name, Global::Prop(index));
+    }
+
     pub(crate) fn add_synthetic_obj(&mut self, name: Vec<u8>, id: u32) {
         self.objs.push(ObjSym {
             name: name.clone(),
@@ -1512,6 +1532,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     is_static: false,
                     file,
                     line,
+                    body_pos: None,
                 });
             }
         }
@@ -1753,6 +1774,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         for nested in std::mem::take(&mut self.prog.nested) {
             self.prog.top.push(nested);
         }
+        self.prog.end_pos = (self.cur_file, self.cur_line);
         self.prog
     }
 
@@ -2171,6 +2193,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     is_static: false,
                     file: self.cur_file,
                     line: self.cur_line,
+                    body_pos: None,
                 });
             }
         }
@@ -2328,7 +2351,11 @@ impl<'p, 'a> Parser<'p, 'a> {
             // The reference takes the statement to be where the last
             // statement read was, wherever that is; but it looks up the
             // names in the value as the property's, and that is where
-            // what there is to say gets said.
+            // what there is to say gets said. The body ends where the
+            // parser is now, after the value, and for the debugger the
+            // statement is where the parser's statement position is.
+            let (end_file, end_line) = self.tok.last_pos();
+            let stm_pos = Some((self.cur_file, self.cur_line));
             let mut body = CodeBody {
                 lcltab: None,
                 stm: Stmt { kind, file, line },
@@ -2340,8 +2367,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                 self_valid: self.self_valid,
                 replaced: false,
                 labels: std::rc::Rc::default(),
-                end_file: file,
-                end_line: line,
+                start: None,
+                end_file,
+                end_line,
                 closure: Closure {
                     // The reference has the last body read as the one
                     // this is in.
@@ -2349,6 +2377,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     wraps_prop_expr: true,
                     ..Closure::default()
                 },
+                stm_pos,
             };
             self.finish_local_ctx(&mut body, false);
             body.closure.self_referenced = self.self_referenced;
@@ -3483,9 +3512,12 @@ impl Parser<'_, '_> {
             StmtKind::Expr(expr)
         };
         let inner = self.stmt(kind);
+        let (end_file, end_line) = self.tok.last_pos();
         Ok(Some(self.stmt(StmtKind::Comp {
             stmts: vec![inner],
             symtab: self.local_symtab,
+            end_file,
+            end_line,
         })))
     }
 
@@ -3514,7 +3546,9 @@ impl Parser<'_, '_> {
             ..Formals::default()
         };
         let mut empty = false;
+        let mut start = None;
         let stm = if cb_type == CbType::ShortAnonFn {
+            start = Some(self.tok.last_pos());
             let Some(stm) = self.parse_short_anon_body(&mut formals)? else {
                 return Ok(None);
             };
@@ -3538,15 +3572,23 @@ impl Parser<'_, '_> {
             if empty {
                 // It looks like the end of the definition: take the body
                 // to be empty.
+                let (end_file, end_line) = self.tok.last_pos();
                 self.stmt(StmtKind::Comp {
                     stmts: Vec::new(),
                     symtab: None,
+                    end_file,
+                    end_line,
                 })
             } else {
+                start = Some(self.tok.last_pos());
                 self.parse_compound(true, true, false, true)?
             }
         };
         let (mut body, has_retval) = self.check_body_flow(formals, stm);
+        // The body starts at its opening brace and ends where its
+        // statement does, at the closing brace.
+        body.start = start;
+        (body.end_file, body.end_line) = body.stm.end_pos();
 
         body.closure.enclosing = enclosing;
         self.finish_local_ctx(&mut body, local_symtab.is_some());
@@ -3612,9 +3654,11 @@ impl Parser<'_, '_> {
             self_valid: self.self_valid,
             replaced: false,
             labels: std::rc::Rc::new(std::mem::take(&mut self.labels)),
+            start: None,
             end_file,
             end_line,
             closure: Closure::default(),
+            stm_pos: None,
         }
     }
 
@@ -3956,10 +4000,13 @@ impl Parser<'_, '_> {
         if stmts.is_empty() {
             stmts.push(self.stmt(StmtKind::Null));
         }
+        let (end_file, end_line) = self.tok.last_pos();
         let comp = Stmt {
             kind: StmtKind::Comp {
                 stmts,
                 symtab: self.local_symtab,
+                end_file,
+                end_line,
             },
             file,
             line,
@@ -4197,10 +4244,15 @@ impl Parser<'_, '_> {
         Ok(match stmts.len() {
             0 => None,
             1 => stmts.pop(),
-            _ => Some(self.stmt(StmtKind::Comp {
-                stmts,
-                symtab: self.local_symtab,
-            })),
+            _ => {
+                let (end_file, end_line) = self.tok.last_pos();
+                Some(self.stmt(StmtKind::Comp {
+                    stmts,
+                    symtab: self.local_symtab,
+                    end_file,
+                    end_line,
+                }))
+            }
         })
     }
 
@@ -4637,9 +4689,16 @@ impl Parser<'_, '_> {
         } else {
             self.error_curtok("missing ')' after \"while\" expression - found \"%\"");
         }
+        let (while_file, while_line) = self.tok.last_pos();
         self.parse_req_sem()?;
         Ok(Some(Stmt {
-            kind: StmtKind::DoWhile { body, cond, id },
+            kind: StmtKind::DoWhile {
+                body,
+                cond,
+                id,
+                while_file,
+                while_line,
+            },
             file,
             line,
         }))
@@ -4891,13 +4950,21 @@ impl Parser<'_, '_> {
             let fin_body = self.parse_stm(false, false);
             self.enclosing.pop();
             self.leave_scope(scope);
+            let fin_body = fin_body?;
+            // Without a block, it ends where it starts.
+            let end = Some(
+                fin_body
+                    .as_ref()
+                    .map_or((fin_file, fin_line), Stmt::end_pos),
+            );
             finally = Some(Box::new(Finally {
                 id: fin_id,
-                body: fin_body?.map(Box::new),
+                body: fin_body.map(Box::new),
                 exc_local,
                 jsr_local,
                 file: fin_file,
                 line: fin_line,
+                end,
             }));
         }
         if catches.is_empty() && finally.is_none() {
@@ -6147,6 +6214,8 @@ impl Parser<'_, '_> {
         self.max_local_cnt = 0;
 
         let expr = self.parse_expr();
+        // The body ends where the parser is after the value.
+        let (end_file, end_line) = self.tok.last_pos();
         let value = expr.map(|expr| {
             let has_retval = self.prog.has_return_value(&expr, false);
             let kind = if has_retval {
@@ -6165,13 +6234,15 @@ impl Parser<'_, '_> {
                 self_valid: true,
                 replaced: false,
                 labels: std::rc::Rc::default(),
-                end_file: file,
-                end_line: line,
+                start: None,
+                end_file,
+                end_line,
                 closure: Closure {
                     enclosing: self.cur_code_body,
                     is_anon_method: true,
                     ..Closure::default()
                 },
+                stm_pos: None,
             };
             self.finish_local_ctx(&mut body, true);
             body.closure.self_referenced = self.self_referenced;
@@ -6737,7 +6808,9 @@ impl Parser<'_, '_> {
         let Some(def) = gram_obj.and_then(|obj| self.prog.objs[obj].def) else {
             return Ok(());
         };
-        let (file, line) = (self.prog.objdefs[def].file, self.prog.objdefs[def].line);
+        // They are where the parser is after the body, as the reference
+        // makes them: the statement's end.
+        let (file, line) = (self.cur_file, self.cur_line);
         let mut info = vec![Expr::constant(Value::SStr(name_tag))];
         info.extend(
             arrows
@@ -6755,6 +6828,7 @@ impl Parser<'_, '_> {
                 is_static: false,
                 file,
                 line,
+                body_pos: None,
             });
         }
         Ok(())
@@ -7450,6 +7524,7 @@ impl Parser<'_, '_> {
                             is_static: false,
                             file,
                             line,
+                            body_pos: None,
                         });
                     }
                 }
@@ -7484,8 +7559,11 @@ impl Parser<'_, '_> {
         }
 
         // An object that is not a class knows where it comes in the
-        // source.
+        // source. The reference adds the properties for that where the
+        // parser's statement position is now, before the object's own
+        // properties are read.
         if !is_class && modify.is_none() {
+            let (file, line) = (self.cur_file, self.cur_line);
             let order = Expr::constant(Value::Int(self.src_order_idx));
             self.src_order_idx += 1;
             def.props.push(ObjProp {
@@ -7495,6 +7573,7 @@ impl Parser<'_, '_> {
                 is_static: false,
                 file,
                 line,
+                body_pos: None,
             });
             // And which source file it is in.
             if let (true, Some(group)) = (self.src_group_mode, self.src_group_obj) {
@@ -7505,6 +7584,7 @@ impl Parser<'_, '_> {
                     is_static: false,
                     file,
                     line,
+                    body_pos: None,
                 });
             }
         }
@@ -7512,7 +7592,10 @@ impl Parser<'_, '_> {
         self.parse_obj_prop_list(&mut def, braces, is_nested)?;
         // A dictionary property the object has given no words for is
         // there all the same, in case the object's classes have some.
+        // It is where the parser's statement position is after the
+        // properties, as in the reference.
         if meta.is_none() {
+            let (file, line) = (self.cur_file, self.cur_line);
             for index in 0..self.prog.dict_props.len() {
                 let prop = self.prog.dict_props[index];
                 if !self.dict_defined.contains(&prop) {
@@ -7523,6 +7606,7 @@ impl Parser<'_, '_> {
                         is_static: false,
                         file,
                         line,
+                        body_pos: None,
                     });
                 }
             }
@@ -7635,6 +7719,9 @@ impl Parser<'_, '_> {
         const REQ_RBRACE: &str = "missing right brace at end of object definition - found \"%\"";
         const REQ_SEM: &str = "missing semicolon at end of object definition - found \"%\"";
         loop {
+            // Where the property starts, or the end of the list: what
+            // the parser makes next is there, as in the reference.
+            (self.cur_file, self.cur_line) = self.tok.last_pos();
             let missing_end = if braces || self.propset_depth != 0 {
                 REQ_RBRACE
             } else {
@@ -8063,6 +8150,10 @@ impl Parser<'_, '_> {
                         self.error("vocabulary property requires string value, but found \":\"");
                     }
                     defined_prop = prop;
+                    // Both properties are where the parser's statement
+                    // position is now, after the object, as in the
+                    // reference.
+                    let (file, line) = (self.cur_file, self.cur_line);
                     if let Some(prop) = prop {
                         let id = self.prog.objs[obj].id;
                         new_prop = Some(def.props.len());
@@ -8073,6 +8164,7 @@ impl Parser<'_, '_> {
                             is_static: false,
                             file,
                             line,
+                            body_pos: None,
                         });
                     }
                     // The object knows which object it is written in.
@@ -8084,6 +8176,7 @@ impl Parser<'_, '_> {
                         is_static: false,
                         file,
                         line,
+                        body_pos: None,
                     });
                     self.prog.nested.push(Top::Obj(nested));
                     no_value = true;
@@ -8137,6 +8230,7 @@ impl Parser<'_, '_> {
                 is_static: false,
                 file,
                 line,
+                body_pos: None,
             });
         } else if let (true, true) = (is_value, self.inline_values.is_some()) {
             // In an object written in an expression: a value to work
@@ -8173,6 +8267,7 @@ impl Parser<'_, '_> {
                 return Err(Stop);
             };
             let static_prop = if is_static { prop } else { None };
+            let body_pos = (self.cur_file, self.cur_line);
             let (value, has_local_ctx) =
                 self.finish_prop_value(expr, static_prop, file, line, saved);
             if let Some(prop) = prop {
@@ -8186,6 +8281,7 @@ impl Parser<'_, '_> {
                     is_static: is_static && !has_local_ctx,
                     file,
                     line,
+                    body_pos: Some(body_pos),
                 });
             }
         } else {
@@ -8242,6 +8338,7 @@ impl Parser<'_, '_> {
                     is_static: false,
                     file: self.cur_file,
                     line: self.cur_line,
+                    body_pos: None,
                 });
             }
             self.prog.bodies.push((body, None));
@@ -8266,6 +8363,7 @@ impl Parser<'_, '_> {
             is_static: false,
             file,
             line,
+            body_pos: None,
         });
         if let Some(values) = &mut self.inline_values {
             values.push(value);
@@ -8849,6 +8947,7 @@ impl Parser<'_, '_> {
                 is_static: false,
                 file,
                 line,
+                body_pos: None,
             });
         }
         // It is generated after everything at the outermost level.

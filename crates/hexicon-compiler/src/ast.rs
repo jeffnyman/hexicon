@@ -457,6 +457,10 @@ pub(crate) enum StmtKind {
         stmts: Vec<Stmt>,
         /// The table of locals in force in the block.
         symtab: Option<TabId>,
+        /// Where it ends: where the parser was when it made the block,
+        /// at the closing brace if it has one.
+        end_file: usize,
+        end_line: u32,
     },
     Expr(Expr),
     If {
@@ -491,6 +495,9 @@ pub(crate) enum StmtKind {
         body: Option<Box<Stmt>>,
         cond: Expr,
         id: usize,
+        /// Where the `while` part ends, which has code of its own.
+        while_file: usize,
+        while_line: u32,
     },
     Break(Option<Vec<u8>>),
     Continue(Option<Vec<u8>>),
@@ -559,6 +566,8 @@ pub(crate) struct Finally {
     pub jsr_local: usize,
     pub file: usize,
     pub line: u32,
+    /// Where the block ends, if it has one.
+    pub end: Option<(usize, u32)>,
 }
 
 /// A label in a function, for `goto`, `break`, and `continue`.
@@ -579,6 +588,17 @@ pub(crate) struct LabelSym {
 }
 
 impl Stmt {
+    /// Where the statement ends, as the reference takes it: a block's
+    /// end, and for any other statement where it starts.
+    pub(crate) fn end_pos(&self) -> (usize, u32) {
+        match &self.kind {
+            StmtKind::Comp {
+                end_file, end_line, ..
+            } => (*end_file, *end_line),
+            _ => (self.file, self.line),
+        }
+    }
+
     /// Whether the statement starts with a label, a `case`, or a
     /// `default`, so that it can be reached from somewhere other than
     /// the statement before it.
@@ -612,6 +632,13 @@ pub(crate) struct CodeBody {
     pub replaced: bool,
     /// The labels on statements in the body.
     pub labels: std::rc::Rc<Vec<LabelSym>>,
+    /// Where the opening brace is, if the body has one: a function's
+    /// code starts there, for the debugger.
+    pub start: Option<(usize, u32)>,
+    /// Where the statement is, for the debugger, if not where it says:
+    /// for the code that works out a property's value, where the
+    /// reference's parser was after the value.
+    pub stm_pos: Option<(usize, u32)>,
     /// Where the closing brace is.
     pub end_file: usize,
     pub end_line: u32,

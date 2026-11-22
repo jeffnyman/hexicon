@@ -545,6 +545,11 @@ impl<'a> Preprocessor<'a> {
 
     // ---- files ----
 
+    /// The names of the files read, by their numbers.
+    pub fn file_names(&self) -> Vec<String> {
+        self.descs.iter().map(|desc| desc.name.clone()).collect()
+    }
+
     fn file_desc(&mut self, name: &str) -> usize {
         if let Some(index) = self.descs.iter().position(|desc| desc.name == name) {
             return index;

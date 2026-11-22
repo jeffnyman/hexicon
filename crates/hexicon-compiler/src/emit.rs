@@ -233,6 +233,11 @@ pub(crate) struct Generated {
     /// function in another source file having taken their place with
     /// `replace`: indexes into `code_anchors`.
     pub dead_code: Vec<usize>,
+    /// The functions taken out of the code for that, in order: how many
+    /// of the functions kept came before each, and its code. They are
+    /// not in the image, but the reference keeps a place for each in
+    /// its records for debugging.
+    pub dropped_code: Vec<(usize, Vec<u8>)>,
     /// The objects that are not to go in the image, likewise: indexes
     /// into `objs`.
     pub dead_objs: HashSet<usize>,
@@ -263,14 +268,16 @@ pub(crate) struct GenExport {
 /// Work out what the program's `export` statements export. The
 /// reference does this when it writes the image, so what is wrong
 /// with them is reported last, and nowhere in particular.
-pub(crate) fn resolve_exports(
-    prog: &Program,
-    generated: &mut Generated,
-) -> Vec<(Severity, String)> {
+///
+/// A name exported that is nothing else is taken to be a property; such
+/// names are returned too, in the order they were found, with their
+/// numbers, for the table of global names.
+pub(crate) fn resolve_exports(prog: &Program, generated: &mut Generated) -> ResolvedExports {
     let mut problems = Vec::new();
     let mut errors = Vec::new();
     // A name exported that is nothing else is a property.
     let mut assumed: HashMap<&[u8], u16> = HashMap::new();
+    let mut assumed_order: Vec<(Vec<u8>, u16)> = Vec::new();
     let mut done: Vec<&[u8]> = Vec::new();
     for (index, (sym, external)) in prog.exports.iter().enumerate() {
         // An external name is exported once: the first time.
@@ -298,6 +305,7 @@ pub(crate) fn resolve_exports(
                 ),
             ));
             assumed.insert(sym, generated.next_prop_id);
+            assumed_order.push((sym.clone(), generated.next_prop_id));
             generated.next_prop_id += 1;
         }
         let mut dups = 0;
@@ -343,7 +351,17 @@ pub(crate) fn resolve_exports(
         });
         problems.extend(errors.drain(..).map(|message| (Severity::Error, message)));
     }
-    problems
+    ResolvedExports {
+        problems,
+        assumed_props: assumed_order,
+    }
+}
+
+/// What [`resolve_exports`] found: what is wrong, and the names taken to
+/// be properties, in order, with their numbers.
+pub(crate) struct ResolvedExports {
+    pub problems: Vec<(Severity, String)>,
+    pub assumed_props: Vec<(Vec<u8>, u16)>,
 }
 
 /// The functions and objects that the program refers to and never
@@ -395,6 +413,9 @@ enum Enclosing {
     Try {
         id: usize,
         finally_lbl: Option<Label>,
+        /// Where the `finally` block ends, for the line record after a
+        /// call to it.
+        finally_end: Option<(usize, u32)>,
     },
     /// A `finally` block.
     Finally { id: usize },
@@ -449,6 +470,10 @@ struct Gen<'p> {
     /// scopes in the order they were first entered.
     cur_frame: Option<TabId>,
     frames: Vec<TabId>,
+    /// The same for the code that runs before the program starts, which
+    /// the reference generates in a stream of its own, with a current
+    /// scope of its own.
+    static_frame: Option<TabId>,
     enclosing: Vec<Enclosing>,
     switches: Vec<SwitchSlots>,
     /// The labels of the function being generated, and where each one
@@ -478,6 +503,11 @@ struct Gen<'p> {
     /// Where the statement being generated is, for messages.
     cur_file: usize,
     cur_line: u32,
+    /// Where the reference's tokenizer was last told the code being
+    /// generated is: as `cur_file` and `cur_line`, but moved only by
+    /// statements and properties, and not by the start of an object. A
+    /// constructor the compiler makes ends there.
+    line_info: (usize, u32),
     interned: HashMap<Vec<u8>, usize>,
     /// Places in the code that refer to a local's name, in the order
     /// they were written. The names go into the constants after
@@ -513,6 +543,30 @@ struct Gen<'p> {
     in_defval: bool,
     /// The body being generated.
     cur_body: usize,
+    /// The program is compiled for debugging: the code has line
+    /// records, which say where in the source each statement's code is.
+    debug: bool,
+    /// The number the first source file of this module has among all
+    /// the program's: the files of the modules before it come first.
+    file_base: usize,
+    /// The line records of the function being generated.
+    line_recs: Vec<LineRec>,
+    /// The statement of the body being generated, and where it is for
+    /// the debugger, if not where it says. See [`CodeBody::stm_pos`].
+    top_stm_pos: Option<(*const Stmt, (usize, u32))>,
+}
+
+/// Where in the source the code from an offset in a function comes
+/// from, for the debugger.
+#[derive(Clone, Copy)]
+struct LineRec {
+    /// The offset from the start of the function.
+    ofs: usize,
+    /// The source file, by its number in the program, and the line.
+    source_id: usize,
+    line: u32,
+    /// The scope the code is in.
+    frame: Option<TabId>,
 }
 
 impl<'p> Gen<'p> {
@@ -527,6 +581,7 @@ impl<'p> Gen<'p> {
             method_ofs: 0,
             cur_frame: None,
             frames: Vec::new(),
+            static_frame: None,
             enclosing: Vec::new(),
             switches: Vec::new(),
             labels: Rc::default(),
@@ -541,6 +596,7 @@ impl<'p> Gen<'p> {
             fin_ret_lcl: None,
             cur_file: 0,
             cur_line: 0,
+            line_info: (usize::MAX, 0),
             interned: HashMap::new(),
             local_names: Vec::new(),
             errors: 0,
@@ -556,6 +612,10 @@ impl<'p> Gen<'p> {
             dropped: HashSet::new(),
             mm_count: 0,
             in_defval: false,
+            debug: false,
+            file_base: 0,
+            line_recs: Vec::new(),
+            top_stm_pos: None,
         }
     }
 }
@@ -564,12 +624,18 @@ impl<'p> Gen<'p> {
 /// an object file. The numbers of objects, properties, and values of
 /// enumerations in it are the file's own; [`crate::link`] gives them
 /// the numbers they have in the image.
-pub(crate) fn generate(prog: &mut Program) -> Generated {
+///
+/// For a program compiled for debugging, the code has line records;
+/// `file_base` is the number of the first of this file's sources among
+/// the program's.
+pub(crate) fn generate(prog: &mut Program, debug: bool, file_base: usize) -> Generated {
     let mut bodies = std::mem::take(&mut prog.bodies);
     let mut objdefs = std::mem::take(&mut prog.objdefs);
     let top = prog.top.clone();
     let enum_ids = prog.final_enum_ids();
     let mut generator = Gen::new(prog, Generated::default(), enum_ids);
+    generator.debug = debug;
+    generator.file_base = file_base;
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
     generator.last_labels = Rc::clone(&generator.prog.last_labels);
     // Names are looked up, and what has become constant is worked out,
@@ -590,6 +656,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                                 // not a method after all.
                                 generator.cur_file = prop.file;
                                 generator.cur_line = prop.line;
+                                generator.line_info = (prop.file, prop.line);
                                 let (StmtKind::Return(Some(expr))
                                 | StmtKind::Expr(expr)
                                 | StmtKind::StaticPropInit(expr, _)) = &mut bodies[body].0.stm.kind
@@ -609,6 +676,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                         PropValue::Expr(expr) => {
                             generator.cur_file = prop.file;
                             generator.cur_line = prop.line;
+                            generator.line_info = (prop.file, prop.line);
                             generator.fold_in_place(expr);
                             if expr.is_const() || matches!(expr, Expr::DStr(_)) {
                                 continue;
@@ -624,6 +692,14 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                             } else {
                                 StmtKind::Expr(expr)
                             };
+                            // For the debugger, the statement is where the
+                            // parser's statement position was after the
+                            // value, and the body ends at the property,
+                            // where the reference makes it as it folds the
+                            // value.
+                            let (stm_file, stm_line) =
+                                prop.body_pos.unwrap_or((prop.file, prop.line));
+                            let (end_file, end_line) = (prop.file, prop.line);
                             let body = CodeBody {
                                 lcltab: None,
                                 stm: Stmt {
@@ -639,9 +715,11 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
                                 self_valid: true,
                                 replaced: false,
                                 labels: Rc::default(),
-                                end_file: prop.file,
-                                end_line: prop.line,
+                                start: None,
+                                end_file,
+                                end_line,
                                 closure: Closure::default(),
+                                stm_pos: Some((stm_file, stm_line)),
                             };
                             prop.value = PropValue::Method(bodies.len());
                             bodies.push((body, None));
@@ -665,6 +743,7 @@ pub(crate) fn generate(prog: &mut Program) -> Generated {
     // Nothing has a place yet: what there is to say about the start of
     // a function is said of wherever the last thing generated was.
     (generator.cur_file, generator.cur_line) = (usize::MAX, 0);
+    generator.line_info = (usize::MAX, 0);
     let mut scopes = Vec::new();
     for item in &top {
         if generator.gave_up.is_some() {
@@ -830,6 +909,7 @@ impl Gen<'_> {
     fn set_line(&mut self, stmt: &Stmt) {
         self.cur_file = stmt.file;
         self.cur_line = stmt.line;
+        self.line_info = (stmt.file, stmt.line);
     }
 
     /// Warn about the locals of a scope that are never used or never
@@ -1007,6 +1087,7 @@ impl Gen<'_> {
                     .into_iter()
                     .map(|mut prop| {
                         (self.cur_file, self.cur_line) = (prop.file, prop.line);
+                        self.line_info = (prop.file, prop.line);
                         prop.value = match prop.value {
                             InlineValue::Method(method) => InlineValue::Method(method),
                             InlineValue::Eval(expr) => InlineValue::Eval(self.fold_expr(expr)),
@@ -1321,6 +1402,9 @@ impl Gen<'_> {
             return;
         }
         let sym = def.sym;
+        // Where the reference's tokenizer was before this object, which
+        // is where a constructor made for it ends.
+        let before = self.line_info;
         (self.cur_file, self.cur_line) = (def.file, def.line);
         // A definition that `modify` has put another in front of is an
         // object of its own, and a class, whatever it was.
@@ -1404,13 +1488,19 @@ impl Gen<'_> {
                 // so a label there that nothing refers to is reported
                 // again.
                 labels: Rc::clone(&self.last_labels),
-                end_file: def.file,
-                end_line: def.line,
+                start: None,
+                // It ends where the code generator was when the reference
+                // makes it, as it starts on the object: at the last
+                // statement whose code it generated.
+                end_file: before.0,
+                end_line: before.1,
                 closure: Closure::default(),
+                stm_pos: None,
             }
         });
         for prop in &def.props {
             (self.cur_file, self.cur_line) = (prop.file, prop.line);
+            self.line_info = (prop.file, prop.line);
             let id = self.prog.props[prop.prop].id;
             let (kind, value, target) = match &prop.value {
                 PropValue::Method(body) if prop.is_static => {
@@ -1425,7 +1515,9 @@ impl Gen<'_> {
                         self.out.id_fixups.len(),
                         self.out.unspecified.len(),
                     );
+                    let main_frame = std::mem::replace(&mut self.cur_frame, self.static_frame);
                     self.gen_code_body(&bodies[*body].0, *body, None, prop.prop == 0);
+                    self.static_frame = std::mem::replace(&mut self.cur_frame, main_frame);
                     scopes.push(std::mem::take(&mut self.frames));
                     self.move_to_static(mark, *body);
                     (datatype::CODEOFS, 0, Some(Target::StaticBody(*body)))
@@ -1473,6 +1565,10 @@ impl Gen<'_> {
         }
         if let Some(body) = implicit {
             (self.cur_file, self.cur_line) = (def.file, def.line);
+            // The reference adds it to the object as a property, at
+            // the place the parser finished the file, and generates it
+            // as the last of the properties.
+            self.line_info = self.prog.end_pos;
             // A number for the body that no body the parser read has.
             let index = bodies.len() + self.out.objs.len();
             self.gen_code_body(&body, index, None, true);
@@ -1854,6 +1950,13 @@ impl Gen<'_> {
             self.cg.write2(0);
         }
         let code_start = self.cg.ofs();
+        // A line record for the code that starts the function, which can
+        // fail. The reference adds it without the usual care for the
+        // peephole, as nothing has been written yet.
+        self.line_recs.clear();
+        if let Some((file, line)) = body.start {
+            self.add_line_rec_raw(file, line);
+        }
 
         // The scopes around the function's own come first in its list.
         if let Some(lcltab) = body.lcltab {
@@ -1984,11 +2087,14 @@ impl Gen<'_> {
             }
         }
 
+        self.top_stm_pos = body.stm_pos.map(|pos| (&body.stm as *const Stmt, pos));
         self.gen_stmt(&body.stm);
+        self.top_stm_pos = None;
 
         // Falling off the end returns nil, or from a constructor the
         // object constructed.
         if !self.cg.can_skip_op() {
+            self.add_line_rec(body.end_file, body.end_line);
             if self.in_constructor {
                 self.cg.write_op(Op::PushSelf);
                 self.cg.write_op(Op::RetVal);
@@ -2106,13 +2212,30 @@ impl Gen<'_> {
                 tab.list_index = frame_cnt;
             }
         }
-        if frame_cnt == 0 {
+        if frame_cnt == 0 && !self.debug {
             return;
         }
         let table_ofs = self.cg.ofs() - method_ofs;
         self.cg.write2_at(method_ofs + 8, table_ofs as u16);
-        // No line records.
-        self.cg.write2(0);
+        // The line records, in a program compiled for debugging: where
+        // each starts, the source file and line, and the scope, the
+        // nearest one around it that is in the table if it is not.
+        let recs = std::mem::take(&mut self.line_recs);
+        self.cg.write2(recs.len() as u16);
+        for rec in &recs {
+            self.cg.write2(rec.ofs as u16);
+            self.cg.write2(rec.source_id as u16);
+            self.cg.write4(rec.line);
+            let mut frame = rec.frame;
+            while let Some(id) = frame {
+                if self.prog.tabs[id].list_index != 0 {
+                    break;
+                }
+                frame = self.prog.tabs[id].parent;
+            }
+            let index = frame.map_or(0, |id| self.prog.tabs[id].list_index);
+            self.cg.write2(index as u16);
+        }
         let post_ptr_ofs = self.cg.ofs();
         self.cg.write2(0);
         self.cg.write2(frame_cnt as u16);
@@ -2419,6 +2542,7 @@ impl Gen<'_> {
         self.gen_stmt(sub);
         self.cur_file = file;
         self.cur_line = line;
+        self.line_info = (file, line);
     }
 
     /// How control can leave a statement, as far as can be told now
@@ -2437,24 +2561,38 @@ impl Gen<'_> {
     fn gen_stmt(&mut self, stmt: &Stmt) {
         match &stmt.kind {
             StmtKind::Null => {}
-            StmtKind::Comp { stmts, symtab } => {
+            StmtKind::Comp {
+                stmts,
+                symtab,
+                end_file,
+                end_line,
+            } => {
                 let old_frame = self.set_local_frame(*symtab);
+                self.add_stmt_line_rec(stmt);
                 for sub in stmts {
                     self.set_line(sub);
                     self.gen_stmt(sub);
                 }
+                self.add_line_rec(*end_file, *end_line);
                 self.set_local_frame(old_frame);
             }
             StmtKind::Expr(expr) => {
                 self.set_line(stmt);
+                self.add_stmt_line_rec(stmt);
                 self.gen_expr(expr, true, true);
             }
             StmtKind::If {
                 cond,
                 then_part,
                 else_part,
-            } => self.gen_if(stmt, cond, then_part.as_deref(), else_part.as_deref()),
-            StmtKind::Return(expr) => self.gen_return(expr.as_ref()),
+            } => {
+                self.add_stmt_line_rec(stmt);
+                self.gen_if(stmt, cond, then_part.as_deref(), else_part.as_deref());
+            }
+            StmtKind::Return(expr) => {
+                self.add_stmt_line_rec(stmt);
+                self.gen_return(expr.as_ref());
+            }
             StmtKind::For {
                 init,
                 cond,
@@ -2464,6 +2602,7 @@ impl Gen<'_> {
                 id,
             } => {
                 let old_frame = self.set_local_frame(*symtab);
+                self.add_stmt_line_rec(stmt);
                 let mut for_ins = Vec::new();
                 if let Some(init) = init {
                     self.gen_expr(init, true, true);
@@ -2507,6 +2646,7 @@ impl Gen<'_> {
                 iter_local,
             } => {
                 let old_frame = self.set_local_frame(*symtab);
+                self.add_stmt_line_rec(stmt);
                 let local = self.prog.locals[*iter_local].var_num;
                 self.gen_iter_init(coll, local, "foreach");
                 let top_lbl = self.cg.new_label_here();
@@ -2526,6 +2666,7 @@ impl Gen<'_> {
                 self.set_local_frame(old_frame);
             }
             StmtKind::While { cond, body, id } => {
+                self.add_stmt_line_rec(stmt);
                 let top_lbl = self.cg.new_label_here();
                 let end_lbl = self.cg.new_label();
                 self.enclosing.push(Enclosing::Loop {
@@ -2541,7 +2682,14 @@ impl Gen<'_> {
                 self.cg.def_label(end_lbl);
                 self.enclosing.pop();
             }
-            StmtKind::DoWhile { body, cond, id } => {
+            StmtKind::DoWhile {
+                body,
+                cond,
+                id,
+                while_file,
+                while_line,
+            } => {
+                self.add_stmt_line_rec(stmt);
                 let top_lbl = self.cg.new_label_here();
                 let end_lbl = self.cg.new_label();
                 let cont_lbl = self.cg.new_label();
@@ -2553,20 +2701,30 @@ impl Gen<'_> {
                 if let Some(body) = body {
                     self.gen_substm(body, stmt);
                 }
+                self.add_line_rec(*while_file, *while_line);
                 self.cg.def_label(cont_lbl);
                 self.gen_cond(cond, Some(top_lbl), None);
                 self.cg.def_label(end_lbl);
                 self.enclosing.pop();
             }
-            StmtKind::Break(label) => self.gen_break_or_continue(label.as_deref(), true),
-            StmtKind::Continue(label) => self.gen_break_or_continue(label.as_deref(), false),
+            StmtKind::Break(label) => {
+                self.add_stmt_line_rec(stmt);
+                self.gen_break_or_continue(label.as_deref(), true);
+            }
+            StmtKind::Continue(label) => {
+                self.add_stmt_line_rec(stmt);
+                self.gen_break_or_continue(label.as_deref(), false);
+            }
             StmtKind::Switch {
                 expr,
                 body,
                 case_cnt,
                 has_default,
                 id,
-            } => self.gen_switch(stmt, expr, body, *case_cnt, *has_default, *id),
+            } => {
+                self.add_stmt_line_rec(stmt);
+                self.gen_switch(stmt, expr, body, *case_cnt, *has_default, *id);
+            }
             StmtKind::Case { expr, stm } => {
                 let Some(slots) = self.switches.last_mut() else {
                     self.error("case/default without switch or non-constant case expression");
@@ -2631,6 +2789,7 @@ impl Gen<'_> {
                     None => self.cg.new_label(),
                 };
                 self.cg.def_label(goto_lbl);
+                self.add_stmt_line_rec(stmt);
                 if let Some(stm) = stm {
                     self.gen_substm(stm, stmt);
                 }
@@ -2642,13 +2801,19 @@ impl Gen<'_> {
                     self.cg.def_label(break_lbl);
                 }
             }
-            StmtKind::Goto(name) => self.gen_goto(name),
+            StmtKind::Goto(name) => {
+                self.add_stmt_line_rec(stmt);
+                self.gen_goto(name);
+            }
             StmtKind::Try {
                 id,
                 body,
                 catches,
                 finally,
-            } => self.gen_try(stmt, *id, body.as_deref(), catches, finally.as_deref()),
+            } => {
+                self.add_stmt_line_rec(stmt);
+                self.gen_try(stmt, *id, body.as_deref(), catches, finally.as_deref());
+            }
             StmtKind::MmStub(func) => {
                 // All the arguments as a list, and the function.
                 self.cg.write_op(Op::PushParLst);
@@ -2689,11 +2854,13 @@ impl Gen<'_> {
                 }
             }
             StmtKind::Throw(expr) => {
+                self.add_stmt_line_rec(stmt);
                 self.gen_expr(expr, false, false);
                 self.cg.write_op(Op::Throw);
                 self.cg.note_pop();
             }
             StmtKind::StaticPropInit(expr, prop) => {
+                self.add_stmt_line_rec(stmt);
                 // The value, or nil if the expression has none; it is
                 // both stored and returned.
                 let depth = self.cg.sp_depth();
@@ -2728,13 +2895,60 @@ impl Gen<'_> {
     }
 
     /// Call a `finally` block, as a jump to it that it comes back from.
-    fn gen_jsr_finally(&mut self, finally_lbl: Option<Label>) {
+    /// What follows is, for the debugger, at the end of the block.
+    fn gen_jsr_finally(&mut self, finally_lbl: Option<Label>, end: Option<(usize, u32)>) {
         if let Some(label) = finally_lbl {
             self.cg.write_jump(Op::LJsr, label);
             // The jump pushes where to come back to, and the block pops
             // it.
             self.cg.note_push();
             self.cg.note_pop();
+            if let Some((file, line)) = end {
+                self.add_line_rec(file, line);
+            }
+        }
+    }
+
+    /// Add a line record for a statement, where it starts.
+    fn add_stmt_line_rec(&mut self, stmt: &Stmt) {
+        let (file, line) = match self.top_stm_pos {
+            Some((top, pos)) if std::ptr::eq(top, stmt) => pos,
+            _ => (stmt.file, stmt.line),
+        };
+        self.add_line_rec(file, line);
+    }
+
+    /// Add a line record for what is generated next, in a program
+    /// compiled for debugging. The peephole optimizer is told not to
+    /// combine what is before it with what is after.
+    fn add_line_rec(&mut self, file: usize, line: u32) {
+        if self.debug {
+            self.cg.clear_peephole();
+            self.add_line_rec_raw(file, line);
+        }
+    }
+
+    /// Add a line record, as the reference's code stream does: one at
+    /// the same offset as the last takes its place, and one at the same
+    /// place in the source as the last is not needed.
+    fn add_line_rec_raw(&mut self, file: usize, line: u32) {
+        // A place with no file, or line zero, which no line is, is no
+        // place: what the parser has before it has seen a statement.
+        if !self.debug || file == usize::MAX || line == 0 {
+            return;
+        }
+        let ofs = self.cg.ofs() - self.method_ofs;
+        let source_id = self.file_base + file;
+        let rec = LineRec {
+            ofs,
+            source_id,
+            line,
+            frame: self.cur_frame,
+        };
+        match self.line_recs.last_mut() {
+            Some(last) if last.source_id == source_id && last.line == line => {}
+            Some(last) if last.ofs == ofs => *last = rec,
+            _ => self.line_recs.push(rec),
         }
     }
 
@@ -2853,7 +3067,11 @@ impl Gen<'_> {
                     self.cg.write_jump(Op::Jmp, target);
                     return true;
                 }
-                Enclosing::Try { finally_lbl, .. } => self.gen_jsr_finally(finally_lbl),
+                Enclosing::Try {
+                    finally_lbl,
+                    finally_end,
+                    ..
+                } => self.gen_jsr_finally(finally_lbl, finally_end),
                 Enclosing::Finally { .. } => {}
             }
         }
@@ -2971,8 +3189,13 @@ impl Gen<'_> {
                 shared = Some(found);
                 break;
             }
-            if let Enclosing::Try { finally_lbl, .. } = self.enclosing[index] {
-                self.gen_jsr_finally(finally_lbl);
+            if let Enclosing::Try {
+                finally_lbl,
+                finally_end,
+                ..
+            } = self.enclosing[index]
+            {
+                self.gen_jsr_finally(finally_lbl, finally_end);
             }
         }
         // The jump goes into everything around the label from there
@@ -2998,7 +3221,12 @@ impl Gen<'_> {
         finally: Option<&Finally>,
     ) {
         let finally_lbl = finally.map(|_| self.cg.new_label());
-        self.enclosing.push(Enclosing::Try { id, finally_lbl });
+        let finally_end = finally.and_then(|finally| finally.end);
+        self.enclosing.push(Enclosing::Try {
+            id,
+            finally_lbl,
+            finally_end,
+        });
         let start_ofs = self.rel_ofs();
         if let Some(body) = body {
             self.gen_substm(body, stmt);
@@ -3011,7 +3239,7 @@ impl Gen<'_> {
                 .as_deref()
                 .is_some_and(|body| self.flow_of(body) & flow::NEXT == 0)
         });
-        self.gen_jsr_finally(finally_lbl);
+        self.gen_jsr_finally(finally_lbl, finally_end);
         let mut end_lbl = None;
         if !finally_never_returns {
             end_lbl = self.gen_jump_ahead(Op::Jmp);
@@ -3020,7 +3248,7 @@ impl Gen<'_> {
         let end_ofs = self.rel_ofs() - 1;
         for (index, catch) in catches.iter().enumerate() {
             self.gen_catch(stmt, catch, start_ofs, end_ofs);
-            self.gen_jsr_finally(finally_lbl);
+            self.gen_jsr_finally(finally_lbl, finally_end);
             if !finally_never_returns && (finally.is_some() || index + 1 < catches.len()) {
                 match end_lbl {
                     None => end_lbl = self.gen_jump_ahead(Op::Jmp),
@@ -3033,6 +3261,7 @@ impl Gen<'_> {
         self.enclosing.pop();
         if let (Some(finally), Some(finally_lbl)) = (finally, finally_lbl) {
             let end_ofs = self.rel_ofs() - 1;
+            self.add_line_rec(finally.file, finally.line);
             self.enclosing.push(Enclosing::Finally { id: finally.id });
             // First, what happens when an exception arrives: keep it,
             // run the block, and throw it again.
@@ -3045,10 +3274,11 @@ impl Gen<'_> {
             self.cg.clear_peephole();
             self.cg.note_push();
             self.gen_setlcl_stk(finally.exc_local, false);
-            self.gen_jsr_finally(Some(finally_lbl));
+            self.gen_jsr_finally(Some(finally_lbl), finally_end);
             self.gen_getlcl(finally.exc_local, false);
             self.cg.write_op(Op::Throw);
             self.cg.note_pop();
+            self.add_line_rec(finally.file, finally.line);
             // Then the block itself. It is entered with where to go
             // back to on the stack.
             self.cg.def_label(finally_lbl);
@@ -3065,6 +3295,7 @@ impl Gen<'_> {
     }
 
     fn gen_catch(&mut self, stmt: &Stmt, catch: &Catch, start_ofs: usize, end_ofs: usize) {
+        self.add_line_rec(catch.file, catch.line);
         let old_frame = self.set_local_frame(catch.symtab);
         // The class of exception caught has to be an object.
         let mut class = 0;
@@ -3173,11 +3404,15 @@ impl Gen<'_> {
         // Then the `finally` blocks around the statement run, with the
         // value put aside in a local meanwhile.
         if !self.enclosing.is_empty() {
-            let finally_lbls: Vec<Label> = self
+            let finally_lbls: Vec<(Label, Option<(usize, u32)>)> = self
                 .leaving()
                 .into_iter()
                 .filter_map(|index| match self.enclosing[index] {
-                    Enclosing::Try { finally_lbl, .. } => finally_lbl,
+                    Enclosing::Try {
+                        finally_lbl,
+                        finally_end,
+                        ..
+                    } => finally_lbl.map(|label| (label, finally_end)),
                     _ => None,
                 })
                 .collect();
@@ -3190,8 +3425,8 @@ impl Gen<'_> {
             if let Some(local) = saved {
                 self.gen_setlcl_stk(local, false);
             }
-            for label in finally_lbls {
-                self.gen_jsr_finally(Some(label));
+            for (label, end) in finally_lbls {
+                self.gen_jsr_finally(Some(label), end);
             }
             if let Some(local) = saved {
                 self.gen_getlcl(local, false);
@@ -4949,6 +5184,7 @@ impl Gen<'_> {
         let mut has_ctor = false;
         for prop in props {
             (self.cur_file, self.cur_line) = (prop.file, prop.line);
+            self.line_info = (prop.file, prop.line);
             let id = self.prog.props[prop.prop].id;
             match &prop.value {
                 // A method is bound to the object.
@@ -5157,6 +5393,10 @@ impl Gen<'_> {
             let id = self.prog.next_obj_id;
             self.prog.next_obj_id += 1;
             self.prog.metas[meta].mod_obj = Some(id);
+            // It has a name in the table of global names, as the
+            // objects `modify` sets aside do, which no source can write.
+            self.prog
+                .add_synthetic_obj(format!(" {id:x}").into_bytes(), id);
             self.out.objs.push(GenObj {
                 id,
                 is_class: false,
@@ -5317,9 +5557,11 @@ impl Gen<'_> {
             self_valid: false,
             replaced: false,
             labels: Rc::default(),
+            start: None,
             end_file: usize::MAX,
             end_line: 0,
             closure: Closure::default(),
+            stm_pos: None,
         };
         // Numbers for the bodies that no body the parser read has.
         const FIRST: usize = usize::MAX / 2;

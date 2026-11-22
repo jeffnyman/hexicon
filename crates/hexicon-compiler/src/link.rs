@@ -136,6 +136,8 @@ fn drop_dead_code(out: &mut Generated) {
             .map_or(out.code.len(), |next| next.ofs);
         if dead.contains(&index) {
             items.push((start, None));
+            out.dropped_code
+                .push((anchors.len(), out.code[start..end].to_vec()));
             continue;
         }
         anchor_map[index] = Some(anchors.len());

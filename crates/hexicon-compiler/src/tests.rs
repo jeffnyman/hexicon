@@ -3129,3 +3129,66 @@ fn a_folder_of_resources_is_the_files_in_it() {
         ["/C:./x.png"]
     );
 }
+
+fn compile_debug(sources: &[(&str, &str)]) -> Compiled {
+    let mut files = Files::default();
+    for (name, text) in sources {
+        files = files.with(name, text);
+    }
+    let names: Vec<&str> = sources.iter().map(|(name, _)| *name).collect();
+    let options = CompileOptions {
+        debug: true,
+        ..CompileOptions::default()
+    };
+    crate::compile_program(&mut files, &names, &options)
+}
+
+#[test]
+fn a_program_compiled_for_debugging_says_where_its_code_came_from() {
+    let main = "#ifdef __DEBUG\n\
+                _main(args)\n\
+                {\n    \
+                    local x = 1;\n    \
+                    x++;\n\
+                }\n\
+                #endif\n";
+    let other = "helper() { return 2; }\n";
+    let compiled = compile_debug(&[("main.t", main), ("other.t", other)]);
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    let image = compiled.image.expect("an image");
+    let u16_at = |data: &[u8], at: usize| u16::from_le_bytes([data[at], data[at + 1]]) as usize;
+    let u32_at = |data: &[u8], at: usize| u32::from_le_bytes(data[at..at + 4].try_into().unwrap());
+
+    // `_main`'s table has a line record for each statement, and one for
+    // falling off the end: its offset, the file, the line, the scope.
+    let code = code(&image);
+    let table = u16_at(code, 8);
+    assert_ne!(table, 0, "a debug table");
+    let lines: Vec<(usize, u32)> = (0..u16_at(code, table))
+        .map(|rec| {
+            let at = table + 2 + 10 * rec;
+            (u16_at(code, at + 2), u32_at(code, at + 4))
+        })
+        .collect();
+    assert_eq!(lines, [(0, 4), (0, 5), (0, 6)]);
+
+    // The source files, each module's in turn, with the address of each
+    // line that has code.
+    let srcf = block(&image, b"SRCF");
+    assert_eq!(u16_at(srcf, 0), 2);
+    let name_len = u16_at(srcf, 4 + 6);
+    assert_eq!(&srcf[4 + 8..4 + 8 + name_len], b"main.t");
+    assert_eq!(u32_at(srcf, 4 + 8 + name_len), 3, "three lines with code");
+
+    // Every function, and the global names, `__DEBUG` among the macros.
+    let mhls = block(&image, b"MHLS");
+    assert_eq!(u32_at(mhls, 0), 2);
+    let gsym = block(&image, b"GSYM");
+    assert!(gsym.windows(5).any(|w| w == b"_main"));
+    let macr = block(&image, b"MACR");
+    assert!(macr.windows(7).any(|w| w == b"__DEBUG"));
+}

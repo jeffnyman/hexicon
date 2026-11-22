@@ -2,13 +2,14 @@
 # Compile source files with Hexicon and with the reference compiler, and
 # report the files on which the two differ.
 #
-# usage: compile-compare.sh [-I dir]... [--lib] file...
+# usage: compile-compare.sh [-I dir]... [--lib] [--debug] file...
 #
 # Each file is compiled as a whole program on its own, without the
 # reference's default modules, so it needs a _main function. With
 # --lib, the system library's _main comes first, as it does for the
 # reference by default, and libraries such as system.tl are found in
-# the system library. A folder in place of a file is a program of
+# the system library. With --debug, both build for debugging (-d). A
+# folder in place of a file is a program of
 # several source files: the .t files in it, put together in the order
 # of their names; or, if it has a project file (.t3m), what that says.
 # The two
@@ -45,6 +46,10 @@ sys=("-FL" "$(native "$runner/tads3/lib")" "-FI" "$(native "$runner/tads3/includ
 nodef=(-nodef)
 if [ "$1" = --lib ]; then
   nodef=()
+  shift
+fi
+if [ "$1" = --debug ]; then
+  nodef+=(-d)
   shift
 fi
 

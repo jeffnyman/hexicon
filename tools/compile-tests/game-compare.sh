@@ -17,6 +17,7 @@
 #   ADV3LITE     the adv3Lite library (default: build/corpus/adv3lite)
 #   DITCH3_SRC   Return to Ditch Day's sources
 #                (default: ../_tads/return-to-ditch-day-src)
+#   OPTS         more options for both compilers, such as -d
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
 runner=${TADS_RUNNER:-$root/../_tads/tads-runner}
@@ -31,11 +32,11 @@ games=("$@")
 pass=0
 fail=0
 for game in "${games[@]}"; do
-  extra=()
+  extra=(${OPTS:-})
   case "$game" in
     airport)
       src=${AIRPORT_SRC:-$root/build/corpus/airport}
-      extra=(-Fs "$(native "${ADV3LITE:-$root/build/corpus/adv3lite}")");;
+      extra+=(-Fs "$(native "${ADV3LITE:-$root/build/corpus/adv3lite}")");;
     ditch3) src=${DITCH3_SRC:-$root/../_tads/return-to-ditch-day-src};;
     *) echo "unknown game: $game"; fail=$((fail + 1)); continue;;
   esac

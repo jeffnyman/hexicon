@@ -30,6 +30,9 @@ pub struct CompileOptions {
     /// a source is named as it is given, and numbered by its place in
     /// the list.
     pub module_names: Vec<(String, usize)>,
+    /// Compile for debugging (`-d`): `__DEBUG` is defined, and the image
+    /// says where in the source each statement's code came from.
+    pub debug: bool,
 }
 
 impl Default for CompileOptions {
@@ -42,6 +45,7 @@ impl Default for CompileOptions {
             timestamp: *b"Thu Jan  1 00:00:00 1970",
             source_text_group: false,
             module_names: Vec::new(),
+            debug: false,
         }
     }
 }
@@ -115,15 +119,63 @@ fn predefined_macros(options: &CompileOptions) -> Vec<(String, String)> {
             format!("'{} {} {}'", part(4..7), part(8..10), part(20..24)),
         ),
         ("__TIME__".to_owned(), format!("'{}'", part(11..19))),
+    ];
+    if options.debug {
+        macros.push(("__DEBUG".to_owned(), "1".to_owned()));
+    }
+    macros.extend([
         (format!("__TADS_SYS_{SYSTEM_NAME}"), "1".to_owned()),
         ("__TADS_SYSTEM_NAME".to_owned(), format!("'{SYSTEM_NAME}'")),
         ("__TADS_VERSION_MAJOR".to_owned(), "3".to_owned()),
         ("__TADS_VERSION_MINOR".to_owned(), "1".to_owned()),
         ("__TADS_MACRO_FORMAT_VERSION".to_owned(), "1".to_owned()),
         ("__TADS3".to_owned(), "1".to_owned()),
-    ];
+    ]);
     macros.extend(options.defines.iter().cloned());
     macros
+}
+
+/// The table of macros the reference has when it puts the program
+/// together, and the names it undefined on the way.
+struct MacroTable {
+    /// The macros, each with whether it is one the preprocessor works
+    /// out as it goes, which are `__LINE__` and `__FILE__`.
+    macros: Vec<(LinkMacro, bool)>,
+    undefined: std::collections::HashSet<Vec<u8>>,
+}
+
+/// The macros as the `MACR` block has them, for the debugger: those
+/// that mean the same throughout, which are those never undefined, but
+/// for `__LINE__` and `__FILE__`. Each is its name, its flags, its
+/// parameters, and its expansion. Also where in it the date and time of
+/// the compilation are, which mean nothing to a comparison of images.
+fn debug_macros(table: &MacroTable) -> (Vec<u8>, Vec<(usize, usize)>) {
+    let mut count = 0u32;
+    let mut out = Vec::new();
+    let mut clock = Vec::new();
+    for (mac, pseudo) in &table.macros {
+        if *pseudo || table.undefined.contains(&mac.name) {
+            continue;
+        }
+        count += 1;
+        out.extend_from_slice(&(mac.name.len() as u16).to_le_bytes());
+        out.extend_from_slice(&mac.name);
+        let flags = u16::from(mac.has_args) | u16::from(mac.has_varargs) << 1;
+        out.extend_from_slice(&flags.to_le_bytes());
+        out.extend_from_slice(&(mac.params.len() as u16).to_le_bytes());
+        for param in &mac.params {
+            out.extend_from_slice(&(param.len() as u16).to_le_bytes());
+            out.extend_from_slice(param);
+        }
+        out.extend_from_slice(&(mac.expansion.len() as u32).to_le_bytes());
+        if matches!(mac.name.as_slice(), b"__DATE__" | b"__TIME__") {
+            clock.push((4 + out.len(), mac.expansion.len()));
+        }
+        out.extend_from_slice(&mac.expansion);
+    }
+    let mut block = count.to_le_bytes().to_vec();
+    block.extend_from_slice(&out);
+    (block, clock)
 }
 
 /// The table of macros as the reference has it when it puts the program
@@ -131,7 +183,7 @@ fn predefined_macros(options: &CompileOptions) -> Vec<(String, String)> {
 /// macro two modules define differently is in neither, unless a later
 /// module defines it again. `__LINE__` and `__FILE__` are in the table,
 /// as `0` and nothing, as they are when no source is being read.
-fn link_macros(options: &CompileOptions, modules: Vec<Vec<LinkMacro>>) -> Vec<LinkMacro> {
+fn link_macro_table(options: &CompileOptions, modules: Vec<Vec<LinkMacro>>) -> MacroTable {
     struct Entry {
         mac: LinkMacro,
         pseudo: bool,
@@ -155,8 +207,10 @@ fn link_macros(options: &CompileOptions, modules: Vec<Vec<LinkMacro>>) -> Vec<Li
     for (name, expansion) in predefined_macros(options) {
         add(&mut table, plain(&name, &expansion), false);
     }
+    let mut undefined = std::collections::HashSet::new();
     for name in &options.undefines {
         table.retain(|entry| entry.pseudo || entry.mac.name != name.as_bytes());
+        undefined.insert(name.as_bytes().to_vec());
     }
     for module in modules {
         for mac in module {
@@ -164,6 +218,7 @@ fn link_macros(options: &CompileOptions, modules: Vec<Vec<LinkMacro>>) -> Vec<Li
                 Some(at) => {
                     let entry = &table[at];
                     if !entry.pseudo && entry.mac != mac {
+                        undefined.insert(mac.name.clone());
                         table.remove(at);
                     }
                 }
@@ -177,7 +232,13 @@ fn link_macros(options: &CompileOptions, modules: Vec<Vec<LinkMacro>>) -> Vec<Li
             std::cmp::Reverse(entry.seq),
         )
     });
-    table.into_iter().map(|entry| entry.mac).collect()
+    MacroTable {
+        macros: table
+            .into_iter()
+            .map(|entry| (entry.mac, entry.pseudo))
+            .collect(),
+        undefined,
+    }
 }
 
 /// Four bytes in the image's header that are the compiler's to use.
@@ -263,6 +324,10 @@ pub fn compile_program(
 
     let mut modules = Vec::new();
     let mut module_macros = Vec::new();
+    // The source files of all the modules, in order: each module's
+    // files are numbered after those of the modules before it, a file
+    // that two modules read once for each.
+    let mut source_files: Vec<String> = Vec::new();
     for (index, source) in sources.iter().enumerate() {
         let module = options
             .module_names
@@ -285,7 +350,8 @@ pub fn compile_program(
             return compiled;
         }
 
-        let mut generated = emit::generate(&mut prog);
+        let mut generated = emit::generate(&mut prog, options.debug, source_files.len());
+        source_files.extend(pp.file_names());
         for diagnostic in std::mem::take(&mut generated.diagnostics) {
             // A problem that is nowhere in particular has no file. Nor
             // has one found before any statement was come to.
@@ -365,8 +431,12 @@ pub fn compile_program(
         );
         return compiled;
     }
-    for (severity, message) in emit::resolve_exports(&prog, &mut generated) {
+    let exports = emit::resolve_exports(&prog, &mut generated);
+    for (severity, message) in exports.problems {
         note(&mut compiled, severity, message);
+    }
+    for (name, id) in exports.assumed_props {
+        prog.add_assumed_prop(name, id);
     }
     if has_errors(&compiled.diagnostics) {
         return compiled;
@@ -380,10 +450,26 @@ pub fn compile_program(
         return compiled;
     }
 
-    match image::write_image(&prog, generated, &options.timestamp, &TOOL_DATA) {
+    let table = link_macro_table(options, module_macros);
+    let debug = options.debug.then(|| {
+        let (macros, macros_unspecified) = debug_macros(&table);
+        image::DebugRecords {
+            files: source_files,
+            enum_ids: enum_ids.clone(),
+            macros,
+            macros_unspecified,
+        }
+    });
+    match image::write_image(
+        &prog,
+        generated,
+        &options.timestamp,
+        &TOOL_DATA,
+        debug.as_ref(),
+    ) {
         Ok(image) => {
             compiled.symbols = runtime_symbols(&prog, &enum_ids, &image.func_addrs);
-            compiled.macros = link_macros(options, module_macros);
+            compiled.macros = table.macros.into_iter().map(|(mac, _)| mac).collect();
             compiled.image = Some(image.bytes);
             compiled.unspecified = image.unspecified;
         }
