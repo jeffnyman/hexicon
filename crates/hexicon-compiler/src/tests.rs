@@ -3276,3 +3276,63 @@ fn code_is_compiled_while_a_program_runs() {
         "the call's object, read and then set"
     );
 }
+
+#[test]
+fn grammar_rules_are_compiled_while_a_program_runs() {
+    use crate::dynamic::{
+        DynContext, DynGramAlt, DynGramMatch, DynGramTok, DynObjKind, DynSymbol, compile_grammar,
+    };
+    let context = DynContext {
+        symbols: vec![
+            (
+                b"atom".to_vec(),
+                DynSymbol::Object {
+                    id: 30,
+                    kind: DynObjKind::GrammarProd,
+                },
+            ),
+            (b"t1".to_vec(), DynSymbol::Property(50)),
+            (b"tokInt".to_vec(), DynSymbol::Enum(4)),
+        ],
+        ..DynContext::default()
+    };
+
+    // Two alternatives, by '|' and by a group; words, productions,
+    // kinds of token, and properties to keep what they match in.
+    let alts = compile_grammar(b"atom->t1 ('x' | tokInt) | [badness 5] 'y'", &context)
+        .expect("it compiles");
+    let tok = |prop, kind| DynGramTok { prop, kind };
+    assert_eq!(
+        alts,
+        vec![
+            DynGramAlt {
+                badness: 0,
+                toks: vec![
+                    tok(50, DynGramMatch::Prod(30)),
+                    tok(0, DynGramMatch::Literal(b"x".to_vec())),
+                ],
+            },
+            DynGramAlt {
+                badness: 0,
+                toks: vec![
+                    tok(50, DynGramMatch::Prod(30)),
+                    tok(0, DynGramMatch::TokType(4))
+                ],
+            },
+            DynGramAlt {
+                badness: 5,
+                toks: vec![tok(0, DynGramMatch::Literal(b"y".to_vec()))],
+            },
+        ]
+    );
+
+    // As in the reference, '*' has to be followed by '|' or ':', so it
+    // cannot end such a rule.
+    assert!(compile_grammar(b"atom *", &context).is_err());
+
+    // A production the program does not have.
+    assert_eq!(
+        compile_grammar(b"nothing->t1", &context),
+        Err("error: undefined symbol \"nothing\"".to_owned())
+    );
+}

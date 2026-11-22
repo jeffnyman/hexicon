@@ -822,6 +822,33 @@ impl Vm {
         Ok(props)
     }
 
+    /// Put an entry in a dictionary, as `addWord` does.
+    pub(crate) fn dict_add_word(
+        &mut self,
+        dict: ObjId,
+        text: &[u8],
+        object: ObjId,
+        prop: PropId,
+    ) -> VmResult<()> {
+        let comparator = self.comparator_of(self.dict(dict)?.comparator);
+        let hash = self.word_hash(&comparator, None, text)?;
+        // A new word is hashed again to be put in, which a comparator
+        // the program wrote sees.
+        if matches!(comparator, Comparator::Program(_))
+            && !self
+                .dict(dict)?
+                .candidates(hash)
+                .iter()
+                .any(|word| word.text == text)
+        {
+            self.word_hash(&comparator, None, text)?;
+        }
+        let dictionary = self.dict_mut(dict)?;
+        dictionary.add(hash, text, object, prop);
+        dictionary.modified = true;
+        Ok(())
+    }
+
     /// Take an entry out of a dictionary.
     pub(crate) fn dict_remove_word(
         &mut self,

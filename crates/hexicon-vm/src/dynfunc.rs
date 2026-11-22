@@ -266,7 +266,7 @@ impl Vm {
 
     /// The exception a compilation that failed throws: the program's
     /// `CompilerException`, with the compiler's messages.
-    fn throw_compiler_error(&mut self, message: &str) -> VmError {
+    pub(crate) fn throw_compiler_error(&mut self, message: &str) -> VmError {
         let class = self.predef.compiler_exc;
         if !class.is_valid() {
             return self.throw_class(class, "code compilation failed");
@@ -316,7 +316,7 @@ impl Vm {
 
     /// What code is compiled against: the global names in a table of
     /// them, the macros in a table of them, and the image's classes.
-    fn dyn_context(&self, globals: Option<ObjId>, macros: Option<ObjId>) -> DynContext {
+    pub(crate) fn dyn_context(&self, globals: Option<ObjId>, macros: Option<ObjId>) -> DynContext {
         let mut context = DynContext::default();
         for index in 0..self.meta.len() {
             if let Some(entry) = self.meta.get(index) {

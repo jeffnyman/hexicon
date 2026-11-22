@@ -1890,6 +1890,16 @@ impl<'p, 'a> Parser<'p, 'a> {
         (self.prog, Some(is_method))
     }
 
+    /// Read the rules of a grammar production the dynamic compiler is
+    /// given: alternatives as a `grammar` statement has them before its
+    /// colon, which end with the source.
+    pub(crate) fn parse_dynamic_grammar(mut self) -> (Program, Option<Vec<GramAlt>>) {
+        self.next();
+        let mut arrows = Vec::new();
+        let alts = self.parse_gram_alts(None, &mut arrows).ok();
+        (self.prog, alts)
+    }
+
     /// An expression read as the dynamic compiler reads one: as a
     /// function of no parameters that returns its value.
     fn parse_dynamic_expr(&mut self) -> Option<CodeBody> {
@@ -6869,6 +6879,12 @@ impl Parser<'_, '_> {
     /// Find the grammar production a name is, or make it one. Nothing
     /// comes back if the name is something else.
     fn declare_gramprod(&mut self, name: &[u8]) -> Option<usize> {
+        // A rule compiled while the program runs can only name the
+        // productions the program has.
+        if self.prog.dynamic.is_some() {
+            self.error(format!("undefined symbol \"{}\"", show_name(name)));
+            return None;
+        }
         let obj = match self.prog.globals.get(name).copied() {
             None => {
                 self.prog.objs.push(ObjSym {
@@ -7217,7 +7233,9 @@ impl Parser<'_, '_> {
                         }
                         Some(Global::Prop(prop)) => Some(GramTokKind::Speech(prop)),
                         Some(Global::Enum(sym)) => {
-                            if !self.prog.enums[sym].is_token {
+                            // The running program's names do not say
+                            // which values are kinds of token.
+                            if !self.prog.enums[sym].is_token && self.prog.dynamic.is_none() {
                                 self.error_curtok(
                                     "enumerator \"%\" in 'grammar' list is not declared \
                                      with 'enum token'",
@@ -7252,6 +7270,9 @@ impl Parser<'_, '_> {
                     }
                     continue;
                 }
+                // Rules compiled while the program runs end with the
+                // source.
+                Tok::Eof if self.prog.dynamic.is_some() => return Ok(alts),
                 Tok::Eof => {
                     self.error_curtok(INVAL_TOK);
                     return Err(Stop);

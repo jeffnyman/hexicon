@@ -349,9 +349,7 @@ impl Vm {
         self.native_method(argc, desc, |vm, argc| match index {
             1 => vm.gram_parse(id, argc),
             2 => vm.gram_info(id),
-            3 => Err(VmError::unimplemented(
-                "GrammarProd.addAlt, which compiles a grammar rule",
-            )),
+            3 => vm.gram_add(id, argc),
             _ => vm.gram_delete(id, index, argc),
         })
         .map(Some)
@@ -1078,6 +1076,81 @@ impl Vm {
         production.alts = Rc::new(remaining);
         production.modified = true;
         production.hashes = None;
+        Ok(Value::Obj(id))
+    }
+
+    /// `addAlt(rules, matchObj, dict?, symtab?)`: compile rules and add
+    /// them to the production, each made with the match object given.
+    /// The rule's words go in the dictionary, and the names in it are
+    /// the symbol table's.
+    fn gram_add(&mut self, id: ObjId, argc: u32) -> VmResult<Value> {
+        use hexicon_compiler::dynamic::{DynGramMatch, compile_grammar};
+        let Some(source) = self.as_str(self.arg(0)) else {
+            return Err(VmError::new(code::STRING_VAL_REQD));
+        };
+        let source = source.to_vec();
+        let class = match self.arg(1) {
+            Value::Obj(class) if matches!(self.objects.get(class), Some(Object::Tads(_))) => class,
+            _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
+        };
+        let dict = match if argc >= 3 { self.arg(2) } else { Value::Nil } {
+            Value::Nil => None,
+            Value::Obj(dict) if matches!(self.objects.get(dict), Some(Object::Dict(_))) => {
+                Some(dict)
+            }
+            _ => return Err(VmError::new(code::INVAL_OBJ_TYPE)),
+        };
+        let symtab = match if argc >= 4 { self.arg(3) } else { Value::Nil } {
+            Value::Nil => None,
+            Value::Obj(table) => Some(table),
+            _ => return Err(VmError::new(code::OBJ_VAL_REQD)),
+        };
+        let context = self.dyn_context(symtab, None);
+        let compiled = match compile_grammar(&source, &context) {
+            Ok(compiled) => compiled,
+            Err(message) => return Err(self.throw_compiler_error(&message)),
+        };
+        let misc_vocab = self.predef.gram_misc_vocab;
+        for alt in compiled {
+            let mut tokens = Vec::with_capacity(alt.toks.len());
+            for tok in alt.toks {
+                let kind = match tok.kind {
+                    DynGramMatch::Literal(text) => {
+                        if let (Some(dict), true) = (dict, misc_vocab != INVALID_PROP) {
+                            self.dict_add_word(dict, &text, id, misc_vocab)?;
+                        }
+                        TokenMatch::Literal(text)
+                    }
+                    DynGramMatch::Speech(prop) => TokenMatch::Speech(prop),
+                    DynGramMatch::SpeechList(props) => TokenMatch::AnySpeech(props),
+                    DynGramMatch::Prod(obj) => TokenMatch::Production(ObjId(obj)),
+                    DynGramMatch::TokType(value) => TokenMatch::TokenType(value),
+                    DynGramMatch::Star => TokenMatch::Star,
+                };
+                tokens.push(AltToken {
+                    prop: if tok.prop == 0 {
+                        INVALID_PROP
+                    } else {
+                        tok.prop
+                    },
+                    kind,
+                });
+            }
+            let production = self.gram_mut(id)?;
+            Rc::make_mut(&mut production.alts).push(Alt {
+                score: 0,
+                badness: alt.badness,
+                match_class: class,
+                tokens,
+            });
+            production.modified = true;
+            production.hashes = None;
+        }
+        // The match object's list of the properties its alternatives
+        // fill.
+        let alts = self.gram(id)?.alts.clone();
+        let marked = vec![false; alts.len()];
+        self.build_alt_props(&alts, &marked, class)?;
         Ok(Value::Obj(id))
     }
 

@@ -161,6 +161,118 @@ pub struct DynCompiled {
     pub ctx_use: DynCtxUse,
 }
 
+/// One way a phrase of a grammar production can be made up, as a rule
+/// compiled while the program runs gives it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynGramAlt {
+    /// How much worse than another it is (`[badness 50]`).
+    pub badness: i16,
+    /// The things to match, in order.
+    pub toks: Vec<DynGramTok>,
+}
+
+/// One thing to match in a rule, and the property the match goes in, or
+/// 0.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynGramTok {
+    /// The property of the match object that gets what this matched.
+    pub prop: u16,
+    /// What it matches.
+    pub kind: DynGramMatch,
+}
+
+/// What one thing in a rule matches.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DynGramMatch {
+    /// A word, as it is written.
+    Literal(Vec<u8>),
+    /// Any word the dictionary has for a property.
+    Speech(u16),
+    /// Any word the dictionary has for one of several properties.
+    SpeechList(Vec<u16>),
+    /// A phrase of another production: its object.
+    Prod(u32),
+    /// A token of a kind: its enumerator.
+    TokType(u32),
+    /// Whatever is left of the input.
+    Star,
+}
+
+/// Compile the rules of a grammar production, as `GrammarProd.addAlt`
+/// gives them: alternatives as a `grammar` statement has them before its
+/// colon, against the program's global names. The error messages, if it
+/// cannot, a line each.
+pub fn compile_grammar(source: &[u8], context: &DynContext) -> Result<Vec<DynGramAlt>, String> {
+    use crate::parse::GramTokKind;
+    let mut files = OneSource { text: source };
+    let mut pp = crate::pp::Preprocessor::new(&mut files);
+    pp.set_default_charset("utf-8");
+    if !pp.set_source(SOURCE_NAME) {
+        return Err("error: unable to read the source".to_owned());
+    }
+    pp.set_compile_mode();
+    let parser = crate::parse::Parser::new_dynamic(&mut pp, context);
+    let (prog, alts) = parser.parse_dynamic_grammar();
+    let mut messages: Vec<String> = pp
+        .take_diagnostics()
+        .into_iter()
+        .filter(|d| {
+            matches!(
+                d.severity,
+                Severity::Error | Severity::Fatal | Severity::Internal
+            )
+        })
+        .map(|d| format!("error: {}", d.message))
+        .collect();
+    let known = prog
+        .dynamic
+        .as_ref()
+        .map_or(0, |dynamic| dynamic.known_props);
+    for prop in &prog.props[known..] {
+        messages.push(format!(
+            "error: undefined symbol \"{}\"",
+            crate::pp::show_name(&prop.name)
+        ));
+    }
+    let Some(alts) = alts else {
+        return Err(messages.join("\n"));
+    };
+    if !messages.is_empty() {
+        return Err(messages.join("\n"));
+    }
+    let enum_ids = prog
+        .dynamic
+        .as_ref()
+        .map(|dynamic| dynamic.enum_ids.clone())
+        .unwrap_or_default();
+    let prop_id = |prop: usize| prog.props[prop].id;
+    Ok(alts
+        .into_iter()
+        .map(|alt| DynGramAlt {
+            badness: alt.badness as i16,
+            toks: alt
+                .toks
+                .into_iter()
+                .map(|tok| DynGramTok {
+                    prop: tok.prop.map_or(0, prop_id),
+                    kind: match tok.kind {
+                        GramTokKind::Literal(text) => DynGramMatch::Literal(text),
+                        GramTokKind::Speech(prop) => DynGramMatch::Speech(prop_id(prop)),
+                        GramTokKind::SpeechList(props) => {
+                            DynGramMatch::SpeechList(props.into_iter().map(prop_id).collect())
+                        }
+                        GramTokKind::Prod(obj) => DynGramMatch::Prod(prog.objs[obj].id),
+                        GramTokKind::TokType(sym) => {
+                            DynGramMatch::TokType(enum_ids.get(sym).copied().unwrap_or(0))
+                        }
+                        GramTokKind::Star => DynGramMatch::Star,
+                    },
+                })
+                .collect(),
+        })
+        .collect())
+}
+
 /// A value the compiler gives a property of an object it has the
 /// program make.
 #[derive(Debug, Clone)]
