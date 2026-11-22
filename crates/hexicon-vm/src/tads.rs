@@ -389,8 +389,36 @@ impl<'a> Search<'a> {
 }
 
 /// Find a property on an object or its superclasses.
+///
+/// For an object with one superclass, by far the most common case, what
+/// the superclass gives is looked up once and remembered: see
+/// [`ObjectTable::cached_lookup`].
 pub fn find_prop(table: &ObjectTable, object: ObjId, prop: PropId) -> Option<(Value, ObjId)> {
-    Search::new(table, object).find(prop)
+    let tads = table.tads(object)?;
+    if let Some(value) = tads.get(prop) {
+        return Some((value, object));
+    }
+    match tads.superclasses.as_slice() {
+        [] => None,
+        &[superclass] => {
+            table.tads(superclass)?;
+            table.cached_lookup(superclass, prop, || find_prop(table, superclass, prop))
+        }
+        _ => Search::new(table, object).find(prop),
+    }
+}
+
+/// The objects a lookup from an object depends on: it and everything it
+/// inherits from.
+pub(crate) fn lookup_deps(table: &ObjectTable, object: ObjId) -> Vec<ObjId> {
+    let mut deps = Vec::new();
+    let mut search = Search::new(table, object);
+    loop {
+        deps.push(search.current);
+        if !search.advance() {
+            return deps;
+        }
+    }
 }
 
 /// Find the definition of a property that the one in `definer` overrides,

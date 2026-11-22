@@ -611,6 +611,7 @@ impl Formatter {
 
     /// Format text a program displayed.
     pub(crate) fn format_text(&mut self, text: &[u8]) {
+        prof_scope!(crate::prof::CONSOLE);
         let mut source = Source {
             chars: String::from_utf8_lossy(text).chars().collect(),
             pos: 0,

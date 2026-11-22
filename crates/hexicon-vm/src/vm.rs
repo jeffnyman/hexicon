@@ -391,6 +391,9 @@ pub struct Vm {
     pub(crate) in_gc: bool,
     /// The most recent regular expression match.
     pub(crate) last_match: crate::string::LastMatch,
+    /// Patterns given as strings, compiled, by their text. Compiling a
+    /// pattern always gives the same result, so one is compiled once.
+    pub(crate) pattern_cache: std::collections::HashMap<Vec<u8>, Rc<crate::regex::Pattern>>,
     /// Report each VM error on standard error as it is raised.
     pub(crate) trace_errors: bool,
     /// Formats what the program displays into lines for the host.
@@ -480,6 +483,7 @@ impl Vm {
     /// the collector last ran, it runs first, as in the reference VM:
     /// at the creation, with what is reachable then.
     pub(crate) fn alloc_obj(&mut self, object: Object) -> ObjId {
+        prof_scope!(crate::prof::ALLOC);
         if self.objects.gc_due() && !self.in_gc {
             // What the new object refers to is in use, though the object
             // is not in the table yet.

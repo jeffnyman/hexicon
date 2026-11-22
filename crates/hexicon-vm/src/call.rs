@@ -58,6 +58,7 @@ impl Vm {
         return_pc: u32,
         native: Option<Box<NativeCall>>,
     ) -> VmResult<u32> {
+        prof_scope!(crate::prof::CALL);
         self.r0 = Value::Nil;
         let header = self.function_header(func)?;
         self.check_stack(header.stack_depth as usize + crate::vm::FRAME_OVERHEAD)?;
@@ -93,6 +94,7 @@ impl Vm {
     /// Leave the current function. Returns the address to continue at, or
     /// `None` if the function was called by the VM itself.
     pub(crate) fn pop_frame(&mut self) -> Option<u32> {
+        prof_scope!(crate::prof::RETURN);
         // A reference to the call keeps its variables from now on.
         if let Some(id) = self.frames.last()?.frame_ref {
             self.snapshot_frame(id);

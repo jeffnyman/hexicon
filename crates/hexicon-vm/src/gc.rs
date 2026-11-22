@@ -83,6 +83,7 @@ impl Vm {
     /// references of an object about to be created, which is not in the
     /// table yet.
     pub(crate) fn collect_garbage_keeping(&mut self, automatic: bool, keep: Vec<Value>) {
+        prof_scope!(crate::prof::GC);
         if self.in_gc {
             return;
         }

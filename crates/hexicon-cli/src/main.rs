@@ -674,6 +674,8 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
     let mut args = vec![name];
     args.extend(program_args.iter().map(|arg| (*arg).to_owned()));
     let result = vm.run(&args);
+    #[cfg(feature = "profile")]
+    hexicon_vm::prof::report();
     let code = match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {

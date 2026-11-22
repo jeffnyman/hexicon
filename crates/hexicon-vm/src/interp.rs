@@ -34,6 +34,7 @@ impl Vm {
     /// Execute instructions from `start_pc` until the function that is on
     /// top of the frame stack at entry returns.
     pub(crate) fn execute(&mut self, start_pc: u32) -> VmResult<()> {
+        prof_scope!(crate::prof::INTERP);
         let mut pc = start_pc as usize;
         let mut base = self.frames.last().map_or(0, |f| f.base as usize);
         // An argument count supplied by a `varargc` prefix.
@@ -228,6 +229,8 @@ impl Vm {
                 let Some(opcode) = Opcode::from_byte(byte) else {
                     return Err(VmError::new(code::INVALID_OPCODE));
                 };
+                #[cfg(feature = "profile")]
+                crate::prof::OP.store(byte.into(), std::sync::atomic::Ordering::Relaxed);
                 pc += 1;
                 match opcode {
                     // ---- pushing constants ----

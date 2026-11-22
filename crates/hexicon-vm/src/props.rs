@@ -56,6 +56,7 @@ impl Vm {
         prop: PropId,
         mut argc: Option<&mut u32>,
     ) -> VmResult<Found> {
+        prof_scope!(crate::prof::GET_PROP);
         let kind = match self.objects.get(id) {
             None => return Err(VmError::new(code::NIL_DEREF)),
             Some(Object::Tads(_)) => MetaKind::TadsObject,
@@ -111,6 +112,7 @@ impl Vm {
         index: u16,
         argc: Option<&mut u32>,
     ) -> VmResult<Option<Value>> {
+        prof_scope!(crate::prof::NATIVE + ((kind as u32) << 8) + u32::from(index));
         match kind {
             MetaKind::TadsObject => self.tads_method(self_value.obj_id(), index, argc),
             MetaKind::String => self.string_method(self_value, index, argc),
@@ -412,7 +414,8 @@ impl Vm {
 
     /// Set a property of an object.
     pub(crate) fn set_prop(&mut self, id: ObjId, prop: PropId, value: Value) -> VmResult<()> {
-        match self.objects.get_mut(id) {
+        prof_scope!(crate::prof::SET_PROP);
+        match self.objects.get_mut_for_prop(id, prop) {
             None => Err(VmError::new(code::NIL_DEREF)),
             Some(Object::Tads(object) | Object::IntClassMod(object)) => {
                 object.set(prop, value);

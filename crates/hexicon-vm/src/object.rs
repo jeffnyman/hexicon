@@ -147,6 +147,9 @@ struct Slot {
     mark: Mark,
     /// The object's state as loaded from the image is already kept.
     pristine: bool,
+    /// A remembered property lookup depends on the object: changing it
+    /// forgets them all.
+    lookup_dep: std::cell::Cell<bool>,
     /// For a vector, how many elements it has room for. The reference
     /// VM grows a vector by its own rules and writes the room it has
     /// to saved states and images.
@@ -180,6 +183,45 @@ enum Mark {
 /// The collector runs after this many objects have been created.
 const ALLOCS_BETWEEN_GC: i32 = 10_000;
 
+/// Remembered property lookups, by object and property. The keys are
+/// small numbers, so they are their own hash.
+type LookupCache = std::collections::HashMap<
+    crate::value::PropId,
+    std::collections::HashMap<u32, Option<(Value, ObjId)>, IdHash>,
+    IdHash,
+>;
+
+/// A hasher for keys that are already well spread.
+#[derive(Debug, Clone, Copy, Default)]
+struct IdHash;
+
+impl std::hash::BuildHasher for IdHash {
+    type Hasher = IdHasher;
+    fn build_hasher(&self) -> IdHasher {
+        IdHasher(0)
+    }
+}
+
+/// See [`IdHash`].
+#[derive(Debug, Default)]
+struct IdHasher(u64);
+
+impl std::hash::Hasher for IdHasher {
+    fn finish(&self) -> u64 {
+        // Spread the bits, so that consecutive objects and properties
+        // land in different buckets.
+        self.0.wrapping_mul(0x9E37_79B9_7F4A_7C15)
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 = (self.0 << 8) | u64::from(b);
+        }
+    }
+    fn write_u64(&mut self, n: u64) {
+        self.0 = n;
+    }
+}
+
 /// The most savepoints kept. Making another drops the oldest.
 const MAX_SAVEPOINTS: usize = 255;
 
@@ -194,6 +236,16 @@ pub struct ObjectTable {
     /// For each savepoint, oldest first, the objects changed since it
     /// was made, each as it was at that moment.
     savepoints: std::collections::VecDeque<Vec<(u32, Object)>>,
+    /// The objects the states in the savepoints refer to, each with how
+    /// many references there are to it. They are roots for the
+    /// collector; counting them as the states come and go spares it
+    /// walking every state each time.
+    saved_refs: std::collections::HashMap<u32, u32>,
+    /// Property lookups through superclasses, remembered: by the object
+    /// the lookup starts at and the property, what it found.
+    lookups: std::cell::RefCell<LookupCache>,
+    /// The objects the remembered lookups depend on.
+    lookup_deps: std::cell::RefCell<Vec<u32>>,
     /// How many objects have ever been created.
     serial: u32,
     /// How many have been created since the collector last ran.
@@ -236,9 +288,75 @@ impl ObjectTable {
             .collect()
     }
 
+    /// A property lookup from an object, remembered, or made with `look`
+    /// and remembered.
+    pub fn cached_lookup(
+        &self,
+        object: ObjId,
+        prop: crate::value::PropId,
+        look: impl FnOnce() -> Option<(Value, ObjId)>,
+    ) -> Option<(Value, ObjId)> {
+        if let Some(&found) = self
+            .lookups
+            .borrow()
+            .get(&prop)
+            .and_then(|by_object| by_object.get(&object.0))
+        {
+            return found;
+        }
+        let found = look();
+        for dep in crate::tads::lookup_deps(self, object) {
+            if let Some(slot) = self.slots.get(dep.0 as usize)
+                && !slot.lookup_dep.replace(true)
+            {
+                self.lookup_deps.borrow_mut().push(dep.0);
+            }
+        }
+        self.lookups
+            .borrow_mut()
+            .entry(prop)
+            .or_default()
+            .insert(object.0, found);
+        found
+    }
+
+    /// Forget the remembered lookups, if any depend on an object.
+    fn changed(&self, id: u32) {
+        if self
+            .slots
+            .get(id as usize)
+            .is_some_and(|slot| slot.lookup_dep.get())
+        {
+            self.forget_lookups();
+        }
+    }
+
+    /// Forget the remembered lookups of a property, if any depend on an
+    /// object: setting the property on it changes nothing else.
+    fn changed_prop(&self, id: u32, prop: crate::value::PropId) {
+        if self
+            .slots
+            .get(id as usize)
+            .is_some_and(|slot| slot.lookup_dep.get())
+        {
+            self.lookups.borrow_mut().remove(&prop);
+        }
+    }
+
+    /// Forget every remembered lookup.
+    fn forget_lookups(&self) {
+        self.lookups.borrow_mut().clear();
+        for id in self.lookup_deps.borrow_mut().drain(..) {
+            if let Some(slot) = self.slots.get(id as usize) {
+                slot.lookup_dep.set(false);
+            }
+        }
+    }
+
     /// Put another object in an object's place, without it counting as
     /// a change to the object.
     pub fn replace(&mut self, id: ObjId, object: Object) {
+        self.changed(id.0);
         if let Some(slot) = self.slots.get_mut(id.0 as usize) {
             if slot.object.is_some() {
                 slot.object = Some(object);
@@ -286,6 +404,7 @@ impl ObjectTable {
                 finalize: Finalize::Done,
                 mark: Mark::Unreachable,
                 pristine: false,
+                lookup_dep: std::cell::Cell::new(false),
                 vec_alloc: 0,
                 vec_cell: 0,
             };
@@ -365,6 +484,7 @@ impl ObjectTable {
         if self.slots[id.0 as usize].object.is_some() {
             return false;
         }
+        self.forget_lookups();
         self.unlink(id.0);
         let slot = &mut self.slots[id.0 as usize];
         slot.vec_alloc = vec_len(&object);
@@ -391,6 +511,23 @@ impl ObjectTable {
     /// into the savepoint, which is what makes every kind of change to
     /// every kind of object undoable.
     pub fn get_mut(&mut self, id: ObjId) -> Option<&mut Object> {
+        self.changed(id.0);
+        self.get_mut_tracked(id)
+    }
+
+    /// The object with an ID, to set one property of. Only what is
+    /// remembered of that property's lookups is forgotten.
+    pub fn get_mut_for_prop(
+        &mut self,
+        id: ObjId,
+        prop: crate::value::PropId,
+    ) -> Option<&mut Object> {
+        self.changed_prop(id.0, prop);
+        self.get_mut_tracked(id)
+    }
+
+    /// The object with an ID, for modification, its state kept for undo.
+    fn get_mut_tracked(&mut self, id: ObjId) -> Option<&mut Object> {
         let slot = self.slots.get_mut(id.0 as usize)?;
         if slot.in_root_set && !slot.pristine && self.track_image_state {
             if let Some(object) = &slot.object {
@@ -400,11 +537,12 @@ impl ObjectTable {
         }
         if slot.in_undo && !slot.saved && !slot.transient {
             if let (Some(changes), Some(object)) = (self.savepoints.back_mut(), &slot.object) {
+                count_refs(&mut self.saved_refs, object, true);
                 changes.push((id.0, object.clone()));
                 slot.saved = true;
             }
         }
-        slot.object.as_mut()
+        self.slots[id.0 as usize].object.as_mut()
     }
 
     /// Start tracking changes to every object now in the table.
@@ -419,8 +557,13 @@ impl ObjectTable {
 
     /// Make a savepoint: a state `undo` can return to.
     pub fn savepoint(&mut self) {
-        if self.savepoints.len() == MAX_SAVEPOINTS {
-            self.savepoints.pop_front();
+        prof_scope!(crate::prof::UNDO);
+        if self.savepoints.len() == MAX_SAVEPOINTS
+            && let Some(changes) = self.savepoints.pop_front()
+        {
+            for (_, object) in &changes {
+                count_refs(&mut self.saved_refs, object, false);
+            }
         }
         self.savepoints.push_back(Vec::new());
         self.track_all();
@@ -429,9 +572,14 @@ impl ObjectTable {
     /// Return every object to its state at the latest savepoint, and
     /// forget that savepoint. Returns false if there is none.
     pub fn undo(&mut self) -> bool {
+        prof_scope!(crate::prof::UNDO);
         let Some(changes) = self.savepoints.pop_back() else {
             return false;
         };
+        self.forget_lookups();
+        for (_, object) in &changes {
+            count_refs(&mut self.saved_refs, object, false);
+        }
         for (id, mut object) in changes.into_iter().rev() {
             if let Some(slot) = self.slots.get_mut(id as usize) {
                 // Undoing changes to a string buffer's text does not take
@@ -453,6 +601,7 @@ impl ObjectTable {
     /// Forget every savepoint.
     pub fn drop_undo(&mut self) {
         self.savepoints.clear();
+        self.saved_refs.clear();
     }
 
     /// The program-defined object (or intrinsic class modifier) with an ID.
@@ -606,6 +755,33 @@ fn vec_len(object: &Object) -> u32 {
 /// The values an object refers to, for an object not in the table.
 pub(crate) fn references_of(object: &Object, out: &mut Vec<Value>) {
     references(object, out);
+}
+
+/// Count up, or down, the references an object's saved state makes.
+fn count_refs(counts: &mut std::collections::HashMap<u32, u32>, object: &Object, up: bool) {
+    let mut found = Vec::new();
+    references(object, &mut found);
+    for value in found {
+        if up {
+            if let Value::Obj(id) | Value::ObjX(id) = value {
+                *counts.entry(id.0).or_default() += 1;
+            }
+        } else {
+            uncount(counts, value);
+        }
+    }
+}
+
+/// Count down one reference a saved state makes.
+fn uncount(counts: &mut std::collections::HashMap<u32, u32>, value: Value) {
+    if let Value::Obj(id) | Value::ObjX(id) = value
+        && let Some(n) = counts.get_mut(&id.0)
+    {
+        *n -= 1;
+        if *n == 0 {
+            counts.remove(&id.0);
+        }
+    }
 }
 
 /// The values an object refers to. A weak-reference table does not count
@@ -783,6 +959,7 @@ impl ObjectTable {
     /// transient ones, which outlast a restore or a restart. Objects the
     /// program created stay until the collector finds them unreachable.
     pub fn reset_to_image(&mut self) {
+        self.forget_lookups();
         let slots = &mut self.slots;
         self.image_state.retain(|&id, object| {
             let slot = &mut slots[id as usize];
@@ -874,6 +1051,7 @@ impl ObjectTable {
     pub fn collect_mark(&mut self, roots: &[Value], in_native: bool) -> Vec<ObjId> {
         self.allocs_since_gc = 0;
         crate::heap::reset();
+        prof_scope!(crate::prof::GC_ROOTS);
         let mut all_roots: Vec<Value> = roots.to_vec();
         all_roots.extend(self.held_results.iter().map(|&(_, value)| value));
         let safe_serial = self.safe_serial;
@@ -890,11 +1068,8 @@ impl ObjectTable {
                 all_roots.push(Value::Obj(ObjId(id as u32)));
             }
         }
-        for changes in &self.savepoints {
-            for (_, object) in changes {
-                references(object, &mut all_roots);
-            }
-        }
+        all_roots.extend(self.saved_refs.keys().map(|&id| Value::Obj(ObjId(id))));
+        prof_scope!(crate::prof::GC_MARK);
         self.mark_from(&all_roots, Mark::Reachable);
         self.slots
             .iter()
@@ -915,6 +1090,7 @@ impl ObjectTable {
     /// finalizer, or kept by something that is, goes. Returns the objects
     /// whose finalizers are to run now, in the order to run them.
     pub fn collect_sweep(&mut self, candidates: &[ObjId], with_finalizers: &[ObjId]) -> Vec<ObjId> {
+        prof_scope!(crate::prof::GC_SWEEP);
         for &id in candidates {
             self.slots[id.0 as usize].finalize = Finalize::Done;
         }
@@ -945,6 +1121,11 @@ impl ObjectTable {
         self.mark_from(&from_pending, Mark::FromFinalizable);
 
         let mut finalize_queue = Vec::new();
+        // What this collection frees: only these can have left entries
+        // behind in weak tables and dictionaries, since the entries for
+        // what earlier ones freed went then.
+        let mut freed = vec![false; self.slots.len()];
+        let mut freed_any = false;
         for id in 0..self.slots.len() as u32 {
             let slot = &self.slots[id as usize];
             if slot.object.is_none() {
@@ -954,6 +1135,8 @@ impl ObjectTable {
                 && slot.mark == Mark::Unreachable
                 && slot.finalize == Finalize::Done
             {
+                freed[id as usize] = true;
+                freed_any = true;
                 self.free(id);
             } else if slot.finalize == Finalize::Pending {
                 finalize_queue.push(ObjId(id));
@@ -966,6 +1149,10 @@ impl ObjectTable {
             self.slots[id.0 as usize].finalize = Finalize::Done;
         }
 
+        prof_scope!(crate::prof::GC_WEAK);
+        if !freed_any {
+            return finalize_queue;
+        }
         // Drop what refers to objects that are gone: values in weak
         // tables, and saved states of the objects themselves.
         let live = |slots: &[Slot], value: Value| match value {
@@ -1003,14 +1190,7 @@ impl ObjectTable {
             }
         }
         // Dictionaries drop their entries for objects that are gone.
-        let alive: std::collections::HashSet<u32> = self
-            .slots
-            .iter()
-            .enumerate()
-            .filter(|(_, slot)| slot.object.is_some())
-            .map(|(id, _)| id as u32)
-            .collect();
-        let is_alive = |id: ObjId| alive.contains(&id.0);
+        let is_alive = |id: ObjId| !freed.get(id.0 as usize).copied().unwrap_or(false);
         for slot in &mut self.slots {
             match &mut slot.object {
                 Some(Object::Dict(dictionary)) => dictionary.remove_dead(&is_alive),
@@ -1026,16 +1206,24 @@ impl ObjectTable {
             }
         }
         let slots = &self.slots;
+        let saved_refs = &mut self.saved_refs;
         for changes in &mut self.savepoints {
-            changes.retain(|(id, _)| slots[*id as usize].object.is_some());
+            changes.retain(|(id, object)| {
+                let keep = slots[*id as usize].object.is_some();
+                if !keep {
+                    count_refs(saved_refs, object, false);
+                }
+                keep
+            });
             for (_, object) in changes.iter_mut() {
                 if let Object::LookupTable(table) = object {
                     if table.weak {
+                        // The keys of the entries dropped no longer count.
                         for index in 0..table.slot_count() {
-                            if table
-                                .slot(index)
-                                .is_some_and(|(_, value)| !live(slots, value))
+                            if let Some((key, value)) = table.slot(index)
+                                && !live(slots, value)
                             {
+                                uncount(saved_refs, key);
                                 table.remove_slot(index);
                             }
                         }
@@ -1052,6 +1240,7 @@ impl ObjectTable {
     /// Release an object. Its ID goes to the front of the free list, so
     /// it is the next one handed out.
     fn free(&mut self, id: u32) {
+        self.changed(id);
         let first = self.first_free;
         let slot = &mut self.slots[id as usize];
         // What a file object stands for outlives it until the VM has

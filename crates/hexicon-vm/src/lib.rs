@@ -7,6 +7,19 @@
 //! The VM does no input or output of its own. Everything it needs from
 //! the outside world comes through a [`hexicon_host::Host`].
 
+/// Mark the rest of the block as work of a kind, for the profiler.
+#[cfg(feature = "profile")]
+macro_rules! prof_scope {
+    ($tag:expr) => {
+        let _prof_guard = crate::prof::scope($tag);
+    };
+}
+/// Nothing, without the profiler.
+#[cfg(not(feature = "profile"))]
+macro_rules! prof_scope {
+    ($tag:expr) => {};
+}
+
 mod bif;
 pub(crate) use hexicon_bignum as bignum;
 mod bignum_math;
@@ -39,6 +52,8 @@ mod methods;
 mod object;
 mod ops;
 mod pack;
+#[cfg(feature = "profile")]
+pub mod prof;
 mod props;
 mod rebuild;
 mod reflect;

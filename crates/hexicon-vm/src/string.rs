@@ -204,12 +204,27 @@ impl Vm {
         }
     }
 
+    /// A pattern given as text, compiled. The cache is emptied when it
+    /// holds many, which only a program that makes up its patterns as it
+    /// goes would cause.
+    fn compiled_pattern(&mut self, text: &[u8]) -> Rc<Pattern> {
+        if let Some(pattern) = self.pattern_cache.get(text) {
+            return pattern.clone();
+        }
+        if self.pattern_cache.len() >= 256 {
+            self.pattern_cache.clear();
+        }
+        let pattern = Rc::new(Pattern::compile(text));
+        self.pattern_cache.insert(text.to_vec(), pattern.clone());
+        pattern
+    }
+
     /// A search target from an argument that may be a string or a
     /// pattern object. A string is literal text unless `compile` is set.
     fn target_arg(&mut self, value: Value, compile: bool) -> VmResult<Target> {
         if let Some(text) = self.as_str(value) {
             return Ok(if compile {
-                Target::Pattern(Rc::new(Pattern::compile(&text)))
+                Target::Pattern(self.compiled_pattern(&text))
             } else {
                 Target::Text(text.to_vec())
             });

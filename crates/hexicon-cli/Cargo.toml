@@ -10,6 +10,10 @@ repository.workspace = true
 name = "hexicon"
 path = "src/main.rs"
 
+[features]
+# Build the VM with its sampling profiler, which reports when a game ends.
+profile = ["hexicon-vm/profile"]
+
 [dependencies]
 crossterm = { version = "0.29.0", default-features = false, features = ["events", "windows"] }
 hexicon-bytecode = { path = "../hexicon-bytecode" }

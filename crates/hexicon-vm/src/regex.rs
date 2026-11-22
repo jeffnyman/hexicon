@@ -942,24 +942,57 @@ impl Pattern {
 #[derive(Debug, Clone)]
 struct Saved {
     groups: [(i64, i64); GROUP_COUNT],
-    loops: Vec<i32>,
+    loops: Loops,
 }
 
+/// The loop counters: the first few in place, so that saving them at a
+/// choice takes no allocation, and any others after.
+#[derive(Debug, Clone, Default)]
+struct Loops {
+    first: [i32; 8],
+    more: Vec<i32>,
+}
+
+impl std::ops::Index<usize> for Loops {
+    type Output = i32;
+    fn index(&self, var: usize) -> &i32 {
+        match self.first.get(var) {
+            Some(count) => count,
+            None => &self.more[var - self.first.len()],
+        }
+    }
+}
+
+impl std::ops::IndexMut<usize> for Loops {
+    fn index_mut(&mut self, var: usize) -> &mut i32 {
+        let inline = self.first.len();
+        if var < inline {
+            &mut self.first[var]
+        } else {
+            &mut self.more[var - inline]
+        }
+    }
+}
+
+// The saved states are kept in place rather than boxed: a choice is
+// made at every step of a loop, and an allocation for each costs more
+// than the larger frames do.
+#[allow(clippy::large_enum_variant)]
 enum Frame {
     /// The first branch of a choice is being tried.
     First {
         state: State,
         fin: State,
         pos: usize,
-        saved: Box<Saved>,
+        saved: Saved,
     },
     /// The second branch is being tried; the first ended with `first`.
     Second {
         state: State,
         fin: State,
-        saved: Box<Saved>,
+        saved: Saved,
         first: Option<usize>,
-        first_result: Box<Saved>,
+        first_result: Saved,
     },
     /// An assertion's sub-pattern is being tried.
     Assert {
@@ -968,7 +1001,7 @@ enum Frame {
         pos: usize,
         /// The limit in force outside the assertion.
         limit: usize,
-        saved: Box<Saved>,
+        saved: Saved,
         /// Extra characters of look-back tried so far.
         extra: i32,
     },
@@ -1033,7 +1066,10 @@ impl Pattern {
         }
         let mut regs = Saved {
             groups: [(-1, -1); GROUP_COUNT],
-            loops: vec![0; self.loop_vars.max(1)],
+            loops: Loops {
+                first: [0; 8],
+                more: vec![0; self.loop_vars.saturating_sub(8)],
+            },
         };
         for (reg, group) in regs.groups.iter_mut().zip(groups.iter()) {
             if let Some((a, b)) = group {
@@ -1095,7 +1131,7 @@ impl Pattern {
                             state: cur,
                             fin,
                             pos,
-                            saved: Box::new(regs.clone()),
+                            saved: regs.clone(),
                         });
                         cur = tuple.next1;
                         continue 'path;
@@ -1209,7 +1245,7 @@ impl Pattern {
                             fin,
                             pos,
                             limit,
-                            saved: Box::new(regs.clone()),
+                            saved: regs.clone(),
                             extra: 0,
                         });
                         cur = *init;
@@ -1235,7 +1271,7 @@ impl Pattern {
                                 state: cur,
                                 fin,
                                 pos,
-                                saved: Box::new(regs.clone()),
+                                saved: regs.clone(),
                             });
                         }
                     }
@@ -1254,7 +1290,7 @@ impl Pattern {
                         saved,
                     }) => {
                         // Go back and try the second branch.
-                        let first_result = Box::new(std::mem::replace(&mut regs, (*saved).clone()));
+                        let first_result = std::mem::replace(&mut regs, saved.clone());
                         stack.push(Frame::Second {
                             state,
                             fin: saved_fin,
@@ -1279,7 +1315,7 @@ impl Pattern {
                         let second = result;
                         let first_wins = match (first, second) {
                             (None, None) => {
-                                regs = *saved;
+                                regs = saved;
                                 result = None;
                                 continue;
                             }
@@ -1294,7 +1330,7 @@ impl Pattern {
                             }
                         };
                         if first_wins {
-                            regs = *first_result;
+                            regs = first_result;
                             result = first;
                         }
                     }
@@ -1320,7 +1356,7 @@ impl Pattern {
                         let (negative, back, init, sub_fin, min_len, max_len) =
                             (*negative, *back, *init, *sub_fin, *min_len, *max_len);
                         // Nothing an assertion matches is kept.
-                        regs = (*saved).clone();
+                        regs = saved.clone();
                         if result.is_none() && back {
                             // Try again one character further back.
                             let extra = extra + 1;

@@ -193,6 +193,7 @@ impl Vm {
 
     /// Call an intrinsic function with `argc` arguments on the stack.
     pub(crate) fn call_bif(&mut self, set: u16, index: u16, argc: u32) -> VmResult<()> {
+        prof_scope!(crate::prof::BIF + (u32::from(set) << 8) + u32::from(index));
         let Some(&function_set) = self.function_sets.get(set as usize) else {
             return Err(VmError::with(
                 code::UNAVAIL_INTRINSIC,

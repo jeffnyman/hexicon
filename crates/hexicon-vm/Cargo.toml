@@ -6,6 +6,10 @@ edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
+[features]
+# A sampling profiler; see src/prof.rs.
+profile = []
+
 [dependencies]
 hexicon-bignum = { path = "../hexicon-bignum" }
 hexicon-bytecode = { path = "../hexicon-bytecode" }

@@ -346,6 +346,7 @@ impl Vm {
             debug: image.debug.clone(),
             preinit_mode: false,
             last_match: Default::default(),
+            pattern_cache: Default::default(),
             rng: crate::rng::Rng::new(),
             image_timestamp: image.header.timestamp.as_bytes().to_vec(),
             image_name: String::new(),
