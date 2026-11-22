@@ -181,7 +181,7 @@ impl Vm {
         Ok(items)
     }
 
-    fn list_items(&self, list: Value) -> VmResult<Vec<Value>> {
+    pub(crate) fn list_items(&self, list: Value) -> VmResult<Vec<Value>> {
         self.as_list(list)
             .map(|items| items.to_vec())
             .ok_or_else(|| VmError::new(code::LIST_VAL_REQD))

@@ -130,6 +130,11 @@ pub(crate) fn object_bytes(object: &Object, vector_room: usize) -> i64 {
         Object::Date { .. } | Object::TimeZone(_) => 8,
         Object::FileName(name) => 18 + name.path.len() as i64,
         Object::TempFile(name) => 16 + name.len() as i64,
+        // The fixed part, a number for each object referred to, the
+        // object's number before the code, and the code.
+        Object::DynFunc(func) => {
+            48 + 2 * (func.obj_refs.len() as i64 - 1).max(0) + 4 + func.code.len() as i64
+        }
         Object::Opaque { .. } => 0,
     }
 }

@@ -695,7 +695,7 @@ pub(crate) fn merge_exports(all: Vec<Exports>) -> Exports {
     }
     // Each name that has gone in, with the file it came from, and
     // whether it is still there.
-    let mut recs: Vec<Option<(usize, Rec)>> = Vec::new();
+    let mut recs: Vec<Option<(u64, Rec)>> = Vec::new();
     let mut names: Vec<Vec<u8>> = Vec::new();
     let mut index: HashMap<Vec<u8>, usize> = HashMap::new();
     let mut used: Vec<Vec<u8>> = Vec::new();
@@ -781,7 +781,7 @@ pub(crate) fn merge_exports(all: Vec<Exports>) -> Exports {
                 continue;
             }
             index.insert(name.clone(), recs.len());
-            recs.push(Some((file * (1 << 32) + place, rec)));
+            recs.push(Some(((file as u64) << 32 | place as u64, rec)));
             names.push(name);
         }
     }
@@ -793,7 +793,7 @@ pub(crate) fn merge_exports(all: Vec<Exports>) -> Exports {
         fnsets: all_fnsets,
         ..Exports::default()
     };
-    let mut kept: Vec<(usize, Rec)> = Vec::new();
+    let mut kept: Vec<(u64, Rec)> = Vec::new();
     for (rec, name) in recs.into_iter().zip(names) {
         if let Some(rec) = rec {
             merged.order.push(name);
@@ -863,6 +863,9 @@ pub(crate) struct Program {
     /// Where the parser's statement position was when it finished the
     /// file: where the statements the compiler makes afterward are.
     pub end_pos: (usize, u32),
+    /// For code compiled while a program runs, what is known of the
+    /// program: see [`crate::dynamic`].
+    pub dynamic: Option<Box<crate::dynamic::DynProgram>>,
     /// The dictionaries, in the order they were first declared: indexes
     /// into [`Program::objs`].
     pub dicts: Vec<usize>,
@@ -1074,11 +1077,6 @@ impl Program {
         (1..=self.enums.len() as u32).collect()
     }
 
-    /// Give an object the compiler made, which the source cannot name, a
-    /// name in the table of global names: the reference names the
-    /// definitions `modify` set aside, and the objects that hold what is
-    /// added to built-in classes, by their numbers (`" 1a"`), and the
-    /// object that sets up multi-methods `<multiMethodInit>`.
     /// Add a property for a name that is exported and nothing else, as
     /// the reference does when it takes it to be one.
     pub(crate) fn add_assumed_prop(&mut self, name: Vec<u8>, id: u16) {
@@ -1092,6 +1090,11 @@ impl Program {
         self.globals.insert_known(name, Global::Prop(index));
     }
 
+    /// Give an object the compiler made, which the source cannot name, a
+    /// name in the table of global names: the reference names the
+    /// definitions `modify` set aside, and the objects that hold what is
+    /// added to built-in classes, by their numbers (`" 1a"`), and the
+    /// object that sets up multi-methods `<multiMethodInit>`.
     pub(crate) fn add_synthetic_obj(&mut self, name: Vec<u8>, id: u32) {
         self.objs.push(ObjSym {
             name: name.clone(),
@@ -1708,6 +1711,191 @@ impl<'p, 'a> Parser<'p, 'a> {
     // ---- the top level ----
 
     /// Read the whole source.
+    /// A parser for code compiled while a program runs: the program's
+    /// global names are known, with the numbers they have in its image,
+    /// and so are the classes built into the VM that it uses, in its
+    /// order.
+    pub(crate) fn new_dynamic(
+        tok: &'p mut Preprocessor<'a>,
+        context: &crate::dynamic::DynContext,
+    ) -> Self {
+        use crate::dynamic::{DynObjKind, DynProgram, DynSymbol};
+        let mut parser = Self::new(tok, false, Exports::default());
+        let prog = &mut parser.prog;
+        prog.meta_table = context
+            .metaclasses
+            .iter()
+            .map(|name| MetaEntry {
+                name: name.clone(),
+                sym: None,
+            })
+            .collect();
+        let mut dynamic = DynProgram::default();
+        for (name, symbol) in &context.symbols {
+            match symbol {
+                DynSymbol::Property(id) => {
+                    let index = match prog.globals.peek(name).copied() {
+                        Some(Global::Prop(index)) => index,
+                        _ => prog.def_prop(name),
+                    };
+                    prog.props[index].id = *id;
+                }
+                DynSymbol::Object { id, kind } => {
+                    prog.add_synthetic_obj(name.clone(), *id);
+                    let obj = prog.objs.last_mut().expect("just added");
+                    obj.is_dict = *kind == DynObjKind::Dictionary;
+                    obj.is_gramprod = *kind == DynObjKind::GrammarProd;
+                }
+                DynSymbol::Class { meta_index, id } => {
+                    let index = prog.metas.len();
+                    prog.metas.push(MetaSym {
+                        name: name.clone(),
+                        obj_id: *id,
+                        meta: usize::from(*meta_index),
+                        props: Vec::new(),
+                        is_ext: false,
+                        super_meta: None,
+                        mod_count: 0,
+                        mod_obj: None,
+                    });
+                    if let Some(entry) = prog.meta_table.get_mut(usize::from(*meta_index)) {
+                        entry.sym = Some(index);
+                    }
+                    prog.globals.insert_known(name.clone(), Global::Meta(index));
+                }
+                DynSymbol::Function {
+                    addr,
+                    argc,
+                    opt_argc,
+                    varargs,
+                } => {
+                    let index = prog.funcs.len();
+                    prog.funcs.push(FuncSym {
+                        name: name.clone(),
+                        argc: *argc,
+                        opt_argc: *opt_argc,
+                        varargs: *varargs,
+                        has_retval: true,
+                        is_extern: false,
+                        has_proto: true,
+                        body: None,
+                        mod_bases: Vec::new(),
+                        mod_extern: false,
+                        mod_proto: (0, 0, false),
+                        ext_redef: false,
+                        is_mm: false,
+                        is_mm_base: false,
+                    });
+                    dynamic.func_addrs.insert(index, *addr);
+                    prog.globals.insert_known(name.clone(), Global::Func(index));
+                }
+                DynSymbol::Enum(id) => {
+                    let index = prog.enums.len();
+                    prog.enums.push(EnumSym {
+                        name: name.clone(),
+                        is_token: false,
+                    });
+                    dynamic.enum_ids.push(*id);
+                    prog.globals.insert_known(name.clone(), Global::Enum(index));
+                }
+                DynSymbol::BuiltIn {
+                    set,
+                    index,
+                    min_argc,
+                    opt_argc,
+                    varargs,
+                } => {
+                    let at = prog.bifs.len();
+                    prog.bifs.push(BifSym {
+                        name: name.clone(),
+                        set: usize::from(*set),
+                        index: usize::from(*index),
+                        min_argc: *min_argc,
+                        max_argc: min_argc + opt_argc,
+                        varargs: *varargs,
+                    });
+                    prog.globals.insert_known(name.clone(), Global::Bif(at));
+                }
+            }
+        }
+        dynamic.known_props = prog.props.len();
+        prog.dynamic = Some(Box::new(dynamic));
+        parser
+    }
+
+    /// Read the code the dynamic compiler is given: a function, a method,
+    /// or an expression, as the mode allows and the source starts. The
+    /// code is the first of the program's functions, followed by those
+    /// in it. Returns whether it was a method, or nothing if it could not
+    /// be read.
+    pub(crate) fn parse_dynamic(
+        mut self,
+        mode: crate::dynamic::DynMode,
+    ) -> (Program, Option<bool>) {
+        self.next();
+        let auto = mode == crate::dynamic::DynMode::Auto;
+        let parsed = match self.cur() {
+            Tok::Function if auto => {
+                self.next();
+                self.parse_code_body(false, CbType::Normal, None, None)
+                    .ok()
+                    .flatten()
+                    .map(|(body, _)| (body, false))
+            }
+            Tok::Method if auto => {
+                self.next();
+                self.parse_code_body(true, CbType::Normal, None, None)
+                    .ok()
+                    .flatten()
+                    .map(|(body, _)| (body, true))
+            }
+            _ => self.parse_dynamic_expr().map(|body| (body, false)),
+        };
+        let Some((mut body, is_method)) = parsed else {
+            return (self.prog, None);
+        };
+        body.closure.is_func = true;
+        body.closure.func_proto = (body.argc, body.opt_argc, body.varargs);
+        self.prog.bodies.push((body, None));
+        let main = self.prog.bodies.len() - 1;
+        self.prog.top.push(Top::Func(main));
+        for nested in std::mem::take(&mut self.prog.nested) {
+            self.prog.top.push(nested);
+        }
+        (self.prog, Some(is_method))
+    }
+
+    /// An expression read as the dynamic compiler reads one: as a
+    /// function of no parameters that returns its value.
+    fn parse_dynamic_expr(&mut self) -> Option<CodeBody> {
+        self.prog.body_refs.push(BodyRef::default());
+        let body_ref = self.prog.body_refs.len() - 1;
+        self.cur_code_body = Some(body_ref);
+        self.self_valid = false;
+        self.clear_local_ctx();
+        self.local_symtab = None;
+        self.enclosing_local_symtab = None;
+        self.local_cnt = 0;
+        self.max_local_cnt = 0;
+        self.labels.clear();
+        self.enclosing.clear();
+        self.switches.clear();
+        let expr = self.parse_expr()?;
+        let stm = self.stmt(StmtKind::Return(Some(expr)));
+        let (mut body, _) = self.check_body_flow(Formals::default(), stm);
+        self.finish_local_ctx(&mut body, false);
+        body.closure.self_referenced = self.self_referenced;
+        body.closure.full_ctx_referenced = self.full_ctx_referenced;
+        body.closure.local_ctx_needs_self = self.local_ctx_needs_self;
+        body.closure.local_ctx_needs_full = self.local_ctx_needs_full;
+        self.prog.body_refs[body_ref] = BodyRef {
+            enclosing: None,
+            local_ctx_needs_full: self.local_ctx_needs_full,
+            func_body: None,
+        };
+        Some(body)
+    }
+
     pub(crate) fn parse_top(mut self) -> Program {
         self.next();
         let mut suppress_error = false;

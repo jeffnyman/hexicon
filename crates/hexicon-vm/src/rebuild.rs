@@ -751,6 +751,19 @@ impl Vm {
                 d.unspecified.push((d.bytes.len() + 4, 1));
                 d.raw(&big.to_bytes());
             }
+            // The length of the code, the number of objects it refers
+            // to, the method context, the source, the code, and where in
+            // it each object's number is.
+            Object::DynFunc(func) => {
+                d.u16(func.code.len());
+                d.u16(func.obj_refs.len());
+                d.value(func.method_ctx);
+                d.value(func.source);
+                d.raw(&func.code);
+                for &at in &func.obj_refs {
+                    d.u16(usize::from(at));
+                }
+            }
             Object::StringBuffer(buffer) => {
                 // The room, the step it grows by, the length, and the
                 // characters, each in 16 bits, as the reference keeps them.

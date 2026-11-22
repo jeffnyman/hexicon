@@ -127,6 +127,7 @@ impl Vm {
             MetaKind::LookupTable => self.table_method(self_value.obj_id(), index, argc),
             MetaKind::RexPattern => self.pattern_method(self_value.obj_id(), index, argc),
             MetaKind::StringBuffer => self.strbuf_method(self_value.obj_id(), index, argc),
+            MetaKind::DynamicFunc => self.dynfunc_method(self_value.obj_id(), index, argc),
             MetaKind::BigNumber => self.big_method(self_value.obj_id(), index, argc),
             MetaKind::ByteArray => self.bytes_method(self_value.obj_id(), index, argc),
             MetaKind::CharacterSet => self.charset_method(self_value.obj_id(), index, argc),
@@ -642,9 +643,11 @@ impl Vm {
                     return Ok(Value::Nil);
                 };
                 let code = match value {
+                    // A method bound to an object that can be called is
+                    // code: an anonymous function or a DynamicFunc.
                     Value::ObjX(inner) => match vm.objects.get(inner) {
-                        Some(Object::AnonFn(_)) => type_code::CODEOFS,
                         Some(Object::String(_)) => type_code::DSTRING,
+                        _ if vm.invoker(inner).is_some() => type_code::CODEOFS,
                         _ => type_code::OBJ,
                     },
                     Value::BifPtrX { .. } => type_code::BIFPTR,

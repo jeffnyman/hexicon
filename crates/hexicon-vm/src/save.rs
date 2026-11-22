@@ -340,6 +340,16 @@ impl Vm {
                 w.bytes(bytes);
             }
             Object::BigNumber(big) => w.bytes(&big.to_bytes()),
+            Object::DynFunc(func) => {
+                w.u16(func.code.len());
+                w.u16(func.obj_refs.len());
+                w.value(func.method_ctx);
+                w.value(func.source);
+                w.bytes(&func.code);
+                for &at in &func.obj_refs {
+                    w.u16(usize::from(at));
+                }
+            }
             Object::StringBuffer(buffer) => {
                 // The space allocated, the amount to grow by, the length,
                 // and the text in UTF-16.
@@ -696,6 +706,37 @@ impl Vm {
                 let data = r.bytes(5 + prec.div_ceil(2))?;
                 Object::BigNumber(Box::new(Big::from_bytes(data).ok_or_else(bad)?))
             }
+            MetaKind::DynamicFunc => {
+                // The objects its code refers to have their numbers in
+                // this run, as any reference to an object does.
+                let len = crate::dynfunc::DynFunc::data_len(&r.data[r.pos..]).ok_or_else(bad)?;
+                let data = r.bytes(len)?;
+                let mut failed = false;
+                let mut func = crate::dynfunc::DynFunc::read(data, &mut |holder| {
+                    let mut reader = Reader {
+                        data: holder,
+                        pos: 0,
+                    };
+                    let value = fixups.read_value(&mut reader);
+                    failed |= value.is_err();
+                    value.ok()
+                })
+                .ok_or_else(bad)?;
+                if failed {
+                    return Err(bad());
+                }
+                let mut code = func.code.to_vec();
+                for &at in &func.obj_refs {
+                    let at = usize::from(at);
+                    let Some(bytes) = code.get_mut(at..at + 4) else {
+                        return Err(bad());
+                    };
+                    let old = ObjId(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
+                    bytes.copy_from_slice(&fixups.id(old).0.to_le_bytes());
+                }
+                func.code = code.into();
+                Object::DynFunc(Box::new(func))
+            }
             MetaKind::StringBuffer => {
                 // A saved game's sizes are taken as they are.
                 let room = r.u32()?;
@@ -919,6 +960,7 @@ impl Vm {
             self.dict_rehash(id)?;
         }
         self.resolve_zones();
+        self.place_dynamic_code();
         self.last_match = Default::default();
         self.collect_garbage(false);
         Ok(())

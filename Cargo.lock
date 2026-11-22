@@ -134,6 +134,7 @@ version = "0.1.0"
 dependencies = [
  "hexicon-bignum",
  "hexicon-bytecode",
+ "hexicon-compiler",
  "hexicon-host",
  "hexicon-image",
 ]

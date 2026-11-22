@@ -19,6 +19,7 @@ mod chartype;
 mod console;
 mod date;
 mod dict;
+mod dynfunc;
 mod entities;
 mod error;
 mod file;

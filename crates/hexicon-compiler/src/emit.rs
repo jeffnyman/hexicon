@@ -632,7 +632,10 @@ pub(crate) fn generate(prog: &mut Program, debug: bool, file_base: usize) -> Gen
     let mut bodies = std::mem::take(&mut prog.bodies);
     let mut objdefs = std::mem::take(&mut prog.objdefs);
     let top = prog.top.clone();
-    let enum_ids = prog.final_enum_ids();
+    let enum_ids = match &prog.dynamic {
+        Some(dynamic) => dynamic.enum_ids.clone(),
+        None => prog.final_enum_ids(),
+    };
     let mut generator = Gen::new(prog, Generated::default(), enum_ids);
     generator.debug = debug;
     generator.file_base = file_base;
@@ -2268,7 +2271,9 @@ impl Gen<'_> {
             for id in order {
                 let local = &self.prog.locals[id];
                 let name = local.name.clone();
-                let inline = name.len() <= 2;
+                // Code compiled while the program runs has the names in
+                // itself.
+                let inline = name.len() <= 2 || self.prog.dynamic.is_some();
                 let mut flags = 0u16;
                 if local.is_param {
                     flags |= 0x0001;
@@ -3599,13 +3604,59 @@ impl Gen<'_> {
     }
 
     fn gen_str(&mut self, text: &[u8]) {
+        // Code compiled while the program runs has its strings in itself.
+        if self.prog.dynamic.is_some() {
+            self.gen_str_inline(text);
+            return;
+        }
         self.cg.write_op(Op::PushStr);
         self.cg.note_push();
         self.add_const_str(text, false, self.cg.ofs());
         self.cg.write4(0);
     }
 
+    /// Push a string written into the code (`pushstri`).
+    fn gen_str_inline(&mut self, text: &[u8]) {
+        self.cg.write_op(Op::PushStrI);
+        self.cg.write2(text.len() as u16);
+        for &byte in text {
+            self.cg.write(byte);
+        }
+        self.cg.note_push();
+    }
+
+    /// Make an object of a class built into the VM from a string written
+    /// into the code, as code compiled while the program runs makes its
+    /// numbers and patterns.
+    fn gen_dynamic_from_text(&mut self, class: &[u8], text: &[u8]) {
+        let meta = match self.prog.globals.get(class) {
+            Some(Global::Meta(meta)) => Some(self.prog.metas[*meta].meta),
+            _ => None,
+        };
+        let Some(meta) = meta else {
+            self.error("This expression cannot be evaluated while the program runs");
+            return;
+        };
+        self.gen_str_inline(text);
+        self.cg.write_op(Op::New2);
+        self.cg.write2(1);
+        self.cg.write2(meta as u16);
+        self.cg.note_pop();
+        self.cg.write_op(Op::GetR0);
+        self.cg.note_push();
+    }
+
     fn gen_func_ref(&mut self, func: usize) {
+        // A function of the program that is running is where it is.
+        if let Some(&addr) = self
+            .prog
+            .dynamic
+            .as_ref()
+            .and_then(|dynamic| dynamic.func_addrs.get(&func))
+        {
+            self.cg.write4(addr);
+            return;
+        }
         self.out.fixups.push(Fixup {
             ofs: self.cg.ofs(),
             target: Target::Func(func),
@@ -3695,6 +3746,30 @@ impl Gen<'_> {
                 if discard {
                     return;
                 }
+                if self.prog.dynamic.is_some() {
+                    // Code compiled while the program runs makes its
+                    // lists as it runs, and its numbers and patterns.
+                    let elements = value.list_node.as_ref().or(match &value.value {
+                        Value::List(elements) => Some(elements),
+                        _ => None,
+                    });
+                    if let Some(elements) = elements {
+                        let list = Expr::List(elements.iter().cloned().map(Expr::Const).collect());
+                        self.gen_expr(&list, false, false);
+                        return;
+                    }
+                    match &value.value {
+                        Value::Float { text, .. } => {
+                            self.gen_dynamic_from_text(b"BigNumber", text);
+                            return;
+                        }
+                        Value::ReStr(text) => {
+                            self.gen_dynamic_from_text(b"RexPattern", text);
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
                 if let Some(elements) = &value.list_node {
                     // A list whose value was overwritten is still
                     // generated as the list.
@@ -3775,12 +3850,24 @@ impl Gen<'_> {
                     self.gen_getlcl(var, false);
                     argc += 1;
                 }
-                self.cg.write_op(Op::PushFnPtr);
-                self.out.fixups.push(Fixup {
-                    ofs: self.cg.ofs(),
-                    target: Target::Body(*body),
-                });
-                self.cg.write4(0);
+                // Compiled while the program runs, the function is an
+                // object of its own.
+                let dyn_id = self
+                    .prog
+                    .dynamic
+                    .as_ref()
+                    .and_then(|dynamic| dynamic.body_ids.get(body).copied());
+                if let Some(id) = dyn_id {
+                    self.cg.write_op(Op::PushObj);
+                    self.write_obj_id(id);
+                } else {
+                    self.cg.write_op(Op::PushFnPtr);
+                    self.out.fixups.push(Fixup {
+                        ofs: self.cg.ofs(),
+                        target: Target::Body(*body),
+                    });
+                    self.cg.write4(0);
+                }
                 self.cg.note_push();
                 if argc > 1 || self.closures[*body].has_local_ctx {
                     if argc <= 255 {
@@ -3937,6 +4024,14 @@ impl Gen<'_> {
                         "a double-quoted string (\"{}\") is not valid within an expression",
                         show_name(text)
                     ));
+                }
+                // Code compiled while the program runs displays a
+                // string written into it.
+                if self.prog.dynamic.is_some() {
+                    self.gen_str_inline(text);
+                    self.cg.write_op(Op::SayVal);
+                    self.cg.note_pop();
+                    return;
                 }
                 self.cg.write_op(Op::Say);
                 self.add_const_str(text, false, self.cg.ofs());

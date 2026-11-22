@@ -3192,3 +3192,60 @@ fn a_program_compiled_for_debugging_says_where_its_code_came_from() {
     let macr = block(&image, b"MACR");
     assert!(macr.windows(7).any(|w| w == b"__DEBUG"));
 }
+
+struct FuncIds(u32);
+
+impl crate::dynamic::DynHost for FuncIds {
+    fn new_func_ids(&mut self, count: usize) -> Vec<u32> {
+        let first = self.0;
+        self.0 += count as u32;
+        (first..self.0).collect()
+    }
+}
+
+#[test]
+fn code_is_compiled_while_a_program_runs() {
+    use crate::dynamic::{DynContext, DynMode, DynObjKind, DynSymbol, compile_dynamic};
+    let context = DynContext {
+        symbols: vec![
+            (
+                b"test1".to_vec(),
+                DynSymbol::Object {
+                    id: 7,
+                    kind: DynObjKind::TadsObject,
+                },
+            ),
+            (b"m1".to_vec(), DynSymbol::Property(42)),
+        ],
+        ..DynContext::default()
+    };
+    let mut host = FuncIds(100);
+
+    // A function: its header, and its code.
+    let compiled = compile_dynamic(
+        b"function(x) { return x*2; }",
+        &context,
+        DynMode::Auto,
+        &mut host,
+    )
+    .expect("it compiles");
+    assert!(!compiled.is_method);
+    assert_eq!(compiled.funcs.len(), 1);
+    let (id, func) = &compiled.funcs[0];
+    assert_eq!(*id, 100);
+    assert_eq!(func.code[0], 1, "one parameter");
+
+    // An expression, with the program's names, and a string written into
+    // the code.
+    let compiled = compile_dynamic(b"test1.m1('hi');", &context, DynMode::Auto, &mut host)
+        .expect("it compiles");
+    let code = &compiled.funcs[0].1;
+    assert!(code.code.windows(2).any(|w| w == b"hi"));
+    assert_eq!(code.obj_refs.len(), 1);
+    let at = code.obj_refs[0];
+    assert_eq!(&code.code[at..at + 4], &7u32.to_le_bytes());
+
+    // A name the program does not have.
+    let failed = compile_dynamic(b"test1.mUndef(1);", &context, DynMode::Auto, &mut host);
+    assert_eq!(failed, Err("error: undefined symbol \"mUndef\"".to_owned()));
+}

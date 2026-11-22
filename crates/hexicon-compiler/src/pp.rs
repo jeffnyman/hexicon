@@ -432,6 +432,24 @@ impl<'a> Preprocessor<'a> {
         self.defines.insert(name.as_bytes().to_vec(), id);
     }
 
+    /// Define a macro as the program's table of macros has it, with its
+    /// parameters, for code compiled while the program runs.
+    pub fn define_macro(&mut self, mac: &LinkMacro) {
+        let expansion = self.parse_expansion(&mac.expansion, &mac.params, mac.has_varargs);
+        let id = self.macros.len();
+        self.macros.push(Macro {
+            name: mac.name.clone(),
+            kind: MacroKind::Define,
+            has_args: mac.has_args,
+            argc: mac.params.len(),
+            has_varargs: mac.has_varargs,
+            expansion,
+            orig: mac.expansion.clone(),
+            params: mac.params.clone(),
+        });
+        self.defines.insert(mac.name.clone(), id);
+    }
+
     /// Remove a macro's definition.
     pub fn undefine(&mut self, name: &str) {
         self.undefine_bytes(name.as_bytes());

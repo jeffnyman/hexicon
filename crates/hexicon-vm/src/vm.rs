@@ -218,6 +218,8 @@ pub(crate) struct Predef {
     pub file_closed_exc: ObjId,
     pub file_mode_exc: ObjId,
     pub file_safety_exc: ObjId,
+    /// The exception class for code that would not compile.
+    pub compiler_exc: ObjId,
     /// The class that describes a file for `FileName.getFileInfo`.
     pub file_info: ObjId,
     /// The methods of an object a program writes to stand for a file.
@@ -502,6 +504,7 @@ impl Vm {
             Object::LookupIter { .. } => MetaKind::LookupTableIterator,
             Object::Pattern { .. } => MetaKind::RexPattern,
             Object::StringBuffer(_) => MetaKind::StringBuffer,
+            Object::DynFunc(_) => MetaKind::DynamicFunc,
             Object::BigNumber(_) => MetaKind::BigNumber,
             Object::ByteArray(_) => MetaKind::ByteArray,
             Object::StrComp(_) => MetaKind::StringComparator,

@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 hexicon-bignum = { path = "../hexicon-bignum" }
 hexicon-bytecode = { path = "../hexicon-bytecode" }
+hexicon-compiler = { path = "../hexicon-compiler" }
 hexicon-host = { path = "../hexicon-host" }
 hexicon-image = { path = "../hexicon-image" }
 

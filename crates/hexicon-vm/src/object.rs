@@ -90,6 +90,8 @@ pub enum Object {
     BigNumber(Box<Big>),
     /// A string buffer: text that can change in place.
     StringBuffer(StrBuf),
+    /// A function compiled while the program runs.
+    DynFunc(Box<crate::dynfunc::DynFunc>),
     /// A compiled regular expression.
     Pattern {
         /// The pattern as the program wrote it: a string value.
@@ -574,6 +576,7 @@ fn count_object(object: &Object, vector_room: u32) {
         Object::TimeZone(_) => "timezone",
         Object::FileName(_) => "filename",
         Object::TempFile(_) => "tempfile",
+        Object::DynFunc(_) => "dynamic-func",
         Object::Opaque { .. } => "-",
     };
     crate::heap::count(
@@ -633,6 +636,12 @@ fn references(object: &Object, out: &mut Vec<Value>) {
         Object::File(file) => {
             out.push(Value::Obj(file.charset));
             out.push(file.spec);
+        }
+        // What its code refers to, its source, and its method context.
+        Object::DynFunc(func) => {
+            out.extend(func.object_refs().map(Value::Obj));
+            out.push(func.source);
+            out.push(func.method_ctx);
         }
         Object::String(_)
         | Object::FileName(_)

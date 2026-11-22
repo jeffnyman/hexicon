@@ -25,7 +25,6 @@ In scope for the VM:
 Deferred:
 
 - `tads-net`, HttpServer, HttpRequest, and the WebUI (replaced later by a native browser front end)
-- DynamicFunc (needs a compiler at runtime; revisit once the Hexicon compiler exists)
 - The debugger protocol
 - HTML TADS rich output (banners, images, sound). The host interface must leave room for it, but the first front ends are plain text.
 
@@ -280,6 +279,7 @@ Findings from milestone 4:
 - A grammar production from the image is never saved, in the reference or here, so alternatives deleted from one come back on a restore.
 - While an intrinsic function or method is in the middle of its work, it can hold objects nothing else refers to yet. The reference keeps those on the VM stack. Hexicon treats every object created since the instruction began as reachable for that collection, which keeps a little garbage until the next one. When the call runs program code (a callback from `forEach`, or a constructor from `new`), what that code created and dropped is garbage, as in the reference: Hexicon keeps only what the intrinsic made before the call and what each call returned to it, until the intrinsic's instruction is over.
 - A vector keeps the room it was created with, or has grown to, as the reference does, because the image written after preinitialization records it: 10 elements for `new Vector()`, the number asked for otherwise, and room the reference's growth rules give it as elements are added.
+- A DynamicFunc is a function compiled while the program runs. Its code goes after the program's own, at an address of its own, so that it runs like any other function, and the VM's copy of the code grows by it; an instruction that runs on past the copy the interpreter took takes the code again. A DynamicFunc in an image or a saved game is the length of its code, the number of objects it refers to, its method context, its source, the code, and where in it each object's number is, as in the reference, and its code is put after the program's when it is loaded or restored, the numbers of the objects in it fixed up as any other references are. What its code refers to, its source, and its method context keep it in use. A method bound to one, as an object written in such code has, is code to `propType`, as one bound to an anonymous function is.
 - A string buffer keeps its room and the step it grows by for the same reason: 256 and 256 for `new StringBuffer()`, the size asked for with a step of the same up to 256, half of it up to 4096, and 2048 after that, both at least 16. It grows to the length it needs, rounded up to a whole step, and undoing a change does not give room back. Before this, a string buffer in an image was not loaded at all.
 
 Findings from milestone 2 that later milestones depend on:

@@ -223,6 +223,10 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             }
             Object::StringBuffer(buffer)
         }
+        MetaKind::DynamicFunc => Object::DynFunc(Box::new(
+            crate::dynfunc::DynFunc::read(data, &mut |holder| Some(Value::from_holder(holder)))
+                .ok_or_else(bad)?,
+        )),
         MetaKind::IntrinsicClass => {
             // A length, the index of the class in the dependency list,
             // the modifier object, and optionally the class state.
@@ -425,6 +429,7 @@ impl Vm {
             file_closed_exc: object_symbol(image, "File.FileClosedException")?,
             file_mode_exc: object_symbol(image, "File.FileModeException")?,
             file_safety_exc: object_symbol(image, "File.FileSafetyException")?,
+            compiler_exc: object_symbol(image, "DynamicFunc.CompilerException")?,
             file_info: object_symbol(image, "File.FileInfo")?,
             filespec_get_filename: prop_symbol(image, "FileSpec.getFilename")?,
             filespec_close_file: prop_symbol(image, "FileSpec.closeFile")?,
@@ -435,6 +440,9 @@ impl Vm {
         };
 
         self.create_synthesized_objects()?;
+        // Functions compiled while the program ran before its image was
+        // written go with the code.
+        self.place_dynamic_code();
         self.create_class_objects();
 
         if let Some(iterator) = self.meta.entry(MetaKind::Iterator) {
