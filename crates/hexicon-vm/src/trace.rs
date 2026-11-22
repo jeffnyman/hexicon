@@ -188,7 +188,7 @@ impl Vm {
                 frame_args = call.args.clone();
             }
         } else if !frame.definer.is_valid() {
-            info_func = Value::FuncPtr(level.func);
+            info_func = self.function_value(level.func);
         } else {
             info_obj = Value::Obj(frame.definer);
             info_prop = Value::Prop(frame.prop);
@@ -201,13 +201,8 @@ impl Vm {
                 .collect();
         }
         let has_details = level.offset != 0 || level.native.is_some();
-        // Frame references come with dynamic compilation, which is not
-        // here yet. Nothing else can use one.
-        if level.offset != 0 && level.native.is_none() && flags & GST_FREFS != 0 && want_frefs {
-            return Err(VmError::unimplemented(
-                "t3GetStackTrace with frame references",
-            ));
-        }
+        let wants_frame_ref =
+            level.offset != 0 && level.native.is_none() && flags & GST_FREFS != 0 && want_frefs;
         let wants_locals =
             level.offset != 0 && level.native.is_none() && flags & GST_LOCALS != 0 && want_locals;
         let named_args = if want_named_args && flags & GST_LOCALS != 0 {
@@ -225,6 +220,22 @@ impl Vm {
             self.push(info_source);
             pushed += 1;
         }
+
+        // A reference to the frame, at the place the level is at.
+        let info_frame_ref = if wants_frame_ref {
+            let fref = self.frame_ref_of(level.frame);
+            let desc = crate::frameref::FrameDesc {
+                fref,
+                scope: self.scope_at(level.func, level.offset),
+                offset: level.offset as u16,
+            };
+            let desc = Value::Obj(self.alloc_obj(crate::object::Object::FrameDesc(desc)));
+            self.push(desc);
+            pushed += 1;
+            desc
+        } else {
+            Value::Nil
+        };
 
         // Constructor arguments, last first: func, obj, prop, self, args,
         // source location, then the optional locals, named arguments, and
@@ -260,7 +271,7 @@ impl Vm {
 
         let mut info_argc = 6;
         if want_frefs {
-            self.push(Value::Nil);
+            self.push(info_frame_ref);
             info_argc += 1;
         }
         if want_named_args {
@@ -297,112 +308,35 @@ impl Vm {
     }
 
     fn fill_stack_locals(&mut self, table: crate::value::ObjId, level: &Level) -> VmResult<()> {
-        let Ok(header) = self.function_header(level.func) else {
-            return Ok(());
-        };
-        if header.debug_records == 0 {
-            return Ok(());
-        }
-        let debug = (level.func + header.debug_records) as usize;
-        let u16_at = |code: &[u8], at: usize| -> usize {
-            code.get(at..at + 2)
-                .map_or(0, |b| usize::from(u16::from_le_bytes([b[0], b[1]])))
-        };
-        // The frames follow the line records. Each is a scope: a block
-        // of code with the variables declared in it, inside another.
-        let layout = self.layout;
-        let table_header = layout.debug_table_header as usize;
-        let line_count = u16_at(&self.code, debug + table_header);
-        let frames = debug + table_header + 2 + line_count * layout.debug_line_entry as usize + 2;
-        let frame_count = u16_at(&self.code, frames);
-        let frame_at = |code: &[u8], index: usize| -> usize {
-            let entry = frames + 2 + 2 * (index - 1);
-            entry + u16_at(code, entry)
-        };
-        let frame_header = layout.debug_frame_header as usize;
-
-        // Find the innermost scope that covers the code position.
-        let offset = level.offset as usize;
-        let mut best = 0;
-        for index in 1..=frame_count {
-            let frame = frame_at(&self.code, index);
-            let (start, end) = if frame_header >= 8 {
-                (u16_at(&self.code, frame + 4), u16_at(&self.code, frame + 6))
-            } else {
-                (0, 0)
+        // The variables of the innermost scope at the code position and
+        // each one around it. An inner variable hides an outer one of
+        // the same name.
+        let scope = self.scope_at(level.func, level.offset);
+        let base = self.frames[level.frame].base as usize;
+        for sym in self.scope_syms(level.func, scope) {
+            let name = match sym.pool {
+                Some(at) => Value::SString(at),
+                None => self.new_string(sym.name),
             };
-            if offset < start || offset > end {
+            if self.table_get(table, name)?.is_some() {
                 continue;
             }
-            let mut nested = best == 0;
-            let mut parent = u16_at(&self.code, frame);
-            let mut steps = 0;
-            while !nested && parent != 0 && steps <= frame_count {
-                nested = parent == best;
-                parent = u16_at(&self.code, frame_at(&self.code, parent));
-                steps += 1;
-            }
-            if nested {
-                best = index;
-            }
-        }
-
-        // Take the variables of that scope and each one around it. An
-        // inner variable hides an outer one of the same name.
-        let base = self.frames[level.frame].base as usize;
-        let mut steps = 0;
-        while best != 0 && steps <= frame_count {
-            let frame = frame_at(&self.code, best);
-            let symbol_count = u16_at(&self.code, frame + 2);
-            let mut at = frame + frame_header;
-            for _ in 0..symbol_count {
-                let number = u16_at(&self.code, at);
-                let flags = u16_at(&self.code, at + 2);
-                let context_index = u16_at(&self.code, at + 4);
-                let name_at = at + layout.debug_local_header as usize;
-                let inline = flags & 4 == 0;
-                let name = if inline {
-                    let len = u16_at(&self.code, name_at);
-                    let text = self
-                        .code
-                        .get(name_at + 2..name_at + 2 + len)
-                        .unwrap_or(&[])
-                        .to_vec();
-                    at = name_at + 2 + len;
-                    self.new_string(text)
-                } else {
-                    let pointer = self
-                        .code
-                        .get(name_at..name_at + 4)
-                        .map_or(0, |b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
-                    at = name_at + 4;
-                    Value::SString(pointer)
-                };
-                if self.table_get(table, name)?.is_some() {
-                    continue;
-                }
-                let in_context = flags & 2 != 0;
-                let is_param = flags & 1 != 0 && !in_context;
-                let slot = if is_param {
-                    base.checked_sub(1 + number)
-                } else {
-                    Some(base + number)
-                };
-                let stored = slot
-                    .and_then(|slot| self.stack.get(slot))
-                    .copied()
-                    .unwrap_or(Value::Nil);
-                // A variable shared with an anonymous function lives in
-                // a context object, which the local refers to.
-                let value = if in_context {
-                    self.list_like_get(stored, context_index)?
-                } else {
-                    stored
-                };
-                self.table_set(table, name, value)?;
-            }
-            best = u16_at(&self.code, frame);
-            steps += 1;
+            let slot = if sym.is_param {
+                base.checked_sub(1 + sym.number)
+            } else {
+                Some(base + sym.number)
+            };
+            let stored = slot
+                .and_then(|slot| self.stack.get(slot))
+                .copied()
+                .unwrap_or(Value::Nil);
+            // A variable shared with an anonymous function lives in a
+            // context object, which the local refers to.
+            let value = match sym.ctx {
+                Some(index) => self.list_like_get(stored, index)?,
+                None => stored,
+            };
+            self.table_set(table, name, value)?;
         }
         Ok(())
     }

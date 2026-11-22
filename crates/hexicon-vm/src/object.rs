@@ -92,6 +92,11 @@ pub enum Object {
     StringBuffer(StrBuf),
     /// A function compiled while the program runs.
     DynFunc(Box<crate::dynfunc::DynFunc>),
+    /// A call of a function, while it runs and after: what a
+    /// `StackFrameDesc` refers to.
+    FrameRef(Box<crate::frameref::FrameRef>),
+    /// A place in a call, as a stack trace gives it.
+    FrameDesc(crate::frameref::FrameDesc),
     /// A compiled regular expression.
     Pattern {
         /// The pattern as the program wrote it: a string value.
@@ -577,6 +582,8 @@ fn count_object(object: &Object, vector_room: u32) {
         Object::FileName(_) => "filename",
         Object::TempFile(_) => "tempfile",
         Object::DynFunc(_) => "dynamic-func",
+        Object::FrameRef(_) => "stack-frame-ref",
+        Object::FrameDesc(_) => "stack-frame-desc",
         Object::Opaque { .. } => "-",
     };
     crate::heap::count(
@@ -643,6 +650,17 @@ fn references(object: &Object, out: &mut Vec<Value>) {
             out.push(func.source);
             out.push(func.method_ctx);
         }
+        // The function, the method context, what was called, and the
+        // variables kept after the call returned.
+        Object::FrameRef(fref) => {
+            out.push(fref.entry);
+            out.push(fref.self_value);
+            out.push(Value::Obj(fref.definer));
+            out.push(Value::Obj(fref.target));
+            out.push(fref.invokee);
+            out.extend(fref.vars.iter().copied());
+        }
+        Object::FrameDesc(desc) => out.push(Value::Obj(desc.fref)),
         Object::String(_)
         | Object::FileName(_)
         | Object::Date { .. }

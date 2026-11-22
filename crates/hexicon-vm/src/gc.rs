@@ -25,6 +25,9 @@ impl Vm {
             roots.push(Value::Obj(frame.definer));
             roots.push(frame.self_value);
             roots.push(frame.invokee);
+            if let Some(id) = frame.frame_ref {
+                roots.push(Value::Obj(id));
+            }
             if let Some(call) = &frame.native {
                 roots.push(call.self_value);
                 roots.extend(call.args.iter().copied());

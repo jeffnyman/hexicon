@@ -23,6 +23,7 @@ mod dynfunc;
 mod entities;
 mod error;
 mod file;
+mod frameref;
 mod gc;
 mod gram;
 mod hash;

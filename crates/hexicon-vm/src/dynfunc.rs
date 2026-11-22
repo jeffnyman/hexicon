@@ -9,7 +9,8 @@
 use std::rc::Rc;
 
 use hexicon_compiler::dynamic::{
-    DynContext, DynHost, DynMode, DynObjKind, DynSymbol, compile_dynamic,
+    DynContext, DynCtxUse, DynHost, DynLocal, DynMode, DynObjKind, DynSymbol, DynValue,
+    compile_dynamic,
 };
 use hexicon_compiler::pp::LinkMacro;
 
@@ -113,6 +114,31 @@ struct FuncObjects<'v> {
 }
 
 impl DynHost for FuncObjects<'_> {
+    fn new_object(&mut self, class: u32, props: &[(u16, DynValue)]) -> u32 {
+        let vm = &mut *self.vm;
+        let class = ObjId(class);
+        // As `new` of the class makes it, with no arguments.
+        let mut argc = 0;
+        if class.is_valid() {
+            vm.push(Value::Obj(class));
+            argc = 1;
+        }
+        let Ok((id, _)) = vm.create_tads_object(argc, false, None) else {
+            return 0;
+        };
+        // Keep it while the rest is made.
+        vm.push(Value::Obj(id));
+        for (prop, value) in props {
+            let value = match value {
+                DynValue::Int(n) => Value::Int(*n),
+                DynValue::Str(text) => vm.new_string(text.clone()),
+            };
+            let _ = vm.set_prop(id, *prop, value);
+        }
+        vm.discard(1);
+        id.0
+    }
+
     fn new_func_ids(&mut self, count: usize) -> Vec<u32> {
         (0..count)
             .map(|_| {
@@ -144,13 +170,14 @@ impl Vm {
             }
         };
         let globals = table(self, 1)?;
-        let _locals = table(self, 2)?;
+        let locals = table(self, 2)?;
         let macros = table(self, 3)?;
         let Some(text) = self.as_str(source) else {
             return Err(VmError::new(code::BAD_TYPE_BIF));
         };
         let text = text.to_vec();
-        let context = self.dyn_context(globals, macros);
+        let mut context = self.dyn_context(globals, macros);
+        let innermost = self.dyn_locals(locals, &mut context)?;
         let result = compile_dynamic(
             &text,
             &context,
@@ -174,12 +201,67 @@ impl Vm {
                 code: func.code.into(),
                 obj_refs: func.obj_refs.iter().map(|&at| at as u16).collect(),
                 source: if index == 0 { source } else { Value::Nil },
-                method_ctx: Value::Nil,
+                method_ctx: match (index, compiled.ctx_use, innermost) {
+                    (0, DynCtxUse::Full, Some(fref)) => self.frame_ref_loadctx(fref),
+                    (0, DynCtxUse::SelfOnly, Some(fref)) => self.frame_ref_self(fref),
+                    _ => Value::Nil,
+                },
             };
             self.objects.replace(id, Object::DynFunc(Box::new(dynfunc)));
             main.get_or_insert(id);
         }
         main.ok_or_else(|| VmError::new(code::BAD_TYPE_BIF))
+    }
+
+    /// The variables the code can use: those of the stack frame given,
+    /// or of each in a list of them, innermost first. Returns the call
+    /// of the innermost frame, if it has a `self`.
+    fn dyn_locals(
+        &mut self,
+        locals: Option<ObjId>,
+        context: &mut DynContext,
+    ) -> VmResult<Option<ObjId>> {
+        let Some(locals) = locals else {
+            return Ok(None);
+        };
+        let mut frames = Vec::new();
+        if self.frame_desc(locals).is_some() {
+            frames.push(locals);
+        } else if let Some(len) = self.list_like_len(Value::Obj(locals))? {
+            for index in 1..=len {
+                if let Value::Obj(id) = self.list_like_get(Value::Obj(locals), index)?
+                    && self.frame_desc(id).is_some()
+                {
+                    frames.push(id);
+                } else if index == 1 {
+                    // Only the first can be the innermost.
+                    frames.push(ObjId::INVALID);
+                }
+            }
+        }
+        let mut innermost = None;
+        for (index, &id) in frames.iter().enumerate() {
+            let Some(desc) = self.frame_desc(id) else {
+                continue;
+            };
+            if index == 0 && !self.frame_ref_self(desc.fref).is_nil() {
+                context.frame_has_self = true;
+                innermost = Some(desc.fref);
+            }
+            if desc.scope == 0 {
+                continue;
+            }
+            for sym in self.frame_desc_syms(desc) {
+                let number = self.frame_var_number(desc.fref, &sym) as u16;
+                context.locals.push(DynLocal {
+                    name: sym.name,
+                    frame_ref: desc.fref.0,
+                    number,
+                    context: sym.ctx.map_or(0, |ctx| ctx as u16),
+                });
+            }
+        }
+        Ok(innermost)
     }
 
     /// The exception a compilation that failed throws: the program's
@@ -241,6 +323,7 @@ impl Vm {
                 context
                     .metaclasses
                     .push(entry.image_name.as_bytes().to_vec());
+                context.metaclass_props.push(entry.method_props.clone());
             }
         }
         if let Some(Object::LookupTable(table)) = globals.and_then(|id| self.objects.get(id)) {

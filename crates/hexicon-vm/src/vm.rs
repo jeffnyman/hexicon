@@ -93,6 +93,9 @@ pub(crate) struct Frame {
     pub invokee: Value,
     /// Present when the VM, not byte code, made the call.
     pub native: Option<Box<NativeCall>>,
+    /// The `StackFrameRef` that stands for the call, once a stack trace
+    /// has asked for one.
+    pub frame_ref: Option<ObjId>,
 }
 
 impl Predef {
@@ -335,8 +338,11 @@ pub enum RunState {
 
 /// A T3 virtual machine with a program loaded.
 pub struct Vm {
-    /// The code pool, as one contiguous array.
+    /// The code pool, as one contiguous array, and after it the code
+    /// compiled while the program runs.
     pub(crate) code: Rc<[u8]>,
+    /// The length of the image's own code.
+    pub(crate) image_code_len: usize,
     /// The constant pool, as one contiguous array.
     pub(crate) consts: Rc<[u8]>,
     pub(crate) layout: Layout,
@@ -505,6 +511,8 @@ impl Vm {
             Object::Pattern { .. } => MetaKind::RexPattern,
             Object::StringBuffer(_) => MetaKind::StringBuffer,
             Object::DynFunc(_) => MetaKind::DynamicFunc,
+            Object::FrameRef(_) => MetaKind::StackFrameRef,
+            Object::FrameDesc(_) => MetaKind::StackFrameDesc,
             Object::BigNumber(_) => MetaKind::BigNumber,
             Object::ByteArray(_) => MetaKind::ByteArray,
             Object::StrComp(_) => MetaKind::StringComparator,

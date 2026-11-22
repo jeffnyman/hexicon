@@ -88,6 +88,44 @@ pub struct DynContext {
     /// The classes built into the VM that the image uses, in its order:
     /// the VM's names for them, with their versions.
     pub metaclasses: Vec<Vec<u8>>,
+    /// For each of those classes, the properties of its methods, the
+    /// first method's first.
+    pub metaclass_props: Vec<Vec<u16>>,
+    /// The variables of running functions the code can use, which hide
+    /// global names. Of two with one name, the first counts.
+    pub locals: Vec<DynLocal>,
+    /// The innermost of those functions has a `self`, which code given
+    /// as `function(...) { ... }` then has as well.
+    pub frame_has_self: bool,
+}
+
+/// A variable of a running function, which the code reads and sets
+/// through the object that stands for the function's call.
+#[derive(Debug, Clone)]
+pub struct DynLocal {
+    /// The variable's name.
+    pub name: Vec<u8>,
+    /// The number of the object that stands for the call.
+    pub frame_ref: u32,
+    /// The variable's number among the call's: its locals, then its
+    /// arguments.
+    pub number: u16,
+    /// For a variable shared with an anonymous function, its index in
+    /// the context object the variable holds; otherwise 0.
+    pub context: u16,
+}
+
+/// What of the method context of the function the code was compiled in
+/// the code uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DynCtxUse {
+    /// None of it.
+    #[default]
+    None,
+    /// `self`.
+    SelfOnly,
+    /// All of it, as `loadctx` takes it.
+    Full,
 }
 
 /// How to read the source.
@@ -118,6 +156,19 @@ pub struct DynCompiled {
     pub funcs: Vec<(u32, DynCode)>,
     /// The source was `method(...) { ... }`.
     pub is_method: bool,
+    /// What of the method context of the function it was compiled in the
+    /// code uses, which its object keeps for it.
+    pub ctx_use: DynCtxUse,
+}
+
+/// A value the compiler gives a property of an object it has the
+/// program make.
+#[derive(Debug, Clone)]
+pub enum DynValue {
+    /// An integer.
+    Int(i32),
+    /// A string.
+    Str(Vec<u8>),
 }
 
 /// What the compiler asks of the program that is running.
@@ -125,6 +176,10 @@ pub trait DynHost {
     /// Numbers for so many new objects, which the compiled functions are
     /// to be: the code refers to them by these.
     fn new_func_ids(&mut self, count: usize) -> Vec<u32>;
+
+    /// Make an object of the program's own kind, of the class given, with
+    /// the properties given, and say its number. The code refers to it.
+    fn new_object(&mut self, class: u32, props: &[(u16, DynValue)]) -> u32;
 }
 
 /// A source held in memory, for the preprocessor to read.
@@ -185,6 +240,22 @@ pub fn compile_dynamic(
         return Err(messages.join("\n"));
     }
 
+    // The objects the code needs, such as those that choose among the
+    // alternatives of a `<<one of>>`, are made before its functions.
+    if let Some(dynamic) = prog.dynamic.as_mut() {
+        for (index, (class, props)) in std::mem::take(&mut dynamic.gen_objs)
+            .into_iter()
+            .enumerate()
+        {
+            let props: Vec<(u16, DynValue)> = props
+                .into_iter()
+                .map(|(prop, value)| (prog.props[prop].id, value))
+                .collect();
+            let id = host.new_object(class, &props);
+            dynamic.gen_obj_ids.insert(gen_obj_id(index), id);
+        }
+    }
+
     // A number for each function: the one the source is, then those in
     // it, in the order they will be made.
     let bodies: Vec<usize> = prog
@@ -198,6 +269,23 @@ pub fn compile_dynamic(
     let ids = host.new_func_ids(bodies.len());
     if let Some(dynamic) = prog.dynamic.as_mut() {
         dynamic.body_ids = bodies.iter().copied().zip(ids.iter().copied()).collect();
+    }
+
+    // Code given as a function, where the function it is compiled in has
+    // a `self`, takes that function's method context as its own.
+    let mut ctx_use = DynCtxUse::None;
+    if let Some(&main) = bodies.first() {
+        let body = &prog.bodies[main].0;
+        if context.frame_has_self && !is_method && body.self_valid {
+            if body.closure.full_ctx_referenced {
+                ctx_use = DynCtxUse::Full;
+            } else if body.closure.self_referenced {
+                ctx_use = DynCtxUse::SelfOnly;
+            }
+        }
+        if let Some(dynamic) = prog.dynamic.as_mut() {
+            dynamic.main_ctx = (main, ctx_use);
+        }
     }
 
     let generated = crate::emit::generate(&mut prog, false, 0);
@@ -250,7 +338,17 @@ pub fn compile_dynamic(
             },
         ));
     }
-    Ok(DynCompiled { funcs, is_method })
+    Ok(DynCompiled {
+        funcs,
+        is_method,
+        ctx_use,
+    })
+}
+
+/// The number the code has for an object it needs until the program
+/// has made it.
+pub(crate) fn gen_obj_id(index: usize) -> u32 {
+    0xF000_0000 + index as u32
 }
 
 /// What the parser and code generator keep for dynamic code.
@@ -266,4 +364,25 @@ pub(crate) struct DynProgram {
     /// How many properties the program has: any made after these are for
     /// names it does not have.
     pub known_props: usize,
+    /// The variables of running functions: the object for the call, the
+    /// variable's number, and its index in a context object or 0.
+    pub locals: Vec<(u32, u16, u16)>,
+    /// The innermost running function has a `self`.
+    pub frame_has_self: bool,
+    /// The properties of the methods of each class built into the VM
+    /// that the image uses.
+    pub meta_props: Vec<Vec<u16>>,
+    /// The objects the code needs, to be made before code is generated:
+    /// each one's class, and its properties, by index into the program's
+    /// properties, with their values.
+    pub gen_objs: Vec<(u32, Vec<(usize, DynValue)>)>,
+    /// The numbers of those objects, by the number the code has for each
+    /// until it is made.
+    pub gen_obj_ids: HashMap<u32, u32>,
+    /// The objects that can be called as functions, such as functions
+    /// compiled before: indexes into the program's objects.
+    pub func_objs: std::collections::HashSet<usize>,
+    /// The body the source is, and what of the method context it takes
+    /// from the function it was compiled in.
+    pub main_ctx: (usize, DynCtxUse),
 }

@@ -500,6 +500,8 @@ fn runtime_symbols(
                     index: prog.bifs[bif].index as u16,
                 },
                 Global::Meta(meta) => RuntimeValue::Class(prog.metas[meta].obj_id),
+                // Only code compiled while the program runs has these.
+                Global::DynLocal(_) => return None,
             };
             Some(RuntimeSymbol {
                 name: name.to_vec(),

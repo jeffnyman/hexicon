@@ -1067,13 +1067,16 @@ impl Gen<'_> {
                 // constant. A dictionary, which is an object of a class
                 // built into the virtual machine, stays a name.
                 Some(Global::Obj(obj))
-                    if self.prog.objs[*obj].is_dict || self.prog.objs[*obj].is_gramprod =>
+                    if self.prog.objs[*obj].is_dict
+                        || self.prog.objs[*obj].is_gramprod
+                        || self.is_func_obj(*obj) =>
                 {
                     Expr::Sym(name)
                 }
                 Some(Global::Obj(obj)) => Expr::constant(Value::Obj(self.prog.objs[*obj].id)),
                 Some(Global::Enum(sym)) => Expr::constant(Value::Enum(self.enum_ids[*sym])),
-                Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_)) | None => Expr::Sym(name),
+                Some(Global::Bif(_) | Global::Prop(_) | Global::Meta(_) | Global::DynLocal(_))
+                | None => Expr::Sym(name),
             },
             Expr::SelfRef
             | Expr::Inh
@@ -2030,6 +2033,29 @@ impl Gen<'_> {
                     self.gen_opt_positional(id);
                 }
             }
+        }
+
+        // Code compiled while the program runs, given as a function,
+        // takes the method context of the function it was compiled in,
+        // which its object keeps as its first element.
+        let main_ctx = self.prog.dynamic.as_ref().map(|dynamic| dynamic.main_ctx);
+        if let Some((main, ctx_use)) = main_ctx
+            && main == body_index
+            && ctx_use != crate::dynamic::DynCtxUse::None
+        {
+            self.cg.write_op(Op::PushCtxEle);
+            self.cg.write(CTX_ELE_INVOKEE);
+            self.gen_int(1);
+            self.cg.write_op(Op::Index);
+            self.cg.note_push();
+            self.cg.note_pop();
+            self.cg
+                .write_op(if ctx_use == crate::dynamic::DynCtxUse::Full {
+                    Op::LoadCtx
+                } else {
+                    Op::SetSelf
+                });
+            self.cg.note_pop();
         }
 
         // A nested function keeps in locals the contexts it was made
@@ -4001,6 +4027,7 @@ impl Gen<'_> {
             // A built-in function named without parentheses is called
             // with no arguments.
             Expr::Sym(name) => match self.implied_global(name) {
+                Some(Global::DynLocal(local)) => self.gen_dyn_local(local, discard),
                 Some(Global::Bif(bif)) => self.gen_bif_call(bif, discard, 0, false, None),
                 Some(Global::Prop(prop)) => self.gen_prop_self(prop, discard),
                 // A built-in class: the object that stands for it,
@@ -4291,20 +4318,30 @@ impl Gen<'_> {
     /// is the first thing the built-in class `collection` is declared
     /// to do.
     fn gen_iter_init(&mut self, coll: &Expr, local: usize, keyword: &str) {
-        let create_iter = self
+        let collection = self
             .prog
             .meta_table
             .iter()
-            .find(|entry| entry.name.starts_with(b"collection/"))
-            .and_then(|entry| entry.sym)
-            .and_then(|sym| self.prog.metas[sym].props.first().copied());
+            .position(|entry| entry.name.starts_with(b"collection/"));
+        // Code compiled while the program runs takes the property from
+        // the classes the program has.
+        let create_iter = match &self.prog.dynamic {
+            Some(dynamic) => collection
+                .and_then(|index| dynamic.meta_props.get(index))
+                .and_then(|props| props.first().copied())
+                .filter(|&prop| prop != 0),
+            None => collection
+                .and_then(|index| self.prog.meta_table[index].sym)
+                .and_then(|sym| self.prog.metas[sym].props.first().copied())
+                .map(|prop| self.prog.props[prop].id),
+        };
         let Some(prop) = create_iter else {
             self.error(format!(
                 "Container.createIterator is not defined - {keyword}..in is not valid"
             ));
             return;
         };
-        let prop = Expr::constant(Value::Prop(self.prog.props[prop].id));
+        let prop = Expr::constant(Value::Prop(prop));
         self.gen_member(coll, &prop, false, CallArgs::default(), false);
         self.gen_setlcl_stk(local, false);
     }
@@ -4451,6 +4488,84 @@ impl Gen<'_> {
         }
     }
 
+    /// The value of a variable of a running function: the object for its
+    /// call, indexed by the variable's number, and then, for a variable
+    /// in a context, by its index there.
+    fn gen_dyn_local(&mut self, local: usize, discard: bool) {
+        if discard {
+            return;
+        }
+        let (frame_ref, number, context) = self.dyn_local(local);
+        self.cg.write_op(Op::PushObj);
+        self.write_obj_id(frame_ref);
+        self.cg.note_push();
+        self.gen_int(i32::from(number));
+        self.cg.write_op(Op::Index);
+        self.cg.note_pop();
+        if context != 0 {
+            self.gen_int(i32::from(context));
+            self.cg.write_op(Op::Index);
+            self.cg.note_pop();
+        }
+    }
+
+    /// Assign to a variable of a running function, through the object
+    /// for its call.
+    fn gen_dyn_local_asi(
+        &mut self,
+        local: usize,
+        discard: bool,
+        phase: u8,
+        typ: AsiOp,
+        rhs: Option<&Expr>,
+    ) -> bool {
+        // Any assignment but a plain one fetches the value first.
+        if typ != AsiOp::Simple && phase == 1 {
+            self.gen_dyn_local(local, false);
+            return false;
+        }
+        if let Some(rhs) = rhs {
+            self.gen_expr(rhs, false, false);
+        }
+        if !discard {
+            self.cg.write_op(Op::Dup);
+            self.cg.note_push();
+        }
+        let (frame_ref, number, context) = self.dyn_local(local);
+        self.cg.write_op(Op::PushObj);
+        self.write_obj_id(frame_ref);
+        self.cg.note_push();
+        self.gen_int(i32::from(number));
+        if context != 0 {
+            self.cg.write_op(Op::Index);
+            self.cg.note_pop();
+            self.gen_int(i32::from(context));
+        }
+        self.cg.write_op(Op::SetInd);
+        self.cg.write_op(Op::Disc);
+        self.cg.note_pops(3);
+        true
+    }
+
+    /// Whether an object can be called as a function: in code compiled
+    /// while the program runs, one such as a function compiled before.
+    fn is_func_obj(&self, obj: usize) -> bool {
+        self.prog
+            .dynamic
+            .as_ref()
+            .is_some_and(|dynamic| dynamic.func_objs.contains(&obj))
+    }
+
+    /// A variable of a running function: the object for its call, its
+    /// number, and its index in a context object or 0.
+    fn dyn_local(&self, local: usize) -> (u32, u16, u16) {
+        self.prog
+            .dynamic
+            .as_ref()
+            .and_then(|dynamic| dynamic.locals.get(local).copied())
+            .unwrap_or_default()
+    }
+
     /// Write a property's number into the code, and note where, for
     /// the number is not the one the image will have.
     fn write_prop_id(&mut self, id: u16) {
@@ -4460,6 +4575,14 @@ impl Gen<'_> {
 
     /// Write an object's number in the code. Zero is no object.
     fn write_obj_id(&mut self, id: u32) {
+        // An object code compiled while the program runs had the program
+        // make has its number now.
+        let id = self
+            .prog
+            .dynamic
+            .as_ref()
+            .and_then(|dynamic| dynamic.gen_obj_ids.get(&id).copied())
+            .unwrap_or(id);
         if id != 0 {
             self.out.id_fixups.push((self.cg.ofs(), IdKind::Obj));
         }
@@ -4507,7 +4630,7 @@ impl Gen<'_> {
                 self.cg.write2(set as u16);
                 self.cg.note_push();
             }
-            Global::Meta(_) | Global::Enum(_) => {
+            Global::Meta(_) | Global::Enum(_) | Global::DynLocal(_) => {
                 self.error(format!("cannot take address of \"{}\"", show_name(name)));
             }
         }
@@ -6170,7 +6293,25 @@ impl Gen<'_> {
                         self.cg.note_push();
                     }
                 }
-                Some(Global::Meta(_)) => {
+                // An object that can be called, such as a function
+                // compiled while the program runs.
+                Some(Global::Obj(obj)) if self.is_func_obj(obj) => {
+                    if varargs {
+                        self.cg.write_op(Op::VarArgc);
+                    }
+                    self.cg.write_op(Op::PushObj);
+                    self.write_obj_id(self.prog.objs[obj].id);
+                    self.cg.note_push();
+                    self.cg.write_op(Op::PtrCall);
+                    self.cg.write(argc as u8);
+                    self.cg.note_pops(argc as i32 + 1);
+                    self.post_call_cleanup(named);
+                    if !discard {
+                        self.cg.write_op(Op::GetR0);
+                        self.cg.note_push();
+                    }
+                }
+                Some(Global::Meta(_) | Global::DynLocal(_)) => {
                     self.error(format!(
                         "cannot call \"{}\" as a method or function",
                         show_name(name)
@@ -6375,6 +6516,9 @@ impl Gen<'_> {
                     }
                     self.undefined(name);
                     return false;
+                }
+                if let Some(Global::DynLocal(local)) = known {
+                    return self.gen_dyn_local_asi(local, discard, phase, typ, rhs);
                 }
                 let Some(Global::Prop(prop)) = self.implied_global(name) else {
                     if ignore_error || phase > 1 {

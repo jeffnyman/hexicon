@@ -1543,6 +1543,9 @@ impl Vm {
                 Ok(id)
             }
             MetaKind::IntrinsicClass => Err(VmError::new(code::ILLEGAL_NEW)),
+            MetaKind::StackFrameDesc | MetaKind::StackFrameRef => {
+                Err(VmError::new(code::BAD_DYNAMIC_NEW))
+            }
             other => Err(VmError::unimplemented(format!(
                 "creating an object of intrinsic class {}",
                 other.name()

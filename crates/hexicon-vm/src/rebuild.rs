@@ -754,6 +754,25 @@ impl Vm {
             // The length of the code, the number of objects it refers
             // to, the method context, the source, the code, and where in
             // it each object's number is.
+            Object::FrameRef(fref) => {
+                let vars = self.frame_vars(id).unwrap_or_else(|| fref.vars.clone());
+                d.u16(fref.nlocals);
+                d.u16(fref.nparams);
+                d.value(fref.entry);
+                d.value(fref.self_value);
+                d.u32(fref.definer.0);
+                d.u32(fref.target.0);
+                d.u16(fref.prop.into());
+                d.value(fref.invokee);
+                for index in 0..fref.nlocals + fref.nparams {
+                    d.value(vars.get(index).copied().unwrap_or(Value::Nil));
+                }
+            }
+            Object::FrameDesc(desc) => {
+                d.u32(desc.fref.0);
+                d.u16(desc.scope.into());
+                d.u16(desc.offset.into());
+            }
             Object::DynFunc(func) => {
                 d.u16(func.code.len());
                 d.u16(func.obj_refs.len());

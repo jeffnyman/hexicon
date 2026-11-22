@@ -85,6 +85,7 @@ impl Vm {
             self_value: context.self_value,
             invokee: context.invokee,
             native,
+            frame_ref: None,
         });
         Ok(func + self.layout.method_header)
     }
@@ -92,6 +93,10 @@ impl Vm {
     /// Leave the current function. Returns the address to continue at, or
     /// `None` if the function was called by the VM itself.
     pub(crate) fn pop_frame(&mut self) -> Option<u32> {
+        // A reference to the call keeps its variables from now on.
+        if let Some(id) = self.frames.last()?.frame_ref {
+            self.snapshot_frame(id);
+        }
         let frame = self.frames.pop()?;
         self.stack.truncate((frame.base - frame.argc) as usize);
         match frame.ret {

@@ -135,6 +135,9 @@ pub(crate) fn object_bytes(object: &Object, vector_room: usize) -> i64 {
         Object::DynFunc(func) => {
             48 + 2 * (func.obj_refs.len() as i64 - 1).max(0) + 4 + func.code.len() as i64
         }
+        // The fixed part, with a slot for each variable past the first.
+        Object::FrameRef(fref) => 104 + 16 * ((fref.nlocals + fref.nparams) as i64 - 1),
+        Object::FrameDesc(_) => 12,
         Object::Opaque { .. } => 0,
     }
 }

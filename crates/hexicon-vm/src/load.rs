@@ -227,6 +227,17 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             crate::dynfunc::DynFunc::read(data, &mut |holder| Some(Value::from_holder(holder)))
                 .ok_or_else(bad)?,
         )),
+        MetaKind::StackFrameRef => Object::FrameRef(Box::new(
+            crate::frameref::FrameRef::read(
+                data,
+                &mut |holder| Some(Value::from_holder(holder)),
+                &|id| id,
+            )
+            .ok_or_else(bad)?,
+        )),
+        MetaKind::StackFrameDesc => {
+            Object::FrameDesc(crate::frameref::FrameDesc::read(data).ok_or_else(bad)?)
+        }
         MetaKind::IntrinsicClass => {
             // A length, the index of the class in the dependency list,
             // the modifier object, and optionally the class state.
@@ -304,6 +315,7 @@ impl Vm {
         let entry = &image.entry_point;
         let mut vm = Self {
             code: flatten(&image.code_pool),
+            image_code_len: 0,
             consts: flatten(&image.constant_pool),
             layout: Layout {
                 method_header: entry.method_header_size.into(),
@@ -348,6 +360,7 @@ impl Vm {
             io: crate::io::IoState::default(),
             host,
         };
+        vm.image_code_len = vm.code.len();
         vm.link(image)?;
         // A dictionary's words are stored by its comparator's hash, which
         // can only be worked out once the comparator is loaded.

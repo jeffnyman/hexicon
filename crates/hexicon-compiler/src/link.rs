@@ -75,6 +75,7 @@ fn kind_name(global: &Global) -> &'static str {
         Global::Prop(_) => "property",
         Global::Meta(_) => "intrinsic class",
         Global::Enum(_) => "enum",
+        Global::DynLocal(_) => "local variable",
     }
 }
 
@@ -377,6 +378,7 @@ impl Linker {
                         Some(old) => self.conflict(name, &old, global, object_file),
                     }
                 }
+                Global::DynLocal(_) => {}
                 Global::Enum(sym) => {
                     if !m.globals.is_used(name) {
                         continue;

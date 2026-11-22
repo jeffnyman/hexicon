@@ -868,6 +868,8 @@ fn global_symbols_block(
                 data.push(u8::from(prog.enums[sym].is_token));
                 10
             }
+            // Only code compiled while the program runs has these.
+            Global::DynLocal(_) => continue,
         };
         entries.extend_from_slice(&(name.len() as u16).to_le_bytes());
         entries.extend_from_slice(&(data.len() as u16).to_le_bytes());

@@ -340,6 +340,28 @@ impl Vm {
                 w.bytes(bytes);
             }
             Object::BigNumber(big) => w.bytes(&big.to_bytes()),
+            // The number of locals and of arguments, the function, the
+            // method context, what was called, and the variables, taken
+            // from the stack while the call runs.
+            Object::FrameRef(fref) => {
+                let vars = self.frame_vars(id).unwrap_or_else(|| fref.vars.clone());
+                w.u16(fref.nlocals);
+                w.u16(fref.nparams);
+                w.value(fref.entry);
+                w.value(fref.self_value);
+                w.u32(fref.definer.0);
+                w.u32(fref.target.0);
+                w.u16(fref.prop.into());
+                w.value(fref.invokee);
+                for index in 0..fref.nlocals + fref.nparams {
+                    w.value(vars.get(index).copied().unwrap_or(Value::Nil));
+                }
+            }
+            Object::FrameDesc(desc) => {
+                w.u32(desc.fref.0);
+                w.u16(desc.scope.into());
+                w.u16(desc.offset.into());
+            }
             Object::DynFunc(func) => {
                 w.u16(func.code.len());
                 w.u16(func.obj_refs.len());
@@ -705,6 +727,34 @@ impl Vm {
                 r.pos = start;
                 let data = r.bytes(5 + prec.div_ceil(2))?;
                 Object::BigNumber(Box::new(Big::from_bytes(data).ok_or_else(bad)?))
+            }
+            MetaKind::StackFrameRef => {
+                let len = crate::frameref::FrameRef::data_len(&r.data[r.pos..]).ok_or_else(bad)?;
+                let data = r.bytes(len)?;
+                let mut failed = false;
+                let fref = crate::frameref::FrameRef::read(
+                    data,
+                    &mut |holder| {
+                        let mut reader = Reader {
+                            data: holder,
+                            pos: 0,
+                        };
+                        let value = fixups.read_value(&mut reader);
+                        failed |= value.is_err();
+                        value.ok()
+                    },
+                    &|id| fixups.id(id),
+                )
+                .ok_or_else(bad)?;
+                if failed {
+                    return Err(bad());
+                }
+                Object::FrameRef(Box::new(fref))
+            }
+            MetaKind::StackFrameDesc => {
+                let mut desc = crate::frameref::FrameDesc::read(r.bytes(8)?).ok_or_else(bad)?;
+                desc.fref = fixups.id(desc.fref);
+                Object::FrameDesc(desc)
             }
             MetaKind::DynamicFunc => {
                 // The objects its code refers to have their numbers in

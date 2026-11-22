@@ -3201,6 +3201,11 @@ impl crate::dynamic::DynHost for FuncIds {
         self.0 += count as u32;
         (first..self.0).collect()
     }
+
+    fn new_object(&mut self, _class: u32, _props: &[(u16, crate::dynamic::DynValue)]) -> u32 {
+        self.0 += 1;
+        self.0 - 1
+    }
 }
 
 #[test]
@@ -3248,4 +3253,26 @@ fn code_is_compiled_while_a_program_runs() {
     // A name the program does not have.
     let failed = compile_dynamic(b"test1.mUndef(1);", &context, DynMode::Auto, &mut host);
     assert_eq!(failed, Err("error: undefined symbol \"mUndef\"".to_owned()));
+
+    // A variable of a running function, which hides a global name: read
+    // and set through the object for the function's call.
+    let context = DynContext {
+        locals: vec![crate::dynamic::DynLocal {
+            name: b"test1".to_vec(),
+            frame_ref: 9,
+            number: 3,
+            context: 0,
+        }],
+        ..context
+    };
+    let compiled =
+        compile_dynamic(b"test1 += 1", &context, DynMode::Auto, &mut host).expect("it compiles");
+    let code = &compiled.funcs[0].1;
+    let at = code.obj_refs[0];
+    assert_eq!(&code.code[at..at + 4], &9u32.to_le_bytes());
+    assert_eq!(
+        code.obj_refs.len(),
+        2,
+        "the call's object, read and then set"
+    );
 }

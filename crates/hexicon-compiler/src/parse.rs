@@ -457,6 +457,9 @@ pub(crate) enum Global {
     Meta(usize),
     /// An index into [`Program::enums`].
     Enum(usize),
+    /// In code compiled while the program runs, a variable of a running
+    /// function: an index into the dynamic program's locals.
+    DynLocal(usize),
 }
 
 /// A value of an enumeration (`enum red, green;`).
@@ -1745,6 +1748,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                     let obj = prog.objs.last_mut().expect("just added");
                     obj.is_dict = *kind == DynObjKind::Dictionary;
                     obj.is_gramprod = *kind == DynObjKind::GrammarProd;
+                    if *kind == DynObjKind::Invokable {
+                        dynamic.func_objs.insert(prog.objs.len() - 1);
+                    }
                 }
                 DynSymbol::Class { meta_index, id } => {
                     let index = prog.metas.len();
@@ -1818,6 +1824,20 @@ impl<'p, 'a> Parser<'p, 'a> {
                 }
             }
         }
+        // The variables of running functions hide global names.
+        let mut seen = std::collections::HashSet::new();
+        for local in &context.locals {
+            if !seen.insert(local.name.clone()) {
+                continue;
+            }
+            prog.globals
+                .insert_known(local.name.clone(), Global::DynLocal(dynamic.locals.len()));
+            dynamic
+                .locals
+                .push((local.frame_ref, local.number, local.context));
+        }
+        dynamic.frame_has_self = context.frame_has_self;
+        dynamic.meta_props = context.metaclass_props.clone();
         dynamic.known_props = prog.props.len();
         prog.dynamic = Some(Box::new(dynamic));
         parser
@@ -1837,7 +1857,12 @@ impl<'p, 'a> Parser<'p, 'a> {
         let parsed = match self.cur() {
             Tok::Function if auto => {
                 self.next();
-                self.parse_code_body(false, CbType::Normal, None, None)
+                let self_valid = self
+                    .prog
+                    .dynamic
+                    .as_ref()
+                    .is_some_and(|dynamic| dynamic.frame_has_self);
+                self.parse_code_body(self_valid, CbType::Normal, None, None)
                     .ok()
                     .flatten()
                     .map(|(body, _)| (body, false))
@@ -3038,7 +3063,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                 | Global::Obj(_)
                 | Global::Prop(_)
                 | Global::Meta(_)
-                | Global::Enum(_),
+                | Global::Enum(_)
+                | Global::DynLocal(_),
             ) => {
                 self.tok.log_at(
                     sym_file,
@@ -9092,6 +9118,37 @@ impl Parser<'_, '_> {
         if !matches!(self.prog.globals.get(CLASS), Some(Global::Obj(_))) {
             self.error("<<one of>> requires class OneOfIndexGen to be defined in the program");
             return Expr::OneOf(dbl, elements, None);
+        }
+        // Code compiled while the program runs has the program make
+        // the object.
+        if self.prog.dynamic.is_some() {
+            let class = match self.prog.globals.get(CLASS) {
+                Some(Global::Obj(obj)) => self.prog.objs[*obj].id,
+                _ => 0,
+            };
+            let mut props = Vec::new();
+            let values = [
+                (
+                    &b"numItems"[..],
+                    crate::dynamic::DynValue::Int(elements.len() as i32),
+                ),
+                (
+                    &b"listAttrs"[..],
+                    crate::dynamic::DynValue::Str(attrs.as_bytes().to_vec()),
+                ),
+            ];
+            for (name, value) in values {
+                let prop = match self.prog.globals.get(name).copied() {
+                    Some(Global::Prop(prop)) => prop,
+                    None => self.prog.def_prop(name),
+                    Some(_) => continue,
+                };
+                props.push((prop, value));
+            }
+            let dynamic = self.prog.dynamic.as_mut().expect("dynamic code");
+            let id = crate::dynamic::gen_obj_id(dynamic.gen_objs.len());
+            dynamic.gen_objs.push((class, props));
+            return Expr::OneOf(dbl, elements, Some(id));
         }
         let obj = self.new_anon_obj();
         let (file, line) = self.tok.last_pos();

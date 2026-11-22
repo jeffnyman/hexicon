@@ -360,6 +360,13 @@ impl Vm {
                 let n = self.index_arg(index)?;
                 self.bytes_index(id, n).map(Some)
             }
+            Some(Object::FrameRef(_)) => self.frame_ref_index(id, index).map(Some),
+            Some(Object::FrameDesc(_)) => self.frame_desc_index(id, index).map(Some),
+            // A DynamicFunc's one element is its method context.
+            Some(Object::DynFunc(func)) => match index {
+                Value::Int(1) => Ok(Some(func.method_ctx)),
+                _ => Err(VmError::new(code::INDEX_OUT_OF_RANGE)),
+            },
             Some(Object::Opaque { .. }) => Err(self.unimplemented_object(id, "indexing")),
             _ => Ok(None),
         }
@@ -417,6 +424,8 @@ impl Vm {
                 self.bytes_set_index(id, n, byte)?;
                 Ok(Some(container))
             }
+            Some(Object::FrameRef(_)) => self.frame_ref_set_index(id, index, value).map(Some),
+            Some(Object::FrameDesc(_)) => self.frame_desc_set_index(id, index, value).map(Some),
             Some(Object::Opaque { .. }) => Err(self.unimplemented_object(id, "indexing")),
             _ => Ok(None),
         }

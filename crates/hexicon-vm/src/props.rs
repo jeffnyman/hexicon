@@ -128,6 +128,7 @@ impl Vm {
             MetaKind::RexPattern => self.pattern_method(self_value.obj_id(), index, argc),
             MetaKind::StringBuffer => self.strbuf_method(self_value.obj_id(), index, argc),
             MetaKind::DynamicFunc => self.dynfunc_method(self_value.obj_id(), index, argc),
+            MetaKind::StackFrameDesc => self.frame_desc_method(self_value.obj_id(), index, argc),
             MetaKind::BigNumber => self.big_method(self_value.obj_id(), index, argc),
             MetaKind::ByteArray => self.bytes_method(self_value.obj_id(), index, argc),
             MetaKind::CharacterSet => self.charset_method(self_value.obj_id(), index, argc),
