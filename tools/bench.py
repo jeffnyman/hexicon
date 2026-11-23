@@ -42,6 +42,7 @@ WALKS = [
     ("SquareCircle", "SquareCircle"),
     ("Banana", "Banana"),
     ("GunMute", "GunMute"),
+    ("DeadLikeAnts", "DeadLikeAnts"),
 ]
 
 
