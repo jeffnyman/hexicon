@@ -4,6 +4,8 @@
 # compare the tokens the two tokenizers find instead of the preprocessed
 # text.
 #
+# On Windows, run this from Git Bash.
+#
 # usage: pp-compare.sh [--tokens] [-I dir]... file...
 #
 # The reference's system headers are always on the include path. A file's

@@ -2,6 +2,8 @@
 # Build the games with Hexicon and with the reference compiler, each
 # from its own project file, and compare the images and the messages.
 #
+# On Windows, run this from Git Bash.
+#
 # usage: game-compare.sh [game...]
 #
 # The games are airport (adv3Lite's tutorial game) and ditch3 (Return to

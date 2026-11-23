@@ -7,6 +7,8 @@
 # suite. The suite is used in place from the tads-sources checkout; it is
 # copied into the work directory so the checkout is never written to.
 #
+# On Windows, run this from Git Bash.
+#
 # usage: run-suite.sh [work-dir]
 #
 # Environment:

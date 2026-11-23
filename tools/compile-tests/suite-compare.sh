@@ -3,6 +3,8 @@
 # reference compiler, as the suite builds them, and compare the images
 # and the messages.
 #
+# On Windows, run this from Git Bash.
+#
 # usage: suite-compare.sh [test-name...]
 #
 # This needs the work directory that tools/reference/run-suite.sh leaves

@@ -5,6 +5,8 @@
 # This needs the work directory that tools/reference/run-suite.sh leaves
 # behind: it holds the compiled images and the list of tests.
 #
+# On Windows, run this from Git Bash.
+#
 # usage: run.sh [test-name...]
 #
 # With test names, only those tests run. Results go to build/conformance:

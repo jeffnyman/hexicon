@@ -7,6 +7,8 @@
 # same version as the wasm-bindgen crate in Cargo.lock (cargo install
 # wasm-bindgen-cli --version <version>).
 #
+# On Windows, run this from Git Bash, or run build-web.ps1 in PowerShell.
+#
 # usage: build-web.sh [target]
 #
 # The target is what the JavaScript is for: "web" (the default) for a page

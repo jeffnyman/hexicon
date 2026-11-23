@@ -2,6 +2,8 @@
 # Compile source files with Hexicon and with the reference compiler, and
 # report the files on which the two differ.
 #
+# On Windows, run this from Git Bash.
+#
 # usage: compile-compare.sh [-I dir]... [--lib] [--debug] file...
 #
 # Each file is compiled as a whole program on its own, without the

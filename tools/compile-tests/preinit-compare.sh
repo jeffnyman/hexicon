@@ -2,6 +2,8 @@
 # Run preinitialization on images with Hexicon and with the reference's
 # t3pre, and compare the images each writes and what each program said.
 #
+# On Windows, run this from Git Bash.
+#
 # usage: preinit-compare.sh image.t3...
 #
 # Each image is preinitialized in a folder of its own under
