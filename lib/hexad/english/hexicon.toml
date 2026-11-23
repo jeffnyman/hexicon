@@ -1,0 +1,11 @@
+# Hexad's English: its messages and its parsing in English.
+
+[library]
+name = "Hexad English"
+sources = [
+    "english.t",
+    "grammar.t",
+    "tokens.t",
+    "instruct.t",
+    "newbie.t",
+]
