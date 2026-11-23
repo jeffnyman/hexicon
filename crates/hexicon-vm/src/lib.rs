@@ -20,6 +20,7 @@ macro_rules! prof_scope {
     ($tag:expr) => {};
 }
 
+mod banner;
 mod bif;
 pub(crate) use hexicon_bignum as bignum;
 mod bignum_math;

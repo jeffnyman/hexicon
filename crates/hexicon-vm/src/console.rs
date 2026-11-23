@@ -119,6 +119,24 @@ fn is_color(_value: &str) -> bool {
     true
 }
 
+/// A color as programs give it to the host: one of the colors the host
+/// chooses, such as the status line's background, or `#rrggbb`.
+fn color_value(value: &str) -> Option<u32> {
+    let value = value.trim().to_lowercase();
+    Some(match value.as_str() {
+        "text" => 0x0200_0000,
+        "bgcolor" => 0x0300_0000,
+        "statustext" => 0x0400_0000,
+        "statusbg" => 0x0500_0000,
+        "input" => 0x0600_0000,
+        _ => u32::from_str_radix(value.strip_prefix('#')?, 16).ok()? & 0x00ff_ffff,
+    })
+}
+
+/// The width of a text grid's formatter, which no line reaches: the grid
+/// itself does not wrap.
+const GRID_WIDTH: usize = 1 << 16;
+
 /// The narrowest a console can be. A host that reports less, as a window
 /// dragged down to nothing would, gets this.
 const MIN_WIDTH: usize = 20;
@@ -145,6 +163,12 @@ pub(crate) struct Formatter {
     cur_flags: u8,
     /// Nesting depth of `<pre>`.
     pre_level: u32,
+    /// Markup is text like any other, as in a text grid.
+    literal: bool,
+    /// Every space counts, as in a text grid.
+    obey_whitespace: bool,
+    /// A background color asked for with `<body>`, not yet passed on.
+    body_color: Option<u32>,
 
     // HTML parsing state. Text can end in the middle of a tag and resume
     // in the next call, so all of this persists.
@@ -190,6 +214,9 @@ impl Formatter {
             nocaps: false,
             cur_flags: 0,
             pre_level: 0,
+            literal: false,
+            obey_whitespace: false,
+            body_color: None,
             parse_state: ParseState::Normal,
             ignore_level: 0,
             title_level: 0,
@@ -215,10 +242,26 @@ impl Formatter {
         }
     }
 
+    /// A formatter for a text grid, as the reference makes one for a grid
+    /// banner: lines are never broken, markup is shown as it is, and every
+    /// space counts.
+    pub(crate) fn grid() -> Self {
+        let mut formatter = Self::new(GRID_WIDTH);
+        formatter.literal = true;
+        formatter.obey_whitespace = true;
+        formatter
+    }
+
     /// Change the console width. Text already on the current line stays
     /// there; the new width applies from the next character.
     pub(crate) fn set_width(&mut self, width: usize) {
         self.width = width.max(MIN_WIDTH);
+    }
+
+    /// Take a background color asked for with `<body>` since this was
+    /// last asked.
+    pub(crate) fn take_body_color(&mut self) -> Option<u32> {
+        self.body_color.take()
     }
 
     /// Take the output produced so far.
@@ -435,7 +478,7 @@ impl Formatter {
             _ => {
                 if crate::regex::is_space(c) {
                     c = ' ';
-                    quoted_space = self.pre_level > 0;
+                    quoted_space = self.obey_whitespace || self.pre_level > 0;
                 }
             }
         }
@@ -639,7 +682,7 @@ impl Formatter {
                     self.nocaps = true;
                     self.caps = false;
                 }
-                '<' | '&' => {
+                '<' | '&' if !self.literal => {
                     c = self.parse_markup(c, &mut source);
                     continue;
                 }
@@ -950,6 +993,9 @@ impl Formatter {
             || (self.in_body && (name == "text" || name == "bgcolor"))
         {
             let _ = is_color(&value);
+            if self.in_body && name == "bgcolor" {
+                self.body_color = color_value(&value);
+            }
         } else if self.in_tab {
             match name.as_str() {
                 "id" => {

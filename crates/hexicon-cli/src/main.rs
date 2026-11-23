@@ -13,7 +13,7 @@ use std::process::ExitCode;
 
 use hexicon_bytecode::listing::{Names, write_function};
 use hexicon_bytecode::{Extent, discover};
-use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, file_attr, file_type};
+use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, banner, file_attr, file_type};
 use hexicon_image::{Image, Pool, Value};
 use hexicon_vm::Vm;
 
@@ -245,6 +245,20 @@ impl Console {
     fn path(&self, name: &str) -> PathBuf {
         self.file_base.join(name)
     }
+
+    /// Change the terminal's banners, if it has any, and draw them.
+    fn with_banners(&mut self, change: impl FnOnce(&mut banner::Screen)) {
+        if let Some(terminal) = &mut self.terminal {
+            terminal.banners(change);
+        }
+    }
+
+    /// Change what the terminal's banners hold, to be drawn later.
+    fn with_banners_later(&mut self, change: impl FnOnce(&mut banner::Screen)) {
+        if let Some(terminal) = &mut self.terminal {
+            terminal.banners_later(change);
+        }
+    }
 }
 
 /// A path from its root, with `.` and `..` worked out by name alone, so
@@ -309,7 +323,7 @@ impl Host for Console {
     }
 
     fn console_width(&mut self) -> Option<usize> {
-        self.terminal.as_ref()?.width()
+        self.terminal.as_mut()?.width()
     }
 
     fn script_input(&mut self) {
@@ -550,6 +564,76 @@ impl Host for Console {
         if let Some(terminal) = &mut self.terminal {
             terminal.clear();
         }
+    }
+
+    // A terminal shows the status line at the top, as a banner would be.
+    fn status_line(&mut self, text: &str) {
+        if let Some(terminal) = &mut self.terminal {
+            terminal.set_status(Some(text), None);
+        }
+    }
+
+    fn status_right(&mut self, text: &str) {
+        if let Some(terminal) = &mut self.terminal {
+            terminal.set_status(None, Some(text));
+        }
+    }
+
+    // Banners are for a terminal. Plain output has none, as the
+    // reference's plain console has none.
+    fn has_banners(&self) -> bool {
+        self.terminal
+            .as_ref()
+            .is_some_and(terminal::Terminal::has_banners)
+    }
+
+    fn banner_create(
+        &mut self,
+        parent: Option<u32>,
+        placement: banner::Placement,
+        spec: banner::BannerSpec,
+    ) -> Option<u32> {
+        self.terminal
+            .as_mut()?
+            .create_banner(parent, placement, spec)
+    }
+
+    fn banner_delete(&mut self, id: u32) {
+        self.with_banners(|screen| screen.delete(id));
+    }
+
+    fn banner_clear(&mut self, id: u32) {
+        self.with_banners_later(|screen| screen.clear(id));
+    }
+
+    fn banner_write(&mut self, id: u32, text: &str) {
+        self.with_banners_later(|screen| screen.write(id, text));
+    }
+
+    fn banner_flush(&mut self, _id: u32) {
+        if let Some(terminal) = &mut self.terminal {
+            terminal.flush_banners();
+        }
+    }
+
+    fn banner_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
+        self.with_banners(|screen| screen.set_size(id, size, units, advisory));
+    }
+
+    fn banner_size_to_contents(&mut self, id: u32) {
+        self.with_banners(|screen| screen.size_to_contents(id));
+    }
+
+    fn banner_go_to(&mut self, id: u32, row: usize, column: usize) {
+        self.with_banners_later(|screen| screen.go_to(id, row, column));
+    }
+
+    fn banner_info(&mut self, id: u32) -> Option<banner::BannerInfo> {
+        self.terminal.as_mut()?.banner_info(id)
+    }
+
+    fn banner_set_screen_color(&mut self, id: u32, color: u32) {
+        self.with_banners_later(|screen| screen.set_screen_color(id, color));
     }
 
     // The system's name for its zone is found by asking it, since the

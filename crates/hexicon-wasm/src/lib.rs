@@ -20,6 +20,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
 use std::rc::Rc;
 
+use hexicon_host::banner::{self, BannerInfo, BannerSpec, Placement, Screen};
 use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, Time, file_attr, file_type};
 use hexicon_image::Image;
 use hexicon_vm::{RunState, Vm};
@@ -54,6 +55,8 @@ struct Shared {
     temp_count: u32,
     /// How many columns of text the page has room for, if it has said.
     width: Option<usize>,
+    /// The banner windows, laid out on a screen as big as the page.
+    screen: Screen,
 }
 
 impl Shared {
@@ -227,6 +230,70 @@ impl Host for WebHost {
     fn system_name(&self) -> String {
         "web".to_owned()
     }
+
+    fn has_banners(&self) -> bool {
+        true
+    }
+
+    fn banner_create(
+        &mut self,
+        parent: Option<u32>,
+        placement: Placement,
+        spec: BannerSpec,
+    ) -> Option<u32> {
+        self.0.borrow_mut().screen.create(parent, placement, spec)
+    }
+
+    fn banner_delete(&mut self, id: u32) {
+        self.0.borrow_mut().screen.delete(id);
+    }
+
+    fn banner_clear(&mut self, id: u32) {
+        self.0.borrow_mut().screen.clear(id);
+    }
+
+    fn banner_write(&mut self, id: u32, text: &str) {
+        self.0.borrow_mut().screen.write(id, text);
+    }
+
+    fn banner_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
+        self.0
+            .borrow_mut()
+            .screen
+            .set_size(id, size, units, advisory);
+    }
+
+    fn banner_size_to_contents(&mut self, id: u32) {
+        self.0.borrow_mut().screen.size_to_contents(id);
+    }
+
+    fn banner_go_to(&mut self, id: u32, row: usize, column: usize) {
+        self.0.borrow_mut().screen.go_to(id, row, column);
+    }
+
+    fn banner_info(&mut self, id: u32) -> Option<BannerInfo> {
+        self.0.borrow().screen.info(id)
+    }
+
+    fn banner_set_screen_color(&mut self, id: u32, color: u32) {
+        self.0.borrow_mut().screen.set_screen_color(id, color);
+    }
+}
+
+/// A string as JSON writes it.
+fn json_string(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if u32::from(c) < 0x20 => out.push_str(&format!("\\u{:04x}", u32::from(c))),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
 }
 
 /// A game loaded and ready to play.
@@ -282,6 +349,7 @@ impl Game {
             time_zone,
             temp_count: 0,
             width: None,
+            screen: Screen::new(24, 81, false),
         }));
         let mut vm = Vm::new(&parsed, Box::new(WebHost(shared.clone())))
             .map_err(|error| JsError::new(&error.to_string()))?;
@@ -395,8 +463,58 @@ impl Game {
     /// input. Without it, lines are up to 79 characters.
     #[wasm_bindgen(js_name = setWidth)]
     pub fn set_width(&mut self, columns: u32) {
-        // The VM keeps the last column of its width free.
-        self.shared.borrow_mut().width = Some(columns as usize + 1);
+        // The VM keeps the last column of its width free, in banners as
+        // in the main window.
+        let mut shared = self.shared.borrow_mut();
+        shared.width = Some(columns as usize + 1);
+        let (rows, _) = shared.screen.size();
+        shared.screen.resize(rows, columns as usize + 1);
+    }
+
+    /// Say how many lines of text the page has room for, banners and the
+    /// main window together. Banners take their lines from these.
+    #[wasm_bindgen(js_name = setHeight)]
+    pub fn set_height(&mut self, rows: u32) {
+        let mut shared = self.shared.borrow_mut();
+        let (_, columns) = shared.screen.size();
+        shared.screen.resize(rows as usize, columns);
+    }
+
+    /// The banner windows and what they show, as JSON:
+    /// `{"main": {"y", "height"}, "banners": [{"x", "y", "width",
+    /// "height", "status", "lines"}]}`, in lines and columns of the
+    /// screen. `status` is whether the banner has the status line's
+    /// colors.
+    pub fn banners(&self) -> String {
+        let shared = self.shared.borrow();
+        let screen = &shared.screen;
+        let main = screen.main();
+        let mut out = format!(
+            "{{\"main\":{{\"y\":{},\"height\":{}}},\"banners\":[",
+            main.y, main.height
+        );
+        for (index, (id, rect)) in screen.banners().into_iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            let status = screen.screen_color(id) == Some(banner::color::STATUS_BG);
+            let lines: Vec<String> = screen
+                .view(id)
+                .iter()
+                .map(|line| json_string(line))
+                .collect();
+            out.push_str(&format!(
+                "{{\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"status\":{},\"lines\":[{}]}}",
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                status,
+                lines.join(",")
+            ));
+        }
+        out.push_str("]}");
+        out
     }
 
     /// The text the game has displayed since this was last called.

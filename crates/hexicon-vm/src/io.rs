@@ -279,6 +279,8 @@ pub(crate) struct IoState {
     read_buf: Vec<u8>,
     /// Log consoles by handle, less one.
     log_consoles: Vec<Option<LogFile>>,
+    /// Banner windows by handle, less one.
+    pub(crate) banners: Vec<Option<crate::banner::Banner>>,
     /// The clock reading that the program's count of milliseconds starts
     /// from: the reading when the program first asked.
     tick_zero: Option<i64>,
@@ -319,6 +321,7 @@ impl Default for IoState {
             read_in_progress: false,
             read_buf: Vec::new(),
             log_consoles: Vec::new(),
+            banners: Vec::new(),
             tick_zero: None,
             // The reference VM's default: read and write only in the
             // sandbox folder.
@@ -359,6 +362,8 @@ impl Vm {
     /// change it while a program runs, as when a window is resized, so
     /// this is done whenever the player is about to be asked for input.
     pub(crate) fn sync_console_width(&mut self) {
+        // Everything else on the screen is brought up to date first.
+        self.flush_banners();
         let width = self.host.console_width().unwrap_or(CONSOLE_WIDTH);
         self.console.set_width(width);
     }
@@ -1045,9 +1050,11 @@ impl Vm {
                         let name = self.host.system_name();
                         self.new_str(&name)
                     }
+                    // Banner windows, if the host has them.
+                    33 => Value::Int(i32::from(self.host.has_banners())),
                     // A console of plain text: no HTML, pictures, sounds,
-                    // links, colors, or banner windows.
-                    4..=18 | 20..=27 | 31..=33 => Value::Int(0),
+                    // links, or colors.
+                    4..=18 | 20..=27 | 31 | 32 => Value::Int(0),
                     // The class of interpreter: text only.
                     34 => Value::Int(1),
                     _ => Value::Nil,
@@ -1144,30 +1151,8 @@ impl Vm {
                 Self::check_argc(argc, 1)?;
                 self.read_line_done();
             }
-            // bannerCreate(...): there are no banner windows.
-            19 => {
-                Self::check_argc_range(argc, 7, 8)?;
-                self.r0 = Value::Nil;
-            }
-            // bannerDelete(handle): deleting a banner that is not there
-            // does nothing.
-            20 => Self::check_argc(argc, 1)?,
-            // The other banner functions need a banner, and no handle is
-            // one.
-            21..=29 => {
-                let expected = match index {
-                    25 | 26 => 3,
-                    27 => 2,
-                    29 => 4,
-                    _ => 1,
-                };
-                if index == 22 {
-                    Self::check_argc_range(argc, 1, 32767)?;
-                } else {
-                    Self::check_argc(argc, expected)?;
-                }
-                return Err(bad_value());
-            }
+            // The banner functions.
+            19..=29 => self.bif_banner(index, argc)?,
             // logConsoleCreate(file, charset, width)
             30 => {
                 Self::check_argc(argc, 3)?;

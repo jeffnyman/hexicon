@@ -84,14 +84,85 @@ function measureColumns() {
   return Math.max(20, Math.min(widestLine, Math.floor(room / characterWidth)));
 }
 
+// How many lines of text fit on the page below its header. The game's
+// banners and its main window share them.
+let rows = 24;
+
+function measureRows() {
+  const style = getComputedStyle(screen);
+  const room =
+    window.innerHeight -
+    document.querySelector("header").offsetHeight -
+    parseFloat(style.paddingTop) -
+    parseFloat(style.paddingBottom);
+  return Math.max(4, Math.floor(room / lineHeight()));
+}
+
 // Tell the game how much room there is. It takes effect for text shown
 // after the game next waits for input; text already shown stays as it is.
 function fitToWindow() {
   columns = measureColumns();
+  rows = measureRows();
   if (game) {
     game.setWidth(columns);
+    game.setHeight(rows);
+    showBanners();
   }
   sizeCommandLine();
+}
+
+// ---- banners ----
+
+const bannersTop = element("banners-top");
+const bannersBottom = element("banners-bottom");
+
+// Show the game's banners: those above its main window in a strip above
+// the text, and those below in a strip below it.
+function showBanners() {
+  const layout = JSON.parse(game.banners());
+  const mainTop = layout.main.y;
+  const mainBottom = mainTop + layout.main.height;
+  fillStrip(
+    bannersTop,
+    layout.banners.filter((banner) => banner.y < mainTop),
+    0,
+    mainTop,
+  );
+  fillStrip(
+    bannersBottom,
+    layout.banners.filter((banner) => banner.y >= mainBottom),
+    mainBottom,
+    rows - mainBottom,
+  );
+}
+
+function fillStrip(strip, banners, firstRow, height) {
+  const visible = banners.filter((banner) => banner.width > 0 && banner.height > 0);
+  strip.hidden = height <= 0 || visible.length === 0;
+  strip.style.height = `${height * lineHeight()}px`;
+  strip.replaceChildren(
+    ...visible.map((banner) => {
+      const pane = document.createElement("div");
+      pane.className = banner.status ? "banner status" : "banner";
+      pane.textContent = banner.lines.join("\n");
+      pane.style.top = `${(banner.y - firstRow) * lineHeight()}px`;
+      pane.style.height = `${banner.height * lineHeight()}px`;
+      // The text lines up with the main window's, and a banner at an edge
+      // of the screen reaches the edge of the page.
+      if (banner.x === 0) {
+        pane.style.left = "0";
+        pane.style.paddingLeft = getComputedStyle(screen).paddingLeft;
+      } else {
+        pane.style.left = `calc(${getComputedStyle(screen).paddingLeft} + ${banner.x}ch)`;
+      }
+      if (banner.x + banner.width >= columns + 1) {
+        pane.style.right = "0";
+      } else {
+        pane.style.width = `${banner.width}ch`;
+      }
+      return pane;
+    }),
+  );
 }
 
 // The command line takes up the rest of the line its prompt is on.
@@ -159,6 +230,7 @@ function update() {
   }
   show(game.takeOutput());
   storeFiles();
+  showBanners();
 
   const left = game.status();
   const right = game.statusRight();

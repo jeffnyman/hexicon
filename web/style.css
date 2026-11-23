@@ -89,6 +89,35 @@ h1 {
   color: var(--bar-ink);
 }
 
+/* Banner windows: panes the game keeps at the top or bottom of the
+   screen, such as its status line. The game lays them out in lines and
+   characters, and the page puts each where the layout says. */
+.banners {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+}
+
+#banners-top {
+  border-bottom: 1px solid var(--rule);
+}
+
+#banners-bottom {
+  border-top: 1px solid var(--rule);
+}
+
+.banner {
+  position: absolute;
+  overflow: hidden;
+  white-space: pre;
+}
+
+/* A banner in the status line's colors, as the game's status line is. */
+.banner.status {
+  background: var(--bar);
+  color: var(--bar-ink);
+}
+
 /* An element that is hidden stays hidden whatever its display is. */
 [hidden] {
   display: none !important;
