@@ -56,7 +56,7 @@ The reference is the specification of record. Its source is in `../_tads/tads-ru
 3. **Functions: parser and code generator together.** Expressions and statements, parsed, folded, and compiled to byte code, with enough of an image writer to make a single-file program of functions runnable. Checked by compiling the same source with both compilers and comparing the byte code and the output. This is also what the dynamic compiler needs. Exit: the ten remaining conformance tests pass.
 4. **Objects, grammar, and the rest of the language.** Enough to compile any single-file program to an image. Exit: the conformance suite's programs, compiled by Hexicon, give the same output as when compiled by `t3make`.
 5. **Separate compilation, linking, project files.** Exit: the sample game, Airport, and Return to Ditch Day built from source and replayed identically.
-6. **Hexicon's own language.** Its file extensions and its differences from TADS 3 are decided here, not before. The compiler accepts `.t`, `.h`, `.tl`, and `.t3m` throughout.
+6. **Hexicon's own language.** Its file extensions and its differences from TADS 3 are decided here, not before. The compiler accepts `.t`, `.h`, `.tl`, and `.t3m` throughout. The design is in [language-plan.md](language-plan.md) (draft, 2026-11-23), and the library that goes with it is in [hexad-plan.md](hexad-plan.md).
 
 ## Workspace
 
