@@ -6,7 +6,23 @@ Status: draft for discussion, 2026-11-23
 
 Hexicon's own language is TADS 3 with the changes that writing games in it has shown are worth making, and room to keep growing apart from it. It is the language of the Hexad library ([hexad-plan.md](hexad-plan.md)) and of new games.
 
-TADS 3 itself stays as it is. Every existing game and library keeps compiling and running exactly as it does with the reference, and that comparison keeps checking the compiler and the VM. Diverging means adding a second language beside TADS 3, not changing TADS 3.
+The long-term direction (2026-11-23) is that Hexicon becomes its own thing, as if it had always been, and TADS 3 is retired: TADS 3 gave Hexicon its foundation, not its identity. Hexicon may in the end not play TADS 3 games at all. Until then, TADS 3 stays as it is. Every existing game and library keeps compiling and running exactly as it does with the reference, because that comparison is what checks the compiler and the VM. [Retiring TADS 3](#retiring-tads-3) says when that can change.
+
+## Decided
+
+- Source files are `.hxn` and projects and libraries are `hexicon.toml` (2026-11-23).
+- Hexad starts from adv3Lite and lives in this repository as the built-in library ([hexad-plan.md](hexad-plan.md)).
+- Nothing in Hexicon's own language keeps a TADS name for its own sake. Names such as `t3GetGlobalSymbols` get Hexicon names.
+
+## Retiring TADS 3
+
+TADS 3 is retired in stages, each one bought by having something else take over its job of checking the toolchain.
+
+1. **Now: both.** The reference comparison is the backbone of testing, and Hexicon's language is checked by lowering to TADS 3.
+2. **Hexicon checks itself.** The converter's round trip is done. Hexad, the converted games, and Hexicon's own conformance programs have recorded transcripts that serve as Hexicon's own regression tests. Hexicon's language and library use no TADS names. TADS 3 is now a compatibility mode kept apart from the rest, in its own crate or module, so that nothing in Hexicon's own code carries its names or its quirks.
+3. **Hexicon's VM goes its own way.** When a feature needs a change that T3 images cannot have, such as a new image format or a different object model, TADS 3 support is either dropped or kept as a frozen loader for old images. That is decided then, knowing what it costs. The games in the playground are all TADS 3 games, and dropping TADS 3 means they no longer play.
+
+Stage 2 has to come before stage 3. Without the reference or tests of its own, nothing would tell us that the compiler or the VM is right.
 
 ## Two dialects, one compiler
 
@@ -63,6 +79,10 @@ hexad = { modules = ["senses", "postures"] }
 
 These are in rough order of value for the cost. The syntax shown is illustrative only; settling it is part of each change's own design.
 
+### 0. Hexicon names for the built-in functions and classes
+
+The VM's function sets are bound by their identifiers (`t3vm/010006`, `tads-gen/030008`), not by the names a header gives their functions. A header written for Hexicon can give the same functions new names: for example, `t3GetGlobalSymbols` could become `globalSymbols`, and `tadsSay` could become `say`. The image is unchanged, and the VM needs no change. Classes that carry TADS in their names (`TadsObject`) can be renamed the same way. The identifiers in the image change only at stage 3 of retiring TADS 3.
+
 ### 1. Names the compiler checks
 
 TADS 3 creates a property the first time any source names it, so a misspelling is silent. If a game says `isTakable` where the library means `isTakeable`, the object simply never gets the property and the test is `nil`. `dobjFor(Takee)` is the same mistake at the scale of a whole handler: it defines `verifyDobjTakee` and the rest, and nothing ever calls them. The reference never warns about either.
@@ -112,9 +132,8 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
 
 ## Open questions
 
-1. Are the extensions and the `hexicon.toml` manifest right?
-2. How far should the language go? This plan is conservative: TADS 3 plus checks and declarations. A bolder language is possible, at the cost of the converter round trip and of authors reading it on sight.
-3. Should handler syntax serve both libraries or only Hexad?
+1. How far should the language go? This plan is conservative: TADS 3 plus checks and declarations. A bolder language is possible, at the cost of the converter round trip and of authors reading it on sight. With TADS 3 to be retired, reading it on sight matters less over time than it does now.
+2. Should handler syntax serve both libraries or only Hexad? With TADS 3 to be retired, Hexad alone is the likely answer.
 
 ## Milestones
 

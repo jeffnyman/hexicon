@@ -52,13 +52,17 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
 - **adv3Lite games: yes, at first.** Hexad starts out source compatible with adv3Lite. It breaks compatibility only where a change is worth it, lists each break, and has the converter handle what it can.
 - **adv3 games: no.** adv3 is too different. Those games keep adv3.
 
+## Decided (2026-11-23)
+
+- **Hexad starts from adv3Lite.**
+- **Hexad lives in this repository, in `lib/hexad`, as the built-in library.** The language and the library change together: a language change and Hexad's adoption of it go in one commit and are tested together, much as Rust ships its standard library. `lib/hexad` has its own `hexicon.toml` and its own license notice (adv3Lite's MIT notice, which is kept), so that it could move to a repository of its own later if that is ever wanted.
+- **Hexad uses no TADS names.** As Hexicon names for the built-in functions arrive (language plan, change 0), Hexad moves to them.
+
 ## Open questions
 
-1. Is adv3Lite the right base?
-2. How long should Hexad stay compatible with adv3Lite games?
-3. Which of adv3's features matter most to bring back? The senses, nested rooms and postures, and report grouping are the likely ones.
-4. Should Hexad live in this repository (`lib/hexad`) or in its own?
-5. Should the English messages be a separate module from the start, as adv3Lite's `english` is?
+1. How long should Hexad stay compatible with adv3Lite games? With TADS 3 to be retired, this matters most while authors are moving games over.
+2. Which of adv3's features matter most to bring back? The senses, nested rooms and postures, and report grouping are the likely ones.
+3. Should the English messages be a separate module from the start, as adv3Lite's `english` is?
 
 ## Milestones
 
