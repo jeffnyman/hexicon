@@ -3584,3 +3584,76 @@ fn a_manifest_does_not_ignore_what_it_does_not_know() {
     );
     assert!(failed("[game\n").starts_with("error: hexicon.toml: TOML parse error"));
 }
+
+/// The system headers `hexicon.h` includes, as empty files, so that a
+/// test sees only what `hexicon.h` itself declares.
+fn stub_system_headers() -> Files {
+    Files::default()
+        .with("inc/tadsgen.h", "")
+        .with("inc/tadsio.h", "")
+        .with("inc/systype.h", "")
+}
+
+fn options_with_inc() -> CompileOptions {
+    CompileOptions {
+        include_paths: vec!["inc".to_owned()],
+        ..CompileOptions::default()
+    }
+}
+
+#[test]
+fn hexicons_names_call_the_same_functions_as_the_tads_names() {
+    let hexicon = "#include <hexicon.h>\n\
+        _main(args) { print('VM <<vmId()>>'); collectGarbage(); \
+        local p = newProperty(); print(stackTrace(1, StackTraceDesc)); }\n";
+    let tads = "intrinsic 't3vm/010006' { t3RunGC(); t3SetSay(val); t3GetVMVsn(); \
+        t3GetVMID(); t3GetVMBanner(); t3GetVMPreinitMode(); t3DebugTrace(mode, ...); \
+        t3GetGlobalSymbols(which?); t3AllocProp(); t3GetStackTrace(level?, flags?); }\n\
+        intrinsic 'tads-io/030007' { tadsSay(val, ...); }\n\
+        _main(args) { tadsSay('VM <<t3GetVMID()>>'); t3RunGC(); \
+        local p = t3AllocProp(); tadsSay(t3GetStackTrace(1, 0x0002)); }\n";
+    let mut files = stub_system_headers()
+        .with("names.hxn", hexicon)
+        .with("names.t", tads);
+    let a = compile(&mut files, "names.hxn", &options_with_inc());
+    let b = compile(&mut files, "names.t", &options_with_inc());
+    // Each has a warning: p is never used.
+    assert_eq!(a.diagnostics.len(), 1, "{:?}", a.diagnostics);
+    assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
+    assert_eq!(a.image.expect("an image"), b.image.expect("an image"));
+}
+
+#[test]
+fn a_built_in_header_comes_after_the_include_path() {
+    let program = "#include <hexicon.h>\n#ifdef FROM_DISK\n#error from disk\n#endif\n\
+                   _main(args) { print('x'); }\n";
+    // Built in: found though no folder has it, and named as built in.
+    let mut files = stub_system_headers().with("main.t", program);
+    let compiled = compile(&mut files, "main.t", &options_with_inc());
+    assert!(
+        compiled.diagnostics.is_empty(),
+        "{:?}",
+        compiled.diagnostics
+    );
+    // A file of the name on the include path comes first.
+    let mut files = stub_system_headers()
+        .with("main.t", program)
+        .with("inc/hexicon.h", "#define FROM_DISK\n");
+    let messages: Vec<String> = compile(&mut files, "main.t", &options_with_inc())
+        .diagnostics
+        .into_iter()
+        .map(|d| format!("{}({}): {}", d.file, d.line, d.message))
+        .collect();
+    assert_eq!(messages[0], "main.t(3): #error :  from disk");
+    // A problem in a built-in header is reported as in <hexicon>.
+    let mut files = Files::default().with("main.t", program);
+    let messages: Vec<String> = compile(&mut files, "main.t", &CompileOptions::default())
+        .diagnostics
+        .into_iter()
+        .map(|d| format!("{}({}): {}", d.file, d.line, d.message))
+        .collect();
+    assert_eq!(
+        messages[0],
+        "<hexicon>/hexicon.h(21): cannot open include file \"tadsgen.h\""
+    );
+}

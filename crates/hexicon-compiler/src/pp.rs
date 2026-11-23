@@ -77,6 +77,22 @@ pub(crate) const MAX_ERRORS: usize = 100;
 pub(crate) const TOO_MANY_ERRORS: &str =
     "too many errors (try fixing the first couple of errors and recompiling)";
 
+/// Hexicon's own headers, which are part of the compiler: a file an
+/// `#include` names that is nowhere on the include path is looked for
+/// among these, by its name.
+const BUILT_IN_HEADERS: &[(&str, &str)] = &[("hexicon.h", include_str!("../include/hexicon.h"))];
+
+/// Where a built-in header is said to be, in messages and in the image.
+const BUILT_IN_FOLDER: &str = "<hexicon>";
+
+/// The text of the built-in header `name`, if there is one.
+fn built_in_header(name: &str) -> Option<&'static str> {
+    BUILT_IN_HEADERS
+        .iter()
+        .find(|(header, _)| *header == name)
+        .map(|(_, text)| *text)
+}
+
 /// A problem found in the source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnostic {
@@ -2335,6 +2351,15 @@ impl<'a> Preprocessor<'a> {
         if full_name.is_none() && absolute && self.files.exists(&name) {
             full_name = Some(name.clone());
         }
+        // Last, the headers that are part of the compiler.
+        let built_in = if full_name.is_none() {
+            built_in_header(&name)
+        } else {
+            None
+        };
+        if built_in.is_some() {
+            full_name = Some(format!("{BUILT_IN_FOLDER}/{name}"));
+        }
 
         self.clear_linebuf();
         let Some(full_name) = full_name else {
@@ -2344,9 +2369,15 @@ impl<'a> Preprocessor<'a> {
         if self.find_include_once(&full_name) {
             return;
         }
-        let Some(data) = self.files.read(&full_name) else {
-            self.error(format!("cannot open include file \"{full_name}\""));
-            return;
+        let data = match built_in {
+            Some(text) => text.as_bytes().to_vec(),
+            None => {
+                let Some(data) = self.files.read(&full_name) else {
+                    self.error(format!("cannot open include file \"{full_name}\""));
+                    return;
+                };
+                data
+            }
         };
         let desc = self.file_desc(&full_name);
         if let Some(stream) = self.streams.last_mut() {

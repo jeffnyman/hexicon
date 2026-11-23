@@ -120,7 +120,40 @@ These are in rough order of value for the cost. The syntax shown is illustrative
 
 ### 0. Hexicon names for the built-in functions and classes
 
-The VM's function sets are bound by their identifiers (`t3vm/010006`, `tads-gen/030008`), not by the names a header gives their functions. A header written for Hexicon can give the same functions new names: for example, `t3GetGlobalSymbols` could become `globalSymbols`, and `tadsSay` could become `say`. The image is unchanged, and the VM needs no change. Classes that carry TADS in their names (`TadsObject`) can be renamed the same way. The identifiers in the image change only at stage 3 of retiring TADS 3.
+The VM's function sets are bound by their identifiers (`t3vm/010006`, `tads-gen/030008`), not by the names a header gives their functions. A header written for Hexicon can give the same functions new names. The image is unchanged, and the VM needs no change. The identifiers in the image change only at stage 3 of retiring TADS 3.
+
+Done (2026-11-23) for the functions and constants. `#include <hexicon.h>` gives these names:
+
+| TADS 3 | Hexicon |
+|---|---|
+| `t3RunGC` | `collectGarbage` |
+| `t3SetSay` | `setSay` |
+| `t3GetVMVsn` | `vmVersion` |
+| `t3GetVMID` | `vmId` |
+| `t3GetVMBanner` | `vmBanner` |
+| `t3GetVMPreinitMode` | `inPreinit` |
+| `t3DebugTrace` | `debugTrace` |
+| `t3GetGlobalSymbols` | `globalSymbols` |
+| `t3AllocProp` | `newProperty` |
+| `t3GetStackTrace` | `stackTrace` |
+| `t3GetNamedArg` | `namedArg` |
+| `t3GetNamedArgList` | `namedArgList` |
+| `tadsSay` | `print` |
+| `T3DebugCheck`, `T3DebugBreak`, `T3DebugLog` | `DebugTraceCheck`, `DebugTraceBreak`, `DebugTraceLog` |
+| `T3SetSayNoFunc`, `T3SetSayNoMethod` | `SetSayNoFunc`, `SetSayNoMethod` |
+| `T3GlobalSymbols`, `T3PreprocMacros` | `GlobalSymbolTable`, `MacroTable` |
+| `T3GetStackLocals`, `T3GetStackDesc` | `StackTraceLocals`, `StackTraceDesc` |
+| `T3MacroHasArgs`, `T3MacroHasVarargs` | `MacroHasArgs`, `MacroHasVarargs` |
+
+None of the new names is defined anywhere in adv3, adv3Lite, the system library, Airport, or Ditch Day. `say` was not used for `tadsSay`, because both libraries define a `say` function of their own.
+
+What was found:
+
+- **`hexicon.h` is part of the compiler** (`crates/hexicon-compiler/include`). An `#include` that finds nothing on the include path looks among the compiler's own headers last, so a file of the same name on the include path comes first. Messages place it in `<hexicon>/hexicon.h`. Because it is built in, it works wherever the compiler does, in WebAssembly too.
+- **A function set can be declared twice in one program, under different names.** The reference accepts it, and gives the image one entry for the set; the second declaration only adds names. Declaring the same name again in the same place is accepted too. So `hexicon.h` and `tads.h` can be included together, which Hexad needs while its sources still include `advlite.h`.
+- **`hexicon.h` includes the reference's `tadsgen.h`, `tadsio.h`, and `systype.h`**, whose names are already neutral, rather than copies of them. So `tadsSay` is still declared beside `print`, until Hexicon has its own copies of the system headers.
+- **An intrinsic class cannot be renamed this way.** The reference says "intrinsic class has been previously defined as \"TadsObject\"" when a second name is given to one. `TadsObject` keeps its name for now. Authors rarely write it, since `object` and `class` stand for it. `T3StackInfo` is a class in the system library's `_main.t`, not in a header, so renaming it waits for Hexicon's own system library.
+- **The check is a lowering check.** The same program written with each set of names gives an identical image (a unit test, and a test program that calls most of the renamed functions). With preinitialization, one object's number differs, because the build gives preinitialization the program's symbols and macros, and the two programs define different names.
 
 ### 1. Names the compiler checks
 

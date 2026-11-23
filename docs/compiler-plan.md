@@ -75,6 +75,7 @@ crates/
     src/project.rs        what to build: the options and the modules, from the command line,
                           project files (.t3m), and libraries (.tl), as t3make reads them
     src/manifest.rs       Hexicon's manifests (hexicon.toml), for games and libraries
+    include/hexicon.h     Hexicon's system header, built into the compiler
     src/link.rs           putting the source files of a program together: the numbers that
                           objects, properties, and enumerations have in the image
     src/image.rs          the image writer: pool layout, addresses, and the image's blocks
