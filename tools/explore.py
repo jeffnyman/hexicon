@@ -308,8 +308,7 @@ def write_script(path, keys, commands):
             f.write(f"<{kind}>{text}\n")
         for _ in range(keys):
             f.write("<key>[space]\n")
-        for c in commands:
-            f.writelines("<line>" + c + "\n" for c in commands)
+        f.writelines("<line>" + c + "\n" for c in commands)
 
 
 def ref_cmd(args, script, game):
