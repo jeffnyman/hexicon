@@ -2,7 +2,7 @@
 
 Hexad is the library for Hexicon games: the world model, the parser, and the messages a game is built on.
 
-It begins as adv3Lite 2.2.3.2, by Eric Eve, which was itself built from Michael J. Roberts's adv3 and Mercury libraries. adv3Lite's license is in [LICENSE.MD](LICENSE.MD), and its notice is kept with every copy. What Hexad is to become, and how, is in [docs/hexad-plan.md](../../docs/hexad-plan.md).
+It began as adv3Lite 2.2.3.2, by Eric Eve, which was itself built from Michael J. Roberts's adv3 and Mercury libraries. adv3Lite's license is in [LICENSE.MD](LICENSE.MD), and its notice is kept with every copy. What Hexad is to become, and how, is in [docs/hexad-plan.md](../../docs/hexad-plan.md).
 
 ## What is here
 
@@ -13,6 +13,13 @@ It begins as adv3Lite 2.2.3.2, by Eric Eve, which was itself built from Michael 
 - `browser.t` and `menuweb.t`, which belong to adv3Lite's web variant and are not in the manifest yet.
 
 adv3Lite's manual, templates, and cut-down variants (`adv3Liter`, `adv3Litest`) are not part of the library.
+
+## How it differs from adv3Lite
+
+- The built-in functions have Hexicon's names (`hexicon.h`).
+- The library's `ModuleID` is `moduleHexad`, which VERSION shows as "Hexad version 0.1.0", where adv3Lite has `moduleAdv3Lite`.
+
+`tools/compile-tests/hexad-compare.sh` plays adv3Lite's games on both libraries and checks that this is all that differs.
 
 ## Using it
 

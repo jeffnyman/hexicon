@@ -1,26 +1,23 @@
 #!/bin/bash
-# Build adv3Lite's games on adv3Lite and on Hexad (lib/hexad), and check
-# that they are the same games: Airport, from its project file, and the
-# exercises of adv3Lite's manual (Learning TADS 3 with adv3Lite), each a
-# game in one file. Both are built by Hexicon.
+# Build adv3Lite's games on adv3Lite and on Hexad (lib/hexad), play them
+# both from the same command script, and check that they differ only as
+# Hexad means them to: Airport, from its project file, and the exercises
+# of adv3Lite's manual (Learning TADS 3 with adv3Lite), each a game in
+# one file. Both are built by Hexicon, preinitialized, and played with
+# --norand, so that each plays the same on every run.
 #
 # On Windows, run this from Git Bash.
 #
-# usage: hexad-compare.sh
+# usage: hexad-compare.sh [--accept]
 #
-# Hexad is in Hexicon's language and includes hexicon.h, so a game on it
-# has more names in its tables of symbols and macros than one on
-# adv3Lite. adv3Lite looks through those tables when it is
-# preinitialized, so the objects it makes then are numbered differently,
-# and a game can then behave differently where it depends on that order
-# (Exercise 15 has random messages, picked in an order that does). So
-# each game is checked twice, and both times byte for byte:
-#
-#   - without preinitialization, against adv3Lite as it is;
-#   - with it, against adv3Lite with `#include <hexicon.h>` in the same
-#     files and on the same lines as Hexad has it, but none of Hexad's
-#     renames: a program with the same names and macros, module for
-#     module, so that only the spelling of the calls differs.
+# For each game, tools/compile-tests/hexad/ has:
+#   NAME.txt    the command script: VERSION and CREDITS, then what
+#               tools/explore.py chose on adv3Lite (30 rounds, seed 1)
+#   NAME.diff   how the transcript on Hexad differs from the one on
+#               adv3Lite (diff's output, adv3Lite first); no file means
+#               they are the same
+# --accept writes the differences found as the new NAME.diff files, for
+# a change to Hexad that is meant to change what games do.
 #
 # Environment:
 #   HEXICON      the hexicon executable (default: target/release/hexicon)
@@ -32,73 +29,62 @@ root=$(cd "$(dirname "$0")/../.." && pwd)
 runner=${TADS_RUNNER:-$root/../_tads/tads-runner}
 hex=${HEXICON:-$root/target/release/hexicon}
 out=$root/build/hexad-compare
+expect=$root/tools/compile-tests/hexad
 native() { cygpath -w "$1" 2>/dev/null || echo "$1"; }
 LIB=$(native "$runner/tads3/lib")
 INC=$(native "$runner/tads3/include")
 adv3lite=${ADV3LITE:-$root/build/corpus/adv3lite}
+LITE=$(native "$adv3lite")
 HEXAD=$(native "$root/lib")
+accept=0
+[ "$1" = --accept ] && accept=1
 
 rm -rf "$out"
-mkdir -p "$out/with-include"
-# adv3Lite with hexicon.h included where Hexad includes it.
-python - "$adv3lite" "$root/lib/hexad" "$out/with-include/adv3Lite" <<'EOF'
-import os, shutil, sys
-lite, hexad, dest = sys.argv[1:]
-shutil.copytree(lite, dest, ignore=shutil.ignore_patterns('docs'))
-added = 0
-for folder, _, files in os.walk(hexad):
-    for name in files:
-        if not name.endswith(('.hxn', '.h')):
-            continue
-        rel = os.path.relpath(os.path.join(folder, name), hexad)
-        orig = os.path.join(dest, rel[:-4] + '.t' if rel.endswith('.hxn') else rel)
-        new_lines = open(os.path.join(folder, name), 'rb').read().split(b'\n')
-        old = open(orig, 'rb').read()
-        if b'<hexicon.h>' in old:
-            continue
-        for i, line in enumerate(new_lines):
-            if line.strip() == b'#include <hexicon.h>':
-                old_lines = old.split(b'\n')
-                old_lines.insert(i, line)
-                open(orig, 'wb').write(b'\n'.join(old_lines))
-                added += 1
-                break
-print(f'hexicon.h included in {added} files of adv3Lite', file=sys.stderr)
-EOF
-
+mkdir -p "$out"
 pass=0
 fail=0
-result() {
-  if [ "$1" = 0 ]; then pass=$((pass + 1)); echo "SAME $2"; else fail=$((fail + 1)); echo "DIFF $2"; fi
-}
 
-# Build the game in folder $1 from project file $2, as $3 (nopre or
-# pre), on the adv3Lite in folder $4 and on Hexad, and compare.
-build_both() {
-  local d=$1 t3m=$2 kind=$3 lite=$4 label=$5 pre=-pre
-  [ "$kind" = nopre ] && pre=-nopre
-  sed -e '/^-o /d' -e "s/^-pre\$/$pre/" "$d/$t3m" > "$d/lite-$kind.t3m"
-  sed -e '/^-o /d' -e "s/^-pre\$/$pre/" -e 's/^-lib adv3Lite$/-lib hexad/' "$d/$t3m" \
-    > "$d/hexad-$kind.t3m"
-  ( cd "$d" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" -Fs "$(native "$lite")" \
-      -o "lite-$kind.t3" --unspecified "lite-$kind.skip" -f "lite-$kind.t3m" ) 2>&1 < /dev/null \
-    | tr -d '\r' | grep -v $'^\t' > "$d/lite-$kind.msg"
-  ( cd "$d" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" -Fs "$HEXAD" \
-      -o "hexad-$kind.t3" -f "hexad-$kind.t3m" ) 2>&1 < /dev/null \
-    | tr -d '\r' | grep -v $'^\t' > "$d/hexad-$kind.msg"
-  local same=0
-  if ! diff "$d/lite-$kind.msg" "$d/hexad-$kind.msg" > "$d/$kind.msgdif"; then
-    same=1
-  elif ! python "$root/tools/image-diff.py" "$d/hexad-$kind.t3" "$d/lite-$kind.t3" \
-      "$d/lite-$kind.skip" > "$d/$kind.dif" 2>&1; then
-    same=1
-  fi
-  result "$same" "$label $6"
-}
-
+# Build the game in folder $1 from project file $2 on adv3Lite and on
+# Hexad, play both from the script for $3, and compare.
 compare() {
-  build_both "$1" "$2" nopre "$adv3lite" "$3" "without preinitialization"
-  build_both "$1" "$2" pre "$out/with-include/adv3Lite" "$3" "preinitialized"
+  local d=$1 t3m=$2 name=$3
+  sed -e '/^-o /d' "$d/$t3m" > "$d/lite.t3m"
+  sed -e '/^-o /d' -e 's/^-lib adv3Lite$/-lib hexad/' "$d/$t3m" > "$d/hexad.t3m"
+  ( cd "$d" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" -Fs "$LITE" \
+      -o lite.t3 -f lite.t3m ) 2>&1 < /dev/null | tr -d '\r' | grep -v $'^\t' > "$d/lite.msg"
+  ( cd "$d" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" -Fs "$HEXAD" \
+      -o hexad.t3 -f hexad.t3m ) 2>&1 < /dev/null | tr -d '\r' | grep -v $'^\t' > "$d/hexad.msg"
+  if ! diff "$d/lite.msg" "$d/hexad.msg" > "$d/msg.diff"; then
+    fail=$((fail + 1)); echo "DIFF $name: the builds' messages"; return
+  fi
+  if [ ! -f "$d/lite.t3" ] || [ ! -f "$d/hexad.t3" ]; then
+    fail=$((fail + 1)); echo "DIFF $name: an image is missing"; return
+  fi
+  if [ ! -f "$expect/$name.txt" ]; then
+    fail=$((fail + 1)); echo "DIFF $name: no command script, $expect/$name.txt"; return
+  fi
+  local script
+  script=$(native "$expect/$name.txt")
+  for lib in lite hexad; do
+    ( cd "$d" && "$hex" run --norand --plain --nomore -I "$script" "$lib.t3" ) \
+      < /dev/null 2>&1 | tr -d '\r' > "$d/$lib.out"
+  done
+  diff "$d/lite.out" "$d/hexad.out" > "$d/play.diff"
+  if [ "$accept" = 1 ]; then
+    if [ -s "$d/play.diff" ]; then cp "$d/play.diff" "$expect/$name.diff"; else rm -f "$expect/$name.diff"; fi
+  fi
+  local want=/dev/null
+  [ -f "$expect/$name.diff" ] && want=$expect/$name.diff
+  if cmp -s "$d/play.diff" "$want"; then
+    pass=$((pass + 1))
+    if [ -s "$d/play.diff" ]; then
+      echo "SAME $name ($(wc -l < "$d/hexad.out") lines, differing as expected)"
+    else
+      echo "SAME $name ($(wc -l < "$d/hexad.out") lines)"
+    fi
+  else
+    fail=$((fail + 1)); echo "DIFF $name: see $d/play.diff"
+  fi
 }
 
 # Airport, from its own project file.
@@ -110,10 +96,12 @@ compare "$out/airport" airport.t3m airport
 # The exercises, each with a project file of its own.
 for src in "$adv3lite"/docs/manual/docs/learning/*.t; do
   name=$(basename "$src" .t)
-  d=$out/${name// /_}
+  name=${name// /_}
+  d=$out/$name
   mkdir -p "$d"
   cp "$src" "$d/"
-  printf -- '-pre\n-D LANGUAGE=english\n-lib system\n-lib adv3Lite\n-source "%s"\n' "$name" > "$d/game.t3m"
+  printf -- '-pre\n-D LANGUAGE=english\n-lib system\n-lib adv3Lite\n-source "%s"\n' \
+    "$(basename "$src" .t)" > "$d/game.t3m"
   compare "$d" game.t3m "$name"
 done
 echo "same=$pass different=$fail"

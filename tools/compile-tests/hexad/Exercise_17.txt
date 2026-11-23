@@ -1,0 +1,338 @@
+<eventscript>
+<line>version
+<line>credits
+<line>score
+<line>s
+<line>look
+<line>x turns
+<line>x scored
+<line>x points
+<line>x complete
+<line>x list
+<line>x achievements
+<line>x use
+<line>x full
+<line>sleep
+<line>out
+<line>take all
+<line>look
+<line>x time
+<line>x sleeping
+<line>x suitable
+<line>x refer
+<line>x outside
+<line>x cave
+<line>x came
+<line>x visit
+<line>listen to list
+<line>jump
+<line>n
+<line>look
+<line>x fist
+<line>x generally
+<line>x speaking
+<line>x need
+<line>x body
+<line>x parts
+<line>x individually
+<line>x interactive
+<line>search list
+<line>take cave
+<line>listen to visit
+<line>exits
+<line>drop all
+<line>u
+<line>look
+<line>x listing
+<line>x adjusted
+<line>x following
+<line>x commands
+<line>x show
+<line>x both
+<line>x status
+<line>x line
+<line>climb list
+<line>drop cave
+<line>eat came
+<line>look
+<line>s
+<line>take all
+<line>look
+<line>x eat
+<line>x small
+<line>x plainly
+<line>x inedible
+<line>x dark
+<line>x pitch
+<line>x black
+<line>x thing
+<line>smell cave
+<line>yes
+<line>in
+<line>take all
+<line>look
+<line>x smell
+<line>x ordinary
+<line>x talking
+<line>x anyone
+<line>x stands
+<line>x lies
+<line>x civilization
+<line>move list
+<line>push visit
+<line>again
+<line>n
+<line>take all
+<line>look
+<line>x push
+<line>x fiction
+<line>x wear
+<line>x shoes
+<line>x feet
+<line>x necessarily
+<line>x implemented
+<line>x instance
+<line>look under outside
+<line>enter came
+<line>turn anyone
+<line>no
+<line>e
+<line>look
+<line>x enter
+<line>x something
+<line>x usually
+<line>x better
+<line>x vague
+<line>x words
+<line>x because
+<line>x game
+<line>move visit
+<line>break anyone
+<line>pull stands
+<line>no
+<line>show cave to visit
+<line>s
+<line>look
+<line>unlock list
+<line>climb outside
+<line>close cave
+<line>take came
+<line>take lies
+<line>exits
+<line>x 12345
+<line>n
+<line>look
+<line>x take
+<line>x lips
+<line>x enough
+<line>x unless
+<line>x hint
+<line>x contrary
+<line>x probably
+<line>x cannot
+<line>read outside
+<line>open cave
+<line>turn came
+<line>search visit
+<line>feel stands
+<line>look behind lies
+<line>look under something
+<line>exits
+<line>frobnicate the widget
+<line>n
+<line>take all
+<line>look
+<line>x don
+<line>x going
+<line>smell list
+<line>pull outside
+<line>feel cave
+<line>unlock anyone
+<line>take stands
+<line>eat lies
+<line>look behind something
+<line>sleep
+<line>out
+<line>look
+<line>x won
+<line>x able
+<line>x guess
+<line>x mean
+<line>x specific
+<line>x objects
+<line>x vicinity
+<line>unlock cave
+<line>drop visit
+<line>smell lies
+<line>pull something
+<line>look
+<line>s
+<line>look
+<line>x open
+<line>x door
+<line>x foot
+<line>x put
+<line>x sapphire
+<line>x ring
+<line>x mouth
+<line>turn list
+<line>unlock outside
+<line>push came
+<line>drop stands
+<line>eat something
+<line>inventory
+<line>drop all
+<line>n
+<line>look
+<line>x empty-handed
+<line>climb cave
+<line>pull visit
+<line>climb something
+<line>unlock foot
+<line>listen to mouth
+<line>yes
+<line>in
+<line>look
+<line>read came
+<line>look behind visit
+<line>move anyone
+<line>close stands
+<line>feel foot
+<line>push mouth
+<line>think
+<line>sw
+<line>take all
+<line>look
+<line>x think
+<line>x therefore
+<line>read cave
+<line>move came
+<line>drop lies
+<line>break foot
+<line>no
+<line>n, s
+<line>s
+<line>look
+<line>open outside
+<line>open came
+<line>look in visit
+<line>climb lies
+<line>break something
+<line>push foot
+<line>search mouth
+<line>jump
+<line>ne
+<line>look
+<line>x jump
+<line>x spot
+<line>x fruitlessly
+<line>look behind cave
+<line>take visit
+<line>enter something
+<line>read foot
+<line>close mouth
+<line>no
+<line>hit foot with visit
+<line>n
+<line>take all
+<line>look
+<line>x hit
+<line>feel outside
+<line>look in cave
+<line>light visit
+<line>drop anyone
+<line>listen to something
+<line>look behind foot
+<line>drop mouth
+<line>listen
+<line>put
+<line>d
+<line>look
+<line>x hear
+<line>x want
+<line>listen to outside
+<line>pull cave
+<line>pull came
+<line>read anyone
+<line>open stands
+<line>wear lies
+<line>unlock something
+<line>eat mouth
+<line>inventory
+<line>s
+<line>look
+<line>look under cave
+<line>turn stands
+<line>read lies
+<line>exits
+<line>out
+<line>look
+<line>x turn
+<line>x hands
+<line>x read
+<line>eat outside
+<line>listen to cave
+<line>look in came
+<line>wear anyone
+<line>enter foot
+<line>score
+<line>xyzzy
+<line>d
+<line>take all
+<line>look
+<line>feel anyone
+<line>move stands
+<line>search lies
+<line>take something
+<line>eat foot
+<line>sleep
+<line>n
+<line>look
+<line>eat cave
+<line>enter visit
+<line>move lies
+<line>read something
+<line>enter hands
+<line>undo
+<line>ne
+<line>look
+<line>x undone
+<line>unlock came
+<line>open anyone
+<line>feel mouth
+<line>break hands
+<line>again
+<line>unlock lies with something
+<line>s
+<line>look
+<line>x isn
+<line>x lockable
+<line>feel visit
+<line>unlock stands
+<line>look under lies
+<line>inventory
+<line>se
+<line>look
+<line>x unlock
+<line>listen to came
+<line>break visit
+<line>break lies
+<line>listen to hands
+<line>again
+<line>n
+<line>take all
+<line>look
+<line>smell came
+<line>smell visit
+<line>look under anyone
+<line>wear stands
+<line>light foot
+<line>yes
+<line>s
+<line>look
+<line>close came
+<line>enter stands
+<line>score
+<line>it
+<line>n
+<line>look

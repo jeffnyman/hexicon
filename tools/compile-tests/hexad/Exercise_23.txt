@@ -1,0 +1,9 @@
+<eventscript>
+<key>[space]
+<key>[space]
+<key>[space]
+<key>[space]
+<key>[space]
+<line>version
+<line>credits
+<line>look

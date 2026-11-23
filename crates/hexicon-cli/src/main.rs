@@ -24,7 +24,8 @@ usage: hexicon <command>
 commands:
   run [options] <image.t3> [args...]
                                run a program; the options are:
-      --norand                 make the same random choices on every run
+      --norand                 make the same random choices on every run,
+                               even when the program reseeds at random
       --plain                  treat a terminal as plain input and output:
                                80 columns, no pauses, and keys read as lines
       --nomore                 do not pause when a screenful has gone by
@@ -254,6 +255,10 @@ struct Console {
     /// Make the program stop and resume at every read, to test that.
     stall: bool,
     stalled: bool,
+    /// Whether seeding at random uses the system's entropy. Without it,
+    /// every seed is the same, so that a program which reseeds at random
+    /// (`randomize()`) still makes the same choices on every run.
+    entropy: bool,
 }
 
 impl Console {
@@ -349,6 +354,9 @@ impl Host for Console {
     }
 
     fn random_bytes(&mut self, buffer: &mut [u8]) {
+        if !self.entropy {
+            return;
+        }
         // The standard library seeds each hasher state from the system's
         // entropy source, which is the only access to it without another
         // dependency.
@@ -747,6 +755,7 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
         },
         stall: std::env::var_os("HEXICON_TEST_SUSPEND").is_some(),
         stalled: false,
+        entropy: options.seed_random,
     };
     let mut vm = match Vm::new(&image, Box::new(console)) {
         Ok(vm) => vm,
@@ -826,6 +835,7 @@ pub(crate) fn preinit_image(
         terminal: None,
         stall: false,
         stalled: false,
+        entropy: true,
     };
     let mut vm = Vm::new(&image, Box::new(console)).map_err(|error| error.to_string())?;
     vm.set_image_name(path);
@@ -1205,5 +1215,28 @@ mod tests {
         let mut input: &[u8] = "ab\r\né\n".as_bytes();
         let keys: Vec<_> = std::iter::from_fn(|| read_char(&mut input)).collect();
         assert_eq!(keys, ["a", "b", "\n", "é", "\n"]);
+    }
+
+    #[test]
+    fn without_entropy_every_random_seed_is_the_same() {
+        use hexicon_host::Host;
+        let console = |entropy| super::Console {
+            file_base: Default::default(),
+            sandbox: Default::default(),
+            temp_count: 0,
+            terminal: None,
+            stall: false,
+            stalled: false,
+            entropy,
+        };
+        let seed = |entropy| {
+            let mut bytes = [0u8; 64];
+            console(entropy).random_bytes(&mut bytes);
+            bytes
+        };
+        // As for --norand: a program that reseeds at random still makes
+        // the same choices on every run.
+        assert_eq!(seed(false), seed(false));
+        assert_ne!(seed(true), seed(true));
     }
 }

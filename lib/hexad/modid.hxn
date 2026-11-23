@@ -592,14 +592,14 @@ class GameID: GameInfoModuleID
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The main adv3Lite library ID.
+ *   The library's ID. Hexad began as adv3Lite 2.2.3.2, by Eric Eve.
  */
-moduleAdv3Lite: ModuleID
-    name = 'adv3Lite Library'
-    byline = 'by Eric Eve'
-    htmlByline = 'by <a href="mailto:eric.eve@hmc.ox.ac.uk">'
+moduleHexad: ModuleID
+    name = 'Hexad'
+    byline = 'based on adv3Lite by Eric Eve'
+    htmlByline = 'based on adv3Lite by <a href="mailto:eric.eve@hmc.ox.ac.uk">'
                  + 'Eric Eve</a>'
-    version = '2.2.3.2'
+    version = '0.1.0'
 
     /*
      *   We use a listing order of 50 so that, if all of the other credits
@@ -615,7 +615,7 @@ moduleAdv3Lite: ModuleID
 
 /* ------------------------------------------------------------------------ */
 /*
- *   An ID module not for the library but for the T3 VM itself.  This
+ *   An ID module not for the library but for the VM itself.  This
  *   doesn't display any credit information, but displays version number
  *   information for the VM so that the "version" command shows what
  *   version of the interpreter is in use.  
@@ -629,7 +629,7 @@ ModuleID
          *   show the version information - note that we must decompose
          *   the version number into the standard 3-part dotted string 
          */
-        showVersionMsg('T3 VM (' + vmId() + ')',
+        showVersionMsg('VM (' + vmId() + ')',
                                  '' + (vsn >> 16) + '.'
                                  + ((vsn >> 8) & 0xFF) + '.'
                                  + (vsn & 0xFF));

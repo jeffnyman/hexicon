@@ -1,0 +1,369 @@
+<eventscript>
+<line>version
+<line>credits
+<line>score
+<line>s
+<line>look
+<line>x turns
+<line>x scored
+<line>x points
+<line>x complete
+<line>x list
+<line>x achievements
+<line>x use
+<line>x full
+<line>sleep
+<line>n
+<line>take all
+<line>look
+<line>x time
+<line>x sleeping
+<line>x faint
+<line>x ticking
+<line>x sound
+<line>x coming
+<line>x bomb
+<line>x outside
+<line>listen to list
+<line>jump
+<line>s
+<line>look
+<line>x listen
+<line>x fist
+<line>x generally
+<line>x speaking
+<line>x need
+<line>x refer
+<line>x body
+<line>x parts
+<line>search list
+<line>smell
+<line>xyzzy
+<line>d
+<line>look
+<line>x search
+<line>x individually
+<line>x interactive
+<line>x fiction
+<line>x wear
+<line>x shoes
+<line>x feet
+<line>x necessarily
+<line>sleep
+<line>d
+<line>look
+<line>x implemented
+<line>x instance
+<line>x enough
+<line>x unless
+<line>x hint
+<line>x contrary
+<line>x probably
+<line>x cannot
+<line>climb fist
+<line>light parts
+<line>inventory
+<line>u
+<line>look
+<line>x open
+<line>x door
+<line>x foot
+<line>x put
+<line>x sapphire
+<line>x ring
+<line>x mouth
+<line>x light
+<line>push list
+<line>break fist
+<line>enter parts
+<line>open shoes
+<line>listen to feet
+<line>jump
+<line>in
+<line>look
+<line>x options
+<line>x restart
+<line>x undo
+<line>x last
+<line>x move
+<line>x restore
+<line>x saved
+<line>x position
+<line>drop shoes
+<line>wear foot
+<line>turn sapphire
+<line>jump
+<line>w
+<line>look
+<line>x quit
+<line>x turn
+<line>x jump
+<line>enter restart
+<line>move undo
+<line>pull last
+<line>enter position
+<line>undo
+<line>take it then drop it
+<line>n
+<line>look
+<line>x enter
+<line>x undone
+<line>x living
+<line>x room
+<line>x shambles
+<line>x layer
+<line>x dust
+<line>x debris
+<line>move restart
+<line>enter undo
+<line>listen to last
+<line>take move
+<line>take quit
+<line>yes
+<line>ne
+<line>take all
+<line>look
+<line>x take
+<line>x yes
+<line>take jump
+<line>pull enter
+<line>search undone
+<line>turn room
+<line>look under shambles
+<line>look under layer
+<line>listen
+<line>sw
+<line>take all
+<line>look
+<line>smell enter
+<line>push undone
+<line>pull living
+<line>light layer
+<line>take dust
+<line>listen to debris
+<line>look under take
+<line>enter yes
+<line>exits
+<line>in
+<line>look
+<line>drop undone
+<line>drop living
+<line>unlock shambles
+<line>feel layer
+<line>push dust
+<line>read take
+<line>turn yes
+<line>again
+<line>x 12345
+<line>n
+<line>look
+<line>break room
+<line>light shambles
+<line>close dust
+<line>break debris
+<line>look behind yes
+<line>unlock 12345
+<line>jump
+<line>x me
+<line>ask debris about 12345
+<line>n
+<line>take all
+<line>look
+<line>x ask
+<line>wear layer
+<line>look in dust
+<line>light yes
+<line>climb 12345
+<line>open me
+<line>inventory
+<line>x the
+<line>w
+<line>look
+<line>x inventory
+<line>climb shambles
+<line>eat dust
+<line>push debris
+<line>climb ask
+<line>smell
+<line>x
+<line>e
+<line>look
+<line>x climb
+<line>x smell
+<line>drop layer
+<line>unlock debris
+<line>feel me
+<line>pull inventory
+<line>inventory
+<line>n
+<line>look
+<line>x feel
+<line>x pull
+<line>wear debris
+<line>open take
+<line>drop yes
+<line>search 12345
+<line>pull me
+<line>search ask
+<line>listen to the
+<line>yes
+<line>x me
+<line>w
+<line>look
+<line>take yes
+<line>close the
+<line>read inventory
+<line>feel climb
+<line>look behind pull
+<line>undo
+<line>u
+<line>look
+<line>x drop
+<line>x covers
+<line>x everything
+<line>x presumably
+<line>x showered
+<line>x gaping
+<line>x hole
+<line>x ceiling
+<line>eat yes
+<line>break 12345
+<line>push me
+<line>read ask
+<line>enter inventory
+<line>break climb
+<line>feel pull
+<line>look
+<line>ne
+<line>look
+<line>x break
+<line>break feel
+<line>take covers
+<line>pull presumably
+<line>read gaping
+<line>take hole
+<line>smell ceiling
+<line>sleep
+<line>s
+<line>look
+<line>x sleep
+<line>x another
+<line>x air
+<line>x raid
+<line>x london
+<line>x night
+<line>x many
+<line>x houses
+<line>unlock drop
+<line>look under covers
+<line>search showered
+<line>look behind break
+<line>score
+<line>d
+<line>look
+<line>x score
+<line>x house
+<line>x policeman
+<line>x shouts
+<line>x group
+<line>x children
+<line>x stand
+<line>x clear
+<line>eat showered
+<line>drop hole
+<line>read ceiling
+<line>close houses
+<line>yes
+<line>x all
+<line>u
+<line>look
+<line>x close
+<line>x noses
+<line>x talking
+<line>x anyone
+<line>x special
+<line>x long
+<line>x beast
+<line>x smooth
+<line>wear everything
+<line>unlock presumably
+<line>listen to hole
+<line>pull houses
+<line>listen to house
+<line>read clear
+<line>wait
+<line>d
+<line>look
+<line>x nose
+<line>x suddenly
+<line>x starts
+<line>x louder
+<line>x siren
+<line>x wails
+<line>x distance
+<line>x read
+<line>smell break
+<line>climb houses
+<line>break noses
+<line>light smooth
+<line>wait
+<line>x
+<line>d
+<line>take all
+<line>look
+<line>x wait
+<line>drop nose
+<line>climb suddenly
+<line>drop starts
+<line>read siren
+<line>no
+<line>se
+<line>look
+<line>drop suddenly
+<line>light starts
+<line>enter louder
+<line>pull wait
+<line>exits
+<line>x
+<line>e
+<line>look
+<line>push starts
+<line>eat siren
+<line>feel wails
+<line>break distance
+<line>inventory
+<line>s
+<line>look
+<line>x damaged
+<line>x failed
+<line>x explode
+<line>x job
+<line>x disarm
+<line>x before
+<line>x unexploded
+<line>x lies
+<line>listen to smooth
+<line>look behind suddenly
+<line>unlock siren
+<line>pull wails
+<line>turn distance
+<line>look behind read
+<line>break wait
+<line>undo
+<line>x all
+<line>e
+<line>look
+<line>x head
+<line>x black
+<line>x casing
+<line>x end
+<line>x cap
+<line>x detonator
+<line>x round
+<line>x metal
+<line>search suddenly
+<line>feel siren
+<line>break read
+<line>undo
+<line>d
+<line>look

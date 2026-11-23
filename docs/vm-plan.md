@@ -194,7 +194,7 @@ Findings from milestone 3:
 - `sprintf('%r')` writes 40 as `xxxx`: the reference's table of Roman numerals has no entry for forty. Hexicon keeps that, since a program can see it.
 - An anonymous function is stored like a vector but is not list-like. Code that treats "anything list-like" as a list must not unpack one.
 - `String.match` returns a length in bytes, not characters, when it succeeds. `rexMatch` returns characters.
-- The random number generator is ISAAC, started from a fixed state. A real run seeds it at startup; `hexicon run --norand` leaves it unseeded, which is how the conformance tests get repeatable output.
+- The random number generator is ISAAC, started from a fixed state. A real run seeds it at startup; `hexicon run --norand` leaves it unseeded, which is how the conformance tests get repeatable output. Under `--norand`, a program's own `randomize()` gets the same seed every time, too, so that a game that reseeds at random also plays the same on every run. The reference's `-norand` reseeds such a game from the system, so it differs from run to run there.
 - A program's first argument is the image's file name without its directory.
 
 - Milestone 4: done (2026-11-18). Undo; garbage collection, with finalizers and weak references; saving, restoring, and restarting; and the parser classes StringComparator, Dictionary, and GrammarProduction. 108 of the suite's 132 runnable programs match the reference. `GrammarProd.addAlt` compiles its rules with the dynamic compiler, and came with DynamicFunc (2026-11-22). The milestone's test of playing an adv3 game to completion waits for input, which is in milestone 5.

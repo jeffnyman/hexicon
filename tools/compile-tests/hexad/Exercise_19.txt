@@ -1,0 +1,356 @@
+<eventscript>
+<line>version
+<line>credits
+<line>score
+<line>s
+<line>look
+<line>x turns
+<line>x scored
+<line>x points
+<line>x complete
+<line>x list
+<line>x achievements
+<line>x use
+<line>x full
+<line>sleep
+<line>s
+<line>take all
+<line>look
+<line>x time
+<line>x sleeping
+<line>x first
+<line>x trying
+<line>x open
+<line>x front
+<line>x door
+<line>x locked
+<line>listen to turns
+<line>take list
+<line>listen
+<line>nw
+<line>take all
+<line>look
+<line>x take
+<line>x fist
+<line>x generally
+<line>x speaking
+<line>x need
+<line>x refer
+<line>x body
+<line>x parts
+<line>move turns
+<line>close list
+<line>yes
+<line>x all
+<line>n
+<line>look
+<line>x close
+<line>x individually
+<line>x interactive
+<line>x fiction
+<line>x wear
+<line>x shoes
+<line>x feet
+<line>x necessarily
+<line>wear turns
+<line>climb front
+<line>light fist
+<line>feel parts
+<line>again
+<line>u
+<line>look
+<line>x implemented
+<line>x instance
+<line>x enough
+<line>x unless
+<line>x hint
+<line>x contrary
+<line>x probably
+<line>x cannot
+<line>light list
+<line>enter front
+<line>open door
+<line>listen to fist
+<line>look under speaking
+<line>drop body
+<line>inventory
+<line>u
+<line>look
+<line>x sprawling
+<line>x find
+<line>x interest
+<line>x house
+<line>x foot
+<line>x put
+<line>x sapphire
+<line>x ring
+<line>take turns
+<line>feel list
+<line>look under fist
+<line>pull speaking
+<line>think
+<line>n
+<line>look
+<line>x mouth
+<line>x pull
+<line>x pulling
+<line>x effect
+<line>x think
+<line>x therefore
+<line>x drive
+<line>x langtree
+<line>break front
+<line>move speaking
+<line>open sprawling
+<line>smell house
+<line>wait
+<line>se
+<line>look
+<line>x something
+<line>x smell
+<line>x ordinary
+<line>x passes
+<line>x edwardian
+<line>x mansion
+<line>x lies
+<line>x before
+<line>take feet
+<line>read mouth
+<line>think
+<line>put body in langtree
+<line>n
+<line>look
+<line>x anything
+<line>x road
+<line>light house
+<line>turn foot
+<line>look behind mouth
+<line>look under drive
+<line>drop passes
+<line>wear edwardian
+<line>turn mansion
+<line>close lies
+<line>undo
+<line>put
+<line>w
+<line>look
+<line>x lips
+<line>x turn
+<line>x undone
+<line>x want
+<line>x small
+<line>x black
+<line>x case
+<line>take foot
+<line>eat mouth
+<line>look behind drive
+<line>enter langtree
+<line>unlock edwardian
+<line>light anything
+<line>look
+<line>d
+<line>take all
+<line>look
+<line>x usually
+<line>x better
+<line>x vague
+<line>x words
+<line>x commands
+<line>x because
+<line>x game
+<line>x won
+<line>look behind something
+<line>read edwardian
+<line>feel mansion
+<line>pull anything
+<line>climb lips
+<line>look behind black
+<line>no
+<line>out
+<line>look
+<line>x talking
+<line>x anyone
+<line>push something
+<line>look behind passes
+<line>close anything
+<line>wear lips
+<line>break small
+<line>look
+<line>oops
+<line>s
+<line>look
+<line>x mean
+<line>x brass
+<line>x key
+<line>x don
+<line>search passes
+<line>drop lies
+<line>open black
+<line>look under case
+<line>climb anyone
+<line>wait
+<line>oops
+<line>nw
+<line>look
+<line>x able
+<line>x guess
+<line>x specific
+<line>x objects
+<line>x vicinity
+<line>turn passes
+<line>break lips
+<line>wear black
+<line>look in case
+<line>smell
+<line>x 12345
+<line>s
+<line>look
+<line>feel edwardian
+<line>turn anything
+<line>open lips
+<line>take black
+<line>search case
+<line>undo
+<line>give it to
+<line>s
+<line>take all
+<line>look
+<line>x search
+<line>x suitable
+<line>feel passes
+<line>look in edwardian
+<line>eat mansion
+<line>turn case
+<line>look
+<line>frobnicate the widget
+<line>n
+<line>look
+<line>x turning
+<line>x achieves
+<line>eat passes
+<line>look behind lies
+<line>wear case
+<line>move anyone
+<line>wait
+<line>d
+<line>take all
+<line>look
+<line>close edwardian
+<line>feel lies
+<line>look under anything
+<line>drop lips
+<line>close black
+<line>read case
+<line>take anyone
+<line>undo
+<line>x
+<line>out
+<line>take all
+<line>look
+<line>x read
+<line>x examine
+<line>enter edwardian
+<line>look in mansion
+<line>listen to lies
+<line>look behind anything
+<line>look under lips
+<line>push case
+<line>think
+<line>e
+<line>look
+<line>x pushing
+<line>enter case
+<line>look behind anyone
+<line>look
+<line>s
+<line>look
+<line>x enter
+<line>move passes
+<line>climb anything
+<line>wear small
+<line>move black
+<line>close anyone
+<line>no
+<line>put it
+<line>unlock small with anything
+<line>s
+<line>look
+<line>wear passes
+<line>pull lies
+<line>drop anything
+<line>climb case
+<line>exits
+<line>tell me about it
+<line>u
+<line>look
+<line>x climb
+<line>x listing
+<line>x adjusted
+<line>x following
+<line>x show
+<line>x both
+<line>x status
+<line>x line
+<line>listen to passes
+<line>eat lies
+<line>move lips
+<line>no
+<line>d
+<line>look
+<line>x eat
+<line>move edwardian
+<line>look under lies
+<line>smell black
+<line>search anyone
+<line>score
+<line>in
+<line>look
+<line>look in passes
+<line>climb mansion
+<line>unlock lies
+<line>read anything
+<line>look behind small
+<line>light black
+<line>listen
+<line>take it then drop it
+<line>hit case with lies
+<line>s
+<line>look
+<line>x hear
+<line>x holding
+<line>x dropped
+<line>x hit
+<line>x best
+<line>x avoid
+<line>x pointless
+<line>x violence
+<line>listen to mansion
+<line>search lies
+<line>wear anything
+<line>unlock black
+<line>yes
+<line>s
+<line>look
+<line>x unlocked
+<line>push passes
+<line>climb lies
+<line>drop anyone
+<line>smell
+<line>n
+<line>look
+<line>open passes
+<line>turn edwardian
+<line>move mansion
+<line>light lies
+<line>eat lips
+<line>light small
+<line>push black
+<line>again
+<line>sw
+<line>look
+<line>x skeleton
+<line>listen to lips
+<line>read black
+<line>jump
+<line>out
+<line>look
