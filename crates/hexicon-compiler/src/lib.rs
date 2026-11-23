@@ -21,14 +21,16 @@ mod fold;
 mod image;
 mod lex;
 mod link;
+mod manifest;
 mod parse;
 pub mod pp;
 mod project;
 
 pub use compile::{
-    CompileOptions, Compiled, RuntimeSymbol, RuntimeValue, compile, compile_program,
+    CompileOptions, Compiled, Dialect, RuntimeSymbol, RuntimeValue, compile, compile_program,
 };
 pub use lex::Tok;
+pub use manifest::MANIFEST;
 pub use project::{
     DirEntry, Project, ProjectError, ProjectPaths, Resource, ResourceSpec, expand_resources,
     read_project,

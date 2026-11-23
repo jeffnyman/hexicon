@@ -14,6 +14,7 @@
 //! else the compiler reads.
 
 use crate::compile::CompileOptions;
+use crate::manifest::{self, MANIFEST, is_manifest};
 use crate::pp::SourceFiles;
 
 /// The separator of the folders in a path, as paths are made here.
@@ -316,6 +317,9 @@ struct Reader<'f, 'a> {
     /// The folder of the project file, once it has been read: what it
     /// names is relative to that.
     opt_file_path: Option<String>,
+    /// What is being read is a manifest's: a source named with no
+    /// extension is a Hexicon source.
+    manifest: bool,
 }
 
 /// Read what to build from the command line of `hexicon build`, which
@@ -349,20 +353,27 @@ pub fn read_project(
         lib_err: false,
         opt_file: None,
         opt_file_path: None,
+        manifest: false,
     };
     reader.parse(args)?;
-    // With nothing on the command line, a project file of the usual
-    // name will do.
+    // With nothing on the command line, a manifest or a project file of
+    // the usual name will do.
     if reader.modules.is_empty() && reader.opt_file.is_none() {
         const DEFAULT_PROJECT: &str = "makefile.t3m";
-        if reader.files.exists(DEFAULT_PROJECT) {
+        if reader.files.exists(MANIFEST) {
+            reader.opt_file = Some(MANIFEST.to_owned());
+        } else if reader.files.exists(DEFAULT_PROJECT) {
             reader.opt_file = Some(DEFAULT_PROJECT.to_owned());
         } else {
             return Err(ProjectError::Usage(String::new()));
         }
     }
     if let Some(opt_file) = reader.opt_file.clone() {
-        let opt_file = if reader.files.exists(&opt_file) {
+        // A folder stands for the manifest in it.
+        let in_folder = build_full_path(&opt_file, MANIFEST);
+        let opt_file = if reader.files.exists(&in_folder) {
+            in_folder
+        } else if reader.files.exists(&opt_file) || is_manifest(&opt_file) {
             opt_file
         } else {
             def_ext(&opt_file, "t3m")
@@ -372,8 +383,15 @@ pub fn read_project(
                 "error: unable to read option file \"{opt_file}\""
             )]));
         };
-        let args = parse_opt_file(&text);
+        let args = if is_manifest(&opt_file) {
+            manifest::game_args(&text).map_err(|problem| {
+                ProjectError::Failed(vec![format!("error: {opt_file}: {problem}")])
+            })?
+        } else {
+            parse_opt_file(&text)
+        };
         reader.opt_file_path = Some(path_name(&opt_file).to_owned());
+        reader.manifest = is_manifest(&opt_file);
         reader.parse(&args)?;
     }
     if reader.lib_err {
@@ -665,6 +683,16 @@ impl Reader<'_, '_> {
             } else {
                 arg.clone()
             };
+            if !is_source && !is_lib && is_manifest(&name) {
+                if self.opt_file.is_some() {
+                    return Err(ProjectError::Failed(vec![
+                        "error: only one option file (-f) is allowed".to_owned(),
+                    ]));
+                }
+                self.opt_file = Some(name);
+                at += 1;
+                continue;
+            }
             if !is_source && !is_lib {
                 is_lib = name.len() > 3 && name[name.len() - 3..].eq_ignore_ascii_case(".tl");
             }
@@ -675,17 +703,23 @@ impl Reader<'_, '_> {
                 if self.image.is_none() {
                     self.image = Some(format!("{}.t3", rem_ext(&path)));
                 }
-                self.add_module(
-                    &path,
-                    &name,
-                    def_ext(&name, "t"),
-                    Origin::Normal,
-                    String::new(),
-                );
+                if self.manifest {
+                    // Named, as a library's sources are, without the
+                    // extension.
+                    let file = manifest::source_name(&path);
+                    let search = manifest::source_name(&name);
+                    self.add_module(&file, rem_ext(&name), search, Origin::Normal, String::new());
+                } else {
+                    self.add_module(
+                        &path,
+                        &name,
+                        def_ext(&name, "t"),
+                        Origin::Normal,
+                        String::new(),
+                    );
+                }
             } else {
-                let fname = def_ext(&path, "tl");
-                let orig = def_ext(&name, "tl");
-                let found = self.find_source(&fname, &orig);
+                let found = self.find_library(&path, &name);
                 let first_lib_module = self.modules.len();
                 let nodef = self.process_lib(&found, "");
                 self.nodef |= nodef;
@@ -711,10 +745,152 @@ impl Reader<'_, '_> {
         Ok(())
     }
 
+    /// Where the library a project names is: a manifest, if `path` is
+    /// one or is a folder with one, and otherwise a `.tl` file; each
+    /// where its name says, or along the source path.
+    fn find_library(&mut self, path: &str, name: &str) -> String {
+        if is_manifest(path) {
+            return self.find_source(path, name);
+        }
+        let in_folder = self.find_source(
+            &build_full_path(path, MANIFEST),
+            &build_full_path(name, MANIFEST),
+        );
+        if self.files.exists(&in_folder) {
+            return in_folder;
+        }
+        self.find_source(&def_ext(path, "tl"), &def_ext(name, "tl"))
+    }
+
+    /// A library a library is built on, `full`: a folder with a
+    /// manifest, or a `.tl` file.
+    fn sub_library(&mut self, full: String) -> String {
+        let in_folder = build_full_path(&full, MANIFEST);
+        if !is_manifest(&full) && self.files.exists(&in_folder) {
+            in_folder
+        } else {
+            full
+        }
+    }
+
+    /// `text` with each `$(NAME)` replaced by the value of the macro and
+    /// each `$$` by a dollar, and what was wrong with it.
+    fn expand_names(&self, text: &str) -> (String, Vec<String>) {
+        const BAD_DOLLAR: &str =
+            "invalid '$' sequence - use '$$' for a literal dollar sign character";
+        let mut problems = Vec::new();
+        let mut expanded = String::new();
+        let mut rest = text;
+        while let Some(at) = rest.find('$') {
+            expanded.push_str(&rest[..at]);
+            let after = &rest[at + 1..];
+            if let Some(inner) = after.strip_prefix('(') {
+                if let Some(close) = inner.find(')') {
+                    let name = &inner[..close];
+                    match self.look_up_pp_sym(name) {
+                        Some(value) => expanded.push_str(&value),
+                        None => problems.push(format!("undefined symbol \"{name}\"")),
+                    }
+                    rest = &inner[close + 1..];
+                    continue;
+                }
+                problems.push(BAD_DOLLAR.to_owned());
+                expanded.push('$');
+                rest = after;
+            } else if let Some(after) = after.strip_prefix('$') {
+                expanded.push('$');
+                rest = after;
+            } else {
+                problems.push(BAD_DOLLAR.to_owned());
+                expanded.push('$');
+                rest = after;
+            }
+        }
+        expanded.push_str(rest);
+        (expanded, problems)
+    }
+
+    /// A macro a library needs a game to define: if it is not defined,
+    /// say so, and why.
+    fn need_macro(&mut self, place: &str, macro_name: &str, why: &str) {
+        if self.look_up_pp_sym(macro_name).is_none() {
+            let shown = &macro_name[..macro_name.len().min(128)];
+            self.messages.push(format!(
+                "{place}: library requires preprocessor symbol \"{shown}\" to be \
+                 defined; use -D {shown}=value to define it ({why})"
+            ));
+        }
+    }
+
+    /// Read a library's manifest, as [`Self::process_lib`] reads a `.tl`.
+    fn process_manifest_lib(&mut self, full_name: &str, lib_url: &str) -> bool {
+        let lib_path = path_name(full_name).to_owned();
+        self.maybe_add_include_path(&lib_path);
+        let Some(text) = self.files.read(full_name) else {
+            self.messages
+                .push(format!("unable to open library file \"{full_name}\""));
+            self.lib_err = true;
+            return false;
+        };
+        let lib = match manifest::library(&text) {
+            Ok(lib) => lib,
+            Err(problem) => {
+                self.messages.push(format!("{full_name}: {problem}"));
+                self.lib_err = true;
+                return false;
+            }
+        };
+        // What a name in the manifest comes to, and where it is.
+        let place = |reader: &mut Self, value: &str| {
+            let (value, problems) = reader.expand_names(value);
+            for problem in problems {
+                reader.messages.push(format!("{full_name}: {problem}"));
+            }
+            let full = build_full_path(&lib_path, &cvt_url_dir(&value));
+            (value, full)
+        };
+        let mut nodef = lib.no_system_main;
+        // A source is named, as in a `.tl`, without its extension.
+        for source in &lib.sources {
+            let (value, full) = place(self, source);
+            let name = rem_ext(&value).to_owned();
+            let full = manifest::source_name(&full);
+            let url = format!("{lib_url}{name}");
+            self.add_module(
+                &full,
+                &name,
+                full.clone(),
+                Origin::Lib(full_name.to_owned()),
+                url,
+            );
+        }
+        for library in &lib.libraries {
+            let (value, full) = place(self, library);
+            let url = format!("{lib_url}{value}/");
+            let target = self.sub_library(full);
+            nodef |= self.process_lib(&target, &url);
+        }
+        for resource in &lib.resources {
+            let (value, full) = place(self, resource);
+            self.resources.push(ResourceSpec {
+                file: full,
+                alias: Some(value),
+                recurse: true,
+            });
+        }
+        for (name, why) in &lib.needs {
+            self.need_macro(full_name, name, why);
+        }
+        nodef
+    }
+
     /// Read a library, adding its sources to the modules, and its
     /// libraries' in their places. What comes back is whether it said
     /// `nodef`.
     fn process_lib(&mut self, lib_name: &str, lib_url: &str) -> bool {
+        if is_manifest(lib_name) {
+            return self.process_manifest_lib(lib_name, lib_url);
+        }
         let full_name = def_ext(lib_name, "tl");
         let lib_path = path_name(lib_name).to_owned();
         self.maybe_add_include_path(&lib_path);
@@ -739,45 +915,10 @@ impl Reader<'_, '_> {
                 self.lib_err = true;
                 continue;
             }
-            // `$(NAME)` is the value of the macro; `$$` is a dollar.
-            let mut expanded = String::new();
-            let mut rest = line;
-            while let Some(at) = rest.find('$') {
-                expanded.push_str(&rest[..at]);
-                let after = &rest[at + 1..];
-                if let Some(inner) = after.strip_prefix('(') {
-                    if let Some(close) = inner.find(')') {
-                        let name = &inner[..close];
-                        match self.look_up_pp_sym(name) {
-                            Some(value) => expanded.push_str(&value),
-                            None => say(self, linenum, format!("undefined symbol \"{name}\"")),
-                        }
-                        rest = &inner[close + 1..];
-                        continue;
-                    }
-                    say(
-                        self,
-                        linenum,
-                        "invalid '$' sequence - use '$$' for a literal dollar sign character"
-                            .to_owned(),
-                    );
-                    expanded.push('$');
-                    rest = after;
-                } else if let Some(after) = after.strip_prefix('$') {
-                    expanded.push('$');
-                    rest = after;
-                } else {
-                    say(
-                        self,
-                        linenum,
-                        "invalid '$' sequence - use '$$' for a literal dollar sign character"
-                            .to_owned(),
-                    );
-                    expanded.push('$');
-                    rest = after;
-                }
+            let (expanded, problems) = self.expand_names(line);
+            for problem in problems {
+                say(self, linenum, problem);
             }
-            expanded.push_str(rest);
             let content = expanded.trim_start();
             if content.is_empty() || content.starts_with('#') {
                 continue;
@@ -807,7 +948,8 @@ impl Reader<'_, '_> {
                 }
                 "library" => {
                     let url = format!("{lib_url}{value}/");
-                    nodef |= self.process_lib(&full, &url);
+                    let target = self.sub_library(full);
+                    nodef |= self.process_lib(&target, &url);
                 }
                 "resource" => {
                     // Named as the library writes it, and with what is
@@ -822,17 +964,7 @@ impl Reader<'_, '_> {
                     let mut words = value.splitn(2, char::is_whitespace);
                     let macro_name = words.next().unwrap_or("");
                     let warning = words.next().unwrap_or("").trim_start();
-                    if self.look_up_pp_sym(macro_name).is_none() {
-                        let shown = &macro_name[..macro_name.len().min(128)];
-                        say(
-                            self,
-                            linenum,
-                            format!(
-                                "library requires preprocessor symbol \"{shown}\" to be \
-                                 defined; use -D {shown}=value to define it ({warning})"
-                            ),
-                        );
-                    }
+                    self.need_macro(&format!("{full_name} ({linenum})"), macro_name, warning);
                 }
                 _ => say(self, linenum, format!("unknown definition \"{var_name}\"")),
             }

@@ -28,7 +28,11 @@ Stage 2 has to come before stage 3. Without the reference or tests of its own, n
 
 - **A source file is TADS 3 or Hexicon, and its extension says which.** TADS 3 files compile exactly as they do now, with the reference's quirks. Nothing in this plan changes them.
 - **Both dialects compile to the same symbols, objects, and image.** A Hexicon file can use adv3Lite's classes, and a TADS 3 file can use what a Hexicon file defines. That makes the move gradual: a library or a game can change one file at a time.
-- **Hexicon files drop behavior kept only for parity.** Examples are a preprocessor warning reported twice, the reference's check for the end of an `#if` line one token late, and `'ab' + nil` reading the reference's memory. Messages can give the column and show the line.
+- **Hexicon files drop behavior kept only for parity.** So far (2026-11-23) there are two such changes:
+  - A warning is reported once. The reference reads each source twice and reports a warning from the first reading again in the second.
+  - An `#if`, `#elif`, or `#line` with something after its expression is an error. The reference checks for the end of the line one token late, so `#if 1 2` passes there.
+
+  `'ab' + nil` already adds nothing in both dialects, since the reference's result depends on its memory. Later, messages can give the column and show the line. An included file is read in the dialect of the source that includes it.
 - **The image stays T3 until something needs more.** A feature that needs the VM's help gets it as an addition that existing images never use, so the VM keeps running every TADS 3 game unchanged. A new image format is a decision for when a feature requires one, not before.
 
 ## How a language with no reference stays tested
@@ -41,7 +45,7 @@ Today every stage is checked against the reference. A Hexicon-only feature has n
 
 ## File extensions
 
-| What | TADS 3 | Hexicon (proposed) |
+| What | TADS 3 | Hexicon |
 |---|---|---|
 | Source | `.t` | `.hxn` |
 | Header | `.h` | None needed once modules exist (below). A `.h` can still be included. |
@@ -52,16 +56,51 @@ Today every stage is checked against the reference. A Hexicon-only feature has n
 
 The obvious names are taken: `.hex` is Intel HEX and `.hx` is Haxe. As far as I know, `.hxn` is not in common use.
 
-One manifest format for games and libraries replaces `.t3m` and `.tl`, and their command-line options (`-D`, `-I`, `-lib`, `-o`). It is in the spirit of `Cargo.toml`, and it fits the goal of a modern toolchain. A sketch:
+One manifest format for games and libraries replaces `.t3m` and `.tl`, and their command-line options (`-D`, `-I`, `-lib`, `-o`). It is in the spirit of `Cargo.toml`, and it fits the goal of a modern toolchain. `hexicon build` reads `hexicon.toml` in the current folder by default, before `makefile.t3m`. It can also be given a manifest with `-f`, a folder holding one, or a `.toml` file among its arguments.
+
+A game's manifest is read by turning it into the options a project file would give, so it builds what the same `.t3m` builds:
 
 ```toml
 [game]
-name = "Banana"
-sources = ["src/*.hxn"]
+name = "Airport"                         # not used yet
+sources = ["start", "gatearea", "plane", "npcs"]
+libraries = ["system", "adv3Lite"]       # or { name = "adv3Lite", exclude = ["scene"] }
+image = "airport.t3"                     # default: the first source's name
+resources = ["pics"]                     # as after -res: file, or file=name
 
-[library]
-hexad = { modules = ["senses", "postures"] }
+[defines]                                # -D; true is -D NAME, false is -U NAME
+LANGUAGE = "english"
+
+[build]
+preinit = true                           # -pre and -nopre
+debug = false                            # -d
+warnings = true                          # -w0 when false
+warnings-as-errors = false               # -we
+verbose = false                          # -v
+source-text-group = false                # -Gstg
+charset = "cp1252"                       # -cs
+include-paths = ["include"]              # -I
+library-paths = ["../libs"]              # -Fs
 ```
+
+A library's manifest says what a `.tl` says:
+
+```toml
+[library]
+name = "adv3Lite Library"
+sources = ["action.t", "actions.t"]      # ...
+libraries = ["$(LANGUAGE)"]              # $(NAME) is a macro's value, as in a .tl
+resources = ["webuires"]
+system-main = true                       # false is nodef
+
+[needs]                                  # needmacro
+LANGUAGE = "this selects the language the library uses"
+```
+
+- **A source named without an extension is a `.hxn` file.** A TADS 3 source in a manifest is named with its `.t`.
+- **A module is named without its extension**, as in a `.tl` or `.t3m`. Programs can see the names, so this keeps images the same.
+- **A library is a folder with a manifest, or a `.tl` file named without its extension.** It is found where its name says, or along the library paths, and either kind can be built on the other.
+- **A name the manifest does not know is an error**, so a misspelled key is not silently ignored.
 
 `.t3m` and `.tl` stay accepted for TADS 3 projects.
 
@@ -137,7 +176,7 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
 
 ## Milestones
 
-1. **The dialect switch and the manifest.** `.hxn` files compile as `.t` files do, without the parity-only behavior, and `hexicon.toml` builds a project. Exit: Airport's sources, renamed and built from a manifest, give an image identical to the one built from `airport.t3m`.
+1. **The dialect switch and the manifest.** `.hxn` files compile as `.t` files do, without the parity-only behavior, and `hexicon.toml` builds a project. Exit: Airport's sources, renamed and built from a manifest, give an image identical to the one built from `airport.t3m`. Done (2026-11-23). `tools/compile-tests/manifest-compare.sh` builds Airport as `.hxn` sources from a `hexicon.toml`, with adv3Lite and its English library described by manifests written from their `.tl` files. The image is identical to the one built from `airport.t3m`.
 2. **The converter.** Exit: adv3, adv3Lite, Airport, and Ditch Day each convert, compile, and give images identical to the originals'.
 3. **Checked names.** Exit: no false warnings over adv3Lite, Hexad, and the converted games, and every misspelling a test plants is caught.
 4. **Action declarations.** Exit: the converter writes them for adv3Lite's actions, and the round trip still gives identical images.

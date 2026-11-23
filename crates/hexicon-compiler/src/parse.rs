@@ -1189,6 +1189,8 @@ pub(crate) struct Parser<'p, 'a> {
     /// Reading the expression of a preprocessor directive, in which a
     /// string in double quotes is a value like one in single quotes.
     pp_expr: bool,
+    /// The language of the directive whose expression is being read.
+    pp_dialect: crate::Dialect,
     /// Objects named by a token whose text the reference keeps only in
     /// the line being read: the name, which buffer, where the name ended
     /// in it, and the object.
@@ -1449,6 +1451,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         Self {
             tok,
             pp_expr: false,
+            pp_dialect: crate::Dialect::Tads3,
             unkept_objs: Vec::new(),
             syntax_only,
             prog,
@@ -9421,7 +9424,15 @@ impl Parser<'_, '_> {
     /// unremarked.
     fn parse_pp_expr(&mut self, last: bool) -> Option<ConstVal> {
         let expr = self.parse_expr();
-        if last && self.next() != Tok::Eof {
+        // Hexicon looks at the token the expression stopped at.
+        let at_end = |parser: &mut Self| {
+            if parser.pp_dialect == crate::Dialect::Hexicon {
+                parser.cur() == Tok::Eof
+            } else {
+                parser.next() == Tok::Eof
+            }
+        };
+        if last && !at_end(self) {
             self.tok.log_error("extra characters at end of line");
         }
         let expr = expr?;
@@ -9440,6 +9451,7 @@ impl Parser<'_, '_> {
 /// collect what it found wrong.
 fn with_pp_parser<T>(
     text: &[u8],
+    dialect: crate::Dialect,
     read: impl FnOnce(&mut Parser<'_, '_>) -> Option<T>,
 ) -> (Option<T>, Problems) {
     let mut files = NoFiles;
@@ -9447,6 +9459,7 @@ fn with_pp_parser<T>(
     let value = {
         let mut parser = Parser::new(&mut pp, false, Exports::default());
         parser.pp_expr = true;
+        parser.pp_dialect = dialect;
         parser.next();
         read(&mut parser)
     };
@@ -9461,16 +9474,19 @@ fn with_pp_parser<T>(
 /// Evaluate the condition of an `#if` or `#elif`, whose macros have been
 /// expanded: whether it is true, or nothing if it has no constant value;
 /// and the problems found, for the directive's line.
-pub(crate) fn eval_pp_condition(text: &[u8]) -> (Option<bool>, Problems) {
-    with_pp_parser(text, |parser| {
+pub(crate) fn eval_pp_condition(text: &[u8], dialect: crate::Dialect) -> (Option<bool>, Problems) {
+    with_pp_parser(text, dialect, |parser| {
         parser.parse_pp_expr(true).map(|value| value.is_true())
     })
 }
 
 /// Evaluate the line number and file name of a `#line`, whose macros have
 /// been expanded.
-pub(crate) fn eval_pp_line(text: &[u8]) -> (Option<(i32, Vec<u8>)>, Problems) {
-    with_pp_parser(text, |parser| {
+pub(crate) fn eval_pp_line(
+    text: &[u8],
+    dialect: crate::Dialect,
+) -> (Option<(i32, Vec<u8>)>, Problems) {
+    with_pp_parser(text, dialect, |parser| {
         let line = parser.parse_pp_expr(false)?;
         let Value::Int(line) = line.value else {
             parser.tok.log_error("integer value required for #line");

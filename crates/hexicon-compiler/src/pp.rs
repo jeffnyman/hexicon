@@ -349,6 +349,8 @@ pub struct Preprocessor<'a> {
     /// Tokens are being read for the expression of a directive, which
     /// changes what some problems are reported as.
     pp_expr: bool,
+    /// The language of the source being read.
+    dialect: crate::Dialect,
 }
 
 impl<'a> Preprocessor<'a> {
@@ -396,6 +398,7 @@ impl<'a> Preprocessor<'a> {
             gave_up: false,
             default_charset: "utf-8".to_owned(),
             pp_expr: false,
+            dialect: crate::Dialect::Tads3,
         };
         pp.add_special(b"__LINE__", MacroKind::Line);
         pp.add_special(b"__FILE__", MacroKind::File);
@@ -419,6 +422,12 @@ impl<'a> Preprocessor<'a> {
     /// Name files without their folders in `__FILE__` and in messages.
     pub fn set_test_report_mode(&mut self, on: bool) {
         self.test_report = on;
+    }
+
+    /// Set the language of the source, which decides a few of the
+    /// things the reference does only for TADS 3.
+    pub fn set_dialect(&mut self, dialect: crate::Dialect) {
+        self.dialect = dialect;
     }
 
     /// Set the character set of source files that do not say what they
@@ -2597,7 +2606,7 @@ impl<'a> Preprocessor<'a> {
     /// have been expanded into the expansion buffer: whether it is true,
     /// or nothing if it has no constant value.
     fn pp_parse_expr(&mut self) -> Option<bool> {
-        let (value, problems) = crate::parse::eval_pp_condition(&self.expbuf);
+        let (value, problems) = crate::parse::eval_pp_condition(&self.expbuf, self.dialect);
         self.report_all(problems);
         value
     }
@@ -2724,7 +2733,7 @@ impl<'a> Preprocessor<'a> {
         }
         let text = self.expbuf.clone();
         self.clear_linebuf();
-        let (value, problems) = crate::parse::eval_pp_line(&text);
+        let (value, problems) = crate::parse::eval_pp_line(&text, self.dialect);
         self.report_all(problems);
         if let Some((line, name)) = value {
             let desc = self.file_desc(&String::from_utf8_lossy(&name));

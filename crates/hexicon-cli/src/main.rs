@@ -37,14 +37,19 @@ commands:
                                2 for the sandbox only, 3 for reading in
                                the sandbox only, 4 for nowhere (default 22)
   build [options] <module>...  compile a program image from its source
-                               files and libraries (.tl), put together in
-                               the order given, after the system
-                               library's _main; the options are those of
-                               the reference's t3make, which a project
-                               file (.t3m) can also give:
-      -f <project.t3m>         read more options and modules from a
-                               project file (default: makefile.t3m, if
-                               nothing else is given)
+                               files and libraries, put together in the
+                               order given, after the system library's
+                               _main; the options are those of the
+                               reference's t3make, which a manifest
+                               (hexicon.toml) or a project file (.t3m)
+                               can also give. A .hxn source is Hexicon,
+                               any other TADS 3. A library is a .tl file
+                               or a folder with a hexicon.toml:
+      -f <project>             read more options and modules from a
+                               manifest, a folder with one, or a project
+                               file (default: hexicon.toml, or else
+                               makefile.t3m, if nothing else is given);
+                               a .toml file among the modules is the same
       -source <file>           a source file, whatever its name
       -lib <file>              a library, whatever its name; -x <name>
                                after it leaves out one of its sources

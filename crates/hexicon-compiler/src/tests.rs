@@ -3428,3 +3428,159 @@ fn grammar_rules_are_compiled_while_a_program_runs() {
         Err("error: undefined symbol \"nothing\"".to_owned())
     );
 }
+
+// ---- Hexicon's own language and its manifests ----
+
+/// What compiling `name`, holding `text`, reports, a line each.
+fn messages_compiling(name: &str, text: &str) -> Vec<String> {
+    let mut files = Files::default().with(name, text);
+    compile(&mut files, name, &CompileOptions::default())
+        .diagnostics
+        .into_iter()
+        .map(|problem| {
+            format!(
+                "{}({}): {:?}: {}",
+                problem.file, problem.line, problem.severity, problem.message
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn a_source_is_hexicon_by_its_extension() {
+    use crate::Dialect;
+    assert_eq!(Dialect::of("game/start.hxn"), Dialect::Hexicon);
+    assert_eq!(Dialect::of("START.HXN"), Dialect::Hexicon);
+    assert_eq!(Dialect::of("game/start.t"), Dialect::Tads3);
+    assert_eq!(Dialect::of("game.hxn/start"), Dialect::Tads3);
+}
+
+#[test]
+fn hexicon_finds_extra_characters_after_a_condition_on_time() {
+    let text = "#if 1 2\n#endif\n_main(args) { }\n";
+    assert_eq!(messages_compiling("main.t", text), Vec::<String>::new());
+    assert_eq!(
+        messages_compiling("main.hxn", text),
+        ["main.hxn(1): Error: extra characters at end of line"]
+    );
+    // #line's name ends the line too.
+    let text = "#line 10 \"x.t\" 3\n_main(args) { }\n";
+    assert_eq!(messages_compiling("main.t", text), Vec::<String>::new());
+    assert_eq!(
+        messages_compiling("main.hxn", text),
+        ["main.hxn(1): Error: extra characters at end of line"]
+    );
+}
+
+#[test]
+fn hexicon_reports_a_warning_once() {
+    let text = "#define ONE 1\n#define ONE 2\n_main(args) { }\n";
+    let warning = "(2): Warning: redefinition of macro \"ONE\"";
+    assert_eq!(
+        messages_compiling("main.t", text),
+        [format!("main.t{warning}"), format!("main.t{warning}")]
+    );
+    assert_eq!(
+        messages_compiling("main.hxn", text),
+        [format!("main.hxn{warning}")]
+    );
+}
+
+#[test]
+fn a_manifest_names_the_sources_and_the_libraries() {
+    let mut files = Files::default()
+        .with(
+            "game/hexicon.toml",
+            "[game]\nname = \"The Game\"\nsources = [\"start\", \"old.t\"]\n\
+             libraries = [{ name = \"mylib\", exclude = [\"two\"] }, \"oldlib\"]\n\
+             image = \"out/game.t3\"\n\n\
+             [defines]\nLANG = \"english\"\nLEVEL = 3\nFLAG = true\n\n\
+             [build]\npreinit = false\nwarnings-as-errors = true\ninclude-paths = [\"inc\"]\n",
+        )
+        .with(
+            "game/mylib/hexicon.toml",
+            "[library]\nname = \"My Library\"\nsources = [\"one\", \"two\", \"three.t\"]\n\
+             libraries = [\"$(LANG)/$(LANG)\"]\n\n[needs]\nLANG = \"the language\"\nVOICE = \"who speaks\"\n",
+        )
+        .with("game/mylib/english/english.tl", "source: words\nnodef\n")
+        .with("game/oldlib.tl", "source: legacy\n")
+        .with("game/start.hxn", "")
+        .with("game/old.t", "");
+    let project = read(&mut files, &["-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
+    let lib = |file: &str| sys_path(&["game", "mylib", file]);
+    // A source with no extension is Hexicon's; the library's English
+    // is a .tl in a folder without a manifest.
+    assert_eq!(
+        project.sources,
+        [
+            lib("one.hxn"),
+            lib("three.t"),
+            sys_path(&["game", "mylib", "english", "words.t"]),
+            sys_path(&["game", "legacy.t"]),
+            sys_path(&["game", "start.hxn"]),
+            sys_path(&["game", "old.t"]),
+        ]
+    );
+    // Modules are named without their extensions, as in a .tl.
+    let names: Vec<&str> = project
+        .options
+        .module_names
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert_eq!(names, ["one", "three", "words", "legacy", "start", "old"]);
+    assert_eq!(project.image, Some(sys_path(&["game", "out", "game.t3"])));
+    assert!(!project.preinit && project.warnings_as_errors);
+    assert_eq!(
+        project.options.defines,
+        [
+            ("FLAG".to_owned(), String::new()),
+            ("LANG".to_owned(), "english".to_owned()),
+            ("LEVEL".to_owned(), "3".to_owned()),
+        ]
+    );
+    assert_eq!(project.options.include_paths[0], sys_path(&["game", "inc"]));
+    // A macro the library needs that the game does not define.
+    assert_eq!(project.messages.len(), 1, "{:?}", project.messages);
+    assert!(project.messages[0].contains("library requires preprocessor symbol \"VOICE\""));
+}
+
+#[test]
+fn a_manifest_found_by_itself_or_named_among_the_modules() {
+    let mut files = Files::default()
+        .with("hexicon.toml", "[game]\nsources = [\"main\"]\n")
+        .with("main.hxn", "")
+        .with("makefile.t3m", "-source other\n");
+    let project = read(&mut files, &[]).expect("a project");
+    assert_eq!(project.sources.last().map(String::as_str), Some("main.hxn"));
+    let project = read(&mut files, &["hexicon.toml"]).expect("a project");
+    assert_eq!(project.sources.last().map(String::as_str), Some("main.hxn"));
+}
+
+#[test]
+fn a_manifest_does_not_ignore_what_it_does_not_know() {
+    let failed = |text: &str| {
+        let mut files = Files::default().with("hexicon.toml", text);
+        match read(&mut files, &[]) {
+            Err(crate::ProjectError::Failed(lines)) => lines.join("\n"),
+            other => panic!("{other:?}"),
+        }
+    };
+    assert_eq!(
+        failed("[game]\nsorces = [\"main\"]\n"),
+        "error: hexicon.toml: unknown key \"sorces\" in [game]"
+    );
+    assert_eq!(
+        failed("[game]\nsources = [\"main\"]\n[bulid]\n"),
+        "error: hexicon.toml: unknown section [bulid]"
+    );
+    assert_eq!(
+        failed("[game]\nsources = \"main\"\n"),
+        "error: hexicon.toml: \"sources\" in [game] must be a list of strings"
+    );
+    assert_eq!(
+        failed("[library]\nsources = [\"main\"]\n"),
+        "error: hexicon.toml: this is the manifest of a library, not of a game"
+    );
+    assert!(failed("[game\n").starts_with("error: hexicon.toml: TOML parse error"));
+}

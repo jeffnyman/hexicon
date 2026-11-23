@@ -50,6 +50,33 @@ impl Default for CompileOptions {
     }
 }
 
+/// The language a source file is in, which its extension says: a
+/// `.hxn` file is Hexicon, and anything else TADS 3.
+///
+/// The two compile to the same program. TADS 3 is compiled as the
+/// reference compiles it, odd cases included; Hexicon leaves out what is
+/// kept only to match the reference. An included file is read in the
+/// language of the source that includes it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Dialect {
+    /// TADS 3, as the reference compiler reads it.
+    #[default]
+    Tads3,
+    /// Hexicon's own language.
+    Hexicon,
+}
+
+impl Dialect {
+    /// The language of the source file `path`.
+    pub fn of(path: &str) -> Self {
+        let name = path.rsplit(['/', '\\']).next().unwrap_or(path);
+        match name.rsplit_once('.') {
+            Some((_, ext)) if ext.eq_ignore_ascii_case("hxn") => Self::Hexicon,
+            _ => Self::Tads3,
+        }
+    }
+}
+
 /// The name of the system programs are compiled on, as `__TADS_SYSTEM_NAME`
 /// gives it. Hexicon is the same system wherever it runs.
 const SYSTEM_NAME: &str = "HEXICON";
@@ -282,6 +309,7 @@ fn start<'a>(
         });
     }
     pp.set_compile_mode();
+    pp.set_dialect(Dialect::of(source));
     Ok(pp)
 }
 
@@ -305,6 +333,9 @@ pub fn compile_program(
     let mut compiled = Compiled::default();
 
     let mut exports = Vec::new();
+    // The warnings of a Hexicon source's first reading, which its second
+    // reading gives again: the reference reports both, Hexicon each once.
+    let mut first_warnings: Vec<Vec<Diagnostic>> = Vec::new();
     for source in sources {
         let mut pp = match start(files, source, options) {
             Ok(pp) => pp,
@@ -314,7 +345,15 @@ pub fn compile_program(
             }
         };
         let prog = Parser::new(&mut pp, true, Exports::default()).parse_top();
-        compiled.diagnostics.append(&mut pp.take_diagnostics());
+        let mut found = pp.take_diagnostics();
+        let mut warnings = Vec::new();
+        if Dialect::of(source) == Dialect::Hexicon {
+            (warnings, found) = found
+                .into_iter()
+                .partition(|d| d.severity == Severity::Warning);
+        }
+        first_warnings.push(warnings);
+        compiled.diagnostics.append(&mut found);
         if has_errors(&compiled.diagnostics) {
             return compiled;
         }
@@ -344,7 +383,14 @@ pub fn compile_program(
         let mut parser = Parser::new(&mut pp, false, known.clone());
         parser.set_module(module, options.source_text_group);
         let mut prog = parser.parse_top();
-        compiled.diagnostics.append(&mut pp.take_diagnostics());
+        let found = pp.take_diagnostics();
+        // A warning only the first reading gave is still reported.
+        for warning in std::mem::take(&mut first_warnings[index]) {
+            if !found.contains(&warning) {
+                compiled.diagnostics.push(warning);
+            }
+        }
+        compiled.diagnostics.extend(found);
         module_macros.push(pp.link_macros());
         if has_errors(&compiled.diagnostics) {
             return compiled;
