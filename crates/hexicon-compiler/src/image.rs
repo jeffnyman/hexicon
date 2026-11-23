@@ -475,7 +475,7 @@ pub(crate) fn write_image(
         objs.extend_from_slice(&metaclass.to_le_bytes());
         objs.extend_from_slice(&flags.to_le_bytes());
         for obj in &mut gen_objs {
-            obj.props.sort_by_key(|prop| prop.id);
+            crt_qsort(&mut obj.props, |a, b| a.id.cmp(&b.id));
             let size = 6 + 4 * obj.superclasses.len() + 7 * obj.props.len();
             objs.extend_from_slice(&obj.id.to_le_bytes());
             objs.extend_from_slice(&(size as u16).to_le_bytes());
@@ -881,4 +881,155 @@ fn global_symbols_block(
     let mut block = count.to_le_bytes().to_vec();
     block.extend_from_slice(&entries);
     block
+}
+
+/// Sort as the C library's `qsort` that the reference is built with
+/// (Microsoft's) does. It is not stable, and an object can have two
+/// entries for one property, when a vocabulary property is defined before
+/// a nested object and so gets a placeholder as well: the order the two
+/// end up in is the order this leaves them in. Up to eight items are put
+/// in order by finding the greatest, the first of equals, and swapping it
+/// to the end; more are split around the middle of three.
+pub(crate) fn crt_qsort<T>(items: &mut [T], cmp: impl Fn(&T, &T) -> std::cmp::Ordering) {
+    use std::cmp::Ordering::{Equal, Greater};
+    const CUTOFF: usize = 8;
+    if items.len() < 2 {
+        return;
+    }
+    let short_sort = |items: &mut [T], lo: usize, mut hi: usize| {
+        while hi > lo {
+            let mut max = lo;
+            for p in lo + 1..=hi {
+                if cmp(&items[p], &items[max]) == Greater {
+                    max = p;
+                }
+            }
+            items.swap(max, hi);
+            hi -= 1;
+        }
+    };
+    let mut stack = Vec::new();
+    let (mut lo, mut hi) = (0usize, items.len() - 1);
+    loop {
+        let size = hi - lo + 1;
+        if size <= CUTOFF {
+            short_sort(items, lo, hi);
+        } else {
+            let mut mid = lo + size / 2;
+            if cmp(&items[lo], &items[mid]) == Greater {
+                items.swap(lo, mid);
+            }
+            if cmp(&items[lo], &items[hi]) == Greater {
+                items.swap(lo, hi);
+            }
+            if cmp(&items[mid], &items[hi]) == Greater {
+                items.swap(mid, hi);
+            }
+            // Positions run from lo - 1 to hi + 1, as the C pointers do.
+            let mut loguy = lo as isize;
+            let mut higuy = hi as isize + 1;
+            let at = |i: isize| i as usize;
+            loop {
+                if (mid as isize) > loguy {
+                    loop {
+                        loguy += 1;
+                        if !(loguy < mid as isize && cmp(&items[at(loguy)], &items[mid]) != Greater)
+                        {
+                            break;
+                        }
+                    }
+                }
+                if (mid as isize) <= loguy {
+                    loop {
+                        loguy += 1;
+                        if !(loguy <= hi as isize && cmp(&items[at(loguy)], &items[mid]) != Greater)
+                        {
+                            break;
+                        }
+                    }
+                }
+                loop {
+                    higuy -= 1;
+                    if !(higuy > mid as isize && cmp(&items[at(higuy)], &items[mid]) == Greater) {
+                        break;
+                    }
+                }
+                if higuy < loguy {
+                    break;
+                }
+                items.swap(at(loguy), at(higuy));
+                if mid as isize == higuy {
+                    mid = at(loguy);
+                }
+            }
+            higuy += 1;
+            if (mid as isize) < higuy {
+                loop {
+                    higuy -= 1;
+                    if !(higuy > mid as isize && cmp(&items[at(higuy)], &items[mid]) == Equal) {
+                        break;
+                    }
+                }
+            }
+            if (mid as isize) >= higuy {
+                loop {
+                    higuy -= 1;
+                    if !(higuy > lo as isize && cmp(&items[at(higuy)], &items[mid]) == Equal) {
+                        break;
+                    }
+                }
+            }
+            // The smaller part waits; the larger is sorted now.
+            if higuy - lo as isize >= hi as isize - loguy {
+                if (lo as isize) < higuy {
+                    stack.push((lo, at(higuy)));
+                }
+                if loguy < hi as isize {
+                    lo = at(loguy);
+                    continue;
+                }
+            } else {
+                if loguy < hi as isize {
+                    stack.push((at(loguy), hi));
+                }
+                if (lo as isize) < higuy {
+                    hi = at(higuy);
+                    continue;
+                }
+            }
+        }
+        match stack.pop() {
+            Some((l, h)) => (lo, hi) = (l, h),
+            None => return,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::crt_qsort;
+
+    #[test]
+    fn the_first_of_equal_greatest_items_goes_last() {
+        let mut items = [(2, 'a'), (1, 'b'), (2, 'c')];
+        crt_qsort(&mut items, |x, y| x.0.cmp(&y.0));
+        assert_eq!(items, [(1, 'b'), (2, 'c'), (2, 'a')]);
+    }
+
+    #[test]
+    fn long_tables_are_sorted() {
+        let mut seed = 12345u32;
+        for len in 0..200 {
+            let mut items: Vec<u32> = (0..len)
+                .map(|_| {
+                    seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12345);
+                    (seed >> 16) % 50
+                })
+                .collect();
+            let mut expected = items.clone();
+            expected.sort_unstable();
+            crt_qsort(&mut items, |a, b| a.cmp(b));
+            assert_eq!(items, expected, "length {len}");
+        }
+    }
 }

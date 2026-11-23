@@ -1186,6 +1186,13 @@ struct Scope {
 
 pub(crate) struct Parser<'p, 'a> {
     tok: &'p mut Preprocessor<'a>,
+    /// Reading the expression of a preprocessor directive, in which a
+    /// string in double quotes is a value like one in single quotes.
+    pp_expr: bool,
+    /// Objects named by a token whose text the reference keeps only in
+    /// the line being read: the name, which buffer, where the name ended
+    /// in it, and the object.
+    unkept_objs: Vec<(Vec<u8>, bool, usize, usize)>,
     /// Reading only to learn what the program defines: nothing is
     /// generated from this pass, and some warnings are left for the pass
     /// that does generate.
@@ -1441,6 +1448,8 @@ impl<'p, 'a> Parser<'p, 'a> {
         }
         Self {
             tok,
+            pp_expr: false,
+            unkept_objs: Vec::new(),
             syntax_only,
             prog,
             local_symtab: None,
@@ -5845,6 +5854,7 @@ impl Parser<'_, '_> {
                 },
                 Tok::ReStr => Value::ReStr(self.cur_text()),
                 Tok::SStr => Value::SStr(self.cur_text()),
+                Tok::DStr if self.pp_expr => Value::SStr(self.cur_text()),
                 Tok::DStr => {
                     // Displaying a string might go through `self`.
                     self.self_referenced = true;
@@ -6703,7 +6713,51 @@ impl Parser<'_, '_> {
     /// Read `name: superclasses properties ;`, from the name on.
     fn parse_object(&mut self, mut is_class: bool, redef: Redef) -> Parsed<()> {
         let name = self.cur_text();
-        let found = self.find_or_def_obj(&name, &mut is_class, redef);
+        // Only some tokens' text does the reference keep: a word's, a
+        // string's, a number's that is not an integer. The name of an
+        // object made from any other, as error recovery can make one
+        // from `(`, points into the line being read, which later lines
+        // are read over: the object is found by its name again only
+        // where the line then being read has the same text there.
+        let kept = matches!(
+            self.cur(),
+            Tok::Sym
+                | Tok::SStr
+                | Tok::SStrStart
+                | Tok::SStrMid
+                | Tok::SStrEnd
+                | Tok::DStr
+                | Tok::DStrStart
+                | Tok::DStrMid
+                | Tok::DStrEnd
+                | Tok::ReStr
+                | Tok::Float
+                | Tok::BigInt
+        );
+        let found = if kept {
+            self.find_or_def_obj(&name, &mut is_class, redef, true)
+        } else {
+            let place = self.tok.cur_token_place();
+            let earlier = self.unkept_objs.iter().find(|(old, in_exp, end, _)| {
+                *old == name && self.tok.buffer_holds(*in_exp, *end, &name)
+            });
+            match earlier.map(|entry| entry.3) {
+                Some(obj) => {
+                    // Found for the moment, as the reference finds it.
+                    self.prog.globals.insert(name.clone(), Global::Obj(obj));
+                    let found = self.find_or_def_obj(&name, &mut is_class, redef, true);
+                    self.prog.globals.remove(&name);
+                    found
+                }
+                None => {
+                    let found = self.find_or_def_obj(&name, &mut is_class, redef, false);
+                    if let FoundObj::Obj(Some(obj), _) = found {
+                        self.unkept_objs.push((name.clone(), place.0, place.1, obj));
+                    }
+                    found
+                }
+            }
+        };
         self.next();
         match found {
             FoundObj::Meta(base, meta, id) => {
@@ -6719,7 +6773,13 @@ impl Parser<'_, '_> {
     /// one there is already if the definition is to take its place or
     /// go in front of it. `is_class` comes back as what the object is,
     /// if it is known for one already.
-    fn find_or_def_obj(&mut self, name: &[u8], is_class: &mut bool, redef: Redef) -> FoundObj {
+    fn find_or_def_obj(
+        &mut self,
+        name: &[u8],
+        is_class: &mut bool,
+        redef: Redef,
+        findable: bool,
+    ) -> FoundObj {
         let name = name.to_vec();
         let mut modify = None;
         let sym = match self.prog.globals.get(&name).copied() {
@@ -6845,9 +6905,11 @@ impl Parser<'_, '_> {
                     del_props: Vec::new(),
                 });
                 self.prog.next_obj_id += 1;
-                self.prog
-                    .globals
-                    .insert(name, Global::Obj(self.prog.objs.len() - 1));
+                if findable {
+                    self.prog
+                        .globals
+                        .insert(name, Global::Obj(self.prog.objs.len() - 1));
+                }
                 // There has to be something to replace or modify. The
                 // first reading does not mind.
                 if redef != Redef::No && !self.syntax_only {
@@ -6975,7 +7037,7 @@ impl Parser<'_, '_> {
             }
             is_named = true;
             let mut is_class = true;
-            match self.find_or_def_obj(&name_tag, &mut is_class, redef) {
+            match self.find_or_def_obj(&name_tag, &mut is_class, redef, true) {
                 FoundObj::Obj(sym, found_modify) => {
                     modify = found_modify;
                     sym
@@ -9331,4 +9393,94 @@ struct Formals {
     varargs_list_local: Option<LocalId>,
     /// How many default values the list has had.
     defval_cnt: usize,
+}
+
+// ---- preprocessor expressions ----
+
+/// What is wrong with a directive's expression, a message at a time.
+pub(crate) type Problems = Vec<(Severity, String)>;
+
+/// A source with no files: a directive's expression reads none.
+struct NoFiles;
+
+impl crate::pp::SourceFiles for NoFiles {
+    fn read(&mut self, _name: &str) -> Option<Vec<u8>> {
+        None
+    }
+
+    fn exists(&mut self, _name: &str) -> bool {
+        false
+    }
+}
+
+impl Parser<'_, '_> {
+    /// Read one constant expression of a directive, as the reference's
+    /// tokenizer has its parser do. With `last`, the expression is to end
+    /// the line; but the reference looks for the end one token past the
+    /// one the expression stopped at, so a single token after it goes
+    /// unremarked.
+    fn parse_pp_expr(&mut self, last: bool) -> Option<ConstVal> {
+        let expr = self.parse_expr();
+        if last && self.next() != Tok::Eof {
+            self.tok.log_error("extra characters at end of line");
+        }
+        let expr = expr?;
+        match expr.as_const() {
+            Some(value) => Some(value.clone()),
+            None => {
+                self.tok
+                    .log_error("preprocessor expression is not a constant value");
+                None
+            }
+        }
+    }
+}
+
+/// Run `read` over a parser of a directive's expression, `text`, and
+/// collect what it found wrong.
+fn with_pp_parser<T>(
+    text: &[u8],
+    read: impl FnOnce(&mut Parser<'_, '_>) -> Option<T>,
+) -> (Option<T>, Problems) {
+    let mut files = NoFiles;
+    let mut pp = Preprocessor::for_directive_expr(&mut files, text);
+    let value = {
+        let mut parser = Parser::new(&mut pp, false, Exports::default());
+        parser.pp_expr = true;
+        parser.next();
+        read(&mut parser)
+    };
+    let problems = pp
+        .take_diagnostics()
+        .into_iter()
+        .map(|d| (d.severity, d.message))
+        .collect();
+    (value, problems)
+}
+
+/// Evaluate the condition of an `#if` or `#elif`, whose macros have been
+/// expanded: whether it is true, or nothing if it has no constant value;
+/// and the problems found, for the directive's line.
+pub(crate) fn eval_pp_condition(text: &[u8]) -> (Option<bool>, Problems) {
+    with_pp_parser(text, |parser| {
+        parser.parse_pp_expr(true).map(|value| value.is_true())
+    })
+}
+
+/// Evaluate the line number and file name of a `#line`, whose macros have
+/// been expanded.
+pub(crate) fn eval_pp_line(text: &[u8]) -> (Option<(i32, Vec<u8>)>, Problems) {
+    with_pp_parser(text, |parser| {
+        let line = parser.parse_pp_expr(false)?;
+        let Value::Int(line) = line.value else {
+            parser.tok.log_error("integer value required for #line");
+            return None;
+        };
+        let name = parser.parse_pp_expr(true)?;
+        let Value::SStr(name) = name.value else {
+            parser.tok.log_error("string value required for #line");
+            return None;
+        };
+        Some((line, name))
+    })
 }

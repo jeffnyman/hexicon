@@ -136,6 +136,61 @@ fn conditions() {
 }
 
 #[test]
+fn conditions_are_read_by_the_compilers_own_parser() {
+    // Numbers that are not integers, strings in double quotes, and the
+    // operators the language has. `is in` is not worked out while
+    // compiling, so it is not a constant, and so counts as true.
+    let (lines, messages) = preprocess_files(Files::default().with(
+        "main.t",
+        "#if 1.5 > 1\na\n#endif\n#if \"ab\" + 'c' == 'abc'\nb\n#endif\n\
+         #if 1 is in (2, 1)\nc\n#endif\n#if nil ?? 0\nd\n#endif\n",
+    ));
+    assert_eq!(
+        messages,
+        ["main.t(7): error: preprocessor expression is not a constant value"]
+    );
+    let shown: Vec<&str> = lines
+        .iter()
+        .map(String::as_str)
+        .filter(|l| !l.is_empty())
+        .collect();
+    assert_eq!(shown, ["a", "b", "c"]);
+
+    // The reference looks for the end of the line a token late, so one
+    // token after the expression passes; two do not. A name is not a
+    // constant, and the message is the parser's.
+    let (_, messages) = preprocess_files(Files::default().with(
+        "main.t",
+        "#if 1 2\n#endif\n#if 1 2 3\n#endif\n#if foo\n#endif\n#if 1 <<\n#endif\n",
+    ));
+    assert_eq!(
+        messages,
+        [
+            "main.t(3): error: extra characters at end of line",
+            "main.t(5): error: preprocessor expression is not a constant value",
+            "main.t(7): error: expected integer, string, symbol, '[', or '(', but found \"<End Of File>\"",
+        ]
+    );
+}
+
+#[test]
+fn a_line_directive_takes_a_number_and_a_name() {
+    let (_, messages) = preprocess_files(Files::default().with(
+        "main.t",
+        "#line 10\n#line 'x' 'y'\n#line 5 6\n#line 7 \"other.t\"\nz\n",
+    ));
+    assert_eq!(
+        messages,
+        [
+            "main.t(1): error: expected integer, string, symbol, '[', or '(', but found \"<End Of File>\"",
+            "main.t(1): error: string value required for #line",
+            "main.t(2): error: integer value required for #line",
+            "main.t(3): error: string value required for #line",
+        ]
+    );
+}
+
+#[test]
 fn a_string_that_runs_over_lines_is_joined_up() {
     // The lines of the string become one, and what follows the string
     // on its last line is a line of its own.
@@ -2099,6 +2154,43 @@ fn an_integer_too_large_to_be_one_is_a_number_that_is_not() {
             "1: error: divide by zero in constant expression",
             "1: error: unary '~' operator requires numeric value in constant expression",
         ]
+    );
+}
+
+#[test]
+fn a_constant_integer_division_by_zero_is_done_again_as_a_big_number() {
+    // The reference's integer division leaves its overflow flag as it
+    // found it, set, so the division is done again, reported again, and
+    // left as a BigNumber, which `|` cannot take. A remainder is not.
+    let divide = "1: error: divide by zero in constant expression";
+    assert_eq!(
+        compile_messages("_main(args) { return [7 / 0, 7 % 0, 7 / 0 | 1]; }\n"),
+        [
+            divide,
+            divide,
+            divide,
+            divide,
+            divide,
+            "1: error: floating point values can't be used with this operator",
+        ]
+    );
+}
+
+#[test]
+fn an_object_named_by_punctuation_is_found_where_the_line_says_so() {
+    // `+((` makes `(` an object's name, which the reference keeps only in
+    // the line buffer: found again on a line with `(` in the same place,
+    // not on one without.
+    let redefined = "object \"(\" is already defined - can't redefine as object";
+    let same_place = compile_messages("_main(args) { }\n+((1));\n+((2));\n");
+    assert!(
+        same_place.iter().any(|m| m.ends_with(redefined)),
+        "{same_place:?}"
+    );
+    let elsewhere = compile_messages("_main(args) { }\n+((1));\n  +((2));\n");
+    assert!(
+        !elsewhere.iter().any(|m| m.ends_with(redefined)),
+        "{elsewhere:?}"
     );
 }
 

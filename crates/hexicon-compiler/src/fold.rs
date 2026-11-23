@@ -328,7 +328,14 @@ fn arithmetic(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String>) -> F
                 BinOp::Div | BinOp::Mod => {
                     if b == 0 {
                         errors.push("divide by zero in constant expression".into());
-                        (1, false)
+                        // The reference's integer division returns here
+                        // without setting the overflow flag, which its
+                        // caller never cleared; built for Windows, the
+                        // flag is set, so the division is done again as
+                        // numbers that are not integers. That reports
+                        // the error a second time and leaves a BigNumber
+                        // 1. Its remainder clears the flag first.
+                        (1, op == BinOp::Div)
                     } else if op == BinOp::Div {
                         // What the reference takes for the one quotient
                         // out of range is the lowest integer divided by

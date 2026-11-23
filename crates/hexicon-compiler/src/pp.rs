@@ -20,7 +20,6 @@ use crate::lex::{
     IFNEMPTY_FLAG, LexCtx, LexNote, MACRO_EXP_END, MACRO_ID_LEN, Tok, Token, at, count_quotes,
     is_space, is_sym,
 };
-use crate::ppexpr::{self, PpValue};
 
 #[path = "tok.rs"]
 mod tok;
@@ -347,6 +346,9 @@ pub struct Preprocessor<'a> {
     /// The character set of a source file that does not say what it is
     /// in.
     default_charset: String,
+    /// Tokens are being read for the expression of a directive, which
+    /// changes what some problems are reported as.
+    pp_expr: bool,
 }
 
 impl<'a> Preprocessor<'a> {
@@ -393,9 +395,24 @@ impl<'a> Preprocessor<'a> {
             errors: 0,
             gave_up: false,
             default_charset: "utf-8".to_owned(),
+            pp_expr: false,
         };
         pp.add_special(b"__LINE__", MacroKind::Line);
         pp.add_special(b"__FILE__", MacroKind::File);
+        pp
+    }
+
+    /// A preprocessor whose only input is the expression of a directive,
+    /// its macros already expanded, for the compiler's parser to read as
+    /// the reference has it do: the tokens of `text`, then the end of
+    /// the directive, which reads as the end of the source.
+    pub(crate) fn for_directive_expr(files: &'a mut dyn SourceFiles, text: &[u8]) -> Self {
+        let mut pp = Self::new(files);
+        pp.pp_only = false;
+        pp.pp_expr = true;
+        pp.expbuf = text.to_vec();
+        pp.expbuf.push(lex::END_PP_LINE);
+        pp.tok_in_expbuf = true;
         pp
     }
 
@@ -2577,17 +2594,19 @@ impl<'a> Preprocessor<'a> {
     }
 
     /// Evaluate the expression of an `#if` or an `#elif`, whose macros
-    /// have been expanded into the expansion buffer.
-    fn pp_parse_expr(&mut self) -> Option<PpValue> {
-        let text = std::mem::take(&mut self.expbuf);
-        let result = ppexpr::evaluate(&text);
-        self.expbuf = text;
-        match result {
-            Ok(value) => Some(value),
-            Err(message) => {
-                self.error(message);
-                None
-            }
+    /// have been expanded into the expansion buffer: whether it is true,
+    /// or nothing if it has no constant value.
+    fn pp_parse_expr(&mut self) -> Option<bool> {
+        let (value, problems) = crate::parse::eval_pp_condition(&self.expbuf);
+        self.report_all(problems);
+        value
+    }
+
+    /// Report the problems found in a directive's expression, at the
+    /// directive.
+    fn report_all(&mut self, problems: crate::parse::Problems) {
+        for (severity, message) in problems {
+            self.report(severity, message);
         }
     }
 
@@ -2599,7 +2618,7 @@ impl<'a> Preprocessor<'a> {
         }
         self.clear_linebuf();
         // An expression that cannot be evaluated counts as true.
-        let value = self.pp_parse_expr().is_none_or(|value| value.truth());
+        let value = self.pp_parse_expr().unwrap_or(true);
         self.push_if(if value { IfState::IfYes } else { IfState::IfNo });
     }
 
@@ -2622,7 +2641,7 @@ impl<'a> Preprocessor<'a> {
         match state {
             Some(IfState::IfYes) => self.change_if_state(IfState::IfDone),
             Some(IfState::IfNo) => {
-                if value.truth() {
+                if value {
                     self.change_if_state(IfState::IfYes);
                 }
             }
@@ -2705,15 +2724,14 @@ impl<'a> Preprocessor<'a> {
         }
         let text = self.expbuf.clone();
         self.clear_linebuf();
-        match ppexpr::line_directive(&text) {
-            Ok((line, name)) => {
-                let desc = self.file_desc(&name);
-                if let Some(stream) = self.streams.last_mut() {
-                    stream.next_line = line;
-                    stream.desc = desc;
-                }
+        let (value, problems) = crate::parse::eval_pp_line(&text);
+        self.report_all(problems);
+        if let Some((line, name)) = value {
+            let desc = self.file_desc(&String::from_utf8_lossy(&name));
+            if let Some(stream) = self.streams.last_mut() {
+                stream.next_line = line as u32;
+                stream.desc = desc;
             }
-            Err(message) => self.error(message),
         }
     }
 }

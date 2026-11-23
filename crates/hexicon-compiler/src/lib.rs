@@ -23,7 +23,6 @@ mod lex;
 mod link;
 mod parse;
 pub mod pp;
-mod ppexpr;
 mod project;
 
 pub use compile::{

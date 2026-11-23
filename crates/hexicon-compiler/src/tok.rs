@@ -58,6 +58,24 @@ impl Preprocessor<'_> {
         &self.cur
     }
 
+    /// Where the current token's text ends, and whether in the
+    /// macro-expanded line or in the line itself: the reference keeps
+    /// the text of some tokens only there, until the next line is read
+    /// over it.
+    pub(crate) fn cur_token_place(&self) -> (bool, usize) {
+        (self.tok_in_expbuf, self.p)
+    }
+
+    /// Whether a line buffer holds `text` just before `end`.
+    pub(crate) fn buffer_holds(&self, in_expbuf: bool, end: usize, text: &[u8]) -> bool {
+        let buf = if in_expbuf {
+            &self.expbuf
+        } else {
+            &self.linebuf
+        };
+        end >= text.len() && buf.get(end - text.len()..end) == Some(text)
+    }
+
     /// Read the next token. At the end of the source, the token is
     /// [`Tok::Eof`], however often it is asked for.
     pub fn next_token(&mut self) -> Tok {
@@ -169,7 +187,7 @@ impl Preprocessor<'_> {
             let mut cx = LexCtx {
                 ec: Some(&mut self.main_ec),
                 expanding: false,
-                in_pp_expr: false,
+                in_pp_expr: self.pp_expr,
                 notes: &mut self.notes,
             };
             let tok = lex::next_on_line(&buf, &mut self.p, &mut cx);
