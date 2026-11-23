@@ -40,7 +40,7 @@ Stage 2 has to come before stage 3. Without the reference or tests of its own, n
 Today every stage is checked against the reference. A Hexicon-only feature has nothing to compare against, so the checking has to come from somewhere else. Three methods keep most of the byte-for-byte checking:
 
 1. **Each change is defined by what it means in TADS 3.** A change has a lowering: the TADS 3 it stands for. Two programs, one written with the feature and one written out in TADS 3, must produce identical images. Anything that lowers is checked byte for byte, the way the compiler is checked now.
-2. **A converter rewrites TADS 3 source as Hexicon source** (`hexicon convert`). It is checked by a round trip: adv3, adv3Lite, Airport, and Ditch Day are converted and compiled, and each image must be identical to the original's. The same tool is how authors move their games, so the check is also what lets them trust it.
+2. **A converter rewrites TADS 3 source as Hexicon source** (`hexicon convert`). It is checked by a round trip: adv3, adv3Lite, Airport, and Ditch Day are converted and compiled, and each image must be identical to the original's when the program is not preinitialized. With preinitialization, each game must play the same. The same tool is how authors move their games, so the check is also what lets them trust it.
 3. **Changes that do not lower are tested as the VM's own features are,** with unit tests and conformance programs of our own. The aim is to keep this group small.
 
 ## File extensions
@@ -65,6 +65,8 @@ A game's manifest is read by turning it into the options a project file would gi
 name = "Airport"                         # not used yet
 sources = ["start", "gatearea", "plane", "npcs"]
 libraries = ["system", "adv3Lite"]       # or { name = "adv3Lite", exclude = ["scene"] }
+# or, where the order of libraries and sources matters, one list:
+# modules = [{ library = "system" }, "reflect.t", { library = "adv3/adv3" }, "main"]
 image = "airport.t3"                     # default: the first source's name
 resources = ["pics"]                     # as after -res: file, or file=name
 
@@ -81,6 +83,7 @@ source-text-group = false                # -Gstg
 charset = "cp1252"                       # -cs
 include-paths = ["include"]              # -I
 library-paths = ["../libs"]              # -Fs
+system-main = true                       # false is -nodef
 ```
 
 A library's manifest says what a `.tl` says:
@@ -90,6 +93,7 @@ A library's manifest says what a `.tl` says:
 name = "adv3Lite Library"
 sources = ["action.t", "actions.t"]      # ...
 libraries = ["$(LANGUAGE)"]              # $(NAME) is a macro's value, as in a .tl
+# or modules = [...], as for a game, where the order matters
 resources = ["webuires"]
 system-main = true                       # false is nodef
 
@@ -99,7 +103,8 @@ LANGUAGE = "this selects the language the library uses"
 
 - **A source named without an extension is a `.hxn` file.** A TADS 3 source in a manifest is named with its `.t`.
 - **A module is named without its extension**, as in a `.tl` or `.t3m`. Programs can see the names, so this keeps images the same.
-- **A library is a folder with a manifest, or a `.tl` file named without its extension.** It is found where its name says, or along the library paths, and either kind can be built on the other.
+- **A library is a folder with a manifest, a `.toml` manifest, or a `.tl` file, named without its extension.** A library named `adv3Lite` is `adv3Lite/hexicon.toml`, `adv3Lite.toml`, or `adv3Lite.tl`, looked for in that order where its name says and then along the library paths. A manifest can sit beside other libraries this way, as adv3Lite's several `.tl` files do in one folder. Any kind can be built on any other.
+- **The order of sources and libraries is kept.** With `sources` and `libraries`, a game's libraries come before its sources and a library's sources before its libraries, as is usual. A `modules` list gives any other order, which a project such as Ditch Day's needs, since the order shows in the image.
 - **A name the manifest does not know is an error**, so a misspelled key is not silently ignored.
 
 `.t3m` and `.tl` stay accepted for TADS 3 projects.
@@ -210,7 +215,13 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
 ## Milestones
 
 1. **The dialect switch and the manifest.** `.hxn` files compile as `.t` files do, without the parity-only behavior, and `hexicon.toml` builds a project. Exit: Airport's sources, renamed and built from a manifest, give an image identical to the one built from `airport.t3m`. Done (2026-11-23). `tools/compile-tests/manifest-compare.sh` builds Airport as `.hxn` sources from a `hexicon.toml`, with adv3Lite and its English library described by manifests written from their `.tl` files. The image is identical to the one built from `airport.t3m`.
-2. **The converter.** Exit: adv3, adv3Lite, Airport, and Ditch Day each convert, compile, and give images identical to the originals'.
+2. **The converter.** Exit: adv3, adv3Lite, Airport, and Ditch Day each convert, compile, and give images identical to the originals'. Done (2026-11-23), with one qualification about preinitialization (below). `hexicon convert <folder> <new-folder>` converts a game or a library into a new folder:
+   - **Sources:** `.t` files become `.hxn` files and headers stay `.h`. Each has Hexicon's names for the built-in functions in its code and comments, but never in the text of a string, and gets `#include <hexicon.h>` where its code uses one. The scanner that finds names knows comments, the three kinds of quotes, regular expressions (`R'...'`), expressions embedded in strings, and the directives whose text is not code (`#include`, `#error`, `#charset`, `#line`).
+   - **Names already in use:** a rename is not made if its new name is already used in the code being converted. The converter says so.
+   - **Project and library files:** a `.t3m` becomes `hexicon.toml`, or `<name>.toml` if its folder has more than one. A `.tl` becomes `<name>.toml` beside it. A source the folder holds is named without its extension, and one from elsewhere (Ditch Day's `reflect`, from the system library) with its `.t`. `-FL` and `-FI` name where one computer keeps the system library, so they are left out with a note.
+   - **Everything else** is copied.
+
+   `tools/compile-tests/convert-compare.sh` checks the round trip for adv3, adv3Lite, Airport, and Ditch Day. Without preinitialization, the images are identical. With it, the objects the program makes while preinitializing are numbered differently. The converted program's tables of symbols and macros have the 13 names and 11 macros `hexicon.h` declares and nothing else new, and adv3Lite and Ditch Day's reflection keep those tables in the image. So the preinitialized builds are compared by play instead. Ditch Day's whole walkthrough (7,104 lines) and a short Airport script give the same transcripts. The compilers' messages are the same too: none.
 3. **Checked names.** Exit: no false warnings over adv3Lite, Hexad, and the converted games, and every misspelling a test plants is caught.
 4. **Action declarations.** Exit: the converter writes them for adv3Lite's actions, and the round trip still gives identical images.
 5. **Modules.** Exit: Hexad and a game built with `import` rather than headers, with identical images.

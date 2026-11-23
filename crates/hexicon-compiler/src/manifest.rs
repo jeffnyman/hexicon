@@ -36,14 +36,28 @@ pub(crate) fn source_name(name: &str) -> String {
     }
 }
 
+/// A part of a build: a source file, or a library and the sources of it
+/// to leave out.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ModuleRef {
+    /// A source file.
+    Source(String),
+    /// A library: a folder with a manifest, a `.toml` manifest, or a
+    /// `.tl` library, named without its extension.
+    Library {
+        /// Its name.
+        name: String,
+        /// Its sources to leave out, by their names in it.
+        exclude: Vec<String>,
+    },
+}
+
 /// What a library's manifest says.
 #[derive(Debug, Default)]
 pub(crate) struct Library {
-    /// Its source files, relative to its folder, in order.
-    pub sources: Vec<String>,
-    /// The libraries it is built on, relative to its folder: a folder
-    /// with a manifest, or a `.tl` library named without its extension.
-    pub libraries: Vec<String>,
+    /// Its sources and the libraries it is built on, relative to its
+    /// folder, in order.
+    pub modules: Vec<ModuleRef>,
     /// Files and folders to bundle as resources.
     pub resources: Vec<String>,
     /// Macros a game has to define, and why.
@@ -121,6 +135,73 @@ fn section<'t>(top: &'t Table, name: &'static str) -> Result<Option<Section<'t>>
     }
 }
 
+/// The sources and libraries `sec` names, in order: as a `modules` list,
+/// in which a source is a string and a library a table, or as lists of
+/// `sources` and `libraries`, the libraries first if `libraries_first`.
+fn module_refs(sec: &Section<'_>, libraries_first: bool) -> Result<Vec<ModuleRef>, String> {
+    let name = sec.name;
+    let library = |table: &Table, key: &str| -> Result<ModuleRef, String> {
+        let lib = Section {
+            table,
+            name: "a library",
+        };
+        lib.check_keys(&[key, "exclude"])?;
+        let lib_name = lib
+            .string(key)?
+            .ok_or_else(|| format!("a library given as a table needs a \"{key}\""))?;
+        Ok(ModuleRef::Library {
+            name: lib_name,
+            exclude: lib.strings("exclude")?,
+        })
+    };
+    if let Some(value) = sec.table.get("modules") {
+        if sec.table.contains_key("sources") || sec.table.contains_key("libraries") {
+            return Err(format!(
+                "[{name}] has \"modules\", so it cannot also have \"sources\" or \"libraries\""
+            ));
+        }
+        let bad = || {
+            format!(
+                "\"modules\" in [{name}] must be a list of sources, and of tables with a \"library\""
+            )
+        };
+        let Value::Array(items) = value else {
+            return Err(bad());
+        };
+        return items
+            .iter()
+            .map(|item| match item {
+                Value::String(source) => Ok(ModuleRef::Source(source.clone())),
+                Value::Table(table) => library(table, "library"),
+                _ => Err(bad()),
+            })
+            .collect();
+    }
+    let mut libraries = Vec::new();
+    match sec.table.get("libraries") {
+        None => {}
+        Some(Value::Array(items)) => {
+            for item in items {
+                libraries.push(match item {
+                    Value::String(lib_name) => ModuleRef::Library {
+                        name: lib_name.clone(),
+                        exclude: Vec::new(),
+                    },
+                    Value::Table(table) => library(table, "name")?,
+                    _ => return Err(bad_libraries(name)),
+                });
+            }
+        }
+        Some(_) => return Err(bad_libraries(name)),
+    }
+    let sources = sec.strings("sources")?.into_iter().map(ModuleRef::Source);
+    Ok(if libraries_first {
+        libraries.into_iter().chain(sources).collect()
+    } else {
+        sources.chain(libraries).collect()
+    })
+}
+
 fn check_sections(top: &Table, known: &[&str]) -> Result<(), String> {
     for key in top.keys() {
         if !known.contains(&key.as_str()) {
@@ -139,7 +220,14 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
     }
     check_sections(&top, &["game", "defines", "build"])?;
     let game = section(&top, "game")?.ok_or("there is no [game] section")?;
-    game.check_keys(&["name", "sources", "libraries", "image", "resources"])?;
+    game.check_keys(&[
+        "name",
+        "sources",
+        "libraries",
+        "modules",
+        "image",
+        "resources",
+    ])?;
     let mut args: Vec<String> = Vec::new();
     let mut push = |items: &[&str]| args.extend(items.iter().map(|&s| s.to_owned()));
 
@@ -154,7 +242,11 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
             "include-paths",
             "library-paths",
             "source-text-group",
+            "system-main",
         ])?;
+        if build.boolean("system-main")? == Some(false) {
+            push(&["-nodef"]);
+        }
         if build.boolean("debug")? == Some(true) {
             push(&["-d"]);
         }
@@ -207,39 +299,25 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
     }
     let _ = game.string("name")?;
 
-    // The libraries, then the sources, as a project file has them.
-    match game.table.get("libraries") {
-        None => {}
-        Some(Value::Array(items)) => {
-            for item in items {
-                match item {
-                    Value::String(name) => push(&["-lib", name]),
-                    Value::Table(table) => {
-                        let lib = Section {
-                            table,
-                            name: "game.libraries",
-                        };
-                        lib.check_keys(&["name", "exclude"])?;
-                        let name = lib
-                            .string("name")?
-                            .ok_or("a library given as a table needs a \"name\"")?;
-                        push(&["-lib", &name]);
-                        for module in lib.strings("exclude")? {
-                            push(&["-x", &module]);
-                        }
-                    }
-                    _ => return Err(bad_libraries()),
+    // The libraries, then the sources, as a project file has them,
+    // unless a list of modules gives the order.
+    let modules = module_refs(&game, true)?;
+    if !modules
+        .iter()
+        .any(|module| matches!(module, ModuleRef::Source(_)))
+    {
+        return Err("[game] names no sources".to_owned());
+    }
+    for module in modules {
+        match module {
+            ModuleRef::Source(source) => push(&["-source", &source]),
+            ModuleRef::Library { name, exclude } => {
+                push(&["-lib", &name]);
+                for module in exclude {
+                    push(&["-x", &module]);
                 }
             }
         }
-        Some(_) => return Err(bad_libraries()),
-    }
-    let sources = game.strings("sources")?;
-    if sources.is_empty() {
-        return Err("[game] names no \"sources\"".to_owned());
-    }
-    for source in sources {
-        push(&["-source", &source]);
     }
 
     let resources = game.strings("resources")?;
@@ -252,8 +330,8 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
     Ok(args)
 }
 
-fn bad_libraries() -> String {
-    "\"libraries\" in [game] must be a list of names, or of tables with a \"name\"".to_owned()
+fn bad_libraries(section: &str) -> String {
+    format!("\"libraries\" in [{section}] must be a list of names, or of tables with a \"name\"")
 }
 
 /// What a library's manifest says.
@@ -264,7 +342,14 @@ pub(crate) fn library(text: &[u8]) -> Result<Library, String> {
     }
     check_sections(&top, &["library", "needs"])?;
     let lib = section(&top, "library")?.ok_or("there is no [library] section")?;
-    lib.check_keys(&["name", "sources", "libraries", "resources", "system-main"])?;
+    lib.check_keys(&[
+        "name",
+        "sources",
+        "libraries",
+        "modules",
+        "resources",
+        "system-main",
+    ])?;
     let _ = lib.string("name")?;
     let mut needs = Vec::new();
     if let Some(section) = section(&top, "needs")? {
@@ -273,9 +358,17 @@ pub(crate) fn library(text: &[u8]) -> Result<Library, String> {
             needs.push((key.clone(), why));
         }
     }
+    // A library's own sources come before the libraries it names, as in
+    // a `.tl`, unless a list of modules gives the order.
+    let modules = module_refs(&lib, false)?;
+    if modules
+        .iter()
+        .any(|module| matches!(module, ModuleRef::Library { exclude, .. } if !exclude.is_empty()))
+    {
+        return Err("a library cannot leave out the sources of the libraries it names".to_owned());
+    }
     Ok(Library {
-        sources: lib.strings("sources")?,
-        libraries: lib.strings("libraries")?,
+        modules,
         resources: lib.strings("resources")?,
         needs,
         no_system_main: lib.boolean("system-main")? == Some(false),

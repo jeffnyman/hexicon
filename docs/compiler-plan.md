@@ -56,7 +56,7 @@ The reference is the specification of record. Its source is in `../_tads/tads-ru
 3. **Functions: parser and code generator together.** Expressions and statements, parsed, folded, and compiled to byte code, with enough of an image writer to make a single-file program of functions runnable. Checked by compiling the same source with both compilers and comparing the byte code and the output. This is also what the dynamic compiler needs. Exit: the ten remaining conformance tests pass.
 4. **Objects, grammar, and the rest of the language.** Enough to compile any single-file program to an image. Exit: the conformance suite's programs, compiled by Hexicon, give the same output as when compiled by `t3make`.
 5. **Separate compilation, linking, project files.** Exit: the sample game, Airport, and Return to Ditch Day built from source and replayed identically.
-6. **Hexicon's own language.** Its file extensions and its differences from TADS 3 are decided here, not before. The compiler accepts `.t`, `.h`, `.tl`, and `.t3m` throughout. The design is in [language-plan.md](language-plan.md) (draft, 2026-11-23), and the library that goes with it is in [hexad-plan.md](hexad-plan.md). Its first milestone is done (2026-11-23): `.hxn` sources and `hexicon.toml` manifests.
+6. **Hexicon's own language.** Its file extensions and its differences from TADS 3 are decided here, not before. The compiler accepts `.t`, `.h`, `.tl`, and `.t3m` throughout. The design is in [language-plan.md](language-plan.md) (draft, 2026-11-23), and the library that goes with it is in [hexad-plan.md](hexad-plan.md). Its first two milestones are done (2026-11-23): `.hxn` sources and `hexicon.toml` manifests, and the converter (`hexicon convert`).
 
 ## Workspace
 
@@ -75,6 +75,7 @@ crates/
     src/project.rs        what to build: the options and the modules, from the command line,
                           project files (.t3m), and libraries (.tl), as t3make reads them
     src/manifest.rs       Hexicon's manifests (hexicon.toml), for games and libraries
+    src/convert.rs        converting TADS 3 source, project files, and libraries to Hexicon
     include/hexicon.h     Hexicon's system header, built into the compiler
     src/link.rs           putting the source files of a program together: the numbers that
                           objects, properties, and enumerations have in the image

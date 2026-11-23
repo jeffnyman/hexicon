@@ -9,7 +9,7 @@ repository.workspace = true
 [dependencies]
 hexicon-bignum = { path = "../hexicon-bignum" }
 hexicon-bytecode = { path = "../hexicon-bytecode" }
-toml = { version = "1.2.2", default-features = false, features = ["parse", "serde", "std"] }
+toml = { version = "1.2.2", default-features = false, features = ["parse", "preserve_order", "serde", "std"] }
 
 [lints]
 workspace = true

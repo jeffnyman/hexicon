@@ -14,6 +14,7 @@
 mod ast;
 mod codegen;
 mod compile;
+pub mod convert;
 pub mod dynamic;
 mod emit;
 mod flow;

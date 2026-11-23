@@ -404,7 +404,7 @@ pub fn read_project(
 /// quote in them stuttered (`""`). A line that starts with `#` is a
 /// comment, and everything from a `[Config:...]` line on is the
 /// development system's, not the compiler's.
-fn parse_opt_file(text: &[u8]) -> Vec<String> {
+pub(crate) fn parse_opt_file(text: &[u8]) -> Vec<String> {
     let text = String::from_utf8_lossy(text);
     let mut args = Vec::new();
     let mut in_config = false;
@@ -746,8 +746,9 @@ impl Reader<'_, '_> {
     }
 
     /// Where the library a project names is: a manifest, if `path` is
-    /// one or is a folder with one, and otherwise a `.tl` file; each
-    /// where its name says, or along the source path.
+    /// one, is a folder with one, or has one of its name with `.toml`
+    /// after it; and otherwise a `.tl` file. Each is looked for where
+    /// its name says, and then along the source path.
     fn find_library(&mut self, path: &str, name: &str) -> String {
         if is_manifest(path) {
             return self.find_source(path, name);
@@ -759,18 +760,28 @@ impl Reader<'_, '_> {
         if self.files.exists(&in_folder) {
             return in_folder;
         }
+        let beside = self.find_source(&format!("{path}.toml"), &format!("{name}.toml"));
+        if self.files.exists(&beside) {
+            return beside;
+        }
         self.find_source(&def_ext(path, "tl"), &def_ext(name, "tl"))
     }
 
     /// A library a library is built on, `full`: a folder with a
-    /// manifest, or a `.tl` file.
+    /// manifest, a manifest of its name, or a `.tl` file.
     fn sub_library(&mut self, full: String) -> String {
-        let in_folder = build_full_path(&full, MANIFEST);
-        if !is_manifest(&full) && self.files.exists(&in_folder) {
-            in_folder
-        } else {
-            full
+        if is_manifest(&full) {
+            return full;
         }
+        let in_folder = build_full_path(&full, MANIFEST);
+        if self.files.exists(&in_folder) {
+            return in_folder;
+        }
+        let beside = format!("{full}.toml");
+        if self.files.exists(&beside) {
+            return beside;
+        }
+        full
     }
 
     /// `text` with each `$(NAME)` replaced by the value of the macro and
@@ -850,25 +861,30 @@ impl Reader<'_, '_> {
             (value, full)
         };
         let mut nodef = lib.no_system_main;
-        // A source is named, as in a `.tl`, without its extension.
-        for source in &lib.sources {
-            let (value, full) = place(self, source);
-            let name = rem_ext(&value).to_owned();
-            let full = manifest::source_name(&full);
-            let url = format!("{lib_url}{name}");
-            self.add_module(
-                &full,
-                &name,
-                full.clone(),
-                Origin::Lib(full_name.to_owned()),
-                url,
-            );
-        }
-        for library in &lib.libraries {
-            let (value, full) = place(self, library);
-            let url = format!("{lib_url}{value}/");
-            let target = self.sub_library(full);
-            nodef |= self.process_lib(&target, &url);
+        for module in &lib.modules {
+            match module {
+                // A source is named, as in a `.tl`, without its
+                // extension.
+                manifest::ModuleRef::Source(source) => {
+                    let (value, full) = place(self, source);
+                    let name = rem_ext(&value).to_owned();
+                    let full = manifest::source_name(&full);
+                    let url = format!("{lib_url}{name}");
+                    self.add_module(
+                        &full,
+                        &name,
+                        full.clone(),
+                        Origin::Lib(full_name.to_owned()),
+                        url,
+                    );
+                }
+                manifest::ModuleRef::Library { name, .. } => {
+                    let (value, full) = place(self, name);
+                    let url = format!("{lib_url}{value}/");
+                    let target = self.sub_library(full);
+                    nodef |= self.process_lib(&target, &url);
+                }
+            }
         }
         for resource in &lib.resources {
             let (value, full) = place(self, resource);

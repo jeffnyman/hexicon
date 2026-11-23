@@ -67,6 +67,6 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
 ## Milestones
 
 1. **The fork.** Hexad is adv3Lite 2.2.3.2 under its new name, built from a `hexicon.toml`. Exit: Airport and the manual's exercises replay identically on it.
-2. **In Hexicon's language.** Once the converter exists (language milestone 2), Hexad's sources become `.hxn`. Exit: images identical to milestone 1's.
+2. **In Hexicon's language.** Hexad's sources become `.hxn` through the converter (language milestone 2, done 2026-11-23). Exit: images identical to milestone 1's without preinitialization, and the same play with it.
 3. **The language's features adopted.** Checked names, action declarations, and modules come in as the language gains them. Each step is checked by the same games still playing the same.
 4. **adv3's depth as modules.** The senses, nested rooms and postures, and whatever else is chosen. Each is optional and comes with a test game of its own.

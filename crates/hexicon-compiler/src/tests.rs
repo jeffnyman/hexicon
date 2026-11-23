@@ -3534,9 +3534,9 @@ fn a_manifest_names_the_sources_and_the_libraries() {
     assert_eq!(
         project.options.defines,
         [
-            ("FLAG".to_owned(), String::new()),
             ("LANG".to_owned(), "english".to_owned()),
             ("LEVEL".to_owned(), "3".to_owned()),
+            ("FLAG".to_owned(), String::new()),
         ]
     );
     assert_eq!(project.options.include_paths[0], sys_path(&["game", "inc"]));
@@ -3655,5 +3655,150 @@ fn a_built_in_header_comes_after_the_include_path() {
     assert_eq!(
         messages[0],
         "<hexicon>/hexicon.h(21): cannot open include file \"tadsgen.h\""
+    );
+}
+
+// ---- the converter ----
+
+mod converter {
+    use crate::convert::{
+        RENAMES, code_names, convert_library, convert_project, convert_source, usable_renames,
+    };
+
+    fn converted(text: &str) -> String {
+        String::from_utf8(convert_source(text.as_bytes(), RENAMES).text).unwrap()
+    }
+
+    #[test]
+    fn names_are_renamed_in_code_and_comments_but_not_in_strings() {
+        let text = "#include <tads.h>\n\
+            // t3RunGC() collects garbage\n\
+            f() { t3RunGC(); tadsSay('t3RunGC'); \"t3RunGC <<t3GetVMID()>> t3RunGC\"; }\n\
+            /* tadsSay */ g() { local t3RunGCx = 1; return R't3RunGC\'; }\n\
+            h() { \"\"\"t3RunGC \"quoted\" <<'t3RunGC' + t3GetVMVsn()>>\"\"\"; }\n";
+        assert_eq!(
+            converted(text),
+            "#include <tads.h>\n#include <hexicon.h>\n\
+            // collectGarbage() collects garbage\n\
+            f() { collectGarbage(); print('t3RunGC'); \"t3RunGC <<vmId()>> t3RunGC\"; }\n\
+            /* print */ g() { local t3RunGCx = 1; return R't3RunGC\'; }\n\
+            h() { \"\"\"t3RunGC \"quoted\" <<'t3RunGC' + vmVersion()>>\"\"\"; }\n"
+        );
+    }
+
+    #[test]
+    fn a_directive_whose_text_is_not_code_is_passed_over() {
+        let text = "#error don't t3RunGC\n#include \"t3RunGC.h\"\n#define GC t3RunGC()\n";
+        assert_eq!(
+            converted(text),
+            "#error don't t3RunGC\n#include \"t3RunGC.h\"\n#include <hexicon.h>\n#define GC collectGarbage()\n"
+        );
+    }
+
+    #[test]
+    fn the_include_goes_where_it_can() {
+        // After a #charset on the first line, with the file's own line
+        // ends; or first; and not at all for a rename only in comments
+        // or where the file includes hexicon.h already.
+        assert_eq!(
+            converted("#charset \"us-ascii\"\r\nf() { t3RunGC(); }\r\n"),
+            "#charset \"us-ascii\"\r\n#include <hexicon.h>\r\nf() { collectGarbage(); }\r\n"
+        );
+        assert_eq!(
+            converted("f() { t3RunGC(); }"),
+            "#include <hexicon.h>\nf() { collectGarbage(); }"
+        );
+        assert_eq!(converted("// t3RunGC\n"), "// collectGarbage\n");
+        assert_eq!(
+            converted("#include <hexicon.h>\nf() { t3RunGC(); }\n"),
+            "#include <hexicon.h>\nf() { collectGarbage(); }\n"
+        );
+    }
+
+    #[test]
+    fn a_rename_to_a_name_the_program_uses_is_not_made() {
+        let used = code_names(b"print(x) { return x; } // vmId\n'setSay'");
+        assert!(used.contains("print") && !used.contains("vmId") && !used.contains("setSay"));
+        let (renames, skipped) = usable_renames(&used);
+        assert!(!renames.iter().any(|(old, _)| *old == "tadsSay"));
+        assert_eq!(renames.len(), RENAMES.len() - 1);
+        assert_eq!(
+            skipped,
+            ["tadsSay is not renamed print: the program already uses the name print"]
+        );
+    }
+
+    #[test]
+    fn a_project_file_becomes_a_games_manifest() {
+        let t3m = b"# A game.\n-D LANGUAGE=en_us\n-D MENU\n-U OLD\n-Fy obj -Fo obj\n-o game.t3\n\
+            -pre -nodef -we -FL /sys/lib\n-lib system\n-source reflect\n-lib adv3/adv3\n  -x footnote\n\
+            -source main\n-source \"sub dir/more.t\"\n-res GameInfo.txt pics\n";
+        let mut local = |name: &str| name == "main.t" || name == "sub dir/more.t";
+        let result = convert_project(t3m, "game", &mut local);
+        assert_eq!(
+            result.text,
+            "[game]\nname = \"game\"\nmodules = [\n    { library = \"system\" },\n    \"reflect.t\",\n    \
+             { library = \"adv3/adv3\", exclude = [\"footnote\"] },\n    \"main\",\n    \"sub dir/more\",\n]\n\
+             image = \"game.t3\"\nresources = [\"GameInfo.txt\", \"pics\"]\n\n\
+             [defines]\nLANGUAGE = \"en_us\"\nMENU = true\nOLD = false\n\n\
+             [build]\npreinit = true\nsystem-main = false\nwarnings-as-errors = true\n"
+        );
+        assert_eq!(
+            result.notes,
+            ["-FL /sys/lib names where this computer keeps the system library, and is left out"]
+        );
+        // Libraries before sources need no list of modules.
+        let result = convert_project(b"-lib system\n-source main\n", "g", &mut |_: &str| true);
+        assert_eq!(
+            result.text,
+            "[game]\nname = \"g\"\nlibraries = [\"system\"]\nsources = [\"main\"]\n"
+        );
+    }
+
+    #[test]
+    fn a_library_becomes_a_librarys_manifest() {
+        let tl = b"name: My Lib\nsource: one\nsource: msg_$(STYLE)\nlibrary: $(LANG)/$(LANG)\n\
+            resource: pics\nneedmacro: LANG the language\nnodef\nwhat: ever\n";
+        let result = convert_library(tl, &mut |name: &str| name == "one.t");
+        assert_eq!(
+            result.text,
+            "[library]\nname = \"My Lib\"\nsources = [\"one\", \"msg_$(STYLE)\"]\n\
+             libraries = [\"$(LANG)/$(LANG)\"]\nresources = [\"pics\"]\nsystem-main = false\n\n\
+             [needs]\nLANG = \"the language\"\n"
+        );
+        assert_eq!(
+            result.notes,
+            ["the line \"what: ever\" is not carried over"]
+        );
+    }
+}
+
+#[test]
+fn a_manifest_can_give_its_modules_in_order_and_a_library_can_be_a_toml_file() {
+    let mut files = Files::default()
+        .with(
+            "hexicon.toml",
+            "[game]\nmodules = [{ library = \"sys\" }, \"early\", { library = \"lib/main\", exclude = [\"two\"] }, \"late\"]\n",
+        )
+        .with("sys.tl", "source: base\nnodef\n")
+        .with("lib/main.toml", "[library]\nmodules = [{ library = \"sub\" }, \"one.t\", \"two\"]\n")
+        .with("lib/sub.toml", "[library]\nsources = [\"leaf\"]\n");
+    let project = read(&mut files, &[]).unwrap_or_else(|e| panic!("{e:?}"));
+    let names: Vec<&str> = project
+        .options
+        .module_names
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert_eq!(names, ["base", "early", "leaf", "one", "late"]);
+    assert_eq!(
+        project.sources,
+        [
+            "base.t".to_owned(),
+            "early.hxn".to_owned(),
+            sys_path(&["lib", "leaf.hxn"]),
+            sys_path(&["lib", "one.t"]),
+            "late.hxn".to_owned(),
+        ]
     );
 }
