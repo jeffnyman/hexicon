@@ -1,5 +1,6 @@
 #charset "us-ascii"
 #include "advlite.h"
+#include <hexicon.h>
 
 
 /*
@@ -951,7 +952,7 @@ doerPreinit: PreinitObject
         initDoerParsers(ptab);
 
         /* get the global symbols */
-        local gtab = t3GetGlobalSymbols();
+        local gtab = globalSymbols();
 
         /* get the predicate noun phrase list */
         local roles = NounRole.allPredicate;

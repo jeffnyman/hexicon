@@ -401,8 +401,8 @@ inputManager: PostRestoreObject
      *   interrupted in-progress editing session; otherwise, we'll retain
      *   the saved editing state for restoration on the next input.
      *   
-     *   This MUST be called before calling tadsSay().  Games should
-     *   generally never call tadsSay() directly (call the library
+     *   This MUST be called before calling print().  Games should
+     *   generally never call print() directly (call the library
      *   function say() instead), so in most cases authors will not need
      *   to worry about calling this on output.
      *   

@@ -1,5 +1,6 @@
 #charset "us-ascii"
 #include "advlite.h"
+#include <hexicon.h>
 
 /*
  *   ***************************************************************************
@@ -750,7 +751,7 @@ class Special: object
     next()
     {
         /* get the caller's stack trace information */
-        local stk = t3GetStackTrace(2);
+        local stk = stackTrace(2);
         local prop = stk.prop_;
         
         /* find the 'self' object in the currently active Specials list */

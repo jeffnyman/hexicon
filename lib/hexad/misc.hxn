@@ -13,6 +13,7 @@
 
 /* include the library header */
 #include "advlite.h"
+#include <hexicon.h>
 
 
 /* ------------------------------------------------------------------------ */
@@ -514,7 +515,7 @@ adv3LibInit: InitObject
          *   default output function state is not part of the load-image
          *   configuration. 
          */
-        t3SetSay(say);
+        setSay(say);
     }
 ;
 
@@ -2378,7 +2379,7 @@ class LibraryError: Exception
          *   execution in the interpreter, since the interpreter ignores
          *   this call when the debugger isn't present. 
          */
-        t3DebugTrace(T3DebugBreak);
+        debugTrace(DebugTraceBreak);
     }
     display = "Library Error"
 ;
@@ -2605,7 +2606,7 @@ libObjectInitializer: PreinitObject
     execute()
     {
         /* build the reverse symbol table (indexed by object value) */
-        local gtab = t3GetGlobalSymbols();
+        local gtab = globalSymbols();
         local otab = new LookupTable(128, 256);
         gtab.forEachAssoc({ key, val: otab[val] = key });
 
@@ -2749,7 +2750,7 @@ modify PreinitObject
 emumTabInitializer: PreinitObject
     execute()
     {
-        local gTab = t3GetGlobalSymbols();
+        local gTab = globalSymbols();
             
         local lst=gTab.keysToList();
         
@@ -2777,7 +2778,7 @@ emumTabInitializer: PreinitObject
      *   We meed to get at the effective self object by using the stack frame. First obtain the
      *   stack frame one level back from us.
      */
-    local frame = t3GetStackTrace(2, T3GetStackDesc).frameDesc_;
+    local frame = stackTrace(2, StackTraceDesc).frameDesc_;
     
     /* Then get the self object in that stack frame. */
     local obj = frame.getSelf();

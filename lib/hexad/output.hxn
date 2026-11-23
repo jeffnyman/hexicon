@@ -1,5 +1,6 @@
 #charset "us-ascii"
 #include "advlite.h"
+#include <hexicon.h>
 
 /*
  *   ***************************************************************************
@@ -481,7 +482,7 @@ class OutputStream: PreinitObject
 
         /* make sure it's the last filter */
         if (len == 0 || filterList_[len] != filter)
-            t3DebugTrace(T3DebugBreak);
+            debugTrace(DebugTraceBreak);
 
         /* remove the filter from my list */
         filterList_.removeElementAt(len);

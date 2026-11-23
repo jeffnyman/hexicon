@@ -3,9 +3,9 @@
 [library]
 name = "Hexad English"
 sources = [
-    "english.t",
-    "grammar.t",
-    "tokens.t",
-    "instruct.t",
-    "newbie.t",
+    "english",
+    "grammar",
+    "tokens",
+    "instruct",
+    "newbie",
 ]

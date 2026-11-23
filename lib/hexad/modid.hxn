@@ -14,6 +14,7 @@
 
 /* include the library header */
 #include "advlite.h"
+#include <hexicon.h>
 
 /* we also require file access */
 #include <file.h>
@@ -622,13 +623,13 @@ moduleAdv3Lite: ModuleID
 ModuleID
     showVersion()
     {
-        local vsn = t3GetVMVsn();
+        local vsn = vmVersion();
 
         /* 
          *   show the version information - note that we must decompose
          *   the version number into the standard 3-part dotted string 
          */
-        showVersionMsg('T3 VM (' + t3GetVMID() + ')',
+        showVersionMsg('T3 VM (' + vmId() + ')',
                                  '' + (vsn >> 16) + '.'
                                  + ((vsn >> 8) & 0xFF) + '.'
                                  + (vsn & 0xFF));

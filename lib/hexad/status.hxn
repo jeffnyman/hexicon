@@ -13,6 +13,7 @@
 
 /* include the library header */
 #include "advlite.h"
+#include <hexicon.h>
 
 
 /* ------------------------------------------------------------------------ */
@@ -44,7 +45,7 @@ transient statusTagOutputStream: OutputStream
     writeFromStream(txt)
     {
         /* write the text directly to the main output stream */
-        tadsSay(txt);
+        print(txt);
     }
 ;
 
@@ -65,7 +66,7 @@ transient statusLeftOutputStream: OutputStream
     writeFromStream(txt)
     {
         /* write the text directly to the main output stream */
-        tadsSay(txt);
+        print(txt);
     }
 ;
 

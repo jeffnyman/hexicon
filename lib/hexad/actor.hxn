@@ -1,5 +1,6 @@
 #charset "us-ascii"
 #include "advlite.h"
+#include <hexicon.h>
 
 
 /*
@@ -7800,7 +7801,7 @@ PreinitObject
 objTablePreinit: PreinitObject
     execute()
     {
-        t3GetGlobalSymbols().forEachAssoc( new function(key, value)
+        globalSymbols().forEachAssoc( new function(key, value)
         {
             if(dataType(value) == TypeObject && (value.ofKind(Mentionable) ||
                                                  value.ofKind(AgendaItem) ||

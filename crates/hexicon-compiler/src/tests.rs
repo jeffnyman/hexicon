@@ -3756,6 +3756,26 @@ mod converter {
     }
 
     #[test]
+    fn a_manifests_converted_sources_lose_their_extension() {
+        let text = "# Sources named with \".t\" are TADS 3: \"a.t\"
+            [library]
+sources = [\"a.t\", \"b.t\", \"sub/c.t\", \"d.hxn\"] # \"a.t\"
+            name = \"x\\\".t\"
+";
+        let mut local = |name: &str| name == "a.t" || name == "sub/c.t";
+        let (out, changed) = crate::convert::convert_manifest(text, &mut local);
+        assert_eq!(changed, 2);
+        assert_eq!(
+            out,
+            "# Sources named with \".t\" are TADS 3: \"a.t\"
+            [library]
+sources = [\"a\", \"b.t\", \"sub/c\", \"d.hxn\"] # \"a.t\"
+            name = \"x\\\".t\"
+"
+        );
+    }
+
+    #[test]
     fn a_library_becomes_a_librarys_manifest() {
         let tl = b"name: My Lib\nsource: one\nsource: msg_$(STYLE)\nlibrary: $(LANG)/$(LANG)\n\
             resource: pics\nneedmacro: LANG the language\nnodef\nwhat: ever\n";

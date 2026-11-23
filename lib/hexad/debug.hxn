@@ -1,5 +1,6 @@
 #charset "us-ascii"
 #include "advlite.h"
+#include <hexicon.h>
 
 /*
  *   ************************************************************************
@@ -95,8 +96,8 @@ DefineSystemAction(DebugI)
     execAction(cmd)
     {
         /* if the debugger is present, break into it */
-        if (t3DebugTrace(T3DebugCheck))
-            t3DebugTrace(T3DebugBreak);
+        if (debugTrace(DebugTraceCheck))
+            debugTrace(DebugTraceBreak);
         else
             DMsg(debugger not present, 'Debugger not present. ');
     }
@@ -136,7 +137,7 @@ actionTab: PreinitObject
          *   preinit and storing the value and associated name of every Action
          *   object.
          */
-        t3GetGlobalSymbols().forEachAssoc( new function(key, value)
+        globalSymbols().forEachAssoc( new function(key, value)
         {
             if(dataType(value) == TypeObject && value.ofKind(Action))
                 ctab[value] = key;
@@ -280,7 +281,7 @@ symTab: PreinitObject
      */
     execute()
     {
-        t3GetGlobalSymbols().forEachAssoc( new function(key, value)
+        globalSymbols().forEachAssoc( new function(key, value)
         {
 //            if(dataType(value) == TypeObject && value.isClass)
 //                ctab[value] = key;
@@ -300,7 +301,7 @@ symTab: PreinitObject
 /* Take a string and return the object whose programmatic name it refers to */
 symToVal(val)
 {    
-    return t3GetGlobalSymbols()[val];      
+    return globalSymbols()[val];      
 }
     
 /* Take a value and return the string representation of its programmatic name */
@@ -1134,7 +1135,7 @@ allNewTests: object
       return lst().valWhich(cond);
    }
     
-    isTesting = nil     // indicator to tadsSay() about copying outcome here as well
+    isTesting = nil     // indicator to print() about copying outcome here as well
     // last message(s) to copy here; reset before each non-test cmd or after assertMsg
     lastMsg = ''
     

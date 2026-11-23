@@ -6,8 +6,9 @@
 //! project file (`.t3m`) becomes a game's manifest: `hexicon.toml` if it
 //! is the only one in its folder, and `<name>.toml` otherwise. A library
 //! (`.tl`) becomes `<name>.toml` beside where it was, which is where a
-//! library of its name is looked for. Everything else is copied as it
-//! is.
+//! library of its name is looked for. A manifest already there keeps
+//! its text, but a TADS 3 source it names that becomes a `.hxn` file is
+//! named without its `.t`. Everything else is copied as it is.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -136,6 +137,18 @@ fn convert_folder(from: &Path, to: &Path) -> Result<(), String> {
                     rel.with_extension("toml")
                 };
                 (out_rel, result.text.into_bytes())
+            }
+            "toml" => {
+                // A manifest already: the sources it names that become
+                // .hxn files are named without their .t.
+                let text = String::from_utf8_lossy(&text);
+                let (text, changed) = convert::convert_manifest(&text, &mut is_local);
+                if changed > 0 {
+                    converted += 1;
+                } else {
+                    copied += 1;
+                }
+                (rel.clone(), text.into_bytes())
             }
             "tl" => {
                 let result = convert::convert_library(&text, &mut is_local);

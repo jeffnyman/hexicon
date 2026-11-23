@@ -641,6 +641,66 @@ fn strip_tl(name: &str) -> String {
     }
 }
 
+/// Convert a manifest that names TADS 3 sources: each string that names
+/// a `.t` file being converted (as `is_local` says, given the name
+/// relative to the manifest's folder) loses its `.t`, since the file is
+/// now a `.hxn` source. Comments and everything else are kept as they
+/// are.
+pub fn convert_manifest(text: &str, is_local: &mut dyn FnMut(&str) -> bool) -> (String, usize) {
+    let mut out = String::with_capacity(text.len());
+    let mut changed = 0;
+    for line in text.split_inclusive('\n') {
+        let mut rest = line;
+        loop {
+            // A comment runs to the end of the line; a string is in
+            // double quotes, with backslash escapes.
+            let Some(at) = rest.find(['#', '"']) else {
+                out.push_str(rest);
+                break;
+            };
+            out.push_str(&rest[..at]);
+            if rest[at..].starts_with('#') {
+                out.push_str(&rest[at..]);
+                break;
+            }
+            let body = &rest[at + 1..];
+            let mut end = None;
+            let mut escaped = false;
+            for (i, c) in body.char_indices() {
+                match c {
+                    _ if escaped => escaped = false,
+                    '\\' => escaped = true,
+                    '"' => {
+                        end = Some(i);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            let Some(end) = end else {
+                out.push_str(&rest[at..]);
+                break;
+            };
+            let content = &body[..end];
+            let is_t = content.len() > 2
+                && content[content.len() - 2..].eq_ignore_ascii_case(".t")
+                && !content.contains('\\');
+            if is_t && is_local(content) {
+                out.push('"');
+                out.push_str(&content[..content.len() - 2]);
+                out.push('"');
+                changed += 1;
+            } else {
+                out.push('"');
+                out.push_str(content);
+                out.push('"');
+            }
+            rest = &body[end + 1..];
+        }
+    }
+    (out, changed)
+}
+
 /// Convert a library (`.tl`) to a library's manifest. `is_local` says
 /// whether a source, named as a path relative to the library's folder
 /// with `.t` after it, is one of the files being converted; one whose

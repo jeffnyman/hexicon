@@ -19,6 +19,7 @@
 
 /* include the library header */
 #include "advlite.h"
+#include <hexicon.h>
 
 
 /* ------------------------------------------------------------------------ */
@@ -83,7 +84,7 @@ checkHtmlMode()
 aioSay(txt)
 {
     /* call the interpreter's console output writer */
-    tadsSay(txt);
+    print(txt);
 }
 
 /* ------------------------------------------------------------------------ */
