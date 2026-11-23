@@ -515,12 +515,22 @@ impl Host for Console {
         }
     }
 
-    // A terminal delivers keys as they are pressed. Standard input
-    // otherwise delivers whole lines, so a key is the first character of a
-    // line, and an empty line is the Enter key.
+    // A terminal delivers keys as they are pressed. Input that is not a
+    // terminal, such as a file or a pipe, gives a key a character at a
+    // time, as the reference's plain console does, so that what is left
+    // of a line goes to whatever reads next. A terminal in plain mode
+    // delivers whole lines, so a key is the first character of a line,
+    // and an empty line is the Enter key.
     fn read_key(&mut self) -> Input {
         if let Some(terminal) = &mut self.terminal {
             return match terminal.read_key() {
+                Some(key) => Input::Text(key),
+                None => Input::End,
+            };
+        }
+        if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+            let _ = std::io::stdout().flush();
+            return match read_char(&mut std::io::stdin().lock()) {
                 Some(key) => Input::Text(key),
                 None => Input::End,
             };
@@ -534,12 +544,11 @@ impl Host for Console {
         }
     }
 
-    // A form feed, which is all a stream of text can do, and what the
-    // reference interpreter's plain console writes.
+    // A stream of text cannot be cleared, and the reference interpreter's
+    // plain console does nothing.
     fn clear_screen(&mut self) {
-        match &mut self.terminal {
-            Some(terminal) => terminal.clear(),
-            None => emit("\x0c\n"),
+        if let Some(terminal) = &mut self.terminal {
+            terminal.clear();
         }
     }
 
@@ -878,6 +887,34 @@ fn disasm(path: &str, summary_only: bool) -> Result<String, String> {
     Ok(out)
 }
 
+/// One character of input, read as UTF-8, or `None` at the end. A
+/// carriage return is passed over, so that a line ends the same way
+/// whatever wrote it.
+fn read_char(input: &mut impl std::io::Read) -> Option<String> {
+    let mut byte = [0u8; 1];
+    let first = loop {
+        match input.read(&mut byte) {
+            Ok(1) if byte[0] == b'\r' => continue,
+            Ok(1) => break byte[0],
+            _ => return None,
+        }
+    };
+    let len = match first {
+        0xc0..=0xdf => 2,
+        0xe0..=0xef => 3,
+        0xf0..=0xf7 => 4,
+        _ => 1,
+    };
+    let mut bytes = vec![first];
+    for _ in 1..len {
+        match input.read(&mut byte) {
+            Ok(1) => bytes.push(byte[0]),
+            _ => break,
+        }
+    }
+    Some(String::from_utf8_lossy(&bytes).into_owned())
+}
+
 /// A plain-text description of an image.
 fn describe(image: &Image, file_size: usize) -> String {
     let mut out = String::new();
@@ -1056,5 +1093,17 @@ fn value(value: Value) -> String {
         Value::FunctionPointer(offset) => format!("function at {offset:#x}"),
         Value::IntrinsicFunction { set, index } => format!("intrinsic function {set}:{index}"),
         Value::Other { type_code, raw } => format!("type {type_code}, raw {raw:02x?}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_char;
+
+    #[test]
+    fn keys_from_a_stream_are_one_character_each() {
+        let mut input: &[u8] = "ab\r\né\n".as_bytes();
+        let keys: Vec<_> = std::iter::from_fn(|| read_char(&mut input)).collect();
+        assert_eq!(keys, ["a", "b", "\n", "é", "\n"]);
     }
 }

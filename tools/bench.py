@@ -40,6 +40,7 @@ WALKS = [
     ("Cain", "cain"),
     ("MrsPepper", "MrsPepper"),
     ("SquareCircle", "SquareCircle"),
+    ("Banana", "Banana"),
 ]
 
 
