@@ -1,0 +1,5 @@
+[game]
+name = "A Tour of the Language"
+libraries = ["system"]
+sources = ["start"]
+image = "language.hxg"

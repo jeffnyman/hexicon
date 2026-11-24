@@ -11,7 +11,9 @@ Hexad, the library games are built on:
 - [Characters and Conversation](characters.md): characters and their states, topic entries and what they answer, topics, revealing, and responses that change.
 - [Actions and Their Handlers](actions.md): how a command is carried out, a thing's own handlers, and new actions and their grammar.
 
-More is to come, Hexicon's language among it.
+The language:
+
+- [The Language](language.md): programs and files, values and operators, strings and what can go in them, lists, tables, statements, functions, objects and classes, templates, exceptions, and the preprocessor.
 
 ## For the guide's writers
 

@@ -1,0 +1,271 @@
+// A tour of Hexicon's language: a program that tries each part of it
+// and prints what comes of it.
+
+#include <hexicon.h>
+
+main(args)
+{
+    values();
+    strings();
+    lists();
+    tables();
+    control();
+    functions();
+    objects();
+    exceptions();
+    preprocessor();
+}
+
+// ---------------------------------------------------------------------
+// Values
+
+values()
+{
+    "Values:\n";
+    local n = 42;               // an integer
+    local big = 3.14159;        // a number with a decimal point
+    local s = 'text';           // a string
+    local yes = true, no = nil; // true and false; nil is also "nothing"
+    "<<n + 1>> <<big * 2>> <<s.length()>> <<toString(yes)>> <<toString(no == nil)>>\n";
+
+    // An operator for each job.
+    "<<7 / 2>> <<7 % 2>> <<7.0 / 2>>\n";
+    "<<toString(n > 40 && s != 'other')>> <<toString(!(n == 42))>>\n";
+    "<<(n > 100 ? 'big' : 'small')>> <<(nil ?? 'default')>>\n";
+    "<<toString(3 is in (1, 2, 3))>> <<toString(4 not in (1, 2, 3))>>\n";
+}
+
+// ---------------------------------------------------------------------
+// Strings
+
+strings()
+{
+    "\bStrings:\n";
+    local name = 'Ada';
+    // Single quotes make a string; double quotes show one.
+    local greeting = 'Hello, ' + name + '!';
+    "<<greeting>>\n";
+    // Code between << and >> in a shown string is worked out and shown.
+    "<<name>> has <<name.length()>> letters.\n";
+    "<<if name == 'Ada'>>It is Ada.<<else>>It is not.<<end>>\n";
+    for (local i in 1..3)
+        "<<one of>>first<<or>>second<<or>>third<<cycling>> ";
+    "\n";
+    "<<name.toUpper()>> <<name.substr(2)>> <<name.find('d')>>\n";
+    "<<'a,b,c'.split(',').length()>> <<toString(12) + '!'>> <<toInteger('7') + 1>>\n";
+}
+
+// ---------------------------------------------------------------------
+// Lists
+
+lists()
+{
+    "\bLists:\n";
+    local lst = [3, 1, 2];
+    "<<lst.length()>> <<lst[1]>> <<lst.sort()>>\n";
+    lst += 4;                                   // a new list, with 4 added
+    "<<lst>> <<lst.indexOf(2)>> <<lst.subset({x: x > 1})>>\n";
+    "<<lst.mapAll({x: x * 2})>> <<lst.car()>> <<lst.cdr()>>\n";
+}
+
+// ---------------------------------------------------------------------
+// Tables
+
+tables()
+{
+    "\bTables:\n";
+    local ages = new LookupTable();
+    ages['Ada'] = 36;
+    ages['Alan'] = 41;
+    "<<ages['Ada']>> <<toString(ages.isKeyPresent('Alan'))>> <<toString(ages['Grace'])>>\n";
+    local names = ages.keysToList().sort();
+    "<<names>>\n";
+}
+
+// ---------------------------------------------------------------------
+// Statements
+
+control()
+{
+    "\bStatements:\n";
+    local total = 0;
+    for (local i = 1; i <= 4; i++)
+        total += i;
+    "for: <<total>>\n";
+
+    local n = 0;
+    while (n < 3)
+        n++;
+    "while: <<n>>\n";
+
+    foreach (local word in ['one', 'two'])
+        "foreach: <<word>>\n";
+
+    switch (n)
+    {
+    case 1:
+        "switch: one\n";
+        break;
+    case 3:
+        "switch: three\n";
+        break;
+    default:
+        "switch: something else\n";
+    }
+
+    for (local i in 1..10)
+    {
+        if (i % 2 == 0)
+            continue;
+        if (i > 5)
+            break;
+        "<<i>> ";
+    }
+    "\n";
+}
+
+// ---------------------------------------------------------------------
+// Functions
+
+// A parameter with ? may be left out; then it is nil.
+greet(name, title?)
+{
+    return 'Hello, ' + (title ?? '') + name;
+}
+
+// A parameter with = has a value when it is left out.
+repeat(text, times = 2)
+{
+    local out = '';
+    for (local i in 1..times)
+        out += text;
+    return out;
+}
+
+// [rest] collects any more arguments, as a list.
+sum([rest])
+{
+    local total = 0;
+    foreach (local x in rest)
+        total += x;
+    return total;
+}
+
+functions()
+{
+    "\bFunctions:\n";
+    "<<greet('Ada')>>; <<greet('Lovelace', 'Lady ')>>\n";
+    "<<repeat('ab')>> <<repeat('ab', 3)>> <<sum(1, 2, 3, 4)>>\n";
+
+    // A function as a value, written in place.
+    local double = {x: x * 2};
+    local add = function(a, b) { return a + b; };
+    "<<double(5)>> <<add(2, 3)>>\n";
+}
+
+// ---------------------------------------------------------------------
+// Objects and classes
+
+class Animal: object
+    name = 'an animal'
+    sound = 'nothing'
+
+    // A method: a property whose value is code.
+    speak() { return name + ' says ' + sound + '.'; }
+;
+
+class Dog: Animal
+    sound = 'woof'
+;
+
+// An object of a class, with its own value for a property.
+rex: Dog
+    name = 'Rex'
+;
+
+// A method can add to the one its class has, with inherited.
+fido: Dog
+    name = 'Fido'
+    speak() { return inherited() + ' And wags.'; }
+;
+
+// A template says what values without names stand for, for a class.
+class Bird: Animal;
+Bird template 'name' 'sound';
+
+tweety: Bird 'Tweety' 'tweet';
+
+// modify changes an object, or a class, defined elsewhere.
+modify Dog
+    legs = 4
+;
+
+objects()
+{
+    "\bObjects:\n";
+    "<<rex.speak()>>\n";
+    "<<fido.speak()>>\n";
+    "<<tweety.speak()>>\n";
+    "<<toString(rex.ofKind(Animal))>> <<rex.legs>> <<toString(rex.propDefined(&sound))>>\n";
+
+    // An object made while the program runs.
+    local cat = new Animal();
+    cat.name = 'Tom';
+    cat.sound = 'miaow';
+    "<<cat.speak()>>\n";
+
+    // A property named by a pointer to it, &prop, and read with .(...).
+    local prop = &sound;
+    "<<rex.(prop)>>\n";
+}
+
+// ---------------------------------------------------------------------
+// Exceptions
+
+// An exception of the program's own, made with new: its construct()
+// method is given what new is.
+class TooHeavy: Exception
+    construct(weight) { self.weight = weight; }
+    weight = 0
+;
+
+lift(weight)
+{
+    if (weight > 100)
+        throw new TooHeavy(weight);
+    return 'lifted ' + weight;
+}
+
+exceptions()
+{
+    "\bExceptions:\n";
+    try
+    {
+        "<<lift(50)>>\n";
+        "<<lift(500)>>\n";
+        "not reached\n";
+    }
+    catch (TooHeavy e)
+    {
+        "caught: <<e.weight>> is too heavy\n";
+    }
+    finally
+    {
+        "finally, always\n";
+    }
+}
+
+// ---------------------------------------------------------------------
+// The preprocessor
+
+#define GREETING 'hello'
+#define TWICE(x) ((x) * 2)
+
+preprocessor()
+{
+    "\bThe preprocessor:\n";
+    "<<GREETING>> <<TWICE(21)>>\n";
+#ifdef __HEXICON
+    "This is Hexicon.\n";
+#endif
+}

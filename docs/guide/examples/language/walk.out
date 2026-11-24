@@ -1,0 +1,53 @@
+Values:
+43 6.28318 4 true true
+3 1 3.5
+true nil
+small default
+true true
+
+Strings:
+Hello, Ada!
+Ada has 3 letters.
+It is Ada.
+first second third
+ADA da 2
+3 12! 8
+
+Lists:
+3 3 1,2,3
+3,1,2,4 3 3,2,4
+6,2,4,8 3 1,2,4
+
+Tables:
+36 true nil
+Ada,Alan
+
+Statements:
+for: 10
+while: 3
+foreach: one
+foreach: two
+switch: three
+1 3 5
+
+Functions:
+Hello, Ada; Hello, Lady Lovelace
+abab ababab 10
+10 5
+
+Objects:
+Rex says woof.
+Fido says woof. And wags.
+Tweety says tweet.
+true 4 true
+Tom says miaow.
+woof
+
+Exceptions:
+lifted 50
+caught: 500 is too heavy
+finally, always
+
+The preprocessor:
+hello 42
+This is Hexicon.
