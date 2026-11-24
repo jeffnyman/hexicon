@@ -14,7 +14,6 @@ Existing games are unaffected. They keep building against adv3 and adv3Lite, whi
 |---|---|---|
 | Version in the corpus | 3.1.3 | 2.2.3.2 |
 | Size, library and English | about 98,500 lines | about 83,700 lines, plus 30 extensions |
-| License | The permission given for this project | MIT. Story files are free of it, and the notice is kept in copies |
 | How it is included | All of it | 41 core modules, any of which can be left out, and cut-down sets (`adv3Liter`, `adv3Litest`) |
 
 What each does better:
@@ -36,7 +35,7 @@ In short, adv3 simulates more deeply, and adv3Lite is easier to write for and mo
 
 - adv3Lite is already a combination, built from adv3 and Mercury. It kept adv3's way of doing actions and conversation and made the world model simpler.
 - It is modular already, so adding modules extends a design that exists rather than imposing one.
-- Its license allows it.
+- It can be used as Hexad's start: permission is given for this project.
 - It has a test corpus from the first day. Hexad begins as adv3Lite, so Airport and the ten exercises in adv3Lite's manual play the same on it, and every later change is checked by their still playing the same.
 
 The alternatives:
@@ -54,7 +53,7 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
 ## Decided (2026-11-23)
 
 - **Hexad starts from adv3Lite.**
-- **Hexad lives in this repository, in `lib/hexad`, as the built-in library.** The language and the library change together: a language change and Hexad's adoption of it go in one commit and are tested together, much as Rust ships its standard library. `lib/hexad` has its own `hexicon.toml` and its own license notice (adv3Lite's MIT notice, which is kept), so that it could move to a repository of its own later if that is ever wanted.
+- **Hexad lives in this repository, in `lib/hexad`, as the built-in library.** The language and the library change together: a language change and Hexad's adoption of it go in one commit and are tested together, much as Rust ships its standard library. `lib/hexad` has its own `hexicon.toml`, so that it could move to a repository of its own later if that is ever wanted.
 - **Hexad uses no TADS names.** As Hexicon names for the built-in functions arrive (language plan, change 0), Hexad moves to them.
 
 ## Open questions
@@ -66,7 +65,7 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
 ## Milestones
 
 1. **The fork.** Hexad is adv3Lite 2.2.3.2 under its new name, built from a `hexicon.toml`. Exit: Airport and the manual's exercises replay identically on it. Done (2026-11-23):
-   - **What is in `lib/hexad`:** adv3Lite's sources, `advlite.h`, its English, and its extensions, byte for byte, with its license. Its `adv3Lite.tl` and English `.tl` are now `hexicon.toml` manifests named Hexad and Hexad English, with the sources in the same order.
+   - **What is in `lib/hexad`:** adv3Lite's sources, `advlite.h`, its English, and its extensions, byte for byte. Its `adv3Lite.tl` and English `.tl` are now `hexicon.toml` manifests named Hexad and Hexad English, with the sources in the same order.
    - **What is left out:** the manual, the templates, and the cut-down variants (`adv3Liter`, `adv3Litest`). The web variant's `browser.t` and `menuweb.t` are kept, but are not in the manifest yet.
    - **The check (`tools/compile-tests/hexad-compare.sh`):** Airport and the ten exercises of the manual, each built on adv3Lite and on Hexad and preinitialized, give identical images, which is stronger than replaying them. Exercise 23 warns of an undefined `topInstructionsMenu` and stops with a run-time error while it is preinitialized; it does the same on adv3Lite.
    - **What still said adv3Lite:** the code, so the fork is a pure copy in the history. The library's `ModuleID` named it "adv3Lite Library" until milestone 3's first step.
@@ -78,7 +77,7 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
 3. **The language's features adopted.** Checked names, action declarations, and modules come in as the language gains them. Each step is checked by the same games still playing the same. In progress:
    - **Hexad names itself** (2026-11-23). Its `ModuleID` is now `moduleHexad`, named "Hexad", version 0.1.0 (Hexicon's). The VM's line in VERSION drops "T3": "VM (hexicon) version 0.1.0". This is Hexad's first break with adv3Lite: a game that refers to `moduleAdv3Lite` must now say `moduleHexad`.
    - **The check is now play, with the differences recorded** (`tools/compile-tests/hexad-compare.sh`). Hexad no longer matches adv3Lite byte for byte, and will match it less as it changes. So each game is built on both, preinitialized, and played from a command script in `tools/compile-tests/hexad/`: VERSION and CREDITS, then 230 to 420 commands chosen by `tools/explore.py` on adv3Lite. The transcripts must differ exactly as `NAME.diff` there records; `--accept` records the differences when a change to Hexad is meant to make them. Today each game differs only in VERSION's two lines. Exercise 23 stops with a run-time error before its first prompt, on both, so only its build is compared.
-   - **Credits removed** (2026-11-24). Hexad's sources, README, and manifest no longer carry copyright or attribution lines, and its module IDs no bylines: Hexad is to be changed freely from here. Only comments and the unshown bylines changed, so games play the same.
+   - **Credits removed** (2026-11-24), with permission. Hexad's sources, README, and manifest no longer carry copyright or attribution lines, its module IDs no bylines, and adv3Lite's license file is gone: Hexad is to be changed freely from here. Only comments and the unshown bylines changed, so games play the same.
    - **Two of adv3Lite's slips fixed** (2026-11-24), found by checked names (language milestone 3) run over Hexad's sources. A `ListGroup`'s `groupSuffix`, which game code is to define, was never shown, because the library displayed `groupSufffix`. And an action's `optionsExcplained = nil` set nothing: it now sets `optionsExplained`, to the same nil it had. Neither changes what Airport or the exercises show.
    - **Actions and handlers are declarations** (2026-11-24, language milestone 4). `hexicon convert` rewrote Hexad's 548 uses of adv3Lite's macros as `action Take(dobj): TAction`, `dobj Take { ... }`, and `dobj Search as LookIn`. Games built on it give identical images, debug builds included. `advlite.h` still defines the macros, for games not yet converted and for the forms with no declaration of their own (`asDobjWithoutVerifyFor`, `MMTIAction`).
    - **Hexad is imported** (2026-11-24, language milestone 5). Its manifest names `advlite.h` as the header a Hexicon source gets by `import hexad;`, and its own sources import it rather than including it. The images are the same.
