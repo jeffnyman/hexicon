@@ -3,7 +3,7 @@
 
 use std::cmp::Ordering;
 
-use crate::bignum_obj::Arith;
+use crate::decimal_obj::Arith;
 use crate::error::{VmError, VmResult, code};
 use crate::object::Object;
 use crate::value::{INVALID_PROP, ObjId, Value};
@@ -61,7 +61,7 @@ impl Vm {
             return Some(text.to_vec());
         }
         match value {
-            Value::Obj(id) => self.strbuf_text(id),
+            Value::Obj(id) => self.string_builder_text(id),
             _ => None,
         }
     }
@@ -75,7 +75,7 @@ impl Vm {
                     None => false,
                 })
             }
-            Some(Object::BigNumber(big)) => {
+            Some(Object::Decimal(big)) => {
                 let equal = self.big_equals(big, other);
                 self.big_operand(other);
                 Ok(equal)
@@ -90,8 +90,8 @@ impl Vm {
                     || self.as_bytes(other).is_some_and(|other| other == bytes))
             }
             // A string buffer compares by its text, and only with text.
-            Some(Object::StringBuffer(_)) => {
-                let text = self.strbuf_text(id).unwrap_or_default();
+            Some(Object::StringBuilder(_)) => {
+                let text = self.string_builder_text(id).unwrap_or_default();
                 match self.text_or_buffer(other) {
                     Some(other) => Ok(other == text),
                     None => Err(VmError::new(code::INVALID_COMPARISON)),
@@ -161,12 +161,12 @@ impl Vm {
 
     fn obj_compare(&mut self, id: ObjId, other: Value) -> VmResult<Ordering> {
         match self.objects.get(id) {
-            Some(Object::BigNumber(big)) => {
+            Some(Object::Decimal(big)) => {
                 let order = self.big_compare(big, other);
                 self.big_operand(other);
                 order
             }
-            Some(Object::String(_) | Object::StringBuffer(_)) => {
+            Some(Object::String(_) | Object::StringBuilder(_)) => {
                 let text = self.text_or_buffer(Value::Obj(id)).unwrap_or_default();
                 match self.text_or_buffer(other) {
                     Some(other) => Ok(text.cmp(&other)),
@@ -192,7 +192,7 @@ impl Vm {
             Value::SString(_) => self.concat(a, b).map(Some),
             Value::List(_) => self.list_append(a, b).map(Some),
             Value::Obj(id) => match self.objects.get(id) {
-                Some(Object::BigNumber(big)) => {
+                Some(Object::Decimal(big)) => {
                     let big = big.clone();
                     self.big_arith(Arith::Add, &big, b).map(Some)
                 }
@@ -220,12 +220,12 @@ impl Vm {
     }
 
     /// Arithmetic with an integer on the left and something other than
-    /// an integer on the right, which has to be a BigNumber.
+    /// an integer on the right, which has to be a Decimal.
     fn int_with_big(&mut self, op: Arith, a: i32, b: Value) -> VmResult<Value> {
         if self.as_big(b).is_none() {
             return Err(VmError::new(code::NUM_VAL_REQD));
         }
-        let a = crate::bignum::Big::from_int(a.into(), 10);
+        let a = crate::decimal::Big::from_int(a.into(), 10);
         self.new_big(a.clone());
         self.big_arith(op, &a, b)
     }
@@ -235,7 +235,7 @@ impl Vm {
         match a {
             Value::List(_) => self.list_remove(a, b).map(Some),
             Value::Obj(id) => match self.objects.get(id) {
-                Some(Object::BigNumber(big)) => {
+                Some(Object::Decimal(big)) => {
                     let big = big.clone();
                     self.big_arith(Arith::Sub, &big, b).map(Some)
                 }
@@ -374,16 +374,16 @@ impl Vm {
                 }
                 Ok(Some(items[n as usize - 1]))
             }
-            Some(Object::LookupTable(_)) => self.table_index(id, index).map(Some),
-            Some(Object::StringBuffer(_)) => self.strbuf_index(id, index).map(Some),
+            Some(Object::Map(_)) => self.table_index(id, index).map(Some),
+            Some(Object::StringBuilder(_)) => self.string_builder_index(id, index).map(Some),
             Some(Object::ByteArray(_)) => {
                 let n = self.index_arg(index)?;
                 self.bytes_index(id, n).map(Some)
             }
             Some(Object::FrameRef(_)) => self.frame_ref_index(id, index).map(Some),
-            Some(Object::FrameDesc(_)) => self.frame_desc_index(id, index).map(Some),
-            // A DynamicFunc's one element is its method context.
-            Some(Object::DynFunc(func)) => match index {
+            Some(Object::FrameDesc(_)) => self.stack_frame_index(id, index).map(Some),
+            // A CompiledCode's one element is its method context.
+            Some(Object::CompiledCode(func)) => match index {
                 Value::Int(1) => Ok(Some(func.method_ctx)),
                 _ => Err(VmError::new(code::INDEX_OUT_OF_RANGE)),
             },
@@ -430,12 +430,12 @@ impl Vm {
                 self.objects.note_vector(id);
                 Ok(Some(container))
             }
-            Some(Object::LookupTable(_)) => {
+            Some(Object::Map(_)) => {
                 self.table_set(id, index, value)?;
                 Ok(Some(container))
             }
-            Some(Object::StringBuffer(_)) => {
-                self.strbuf_set_index(id, index, value)?;
+            Some(Object::StringBuilder(_)) => {
+                self.string_builder_set_index(id, index, value)?;
                 Ok(Some(container))
             }
             Some(Object::ByteArray(_)) => {
@@ -445,13 +445,13 @@ impl Vm {
                 Ok(Some(container))
             }
             Some(Object::FrameRef(_)) => self.frame_ref_set_index(id, index, value).map(Some),
-            Some(Object::FrameDesc(_)) => self.frame_desc_set_index(id, index, value).map(Some),
+            Some(Object::FrameDesc(_)) => self.stack_frame_set_index(id, index, value).map(Some),
             Some(Object::Opaque { .. }) => Err(self.unimplemented_object(id, "indexing")),
             _ => Ok(None),
         }
     }
 
-    /// An error for an operation on an object of an intrinsic class that
+    /// An error for an operation on an object of a built-in class that
     /// is not implemented yet.
     pub(crate) fn unimplemented_object(&self, id: ObjId, what: &str) -> VmError {
         let class = self.kind_of(id).map_or("unknown", |kind| kind.name());
@@ -680,7 +680,7 @@ impl Vm {
             Some(Object::List(_) | Object::Vector(_) | Object::AnonFn(_)) => {
                 return self.list_to_text(value);
             }
-            Some(Object::BigNumber(big)) => {
+            Some(Object::Decimal(big)) => {
                 let text: std::rc::Rc<[u8]> = big.to_text().into_bytes().into();
                 return Ok((self.try_new_string(text.clone())?, text));
             }
@@ -690,8 +690,9 @@ impl Vm {
                     crate::bytearray::latin1_text(bytes).into_bytes().into();
                 return Ok((self.try_new_string(text.clone())?, text));
             }
-            Some(Object::StringBuffer(_)) => {
-                let text: std::rc::Rc<[u8]> = self.strbuf_text(id).unwrap_or_default().into();
+            Some(Object::StringBuilder(_)) => {
+                let text: std::rc::Rc<[u8]> =
+                    self.string_builder_text(id).unwrap_or_default().into();
                 return Ok((self.try_new_string(text.clone())?, text));
             }
             // A date converts to the date and time in the local zone, and

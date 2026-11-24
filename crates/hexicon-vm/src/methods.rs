@@ -1,4 +1,4 @@
-//! Methods of the collection and iterator intrinsic classes.
+//! Methods of the collection and iterator built-in classes.
 
 use crate::error::{VmError, VmResult, code};
 use crate::object::Object;
@@ -20,7 +20,7 @@ impl Vm {
             // first iterates over a copy.
             1 | 2 => self.native_method(argc, NativeDesc::fixed(0), |vm, _| {
                 if let Value::Obj(id) = self_value
-                    && matches!(vm.objects.get(id), Some(Object::LookupTable(_)))
+                    && matches!(vm.objects.get(id), Some(Object::Map(_)))
                 {
                     return vm.table_iterator(id, index == 2);
                 }
@@ -77,7 +77,7 @@ impl Vm {
         index: u16,
         argc: Option<&mut u32>,
     ) -> VmResult<Option<Value>> {
-        if matches!(self.objects.get(id), Some(Object::LookupIter { .. })) {
+        if matches!(self.objects.get(id), Some(Object::MapIter { .. })) {
             return match index {
                 1..=5 => self
                     .native_method(argc, NativeDesc::fixed(0), |vm, _| {

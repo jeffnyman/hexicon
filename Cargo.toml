@@ -3,7 +3,7 @@ resolver = "3"
 members = [
     "crates/hexicon-image",
     "crates/hexicon-bytecode",
-    "crates/hexicon-bignum",
+    "crates/hexicon-decimal",
     "crates/hexicon-host",
     "crates/hexicon-vm",
     "crates/hexicon-compiler",

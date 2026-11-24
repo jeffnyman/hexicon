@@ -7,9 +7,9 @@ use hexicon_image::{Image, Pool, Value as ImageValue};
 
 use crate::bif::FunctionSet;
 use crate::error::{ErrParam, VmError, VmResult, code};
-use crate::lookup::LookupTable;
+use crate::map::Map;
 use crate::meta::{MetaKind, MetaTable};
-use crate::object::{IntrinsicClass, Object, ObjectTable};
+use crate::object::{BuiltinClass, Object, ObjectTable};
 use crate::program_object::ProgramObject;
 use crate::value::{INVALID_PROP, ObjId, PropId, Value};
 use crate::vm::{Layout, MethodContext, NativeCall, Predef, Return, RunState, STACK_LIMIT, Vm};
@@ -98,7 +98,7 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
                 .collect::<Vec<_>>();
             Object::List(items.into())
         }
-        MetaKind::Vector | MetaKind::AnonFuncPtr => {
+        MetaKind::Vector | MetaKind::Function => {
             // An allocation size, an element count, and the elements.
             // Elements the data does not supply are nil.
             let count = u16_at(2)? as usize;
@@ -116,11 +116,11 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
                 Object::AnonFn(items)
             }
         }
-        MetaKind::LookupTable | MetaKind::WeakRefLookupTable => Object::LookupTable(Box::new(
-            LookupTable::from_image(data, kind == MetaKind::WeakRefLookupTable).ok_or_else(bad)?,
+        MetaKind::Map | MetaKind::WeakMap => Object::Map(Box::new(
+            Map::from_image(data, kind == MetaKind::WeakMap).ok_or_else(bad)?,
         )),
-        MetaKind::BigNumber => Object::BigNumber(Box::new(
-            crate::bignum::Big::from_bytes(data).ok_or_else(bad)?,
+        MetaKind::Decimal => Object::Decimal(Box::new(
+            crate::decimal::Big::from_bytes(data).ok_or_else(bad)?,
         )),
         MetaKind::ByteArray => {
             // A length, then the bytes. Any the image leaves out are zero.
@@ -130,8 +130,10 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             bytes.resize(len, 0);
             Object::ByteArray(bytes)
         }
-        MetaKind::GrammarProduction => Object::GramProd(Box::new(
-            crate::gram::GramProd::from_bytes(data).ok_or_else(bad)?.0,
+        MetaKind::GrammarRule => Object::GrammarRule(Box::new(
+            crate::gram::GrammarRule::from_bytes(data)
+                .ok_or_else(bad)?
+                .0,
         )),
         MetaKind::StringComparator => Object::StrComp(std::rc::Rc::new(
             crate::strcomp::StrComp::from_bytes(data).ok_or_else(bad)?.0,
@@ -145,7 +147,7 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             let map = crate::charset::CharMap::load(&name).map(std::rc::Rc::new);
             Object::CharSet { name, map }
         }
-        MetaKind::RexPattern => Object::Pattern {
+        MetaKind::Regex => Object::Pattern {
             source: Value::from_holder(data.get(..Value::HOLDER_SIZE).ok_or_else(bad)?),
             compiled: None,
         },
@@ -214,7 +216,7 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
                 daytime: int(4)?,
             }
         }
-        MetaKind::StringBuffer => {
+        MetaKind::StringBuilder => {
             // The room, the step it grows by, the length, and the
             // characters in 16 bits. Loading keeps the sizes within the
             // limits, as the reference does.
@@ -222,9 +224,9 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
                 let bytes = data.get(at..at + 4).ok_or_else(bad)?;
                 Ok::<u32, VmError>(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
             };
-            let limit = |n: u32| n.clamp(16, crate::object::StrBuf::MAX_ROOM);
+            let limit = |n: u32| n.clamp(16, crate::object::StringBuilder::MAX_ROOM);
             let room = limit(int(0)?);
-            let mut buffer = crate::object::StrBuf::new(room, limit(int(4)?));
+            let mut buffer = crate::object::StringBuilder::new(room, limit(int(4)?));
             let len = int(8)?.min(room) as usize;
             for index in 0..len {
                 let unit = u32::from(u16_at(12 + 2 * index)?);
@@ -232,11 +234,13 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
                     .chars
                     .push(char::from_u32(unit).unwrap_or('\u{fffd}'));
             }
-            Object::StringBuffer(buffer)
+            Object::StringBuilder(buffer)
         }
-        MetaKind::DynamicFunc => Object::DynFunc(Box::new(
-            crate::dynfunc::DynFunc::read(data, &mut |holder| Some(Value::from_holder(holder)))
-                .ok_or_else(bad)?,
+        MetaKind::CompiledCode => Object::CompiledCode(Box::new(
+            crate::compiled_code::CompiledCode::read(data, &mut |holder| {
+                Some(Value::from_holder(holder))
+            })
+            .ok_or_else(bad)?,
         )),
         MetaKind::StackFrameRef => Object::FrameRef(Box::new(
             crate::frameref::FrameRef::read(
@@ -246,10 +250,10 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
             )
             .ok_or_else(bad)?,
         )),
-        MetaKind::StackFrameDesc => {
+        MetaKind::StackFrame => {
             Object::FrameDesc(crate::frameref::FrameDesc::read(data).ok_or_else(bad)?)
         }
-        MetaKind::IntrinsicClass => {
+        MetaKind::BuiltinClass => {
             // A length, the index of the class in the dependency list,
             // the modifier object, and optionally the class state.
             if data.len() < 8 {
@@ -260,7 +264,7 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
                 Some(holder) => Value::from_holder(holder),
                 None => Value::Nil,
             };
-            Object::Class(IntrinsicClass {
+            Object::Class(BuiltinClass {
                 meta_index: u16_at(2)?,
                 modifier: ObjId(modifier),
                 class_state,
@@ -320,7 +324,7 @@ impl Vm {
                 }
                 let id = ObjId(object.id);
                 let loaded = load_object(kind, block.metaclass_index, &object.data)?;
-                // An intrinsic class object tells the VM which object
+                // A built-in class object tells the VM which object
                 // stands for the class.
                 if let Object::Class(class) = &loaded
                     && let Some(entry) = meta.get_mut(class.meta_index as usize)
@@ -332,7 +336,7 @@ impl Vm {
                 }
                 // A vector has the room the image says, or at least
                 // room for its elements.
-                if matches!(kind, MetaKind::Vector | MetaKind::AnonFuncPtr) {
+                if matches!(kind, MetaKind::Vector | MetaKind::Function) {
                     if let Some(room) = object.data.get(..2) {
                         let room = usize::from(u16::from_le_bytes([room[0], room[1]]));
                         let room = room.max(objects.vector_alloc(id));
@@ -512,7 +516,7 @@ impl Vm {
         Ok(())
     }
 
-    /// Give every intrinsic class that has none an object to represent
+    /// Give every built-in class that has none an object to represent
     /// it.
     pub(crate) fn create_class_objects(&mut self) {
         for index in 0..self.meta.len() {
@@ -521,7 +525,7 @@ impl Vm {
                 .get(index)
                 .is_some_and(|e| !e.class_obj.is_valid())
             {
-                let id = self.objects.alloc(Object::Class(IntrinsicClass {
+                let id = self.objects.alloc(Object::Class(BuiltinClass {
                     meta_index: index as u16,
                     modifier: ObjId::INVALID,
                     class_state: Value::Nil,

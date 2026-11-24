@@ -72,16 +72,16 @@ impl Vm {
             return Ok(Some(found));
         }
         if let Some(found) =
-            self.intrinsic_get_prop(kind, Value::Obj(id), prop, argc.as_deref_mut())?
+            self.builtin_get_prop(kind, Value::Obj(id), prop, argc.as_deref_mut())?
         {
             return Ok(Some(found));
         }
         self.root_get_prop(id, prop, argc)
     }
 
-    /// Look for a method among those of an intrinsic class and the
-    /// intrinsic classes it derives from, short of the root class.
-    fn intrinsic_get_prop(
+    /// Look for a method among those of a built-in class and the
+    /// built-in classes it derives from, short of the root class.
+    fn builtin_get_prop(
         &mut self,
         kind: MetaKind,
         self_value: Value,
@@ -93,7 +93,7 @@ impl Vm {
             let index = self.meta.method_index(kind, prop);
             if index != 0
                 && let Some(value) =
-                    self.intrinsic_method(kind, self_value, index, argc.as_deref_mut())?
+                    self.builtin_method(kind, self_value, index, argc.as_deref_mut())?
             {
                 return Ok(Some((value, self.meta.class_obj(kind))));
             }
@@ -105,9 +105,9 @@ impl Vm {
         Ok(None)
     }
 
-    /// Call method `index` of intrinsic class `kind` on a value. Returns
+    /// Call method `index` of built-in class `kind` on a value. Returns
     /// `None` if the class has no such method.
-    fn intrinsic_method(
+    fn builtin_method(
         &mut self,
         kind: MetaKind,
         self_value: Value,
@@ -124,21 +124,21 @@ impl Vm {
             MetaKind::Iterator => self.iterator_method(self_value.obj_id(), index, argc),
             // These add no methods of their own to the classes they
             // derive from.
-            MetaKind::AnonFuncPtr
+            MetaKind::Function
             | MetaKind::IndexedIterator
-            | MetaKind::LookupTableIterator
-            | MetaKind::WeakRefLookupTable => Ok(None),
-            MetaKind::LookupTable => self.table_method(self_value.obj_id(), index, argc),
-            MetaKind::RexPattern => self.pattern_method(self_value.obj_id(), index, argc),
-            MetaKind::StringBuffer => self.strbuf_method(self_value.obj_id(), index, argc),
-            MetaKind::DynamicFunc => self.dynfunc_method(self_value.obj_id(), index, argc),
-            MetaKind::StackFrameDesc => self.frame_desc_method(self_value.obj_id(), index, argc),
-            MetaKind::BigNumber => self.big_method(self_value.obj_id(), index, argc),
+            | MetaKind::MapIterator
+            | MetaKind::WeakMap => Ok(None),
+            MetaKind::Map => self.table_method(self_value.obj_id(), index, argc),
+            MetaKind::Regex => self.pattern_method(self_value.obj_id(), index, argc),
+            MetaKind::StringBuilder => self.string_builder_method(self_value.obj_id(), index, argc),
+            MetaKind::CompiledCode => self.compiled_code_method(self_value.obj_id(), index, argc),
+            MetaKind::StackFrame => self.stack_frame_method(self_value.obj_id(), index, argc),
+            MetaKind::Decimal => self.big_method(self_value.obj_id(), index, argc),
             MetaKind::ByteArray => self.bytes_method(self_value.obj_id(), index, argc),
             MetaKind::CharacterSet => self.charset_method(self_value.obj_id(), index, argc),
             MetaKind::StringComparator => self.strcomp_method(self_value.obj_id(), index, argc),
             MetaKind::Dictionary => self.dict_method(self_value.obj_id(), index, argc),
-            MetaKind::GrammarProduction => self.gram_method(self_value.obj_id(), index, argc),
+            MetaKind::GrammarRule => self.gram_method(self_value.obj_id(), index, argc),
             MetaKind::Date => self.date_method(Some(self_value.obj_id()), index, argc),
             MetaKind::TimeZone => self.time_zone_method(self_value.obj_id(), index, argc),
             MetaKind::File => self.file_method(Some(self_value.obj_id()), index, argc),
@@ -162,7 +162,7 @@ impl Vm {
             Value::SString(_) => (MetaKind::String, self.predef.const_str_obj),
             _ => (MetaKind::List, self.predef.const_lst_obj),
         };
-        if let Some(found) = self.intrinsic_get_prop(kind, constant, prop, argc.as_deref_mut())? {
+        if let Some(found) = self.builtin_get_prop(kind, constant, prop, argc.as_deref_mut())? {
             return Ok(Some(found));
         }
         // Everything else is the same for every string (or list), so a
@@ -171,7 +171,7 @@ impl Vm {
     }
 
     /// Look up one of the methods every object has, then the methods the
-    /// program adds to intrinsic classes with `modify`.
+    /// program adds to built-in classes with `modify`.
     fn root_get_prop(
         &mut self,
         id: ObjId,
@@ -187,7 +187,7 @@ impl Vm {
         Ok(value.map(|value| (value, source)))
     }
 
-    /// Search the program's modifications to an object's intrinsic class,
+    /// Search the program's modifications to an object's built-in class,
     /// and to the classes that one derives from.
     fn find_modifier_prop(
         &mut self,
@@ -286,7 +286,7 @@ impl Vm {
         self.find_modifier_prop(id, prop, target, definer, argc)
     }
 
-    /// Look up a property on an intrinsic class object: the class's static
+    /// Look up a property on a built-in class object: the class's static
     /// methods, then the program's modifications to it.
     fn class_get_prop(
         &mut self,
@@ -318,7 +318,7 @@ impl Vm {
         self.root_get_prop(id, prop, argc)
     }
 
-    /// The intrinsic class that an intrinsic class object represents.
+    /// The built-in class that a built-in class object represents.
     pub(crate) fn class_kind(&self, id: ObjId) -> Option<MetaKind> {
         match self.objects.get(id)? {
             Object::Class(class) => Some(self.meta.get(class.meta_index as usize)?.kind),
@@ -326,7 +326,7 @@ impl Vm {
         }
     }
 
-    /// Call a static method: one invoked on an intrinsic class itself.
+    /// Call a static method: one invoked on a built-in class itself.
     fn static_method(
         &mut self,
         kind: MetaKind,
@@ -351,14 +351,14 @@ impl Vm {
                 .map(Some),
             (MetaKind::List, index) if index != 0 => self.list_static_method(index, argc),
             (MetaKind::Vector, index) if index != 0 => self.vector_static_method(index, argc),
-            (MetaKind::BigNumber, index) if index != 0 => self.big_static_method(index, argc),
+            (MetaKind::Decimal, index) if index != 0 => self.big_static_method(index, argc),
             (MetaKind::ByteArray, index) if index != 0 => self.bytes_static_method(index, argc),
             (MetaKind::String, index) if index != 0 => self.string_static_method(index, argc),
             (MetaKind::Date, index) if index != 0 => self.date_method(None, index, argc),
             (MetaKind::File, index) if index != 0 => self.file_method(None, index, argc),
             (MetaKind::FileName, index) if index != 0 => self.file_name_method(None, index, argc),
-            // IntrinsicClass.isIntrinsicClass(val)
-            (MetaKind::IntrinsicClass, 1) => self
+            // BuiltinClass.isBuiltinClass(val)
+            (MetaKind::BuiltinClass, 1) => self
                 .native_method(argc, NativeDesc::fixed(1), |vm, _| {
                     let is_class = match vm.arg(0) {
                         Value::Obj(id) => matches!(vm.objects.get(id), Some(Object::Class(_))),
@@ -377,25 +377,25 @@ impl Vm {
                         MetaKind::Root
                             | MetaKind::ProgramObject
                             | MetaKind::IntClassMod
-                            | MetaKind::IntrinsicClass
+                            | MetaKind::BuiltinClass
                             | MetaKind::String
                             | MetaKind::List
                             | MetaKind::Vector
                             | MetaKind::Collection
                             | MetaKind::Iterator
                             | MetaKind::IndexedIterator
-                            | MetaKind::AnonFuncPtr
-                            | MetaKind::LookupTable
-                            | MetaKind::WeakRefLookupTable
-                            | MetaKind::LookupTableIterator
-                            | MetaKind::RexPattern
-                            | MetaKind::StringBuffer
-                            | MetaKind::BigNumber
+                            | MetaKind::Function
+                            | MetaKind::Map
+                            | MetaKind::WeakMap
+                            | MetaKind::MapIterator
+                            | MetaKind::Regex
+                            | MetaKind::StringBuilder
+                            | MetaKind::Decimal
                             | MetaKind::ByteArray
                             | MetaKind::CharacterSet
                             | MetaKind::StringComparator
                             | MetaKind::Dictionary
-                            | MetaKind::GrammarProduction
+                            | MetaKind::GrammarRule
                             | MetaKind::File
                             | MetaKind::Date
                             | MetaKind::TimeZone
@@ -424,7 +424,7 @@ impl Vm {
                 Ok(())
             }
             Some(Object::Class(class)) => {
-                // Setting a property of an intrinsic class sets it on the
+                // Setting a property of a built-in class sets it on the
                 // program's modifier object for the class.
                 let modifier = class.modifier;
                 if modifier.is_valid() {
@@ -446,10 +446,10 @@ impl Vm {
             None => false,
             Some(Object::Program(_) | Object::IntClassMod(_)) => {
                 program_object::inherits_from(&self.objects, id, class)
-                    || self.is_intrinsic_instance(id, class)
+                    || self.is_builtin_instance(id, class)
             }
             Some(Object::Class(_)) => {
-                // An intrinsic class is an instance of the classes it
+                // A built-in class is an instance of the classes it
                 // derives from.
                 let mut kind = self.class_kind(id).and_then(MetaKind::parent);
                 while let Some(k) = kind {
@@ -460,13 +460,13 @@ impl Vm {
                 }
                 false
             }
-            Some(_) => self.is_intrinsic_instance(id, class),
+            Some(_) => self.is_builtin_instance(id, class),
         }
     }
 
-    /// Whether `class` is the intrinsic class of an object, or one that
+    /// Whether `class` is the built-in class of an object, or one that
     /// class derives from.
-    fn is_intrinsic_instance(&self, id: ObjId, class: ObjId) -> bool {
+    fn is_builtin_instance(&self, id: ObjId, class: ObjId) -> bool {
         if !matches!(self.objects.get(class), Some(Object::Class(_))) {
             return false;
         }
@@ -489,7 +489,7 @@ impl Vm {
                 Some(parent) => vec![self.meta.class_obj(parent)],
                 None => Vec::new(),
             },
-            // Anything else has one superclass: its intrinsic class.
+            // Anything else has one superclass: its built-in class.
             Some(_) => vec![
                 self.kind_of(id)
                     .map_or(ObjId::INVALID, |kind| self.meta.class_obj(kind)),
@@ -589,7 +589,7 @@ impl Vm {
 
     // ---- the methods every object has ----
 
-    /// Call one of the methods of the root intrinsic class, `Object`.
+    /// Call one of the methods of the root built-in class, `Object`.
     fn root_method(
         &mut self,
         id: ObjId,
@@ -624,7 +624,7 @@ impl Vm {
                 let found = vm.obj_get_prop(id, prop, None)?;
                 let source = found.map(|(_, mut source)| {
                     // A method added with `modify` is reported as defined
-                    // by the intrinsic class it was added to.
+                    // by the built-in class it was added to.
                     if matches!(vm.objects.get(source), Some(Object::IntClassMod(_))) {
                         source = vm.class_for_modifier(id, source);
                     }
@@ -650,7 +650,7 @@ impl Vm {
                 };
                 let code = match value {
                     // A method bound to an object that can be called is
-                    // code: an anonymous function or a DynamicFunc.
+                    // code: an anonymous function or a CompiledCode.
                     Value::ObjX(inner) => match vm.objects.get(inner) {
                         Some(Object::String(_)) => type_code::DSTRING,
                         _ if vm.invoker(inner).is_some() => type_code::CODEOFS,
@@ -710,7 +710,7 @@ impl Vm {
         Ok(Some(value))
     }
 
-    /// The intrinsic class, among those an object belongs to, whose
+    /// The built-in class, among those an object belongs to, whose
     /// modifier chain includes a given modifier object.
     fn class_for_modifier(&self, id: ObjId, modifier: ObjId) -> ObjId {
         let mut kind = self.kind_of(id);
@@ -871,7 +871,7 @@ impl Vm {
         Ok(id)
     }
 
-    /// Call one of the methods of the `ProgramObject` intrinsic class.
+    /// Call one of the methods of the `ProgramObject` built-in class.
     fn program_method(
         &mut self,
         id: ObjId,

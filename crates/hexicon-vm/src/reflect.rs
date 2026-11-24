@@ -3,7 +3,7 @@
 
 use hexicon_image::GlobalSymbolKind;
 
-use crate::lookup::LookupTable;
+use crate::map::Map;
 use crate::object::Object;
 use crate::value::{ObjId, Value};
 use crate::vm::Vm;
@@ -14,23 +14,23 @@ impl Vm {
     pub(crate) fn build_symbol_tables(&mut self) {
         if !self.debug.global_symbols.is_empty() && self.symbol_table.is_none() {
             let symbols = self.debug.global_symbols.clone();
-            let id = self.new_table(LookupTable::new(256, symbols.len(), false));
+            let id = self.new_table(Map::new(256, symbols.len(), false));
             for symbol in &symbols {
                 let value = match symbol.kind {
                     GlobalSymbolKind::Function { code_offset, .. } => Value::FuncPtr(code_offset),
                     GlobalSymbolKind::Object { id, .. } => {
                         // The objects that hold a program's additions to
-                        // intrinsic classes are not for programs to see.
+                        // built-in classes are not for programs to see.
                         if matches!(self.objects.get(ObjId(id)), Some(Object::IntClassMod(_))) {
                             continue;
                         }
                         Value::obj_or_nil(ObjId(id))
                     }
                     GlobalSymbolKind::Property { id, .. } => Value::Prop(id),
-                    GlobalSymbolKind::IntrinsicFunction { index, set, .. } => {
+                    GlobalSymbolKind::BuiltinFunction { index, set, .. } => {
                         Value::BifPtr { set, index }
                     }
-                    GlobalSymbolKind::IntrinsicClass { class_object, .. } => {
+                    GlobalSymbolKind::BuiltinClass { class_object, .. } => {
                         Value::obj_or_nil(ObjId(class_object))
                     }
                     GlobalSymbolKind::Enumerator { id, .. } => Value::Enum(id),
@@ -44,7 +44,7 @@ impl Vm {
         }
         if !self.debug.macros.is_empty() && self.macro_table.is_none() {
             let macros = self.debug.macros.clone();
-            let id = self.new_table(LookupTable::new(256, macros.len(), false));
+            let id = self.new_table(Map::new(256, macros.len(), false));
             for definition in &macros {
                 // Each macro is its expansion, its parameter names, and
                 // its flags. The reference makes the name, then the list,

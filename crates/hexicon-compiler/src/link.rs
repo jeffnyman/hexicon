@@ -19,8 +19,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::emit::{Anchor, Fixup, GenObj, Generated, IdKind, Target};
 use crate::parse::{
-    FuncSym, Global, GramAlt, GramProd, GramTok, GramTokKind, MetaEntry, MetaSym, ObjDef, ObjSym,
-    PREDEFINED_METACLASSES, Program, SPECIAL_PROPS,
+    FuncSym, Global, GramAlt, GramTok, GramTokKind, GrammarRule, MetaEntry, MetaSym, ObjDef,
+    ObjSym, PREDEFINED_METACLASSES, Program, SPECIAL_PROPS,
 };
 use crate::pp::show_name;
 
@@ -437,10 +437,10 @@ impl Linker {
             }
         }
         let mut nonsym: Vec<u32> = g
-            .bignums
+            .decimals
             .iter()
             .map(|(id, _)| *id)
-            .chain(g.rexpats.iter().map(|(id, _)| *id))
+            .chain(g.regexes.iter().map(|(id, _)| *id))
             .collect();
         nonsym.sort_unstable();
         for local in nonsym {
@@ -614,8 +614,9 @@ impl Linker {
             }
         }
         let this = Global::Obj(0);
-        let same_shared =
-            |old: &ObjSym| (old.is_dict && sym.is_dict) || (old.is_gramprod && sym.is_gramprod);
+        let same_shared = |old: &ObjSym| {
+            (old.is_dict && sym.is_dict) || (old.is_grammar_rule && sym.is_grammar_rule)
+        };
         let index = match self.prog.globals.peek(&sym.name).copied() {
             None => {
                 if defined && sym.ext_redef {
@@ -644,7 +645,7 @@ impl Linker {
                 if same_shared(old) {
                     // A dictionary or a grammar production can be
                     // defined in any number of files.
-                } else if old.is_dict != sym.is_dict || old.is_gramprod != sym.is_gramprod {
+                } else if old.is_dict != sym.is_dict || old.is_grammar_rule != sym.is_grammar_rule {
                     self.conflict(&sym.name, &Global::Obj(index), &this, object_file);
                     return;
                 } else if defined && sym.ext_redef {
@@ -695,7 +696,7 @@ impl Linker {
         };
         if defined {
             let old = &mut self.prog.objs[index];
-            if old.is_extern || !(old.is_dict || old.is_gramprod) {
+            if old.is_extern || !(old.is_dict || old.is_grammar_rule) {
                 maps.defined_objs.insert(obj);
             }
             old.is_extern = false;
@@ -1030,11 +1031,11 @@ impl Linker {
         for (obj, prop) in &g.static_inits {
             self.out.static_inits.push((obj_id(*obj), prop_id(*prop)));
         }
-        for (id, data) in g.bignums.drain(..) {
-            self.out.bignums.push((obj_id(id), data));
+        for (id, data) in g.decimals.drain(..) {
+            self.out.decimals.push((obj_id(id), data));
         }
-        for (id, to) in g.rexpats.drain(..) {
-            self.out.rexpats.push((obj_id(id), target(&to)));
+        for (id, to) in g.regexes.drain(..) {
+            self.out.regexes.push((obj_id(id), target(&to)));
         }
 
         // The definitions, which are what the dictionaries are made
@@ -1179,24 +1180,29 @@ impl Linker {
         // The productions, each with what the file's statements with
         // no tag say of it.
         let mut prod_map: Vec<Option<usize>> = Vec::new();
-        for prod in &m.gramprods {
+        for prod in &m.grammar_rules {
             let Some(sym) = obj_index(prod.sym) else {
                 prod_map.push(None);
                 continue;
             };
-            let index = match self.prog.gramprods.iter().position(|have| have.sym == sym) {
+            let index = match self
+                .prog
+                .grammar_rules
+                .iter()
+                .position(|have| have.sym == sym)
+            {
                 Some(index) => index,
                 None => {
-                    self.prog.gramprods.push(GramProd {
+                    self.prog.grammar_rules.push(GrammarRule {
                         sym,
                         declared: false,
                         alts: Vec::new(),
                     });
-                    self.prog.gramprods.len() - 1
+                    self.prog.grammar_rules.len() - 1
                 }
             };
-            self.prog.gramprods[index].declared |= prod.declared;
-            self.prog.gramprods[index]
+            self.prog.grammar_rules[index].declared |= prod.declared;
+            self.prog.grammar_rules[index]
                 .alts
                 .extend(prod.alts.iter().map(&alt));
             prod_map.push(Some(index));

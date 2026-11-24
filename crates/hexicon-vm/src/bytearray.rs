@@ -1,4 +1,4 @@
-//! The ByteArray intrinsic class: a fixed-size array of bytes that can
+//! The ByteArray built-in class: a fixed-size array of bytes that can
 //! change in place.
 
 use crate::error::{VmError, VmResult, code};

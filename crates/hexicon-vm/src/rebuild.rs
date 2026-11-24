@@ -471,10 +471,10 @@ impl Vm {
             Some(Object::AnonFn(items)) => Some(Object::AnonFn(
                 items.iter().map(|&v| to_const(v, &self.objects)).collect(),
             )),
-            Some(Object::LookupTable(table)) => {
+            Some(Object::Map(table)) => {
                 let mut table = table.clone();
                 table.map_values(|value| to_const(value, &self.objects));
-                Some(Object::LookupTable(table))
+                Some(Object::Map(table))
             }
             Some(Object::IndexedIter {
                 collection,
@@ -522,7 +522,7 @@ impl Vm {
         Ok(())
     }
 
-    /// The table of intrinsic classes: each by the name the image gave
+    /// The table of built-in classes: each by the name the image gave
     /// it, with the properties the image gave its methods.
     fn write_meta_table(&self, out: &mut ImageOut) {
         let mut data = Data::default();
@@ -670,7 +670,7 @@ impl Vm {
                 d.u32(*last as u32);
                 d.u32(0);
             }
-            Object::LookupTable(table) => {
+            Object::Map(table) => {
                 let (buckets, slots, first_free) = table.save_parts();
                 d.u16(buckets.len());
                 d.u16(slots.len());
@@ -685,7 +685,7 @@ impl Vm {
                 }
                 d.value(table.default_value);
             }
-            Object::LookupIter { table, slot } => {
+            Object::MapIter { table, slot } => {
                 d.value(Value::Obj(*table));
                 d.u16(*slot as usize);
                 d.u16(0);
@@ -724,7 +724,7 @@ impl Vm {
             // A temporary file has nothing to keep, and is left out.
             Object::TempFile(_) => {}
             Object::StrComp(comparator) => d.raw(&comparator.to_bytes()),
-            Object::GramProd(production) => d.raw(&production.to_bytes()),
+            Object::GrammarRule(production) => d.raw(&production.to_bytes()),
             Object::Dict(dictionary) => {
                 d.u32(dictionary.comparator.0);
                 let words: Vec<_> = dictionary.words().collect();
@@ -744,7 +744,7 @@ impl Vm {
                 d.u32(bytes.len() as u32);
                 d.raw(bytes);
             }
-            Object::BigNumber(big) => {
+            Object::Decimal(big) => {
                 // The fifth byte has the sign and the kind of number in
                 // its low bits; the reference never sets the high ones.
                 d.unspecified.push((d.bytes.len() + 4, 1));
@@ -772,7 +772,7 @@ impl Vm {
                 d.u16(desc.scope.into());
                 d.u16(desc.offset.into());
             }
-            Object::DynFunc(func) => {
+            Object::CompiledCode(func) => {
                 d.u16(func.code.len());
                 d.u16(func.obj_refs.len());
                 d.value(func.method_ctx);
@@ -782,7 +782,7 @@ impl Vm {
                     d.u16(usize::from(at));
                 }
             }
-            Object::StringBuffer(buffer) => {
+            Object::StringBuilder(buffer) => {
                 // The room, the step it grows by, the length, and the
                 // characters, each in 16 bits, as the reference keeps them.
                 d.u32(buffer.room);

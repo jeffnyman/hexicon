@@ -173,7 +173,7 @@ impl Vm {
                     Value::Obj(inner) => id = *inner,
                     _ => return None,
                 },
-                Object::DynFunc(func) => return Some(func.addr),
+                Object::CompiledCode(func) => return Some(func.addr),
                 _ => return None,
             }
         }

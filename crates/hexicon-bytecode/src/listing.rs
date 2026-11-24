@@ -218,7 +218,7 @@ fn value_label(image: &Image, names: &Names, value: Value) -> String {
         Value::CodeOffset(address) | Value::FunctionPointer(address) => {
             names.function_label(address)
         }
-        Value::IntrinsicFunction { set, index } => {
+        Value::BuiltinFunction { set, index } => {
             format!("{} #{index}", function_set_label(image, set))
         }
         Value::Other { type_code, .. } => format!("type {type_code}"),

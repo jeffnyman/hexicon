@@ -1,4 +1,4 @@
-//! The File, FileName, and TemporaryFile intrinsic classes.
+//! The File, FileName, and TemporaryFile built-in classes.
 //!
 //! A file name is text in one syntax on every host: parts separated by
 //! `/`, with `.` for a folder itself and `..` for the one above it. The
@@ -447,7 +447,7 @@ impl Vm {
                     }
                     return Ok(target);
                 }
-                Some(Object::BigNumber(_)) => {
+                Some(Object::Decimal(_)) => {
                     let special = self.cast_to_int(spec)?;
                     target.name = self.special_file_path(special)?;
                     target.special = true;
@@ -879,7 +879,7 @@ impl Vm {
                     .read_exact(2)
                     .map(|prec| usize::from(u16::from_le_bytes([prec[0], prec[1]])))
                     .and_then(|prec| open.read_exact(5 + prec.div_ceil(2)))
-                    .and_then(|data| crate::bignum::Big::from_bytes(&data));
+                    .and_then(|data| crate::decimal::Big::from_bytes(&data));
                 number.map(|number| self.new_big(number))
             }
             TAG_BYTEARRAY => {
@@ -938,7 +938,7 @@ impl Vm {
                 string(&mut out, &text);
             }
             Value::Obj(object) => match self.objects.get(object) {
-                Some(Object::BigNumber(big)) => {
+                Some(Object::Decimal(big)) => {
                     out.push(TAG_BIGNUM);
                     out.extend_from_slice(&(big.prec() as u16).to_le_bytes());
                     out.extend_from_slice(&big.to_bytes());
@@ -1467,7 +1467,7 @@ impl Vm {
                 let size = match i32::try_from(info.size) {
                     Ok(size) => Value::Int(size),
                     Err(_) => {
-                        let size = crate::bignum::Big::from_u64(info.size, 20);
+                        let size = crate::decimal::Big::from_u64(info.size, 20);
                         self.new_big(size)
                     }
                 };

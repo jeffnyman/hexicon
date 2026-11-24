@@ -2,7 +2,7 @@
 //! T3 VM's program images are.
 //!
 //! An image file holds a compiled program: its byte code, constant data,
-//! static objects, and the lists of intrinsic classes and functions it
+//! static objects, and the lists of built-in classes and functions it
 //! depends on. This crate parses a file into an [`Image`] and checks its
 //! structure. It does not interpret object data or byte code.
 //!
@@ -44,9 +44,9 @@ pub struct Image {
     pub code_pool: Pool,
     /// The constant data pool.
     pub constant_pool: Pool,
-    /// Intrinsic classes the program depends on, indexed as the program refers to them.
+    /// Built-in classes the program depends on, indexed as the program refers to them.
     pub metaclasses: Vec<MetaclassDependency>,
-    /// Intrinsic function sets the program depends on, indexed as the program refers to them.
+    /// Built-in function sets the program depends on, indexed as the program refers to them.
     pub function_sets: Vec<String>,
     /// Static object blocks, in file order.
     pub object_blocks: Vec<ObjectBlock>,
@@ -162,7 +162,7 @@ impl Pool {
     }
 }
 
-/// An intrinsic class the program depends on.
+/// A built-in class the program depends on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetaclassDependency {
     /// The class identifier with its version, such as `hexicon-object/030005`.
@@ -186,7 +186,7 @@ impl MetaclassDependency {
     }
 }
 
-/// A block of static objects that share one intrinsic class.
+/// A block of static objects that share one built-in class.
 #[derive(Debug, Clone)]
 pub struct ObjectBlock {
     /// Index of the objects' class in [`Image::metaclasses`].
@@ -197,7 +197,7 @@ pub struct ObjectBlock {
     pub objects: Vec<StaticObject>,
 }
 
-/// A static object: an ID and data for its intrinsic class to interpret.
+/// A static object: an ID and data for its built-in class to interpret.
 #[derive(Debug, Clone)]
 pub struct StaticObject {
     /// The object ID assigned by the compiler.
@@ -233,8 +233,8 @@ pub enum Value {
     Empty,
     /// An enumerator.
     Enum(u32),
-    /// An intrinsic function.
-    IntrinsicFunction {
+    /// A built-in function.
+    BuiltinFunction {
         /// Index into [`Image::function_sets`].
         set: u16,
         /// Index of the function within its set.
@@ -272,7 +272,7 @@ impl Value {
             12 => Self::FunctionPointer(word),
             13 => Self::Empty,
             15 => Self::Enum(word),
-            16 | 18 => Self::IntrinsicFunction {
+            16 | 18 => Self::BuiltinFunction {
                 set: high,
                 index: low,
             },
@@ -403,8 +403,8 @@ pub enum GlobalSymbolKind {
         /// Whether the property is a dictionary property.
         dictionary: bool,
     },
-    /// An intrinsic function.
-    IntrinsicFunction {
+    /// A built-in function.
+    BuiltinFunction {
         /// Index of the function within its set.
         index: u16,
         /// Index into [`Image::function_sets`].
@@ -418,8 +418,8 @@ pub enum GlobalSymbolKind {
         /// Whether the function accepts an unlimited number of arguments.
         varargs: bool,
     },
-    /// An intrinsic class.
-    IntrinsicClass {
+    /// A built-in class.
+    BuiltinClass {
         /// Index into [`Image::metaclasses`].
         metaclass_index: u16,
         /// The object that represents the class.
@@ -964,7 +964,7 @@ fn global_symbol_kind(type_code: u16, extra: &[u8]) -> GlobalSymbolKind {
             id: u16_at(0),
             dictionary: byte(2) & 0x01 != 0,
         },
-        6 => GlobalSymbolKind::IntrinsicFunction {
+        6 => GlobalSymbolKind::BuiltinFunction {
             index: u16_at(0),
             set: u16_at(2),
             has_return: byte(4) != 0,
@@ -972,7 +972,7 @@ fn global_symbol_kind(type_code: u16, extra: &[u8]) -> GlobalSymbolKind {
             max_argc: u16_at(7),
             varargs: byte(9) != 0,
         },
-        9 => GlobalSymbolKind::IntrinsicClass {
+        9 => GlobalSymbolKind::BuiltinClass {
             metaclass_index: u16_at(0),
             class_object: u32_at(2),
         },

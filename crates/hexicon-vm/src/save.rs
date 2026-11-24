@@ -8,7 +8,7 @@
 //!
 //! The layout: a signature; the size and checksum of everything after
 //! them; the image's timestamp and file name, which tie the state to the
-//! program; descriptive text the program supplied; the table of intrinsic
+//! program; descriptive text the program supplied; the table of built-in
 //! classes; the IDs of the objects the program created; each saved
 //! object's data; and the objects and properties the VM itself added to
 //! the program's symbols.
@@ -18,11 +18,11 @@ use std::rc::Rc;
 
 use hexicon_host::FileError;
 
-use crate::bignum::Big;
+use crate::decimal::Big;
 use crate::error::{VmError, VmResult, code};
-use crate::lookup::LookupTable;
+use crate::map::Map;
 use crate::meta::MetaKind;
-use crate::object::{IntrinsicClass, Object};
+use crate::object::{BuiltinClass, Object};
 use crate::program_object::ProgramObject;
 use crate::value::{ObjId, PropId, Value};
 use crate::vm::Vm;
@@ -181,11 +181,11 @@ impl Vm {
             Some(
                 Object::Vector(_)
                 | Object::AnonFn(_)
-                | Object::LookupTable(_)
-                | Object::StringBuffer(_)
+                | Object::Map(_)
+                | Object::StringBuilder(_)
                 | Object::ByteArray(_)
                 | Object::IndexedIter { .. }
-                | Object::LookupIter { .. },
+                | Object::MapIter { .. },
             ) => true,
             Some(Object::Dict(dictionary)) => dictionary.modified,
             Some(Object::Class(_)) => self.objects.was_changed(id),
@@ -249,15 +249,15 @@ impl Vm {
                 w.u32(*last as u32);
                 w.u32(0);
             }
-            Object::LookupTable(table) => {
+            Object::Map(table) => {
                 let (buckets, slots, first_free) = table.save_parts();
                 w.u16(buckets.len());
                 w.u16(slots.len());
                 w.u16(first_free);
                 let kind = if table.weak {
-                    MetaKind::WeakRefLookupTable
+                    MetaKind::WeakMap
                 } else {
-                    MetaKind::LookupTable
+                    MetaKind::Map
                 };
                 if self.table_has_default(kind) {
                     w.value(table.default_value);
@@ -271,7 +271,7 @@ impl Vm {
                     w.u16(next);
                 }
             }
-            Object::LookupIter { table, slot } => {
+            Object::MapIter { table, slot } => {
                 w.value(Value::Obj(*table));
                 w.u16(*slot as usize);
                 w.u16(0);
@@ -304,7 +304,7 @@ impl Vm {
             Object::StrComp(comparator) => w.bytes(&comparator.to_bytes()),
             // A production from the image is never saved, so one that is
             // being saved is one the program made.
-            Object::GramProd(production) => w.bytes(&production.to_bytes()),
+            Object::GrammarRule(production) => w.bytes(&production.to_bytes()),
             Object::Dict(dictionary) => {
                 // The comparator, then each word with its entries for
                 // objects that are saved too.
@@ -339,7 +339,7 @@ impl Vm {
                 w.u32(bytes.len() as u32);
                 w.bytes(bytes);
             }
-            Object::BigNumber(big) => w.bytes(&big.to_bytes()),
+            Object::Decimal(big) => w.bytes(&big.to_bytes()),
             // The number of locals and of arguments, the function, the
             // method context, what was called, and the variables, taken
             // from the stack while the call runs.
@@ -362,7 +362,7 @@ impl Vm {
                 w.u16(desc.scope.into());
                 w.u16(desc.offset.into());
             }
-            Object::DynFunc(func) => {
+            Object::CompiledCode(func) => {
                 w.u16(func.code.len());
                 w.u16(func.obj_refs.len());
                 w.value(func.method_ctx);
@@ -372,7 +372,7 @@ impl Vm {
                     w.u16(usize::from(at));
                 }
             }
-            Object::StringBuffer(buffer) => {
+            Object::StringBuilder(buffer) => {
                 // The space allocated, the amount to grow by, the length,
                 // and the text in UTF-16.
                 w.u32(buffer.room);
@@ -421,7 +421,7 @@ impl Vm {
         match metadata {
             Value::Obj(id) => {
                 let entries = match self.objects.get(id) {
-                    Some(Object::LookupTable(table)) => table.entries(),
+                    Some(Object::Map(table)) => table.entries(),
                     _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
                 };
                 let at = w.out.len();
@@ -461,7 +461,7 @@ impl Vm {
             }
         }
 
-        // The intrinsic classes, as the image numbers them.
+        // The built-in classes, as the image numbers them.
         w.u16(self.meta.len());
         for index in 0..self.meta.len() {
             let Some(entry) = self.meta.get(index) else {
@@ -585,7 +585,7 @@ impl Vm {
                 }
                 Object::List(items.into())
             }
-            MetaKind::Vector | MetaKind::AnonFuncPtr => {
+            MetaKind::Vector | MetaKind::Function => {
                 let _allocated = r.u16()?;
                 let count = r.u16()?;
                 let mut items = Vec::with_capacity(count);
@@ -611,7 +611,7 @@ impl Vm {
                     last,
                 }
             }
-            MetaKind::LookupTable | MetaKind::WeakRefLookupTable => {
+            MetaKind::Map | MetaKind::WeakMap => {
                 let bucket_count = r.u16()?;
                 let slot_count = r.u16()?;
                 let first_free = r.u16()?;
@@ -630,19 +630,19 @@ impl Vm {
                     let value = fixups.read_value(r)?;
                     slots.push((key, value, r.u16()?));
                 }
-                Object::LookupTable(Box::new(LookupTable::from_parts(
+                Object::Map(Box::new(Map::from_parts(
                     buckets,
                     slots,
                     first_free,
                     default_value,
-                    kind == MetaKind::WeakRefLookupTable,
+                    kind == MetaKind::WeakMap,
                 )))
             }
-            MetaKind::LookupTableIterator => {
+            MetaKind::MapIterator => {
                 let table = fixups.read_value(r)?;
                 let slot = r.u16()? as u32;
                 r.u16()?;
-                Object::LookupIter {
+                Object::MapIter {
                     table: table.as_obj().unwrap_or(ObjId::INVALID),
                     slot,
                 }
@@ -680,13 +680,13 @@ impl Vm {
                     from_ui: 0,
                 }))
             }
-            MetaKind::GrammarProduction => {
+            MetaKind::GrammarRule => {
                 let (mut production, used) =
-                    crate::gram::GramProd::from_bytes(&r.data[r.pos..]).ok_or_else(bad)?;
+                    crate::gram::GrammarRule::from_bytes(&r.data[r.pos..]).ok_or_else(bad)?;
                 r.bytes(used)?;
                 production.fix_ids(&|id| fixups.id(id));
                 production.modified = true;
-                Object::GramProd(Box::new(production))
+                Object::GrammarRule(Box::new(production))
             }
             MetaKind::StringComparator => {
                 let (comparator, used) =
@@ -720,13 +720,13 @@ impl Vm {
                 let len = r.u32()? as usize;
                 Object::ByteArray(r.bytes(len)?.to_vec())
             }
-            MetaKind::BigNumber => {
+            MetaKind::Decimal => {
                 // The length depends on the precision, which comes first.
                 let start = r.pos;
                 let prec = r.u16()?;
                 r.pos = start;
                 let data = r.bytes(5 + prec.div_ceil(2))?;
-                Object::BigNumber(Box::new(Big::from_bytes(data).ok_or_else(bad)?))
+                Object::Decimal(Box::new(Big::from_bytes(data).ok_or_else(bad)?))
             }
             MetaKind::StackFrameRef => {
                 let len = crate::frameref::FrameRef::data_len(&r.data[r.pos..]).ok_or_else(bad)?;
@@ -751,18 +751,19 @@ impl Vm {
                 }
                 Object::FrameRef(Box::new(fref))
             }
-            MetaKind::StackFrameDesc => {
+            MetaKind::StackFrame => {
                 let mut desc = crate::frameref::FrameDesc::read(r.bytes(8)?).ok_or_else(bad)?;
                 desc.fref = fixups.id(desc.fref);
                 Object::FrameDesc(desc)
             }
-            MetaKind::DynamicFunc => {
+            MetaKind::CompiledCode => {
                 // The objects its code refers to have their numbers in
                 // this run, as any reference to an object does.
-                let len = crate::dynfunc::DynFunc::data_len(&r.data[r.pos..]).ok_or_else(bad)?;
+                let len = crate::compiled_code::CompiledCode::data_len(&r.data[r.pos..])
+                    .ok_or_else(bad)?;
                 let data = r.bytes(len)?;
                 let mut failed = false;
-                let mut func = crate::dynfunc::DynFunc::read(data, &mut |holder| {
+                let mut func = crate::compiled_code::CompiledCode::read(data, &mut |holder| {
                     let mut reader = Reader {
                         data: holder,
                         pos: 0,
@@ -785,12 +786,12 @@ impl Vm {
                     bytes.copy_from_slice(&fixups.id(old).0.to_le_bytes());
                 }
                 func.code = code.into();
-                Object::DynFunc(Box::new(func))
+                Object::CompiledCode(Box::new(func))
             }
-            MetaKind::StringBuffer => {
+            MetaKind::StringBuilder => {
                 // A saved game's sizes are taken as they are.
                 let room = r.u32()?;
-                let mut buffer = crate::object::StrBuf::new(room, r.u32()?);
+                let mut buffer = crate::object::StringBuilder::new(room, r.u32()?);
                 let len = r.u32()?.min(room) as usize;
                 for _ in 0..len {
                     let unit = r.u16()? as u32;
@@ -798,13 +799,13 @@ impl Vm {
                         .chars
                         .push(char::from_u32(unit).unwrap_or('\u{fffd}'));
                 }
-                Object::StringBuffer(buffer)
+                Object::StringBuilder(buffer)
             }
-            MetaKind::RexPattern => Object::Pattern {
+            MetaKind::Regex => Object::Pattern {
                 source: fixups.read_value(r)?,
                 compiled: None,
             },
-            MetaKind::IntrinsicClass => {
+            MetaKind::BuiltinClass => {
                 let len = r.u16()?;
                 let expected = 2 + 2 + 4 + Value::HOLDER_SIZE;
                 let meta_index = r.u16()? as u16;
@@ -817,7 +818,7 @@ impl Vm {
                 if len > expected {
                     r.bytes(len - expected)?;
                 }
-                Object::Class(IntrinsicClass {
+                Object::Class(BuiltinClass {
                     meta_index,
                     modifier,
                     class_state,
@@ -838,7 +839,7 @@ impl Vm {
     fn reset_to_image(&mut self) {
         self.objects.drop_undo();
         self.objects.reset_to_image();
-        // The intrinsic class objects the image defines are the ones in
+        // The built-in class objects the image defines are the ones in
         // force again.
         for index in 0..self.meta.len() {
             if let Some(entry) = self.meta.get_mut(index) {
@@ -884,7 +885,7 @@ impl Vm {
         r.counted()?;
         r.counted()?;
 
-        // The intrinsic class table. The state is for this image, so the
+        // The built-in class table. The state is for this image, so the
         // classes are the ones already here, but the state numbers them
         // its own way, and can have some the image does not list.
         let class_count = r.u16()?;
@@ -983,7 +984,7 @@ impl Vm {
                     *slot = object;
                 }
                 // A vector has the room the saved state says.
-                if matches!(kind, MetaKind::Vector | MetaKind::AnonFuncPtr) {
+                if matches!(kind, MetaKind::Vector | MetaKind::Function) {
                     if let Some(room) = data_room {
                         let room = room.max(self.objects.vector_alloc(id));
                         self.objects.set_vector_alloc(id, room);

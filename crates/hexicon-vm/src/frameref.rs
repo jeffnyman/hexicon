@@ -1,15 +1,15 @@
-//! References to stack frames: `StackFrameDesc`, which the program sees,
+//! References to stack frames: `StackFrame`, which the program sees,
 //! and `StackFrameRef`, which it refers to.
 //!
 //! A `StackFrameRef` stands for one call of a function. While the call
 //! runs, its variables are read and written on the stack; when the call
 //! returns, they are copied into the object, which keeps them from then
 //! on. A frame has one at most, made when a stack trace first asks for
-//! it. A `StackFrameDesc` is a place in that call: the scope of the code
+//! it. A `StackFrame` is a place in that call: the scope of the code
 //! there, which says which variables have which names.
 
 use crate::error::{VmError, VmResult, code};
-use crate::lookup::LookupTable;
+use crate::map::Map;
 use crate::object::Object;
 use crate::value::{INVALID_PROP, NativeDesc, ObjId, PropId, Value};
 use crate::vm::Vm;
@@ -20,7 +20,7 @@ pub(crate) struct FrameRef {
     /// The frame of the call, by its place on the frame stack, while it
     /// runs.
     pub frame: Option<usize>,
-    /// The function: a function pointer, or the DynamicFunc for code
+    /// The function: a function pointer, or the CompiledCode for code
     /// compiled while the program runs.
     pub entry: Value,
     /// How many local variables the function has.
@@ -155,12 +155,12 @@ impl FrameDesc {
 
 impl Vm {
     /// The address of a function's code from a value that calls it: a
-    /// function pointer, or a DynamicFunc.
+    /// function pointer, or a CompiledCode.
     pub(crate) fn entry_address(&self, entry: Value) -> Option<u32> {
         match entry {
             Value::FuncPtr(addr) | Value::CodeOfs(addr) => Some(addr),
             Value::Obj(id) => match self.objects.get(id) {
-                Some(Object::DynFunc(func)) => Some(func.addr),
+                Some(Object::CompiledCode(func)) => Some(func.addr),
                 _ => None,
             },
             _ => None,
@@ -169,13 +169,13 @@ impl Vm {
 
     /// The value that stands for the function whose code is at an
     /// address: a function pointer, or for code compiled while the
-    /// program runs, its DynamicFunc.
+    /// program runs, its CompiledCode.
     pub(crate) fn function_value(&self, addr: u32) -> Value {
         if (addr as usize) < self.image_code_len {
             return Value::FuncPtr(addr);
         }
         let owner = self.objects.ids().find(
-            |&id| matches!(self.objects.get(id), Some(Object::DynFunc(func)) if func.addr == addr),
+            |&id| matches!(self.objects.get(id), Some(Object::CompiledCode(func)) if func.addr == addr),
         );
         owner.map_or(Value::Nil, Value::Obj)
     }
@@ -355,7 +355,7 @@ impl Vm {
     }
 
     /// The `FrameDesc` of an object.
-    pub(crate) fn frame_desc(&self, id: ObjId) -> Option<FrameDesc> {
+    pub(crate) fn stack_frame(&self, id: ObjId) -> Option<FrameDesc> {
         match self.objects.get(id) {
             Some(Object::FrameDesc(desc)) => Some(*desc),
             _ => None,
@@ -363,7 +363,7 @@ impl Vm {
     }
 
     /// The variables in scope at a place in a call, innermost first.
-    pub(crate) fn frame_desc_syms(&self, desc: FrameDesc) -> Vec<LocalSym> {
+    pub(crate) fn stack_frame_syms(&self, desc: FrameDesc) -> Vec<LocalSym> {
         let entry = match self.objects.get(desc.fref) {
             Some(Object::FrameRef(fref)) => fref.entry,
             _ => return Vec::new(),
@@ -375,41 +375,41 @@ impl Vm {
     }
 
     /// Find a variable by name at a place in a call.
-    pub(crate) fn frame_desc_find(&self, desc: FrameDesc, name: &[u8]) -> Option<LocalSym> {
+    pub(crate) fn stack_frame_find(&self, desc: FrameDesc, name: &[u8]) -> Option<LocalSym> {
         if desc.scope == 0 {
             return None;
         }
-        self.frame_desc_syms(desc)
+        self.stack_frame_syms(desc)
             .into_iter()
             .find(|sym| sym.name == name)
     }
 
     /// `desc[name]`: the value of a variable by name.
-    pub(crate) fn frame_desc_index(&mut self, id: ObjId, index: Value) -> VmResult<Value> {
-        let sym = self.frame_desc_lookup(id, index)?;
-        let desc = self.frame_desc(id).expect("a frame descriptor");
+    pub(crate) fn stack_frame_index(&mut self, id: ObjId, index: Value) -> VmResult<Value> {
+        let sym = self.stack_frame_lookup(id, index)?;
+        let desc = self.stack_frame(id).expect("a frame descriptor");
         self.frame_sym_value(desc.fref, &sym)
     }
 
     /// `desc[name] = value`.
-    pub(crate) fn frame_desc_set_index(
+    pub(crate) fn stack_frame_set_index(
         &mut self,
         id: ObjId,
         index: Value,
         value: Value,
     ) -> VmResult<Value> {
-        let sym = self.frame_desc_lookup(id, index)?;
-        let desc = self.frame_desc(id).expect("a frame descriptor");
+        let sym = self.stack_frame_lookup(id, index)?;
+        let desc = self.stack_frame(id).expect("a frame descriptor");
         self.set_frame_sym_value(desc.fref, &sym, value)?;
         Ok(Value::Obj(id))
     }
 
-    fn frame_desc_lookup(&self, id: ObjId, index: Value) -> VmResult<LocalSym> {
-        let desc = self.frame_desc(id).expect("a frame descriptor");
+    fn stack_frame_lookup(&self, id: ObjId, index: Value) -> VmResult<LocalSym> {
+        let desc = self.stack_frame(id).expect("a frame descriptor");
         let Some(name) = self.as_str(index) else {
             return Err(VmError::new(code::INDEX_OUT_OF_RANGE));
         };
-        self.frame_desc_find(desc, &name)
+        self.stack_frame_find(desc, &name)
             .ok_or_else(|| VmError::new(code::INDEX_OUT_OF_RANGE))
     }
 
@@ -468,15 +468,15 @@ impl Vm {
     }
 
     /// A table of the variables in scope at a place in a call, by name.
-    fn frame_desc_vars(&mut self, id: ObjId) -> VmResult<Value> {
-        let table = self.new_table(LookupTable::new(32, 64, false));
+    fn stack_frame_vars(&mut self, id: ObjId) -> VmResult<Value> {
+        let table = self.new_table(Map::new(32, 64, false));
         let result = Value::Obj(table);
-        let desc = self.frame_desc(id).expect("a frame descriptor");
+        let desc = self.stack_frame(id).expect("a frame descriptor");
         if desc.scope == 0 {
             return Ok(result);
         }
         self.push(result);
-        let syms = self.frame_desc_syms(desc);
+        let syms = self.stack_frame_syms(desc);
         let filled = (|| {
             for sym in &syms {
                 let key = match sym.pool {
@@ -497,8 +497,8 @@ impl Vm {
         filled.map(|()| result)
     }
 
-    /// Evaluate a method of a `StackFrameDesc`.
-    pub(crate) fn frame_desc_method(
+    /// Evaluate a method of a `StackFrame`.
+    pub(crate) fn stack_frame_method(
         &mut self,
         id: ObjId,
         index: u16,
@@ -508,13 +508,13 @@ impl Vm {
             return Ok(None);
         };
         self.native_method(argc, desc, |vm, _| {
-            let fref = vm.frame_desc(id).expect("a frame descriptor").fref;
+            let fref = vm.stack_frame(id).expect("a frame descriptor").fref;
             Ok(match index {
                 1 => Value::logical(matches!(
                     vm.objects.get(fref),
                     Some(Object::FrameRef(f)) if f.frame.is_some()
                 )),
-                2 => vm.frame_desc_vars(id)?,
+                2 => vm.stack_frame_vars(id)?,
                 3 => vm.frame_ref_self(fref),
                 4 => Value::obj_or_nil(vm.frame_ref_context(fref).3),
                 5 => Value::obj_or_nil(vm.frame_ref_context(fref).2),

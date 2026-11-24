@@ -1,5 +1,5 @@
 [package]
-name = "hexicon-bignum"
+name = "hexicon-decimal"
 description = "Decimal floating-point arithmetic for Hexicon's BigNumber values"
 version.workspace = true
 edition.workspace = true

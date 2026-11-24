@@ -79,7 +79,7 @@ pub(crate) fn collect(prog: &Program) -> NameUses {
     }
     // What a grammar rule matches is kept in the properties its tokens
     // name (`-> prop`). A rule with a tag keeps its ways with its object.
-    let alts = prog.gramprods.iter().flat_map(|prod| &prod.alts).chain(
+    let alts = prog.grammar_rules.iter().flat_map(|prod| &prod.alts).chain(
         prog.objs
             .iter()
             .filter_map(|obj| obj.gram.as_ref())

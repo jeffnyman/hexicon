@@ -1,6 +1,6 @@
 //! The `sprintf` function: text built from a format string and values.
 
-use crate::bignum::{self, Big};
+use crate::decimal::{self, Big};
 use crate::error::{VmError, VmResult, code};
 use crate::value::Value;
 use crate::vm::Vm;
@@ -344,7 +344,7 @@ impl Vm {
     ) -> VmResult<()> {
         let digits = match self.cast_to_num(value)? {
             Value::Int(n) => crate::bif::int_to_radix(n, radix, !unsigned),
-            // A BigNumber is rounded to a whole number.
+            // A Decimal is rounded to a whole number.
             number => match self.as_big(number) {
                 Some(big) => big.to_radix_text(radix),
                 None => return Err(VmError::new(code::NO_NUM_CONV)),
@@ -367,29 +367,29 @@ impl Vm {
             6
         };
         let mut max_digits = -1;
-        let mut flags = bignum::FORMAT_LEADING_ZERO;
+        let mut flags = decimal::FORMAT_LEADING_ZERO;
         match options.sign {
-            Some('+') => flags |= bignum::FORMAT_SIGN,
-            Some(' ') => flags |= bignum::FORMAT_POS_SPACE,
+            Some('+') => flags |= decimal::FORMAT_SIGN,
+            Some(' ') => flags |= decimal::FORMAT_POS_SPACE,
             _ => {}
         }
         let general = spec == b'g' || spec == b'G';
         if options.pound {
-            flags |= bignum::FORMAT_POINT;
+            flags |= decimal::FORMAT_POINT;
             if general {
-                flags |= bignum::FORMAT_TRAILING_ZEROS;
+                flags |= decimal::FORMAT_TRAILING_ZEROS;
             }
         }
         if spec == b'E' || spec == b'G' {
-            flags |= bignum::FORMAT_EXP_CAP;
+            flags |= decimal::FORMAT_EXP_CAP;
         }
         if spec == b'e' || spec == b'E' {
-            flags |= bignum::FORMAT_EXP | bignum::FORMAT_EXP_SIGN;
+            flags |= decimal::FORMAT_EXP | decimal::FORMAT_EXP_SIGN;
         }
         if general {
             // The precision counts significant digits, and the shorter
             // of the plain and scientific forms is used.
-            flags |= bignum::FORMAT_COMPACT | bignum::FORMAT_EXP_SIGN | bignum::FORMAT_MAXSIG;
+            flags |= decimal::FORMAT_COMPACT | decimal::FORMAT_EXP_SIGN | decimal::FORMAT_MAXSIG;
             max_digits = frac_digits;
             frac_digits = -1;
         }

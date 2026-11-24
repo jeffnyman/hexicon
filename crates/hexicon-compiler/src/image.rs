@@ -373,13 +373,13 @@ pub(crate) fn write_image(
         });
         index as u16
     };
-    let bignum_meta = meta_for(b"bignumber", !generated.bignums.is_empty());
-    let rexpat_meta = meta_for(b"regex-pattern", !generated.rexpats.is_empty());
-    let is_intrinsic_class = |name: &[u8]| {
+    let decimal_meta = meta_for(b"bignumber", !generated.decimals.is_empty());
+    let regex_meta = meta_for(b"regex-pattern", !generated.regexes.is_empty());
+    let is_builtin_class = |name: &[u8]| {
         name.strip_prefix(INTRINSIC_CLASS)
             .is_some_and(|rest| rest.first() == Some(&b'/'))
     };
-    let intrinsic_class = match metas.iter().position(|(name, ..)| is_intrinsic_class(name)) {
+    let builtin_class = match metas.iter().position(|(name, ..)| is_builtin_class(name)) {
         Some(index) => index,
         None => {
             metas.push((b"intrinsic-class/000000".to_vec(), Vec::new(), None));
@@ -557,12 +557,12 @@ pub(crate) fn write_image(
     }
 
     // The grammar productions, in a block like the dictionaries'.
-    if !generated.gramprods.is_empty() {
+    if !generated.grammar_rules.is_empty() {
         let mut objs = Vec::new();
-        objs.extend_from_slice(&(generated.gramprods.len() as u16).to_le_bytes());
+        objs.extend_from_slice(&(generated.grammar_rules.len() as u16).to_le_bytes());
         objs.extend_from_slice(&3u16.to_le_bytes());
         objs.extend_from_slice(&1u16.to_le_bytes());
-        for (id, data) in &generated.gramprods {
+        for (id, data) in &generated.grammar_rules {
             objs.extend_from_slice(&id.to_le_bytes());
             objs.extend_from_slice(&(data.len() as u32).to_le_bytes());
             objs.extend_from_slice(data);
@@ -574,8 +574,8 @@ pub(crate) fn write_image(
     // not integers, and then the regular expressions. Each is its
     // number, the length of its data, and the data, and a block holds
     // no more than 64,000 bytes of them.
-    let rexpats: Vec<(u32, Vec<u8>)> = generated
-        .rexpats
+    let regexes: Vec<(u32, Vec<u8>)> = generated
+        .regexes
         .iter()
         .map(|(id, target)| {
             let addr = match target {
@@ -588,7 +588,7 @@ pub(crate) fn write_image(
             (*id, data)
         })
         .collect();
-    for (metaclass, items) in [(bignum_meta, &generated.bignums), (rexpat_meta, &rexpats)] {
+    for (metaclass, items) in [(decimal_meta, &generated.decimals), (regex_meta, &regexes)] {
         let mut rest = &items[..];
         while !rest.is_empty() {
             let mut size = 0;
@@ -607,7 +607,7 @@ pub(crate) fn write_image(
             for (id, data) in &rest[..count] {
                 objs.extend_from_slice(&id.to_le_bytes());
                 objs.extend_from_slice(&(data.len() as u16).to_le_bytes());
-                if metaclass == bignum_meta && !generated.bignums.is_empty() {
+                if metaclass == decimal_meta && !generated.decimals.is_empty() {
                     // A number's fifth byte has its sign and its kind
                     // in the low bits. The reference never sets the
                     // high ones, which are as its memory had them.
@@ -631,7 +631,7 @@ pub(crate) fn write_image(
     if !class_objs.is_empty() {
         let mut objs = Vec::new();
         objs.extend_from_slice(&(class_objs.len() as u16).to_le_bytes());
-        objs.extend_from_slice(&(intrinsic_class as u16).to_le_bytes());
+        objs.extend_from_slice(&(builtin_class as u16).to_le_bytes());
         objs.extend_from_slice(&0u16.to_le_bytes());
         for (obj, meta) in class_objs {
             objs.extend_from_slice(&obj.to_le_bytes());

@@ -47,7 +47,7 @@ impl Vm {
         roots.extend(self.symbol_table.map(Value::Obj));
         roots.extend(self.macro_table.map(Value::Obj));
         roots.extend(self.predef.objects().into_iter().map(Value::Obj));
-        // The objects that stand for the intrinsic classes.
+        // The objects that stand for the built-in classes.
         for index in 0..self.meta.len() {
             if let Some(entry) = self.meta.get(index) {
                 roots.push(Value::Obj(entry.class_obj));

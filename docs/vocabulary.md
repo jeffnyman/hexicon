@@ -48,7 +48,7 @@ Kept: "metaclass" in the messages about a damaged image file, and in `hexicon du
 
 Done (2026-11-24), in the system library, Hexad, the test programs, the guide, and the game tests. The headers that declare them are renamed with them: `map.h`, `decimal.h`, `stringbuilder.h`, `compiledcode.h` (and `.hxn`), and `grammarrule.h` (and `.hxn`). So are the names the VM finds in an image's exports (`GrammarRule.tokenList`, `CompiledCode.CompilerException`), and `BigNumber`'s formatting flags (`DecimalPoint`, `DecimalExp`, and the rest). The `[key -> value]` list makes a `Map`, and its messages say "a [key -> value] list".
 
-The identifiers in the image (`'lookuptable/030003'`, `'bignumber/030001'`) are unchanged, as is the VM's own Rust code, whose type names are its own business. A program's properties can be numbered differently after a rename, since the compiler numbers some of them in the order of their names; what a program does is the same.
+The identifiers in the image (`'lookuptable/030003'`, `'bignumber/030001'`) are unchanged; they are part of the image format. The compiler's and the VM's own Rust code followed later the same day: its types, modules, and comments use these names and "built-in" too (`Object::Map`, `map.rs`, `decimal_obj.rs`, `string_builder.rs`, `compiled_code.rs`), and the decimal arithmetic crate is `hexicon-decimal`. A program's properties can be numbered differently after a rename, since the compiler numbers some of them in the order of their names; what a program does is the same.
 
 | Was | Now | Uses | Notes | Status |
 |---|---|---|---|---|

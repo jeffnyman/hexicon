@@ -14,7 +14,7 @@ default = ["built-in-libraries"]
 built-in-libraries = []
 
 [dependencies]
-hexicon-bignum = { path = "../hexicon-bignum" }
+hexicon-decimal = { path = "../hexicon-decimal" }
 hexicon-bytecode = { path = "../hexicon-bytecode" }
 toml = { version = "1.2.2", default-features = false, features = ["parse", "preserve_order", "serde", "std"] }
 

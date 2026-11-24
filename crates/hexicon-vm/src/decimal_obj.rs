@@ -1,16 +1,16 @@
-//! The BigNumber intrinsic class: how the VM uses [`Big`] values.
+//! The Decimal built-in class: how the VM uses [`Big`] values.
 
 use std::cmp::Ordering;
 
-use crate::bignum::{Big, Kind};
-use crate::bignum_math::{self, Hyperbolic, MathError, Trig};
+use crate::decimal::{Big, Kind};
+use crate::decimal_math::{self, Hyperbolic, MathError, Trig};
 use crate::error::{VmError, VmResult, code};
 use crate::object::Object;
 use crate::value::{NativeDesc, ObjId, Value};
 use crate::vm::Vm;
 
 /// The precision an integer gets when arithmetic mixes it with a
-/// BigNumber on the right.
+/// Decimal on the right.
 const INT_PREC: usize = 32;
 
 /// The name and calling interface of each method, by method number.
@@ -75,16 +75,16 @@ pub(crate) enum Arith {
 }
 
 impl Vm {
-    /// Create a BigNumber object.
+    /// Create a Decimal object.
     pub(crate) fn new_big(&mut self, value: Big) -> Value {
-        Value::Obj(self.alloc_obj(Object::BigNumber(Box::new(value))))
+        Value::Obj(self.alloc_obj(Object::Decimal(Box::new(value))))
     }
 
-    /// The number a value holds, if it is a BigNumber object.
+    /// The number a value holds, if it is a Decimal object.
     pub(crate) fn as_big(&self, value: Value) -> Option<&Big> {
         match value {
             Value::Obj(id) => match self.objects.get(id)? {
-                Object::BigNumber(big) => Some(big),
+                Object::Decimal(big) => Some(big),
                 _ => None,
             },
             _ => None,
@@ -99,10 +99,10 @@ impl Vm {
         }
     }
 
-    /// Arithmetic with a BigNumber as the left operand. The right one
-    /// can be a BigNumber or an integer.
-    /// Note an operand of BigNumber arithmetic or comparison. The
-    /// reference VM turns an integer operand into a BigNumber object
+    /// Arithmetic with a Decimal as the left operand. The right one
+    /// can be a Decimal or an integer.
+    /// Note an operand of Decimal arithmetic or comparison. The
+    /// reference VM turns an integer operand into a Decimal object
     /// before it uses it, and a program can tell that an object was
     /// created, so one is created here too.
     pub(crate) fn big_operand(&mut self, operand: Value) {
@@ -132,7 +132,7 @@ impl Vm {
     }
 
     /// Integer arithmetic whose result does not fit in 32 bits: the
-    /// result is a BigNumber instead.
+    /// result is a Decimal instead.
     pub(crate) fn promote_int_arith(&mut self, op: Arith, a: i32, b: i32) -> VmResult<Value> {
         // Sums and quotients get ten digits, products twenty.
         let prec = if op == Arith::Mul { 20 } else { 10 };
@@ -146,7 +146,7 @@ impl Vm {
         Ok(self.new_big(result))
     }
 
-    /// The negation of a BigNumber object.
+    /// The negation of a Decimal object.
     pub(crate) fn big_neg(&mut self, id: ObjId, a: &Big) -> Value {
         if a.kind == Kind::NaN || a.zero {
             return Value::Obj(id);
@@ -156,19 +156,19 @@ impl Vm {
         self.new_big(result)
     }
 
-    /// Whether a BigNumber equals another value.
+    /// Whether a Decimal equals another value.
     pub(crate) fn big_equals(&self, a: &Big, other: Value) -> bool {
         self.to_big(other).is_some_and(|b| a.equals_exact(&b))
     }
 
-    /// Compare a BigNumber with another value.
+    /// Compare a Decimal with another value.
     pub(crate) fn big_compare(&self, a: &Big, other: Value) -> VmResult<Ordering> {
         self.to_big(other)
             .and_then(|b| a.compare(&b))
             .ok_or_else(|| VmError::new(code::INVALID_COMPARISON))
     }
 
-    /// Convert a BigNumber to an integer, rounding. A value out of range
+    /// Convert a Decimal to an integer, rounding. A value out of range
     /// is an error.
     pub(crate) fn big_to_int(a: &Big) -> VmResult<i32> {
         match a.to_i32() {
@@ -177,7 +177,7 @@ impl Vm {
         }
     }
 
-    /// Construct a BigNumber from the arguments to `new`: a value and an
+    /// Construct a Decimal from the arguments to `new`: a value and an
     /// optional precision.
     pub(crate) fn create_big(&mut self, argc: u32) -> VmResult<ObjId> {
         if !(1..=2).contains(&argc) {
@@ -210,10 +210,10 @@ impl Vm {
             _ => return Err(VmError::new(code::NUM_VAL_REQD)),
         };
         self.discard(argc as usize);
-        Ok(self.alloc_obj(Object::BigNumber(Box::new(value))))
+        Ok(self.alloc_obj(Object::Decimal(Box::new(value))))
     }
 
-    /// Call a method of the BigNumber class.
+    /// Call a method of the Decimal class.
     pub(crate) fn big_method(
         &mut self,
         id: ObjId,
@@ -230,7 +230,7 @@ impl Vm {
             .map(Some)
     }
 
-    /// The static methods of the BigNumber class: `getPi(digits)` and
+    /// The static methods of the Decimal class: `getPi(digits)` and
     /// `getE(digits)`.
     pub(crate) fn big_static_method(
         &mut self,
@@ -450,7 +450,7 @@ impl Vm {
                     18 => Trig::Cos,
                     _ => Trig::Tan,
                 };
-                let result = math(bignum_math::trig(function, &a, &mut self.big_cache))?;
+                let result = math(decimal_math::trig(function, &a, &mut self.big_cache))?;
                 self.new_big(result)
             }
             // degreesToRadians() and radiansToDegrees()
@@ -458,7 +458,7 @@ impl Vm {
                 if nan {
                     return Ok(self_value);
                 }
-                let result = math(bignum_math::convert_angle(
+                let result = math(decimal_math::convert_angle(
                     &a,
                     index == 20,
                     &mut self.big_cache,
@@ -470,7 +470,7 @@ impl Vm {
                 if nan {
                     return Ok(self_value);
                 }
-                let result = math(bignum_math::asin_acos_into(
+                let result = math(decimal_math::asin_acos_into(
                     a.prec(),
                     &a,
                     index == 23,
@@ -483,7 +483,7 @@ impl Vm {
                 if nan {
                     return Ok(self_value);
                 }
-                let result = math(bignum_math::atan(&a, &mut self.big_cache))?;
+                let result = math(decimal_math::atan(&a, &mut self.big_cache))?;
                 self.new_big(result)
             }
             // sqrt()
@@ -491,7 +491,7 @@ impl Vm {
                 if nan {
                     return Ok(self_value);
                 }
-                let result = math(bignum_math::sqrt_into(a.prec(), &a))?;
+                let result = math(decimal_math::sqrt_into(a.prec(), &a))?;
                 self.new_big(result)
             }
             // logE()
@@ -502,7 +502,7 @@ impl Vm {
                 if nan {
                     return Ok(self_value);
                 }
-                let result = math(bignum_math::ln_into(a.prec(), &a, &mut self.big_cache))?;
+                let result = math(decimal_math::ln_into(a.prec(), &a, &mut self.big_cache))?;
                 self.new_big(result)
             }
             // expE()
@@ -510,7 +510,7 @@ impl Vm {
                 if nan {
                     return Ok(self_value);
                 }
-                let result = math(bignum_math::exp_into(a.prec(), &a, &mut self.big_cache))?;
+                let result = math(decimal_math::exp_into(a.prec(), &a, &mut self.big_cache))?;
                 self.new_big(result)
             }
             // log10()
@@ -518,7 +518,7 @@ impl Vm {
                 if nan {
                     return Ok(self_value);
                 }
-                let result = math(bignum_math::log10(&a, &mut self.big_cache))?;
+                let result = math(decimal_math::log10(&a, &mut self.big_cache))?;
                 self.new_big(result)
             }
             // raiseToPower(num)
@@ -530,7 +530,7 @@ impl Vm {
                 if nan {
                     return Ok(self_value);
                 }
-                let result = math(bignum_math::pow(&a, &b, &mut self.big_cache))?;
+                let result = math(decimal_math::pow(&a, &b, &mut self.big_cache))?;
                 self.new_big(result)
             }
             // sinh(), cosh(), tanh()
@@ -543,7 +543,7 @@ impl Vm {
                     31 => Hyperbolic::Cosh,
                     _ => Hyperbolic::Tanh,
                 };
-                let result = math(bignum_math::hyperbolic(function, &a, &mut self.big_cache))?;
+                let result = math(decimal_math::hyperbolic(function, &a, &mut self.big_cache))?;
                 self.new_big(result)
             }
             // numType()

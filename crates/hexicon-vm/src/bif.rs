@@ -1,4 +1,4 @@
-//! Intrinsic function sets: the functions the VM provides to programs.
+//! Built-in function sets: the functions the VM provides to programs.
 //!
 //! Each function follows the reference VM's implementation. A function
 //! receives its arguments on
@@ -184,14 +184,14 @@ const SETSAY_NO_FUNC: i32 = 1;
 const SETSAY_NO_METHOD: i32 = 2;
 
 impl Vm {
-    /// The calling interface of an intrinsic function, or `None` if the
+    /// The calling interface of a built-in function, or `None` if the
     /// function does not exist.
     pub(crate) fn bif_desc(&self, set: u16, index: u16) -> Option<NativeDesc> {
         let table = self.function_sets.get(set as usize)?.table();
         table.get(index as usize).map(|(_, desc)| *desc)
     }
 
-    /// Call an intrinsic function with `argc` arguments on the stack.
+    /// Call a built-in function with `argc` arguments on the stack.
     pub(crate) fn call_bif(&mut self, set: u16, index: u16, argc: u32) -> VmResult<()> {
         prof_scope!(crate::prof::BIF + (u32::from(set) << 8) + u32::from(index));
         let Some(&function_set) = self.function_sets.get(set as usize) else {
@@ -531,7 +531,7 @@ impl Vm {
                 self.r0 = match self.arg(0) {
                     Value::Int(n) => Value::Int(n.wrapping_abs()),
                     other => match self.as_big(other).cloned() {
-                        Some(big) if big.neg && big.kind != crate::bignum::Kind::NaN => {
+                        Some(big) if big.neg && big.kind != crate::decimal::Kind::NaN => {
                             let mut positive = big;
                             positive.neg = false;
                             self.new_big(positive)
@@ -751,7 +751,7 @@ impl Vm {
 
     /// Parse text as a number in a radix. Unless only an integer will
     /// do, a decimal number with a fraction or an exponent, or one too
-    /// large for an integer, is a BigNumber.
+    /// large for an integer, is a Decimal.
     pub(crate) fn parse_number(
         &mut self,
         text: &[u8],
@@ -761,10 +761,10 @@ impl Vm {
         let big = |vm: &mut Vm| {
             let source = String::from_utf8_lossy(text).into_owned();
             if radix != 10 {
-                return vm.new_big(crate::bignum::Big::parse_radix(&source, radix));
+                return vm.new_big(crate::decimal::Big::parse_radix(&source, radix));
             }
-            let prec = crate::bignum::Big::precision_from_str(&source);
-            vm.new_big(crate::bignum::Big::parse(&source, prec))
+            let prec = crate::decimal::Big::precision_from_str(&source);
+            vm.new_big(crate::decimal::Big::parse(&source, prec))
         };
         if !int_only && radix == 10 {
             let source = String::from_utf8_lossy(text);
@@ -792,7 +792,7 @@ impl Vm {
     }
 
     /// Convert a value to a number, as an explicit cast does: an integer
-    /// or a BigNumber stays as it is, true and nil are 1 and 0, and text
+    /// or a Decimal stays as it is, true and nil are 1 and 0, and text
     /// is parsed.
     pub(crate) fn cast_to_num(&mut self, value: Value) -> VmResult<Value> {
         match value {

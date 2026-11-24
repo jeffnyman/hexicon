@@ -36,11 +36,11 @@ pub(crate) enum Return {
 pub(crate) struct NativeCall {
     /// A description for error messages.
     pub name: &'static str,
-    /// The intrinsic function making the call, if it is one.
+    /// The built-in function making the call, if it is one.
     pub function: Option<(u16, u16)>,
-    /// The object whose intrinsic method is making the call, or `nil`.
+    /// The object whose built-in method is making the call, or `nil`.
     pub self_value: Value,
-    /// The number of that method within its intrinsic class.
+    /// The number of that method within its built-in class.
     pub method_index: u16,
     /// The arguments the native code was called with, first argument first.
     pub args: Vec<Value>,
@@ -376,8 +376,8 @@ pub struct Vm {
     /// The tables `globalSymbols` returns, once built.
     pub(crate) symbol_table: Option<ObjId>,
     pub(crate) macro_table: Option<ObjId>,
-    /// Mathematical constants BigNumber has computed so far.
-    pub(crate) big_cache: crate::bignum_math::Cache,
+    /// Mathematical constants Decimal has computed so far.
+    pub(crate) big_cache: crate::decimal_math::Cache,
     /// The random number generator.
     pub(crate) rng: crate::rng::Rng,
     /// The image's timestamp and file name, which a saved state records
@@ -533,7 +533,7 @@ impl Vm {
         Value::Obj(self.alloc_obj(Object::List(items.into())))
     }
 
-    /// The intrinsic class an object belongs to.
+    /// The built-in class an object belongs to.
     pub(crate) fn kind_of(&self, id: ObjId) -> Option<MetaKind> {
         Some(match self.objects.get(id)? {
             Object::Program(_) => MetaKind::ProgramObject,
@@ -541,28 +541,28 @@ impl Vm {
             Object::String(_) => MetaKind::String,
             Object::List(_) => MetaKind::List,
             Object::Vector(_) => MetaKind::Vector,
-            Object::AnonFn(_) => MetaKind::AnonFuncPtr,
+            Object::AnonFn(_) => MetaKind::Function,
             Object::IndexedIter { .. } => MetaKind::IndexedIterator,
-            Object::LookupTable(table) if table.weak => MetaKind::WeakRefLookupTable,
-            Object::LookupTable(_) => MetaKind::LookupTable,
-            Object::LookupIter { .. } => MetaKind::LookupTableIterator,
-            Object::Pattern { .. } => MetaKind::RexPattern,
-            Object::StringBuffer(_) => MetaKind::StringBuffer,
-            Object::DynFunc(_) => MetaKind::DynamicFunc,
+            Object::Map(table) if table.weak => MetaKind::WeakMap,
+            Object::Map(_) => MetaKind::Map,
+            Object::MapIter { .. } => MetaKind::MapIterator,
+            Object::Pattern { .. } => MetaKind::Regex,
+            Object::StringBuilder(_) => MetaKind::StringBuilder,
+            Object::CompiledCode(_) => MetaKind::CompiledCode,
             Object::FrameRef(_) => MetaKind::StackFrameRef,
-            Object::FrameDesc(_) => MetaKind::StackFrameDesc,
-            Object::BigNumber(_) => MetaKind::BigNumber,
+            Object::FrameDesc(_) => MetaKind::StackFrame,
+            Object::Decimal(_) => MetaKind::Decimal,
             Object::ByteArray(_) => MetaKind::ByteArray,
             Object::StrComp(_) => MetaKind::StringComparator,
             Object::Dict(_) => MetaKind::Dictionary,
-            Object::GramProd(_) => MetaKind::GrammarProduction,
+            Object::GrammarRule(_) => MetaKind::GrammarRule,
             Object::CharSet { .. } => MetaKind::CharacterSet,
             Object::FileName(_) => MetaKind::FileName,
             Object::Date { .. } => MetaKind::Date,
             Object::TimeZone(_) => MetaKind::TimeZone,
             Object::File(_) => MetaKind::File,
             Object::TempFile(_) => MetaKind::TemporaryFile,
-            Object::Class(_) => MetaKind::IntrinsicClass,
+            Object::Class(_) => MetaKind::BuiltinClass,
             Object::Opaque { meta_index, .. } => self.meta.get(*meta_index as usize)?.kind,
         })
     }

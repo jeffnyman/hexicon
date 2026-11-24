@@ -1,4 +1,4 @@
-//! The string intrinsic class, the regular-expression pattern class, and
+//! The string built-in class, the regular-expression pattern class, and
 //! the searching and replacing they share with the `rex` functions.
 //!
 //! Strings are UTF-8. Positions that programs see count characters from

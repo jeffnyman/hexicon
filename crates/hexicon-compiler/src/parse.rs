@@ -204,14 +204,14 @@ pub(crate) struct ObjSym {
     /// It is a grammar production (`grammar name: ...`): an object of
     /// a class built into the virtual machine that holds the ways a
     /// phrase of its kind can be made up.
-    pub is_gramprod: bool,
+    pub is_grammar_rule: bool,
     /// The properties that `replace` before a property in a `modify`
     /// of this object takes away from what it modifies, when that is
     /// in another source file: indexes into [`Program::props`].
     pub del_props: Vec<usize>,
     /// For an object that a `grammar` statement with a tag defines, to
     /// be made when a phrase is matched: the production it is for, as
-    /// an index into [`Program::gramprods`], and its ways of making
+    /// an index into [`Program::grammar_rules`], and its ways of making
     /// the phrase up. They are the name's, and join the production's
     /// own when the program is put together.
     pub gram: Option<(Option<usize>, Vec<GramAlt>)>,
@@ -260,7 +260,7 @@ pub(crate) enum GramTokKind {
 /// statement declared it without saying how it is made up, and the
 /// ways it can be, from the statements with no tag.
 #[derive(Debug)]
-pub(crate) struct GramProd {
+pub(crate) struct GrammarRule {
     pub sym: usize,
     pub declared: bool,
     pub alts: Vec<GramAlt>,
@@ -307,7 +307,7 @@ pub(crate) struct MetaEntry {
 }
 
 /// The built-in classes every image depends on, whether it uses them
-/// or not. One more, `intrinsic-class`, is added after whatever the
+/// or not. One more, `builtin-class`, is added after whatever the
 /// program declares.
 pub(crate) const PREDEFINED_METACLASSES: [&str; 8] = [
     "hexicon-object/000000",
@@ -772,7 +772,8 @@ pub(crate) fn merge_exports(all: Vec<Exports>) -> Exports {
                     continue;
                 }
                 (Rec::Obj(new), Some(Rec::Obj(old)))
-                    if (new.is_dict && old.is_dict) || (new.is_gramprod && old.is_gramprod) =>
+                    if (new.is_dict && old.is_dict)
+                        || (new.is_grammar_rule && old.is_grammar_rule) =>
                 {
                     continue;
                 }
@@ -880,7 +881,7 @@ pub(crate) struct Program {
     /// The dictionary properties, the last declared first.
     pub dict_props: Vec<usize>,
     /// The grammar productions, in the order they were first named.
-    pub gramprods: Vec<GramProd>,
+    pub grammar_rules: Vec<GrammarRule>,
     /// The properties declared (`property name;`): indexes into
     /// [`Program::props`].
     pub declared_props: Vec<usize>,
@@ -1121,7 +1122,7 @@ impl Program {
             declared_only: false,
             ext_redef: false,
             is_dict: false,
-            is_gramprod: false,
+            is_grammar_rule: false,
             gram: None,
             del_props: Vec::new(),
         });
@@ -1768,7 +1769,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     prog.add_synthetic_obj(name.clone(), *id);
                     let obj = prog.objs.last_mut().expect("just added");
                     obj.is_dict = *kind == DynObjKind::Dictionary;
-                    obj.is_gramprod = *kind == DynObjKind::GrammarProd;
+                    obj.is_grammar_rule = *kind == DynObjKind::GrammarRule;
                     if *kind == DynObjKind::Invokable {
                         dynamic.func_objs.insert(prog.objs.len() - 1);
                     }
@@ -2063,7 +2064,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                         declared_only: true,
                         ext_redef: false,
                         is_dict: false,
-                        is_gramprod: false,
+                        is_grammar_rule: false,
                         gram: None,
                         del_props: Vec::new(),
                     });
@@ -2683,7 +2684,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     declared_only: true,
                     ext_redef: false,
                     is_dict: false,
-                    is_gramprod: false,
+                    is_grammar_rule: false,
                     gram: None,
                     del_props: Vec::new(),
                 });
@@ -4065,7 +4066,7 @@ impl Parser<'_, '_> {
                                     declared_only: false,
                                     ext_redef: false,
                                     is_dict: false,
-                                    is_gramprod: false,
+                                    is_grammar_rule: false,
                                     gram: None,
                                     del_props: Vec::new(),
                                 });
@@ -5544,7 +5545,7 @@ impl Parser<'_, '_> {
                 match value.value {
                     // The one integer whose negative is not one.
                     Value::Int(i32::MIN) => {
-                        let big = hexicon_bignum::Big::from_u64(2_147_483_648, 10);
+                        let big = hexicon_decimal::Big::from_u64(2_147_483_648, 10);
                         value.value = fold::float_value(&big, true);
                     }
                     Value::Int(int) => value.value = Value::Int(-int),
@@ -5624,7 +5625,7 @@ impl Parser<'_, '_> {
         // With `->` between a key and its value, the list is a lookup
         // table's, and every pair has to have one. `* -> value` at the
         // end is what the table gives for a key it does not have.
-        let mut is_lookup = false;
+        let mut is_map = false;
         let mut at_default = false;
         let nil = || Expr::constant(Value::Nil);
         'list: loop {
@@ -5644,13 +5645,13 @@ impl Parser<'_, '_> {
                 Tok::Times => {
                     if self.next() == Tok::Arrow {
                         self.next();
-                        if !is_lookup && !elements.is_empty() {
+                        if !is_map && !elements.is_empty() {
                             self.error(format!(
                                 "unexpected -> found in list (after {} element)",
                                 Self::ordinal(elements.len())
                             ));
                         } else {
-                            is_lookup = true;
+                            is_map = true;
                             at_default = true;
                         }
                     } else {
@@ -5674,7 +5675,7 @@ impl Parser<'_, '_> {
                 Tok::Comma => {
                     self.next();
                     // A key with no value.
-                    if is_lookup && elements.len() % 2 != 0 {
+                    if is_map && elements.len() % 2 != 0 {
                         self.error(format!(
                             "missing -> in the {} element of a [key -> value] list",
                             Self::ordinal(elements.len().div_ceil(2))
@@ -5691,8 +5692,8 @@ impl Parser<'_, '_> {
                 Tok::Arrow => {
                     self.next();
                     if elements.len() == 1 {
-                        is_lookup = true;
-                    } else if !is_lookup {
+                        is_map = true;
+                    } else if !is_map {
                         self.error(format!(
                             "unexpected -> found in list (after {} element)",
                             Self::ordinal(elements.len())
@@ -5709,7 +5710,7 @@ impl Parser<'_, '_> {
                 }
                 Tok::RBrack => {
                     self.next();
-                    if is_lookup && elements.len() % 2 != 0 && !at_default {
+                    if is_map && elements.len() % 2 != 0 && !at_default {
                         self.error(format!(
                             "missing -> in the {} element of a [key -> value] list",
                             Self::ordinal(elements.len().div_ceil(2))
@@ -5729,7 +5730,7 @@ impl Parser<'_, '_> {
         self.prog.max_list_cnt = self.prog.max_list_cnt.max(elements.len());
         // A lookup table's list is made when the program runs, even if
         // everything in it is a constant.
-        Some(if is_lookup {
+        Some(if is_map {
             Expr::Lookup(Box::new(Expr::List(elements)))
         } else {
             Expr::list(elements)
@@ -6813,7 +6814,7 @@ impl Parser<'_, '_> {
         let sym = match self.prog.globals.get(&name).copied() {
             Some(Global::Obj(obj))
                 if redef != Redef::No
-                    && (self.prog.objs[obj].is_dict || self.prog.objs[obj].is_gramprod) =>
+                    && (self.prog.objs[obj].is_dict || self.prog.objs[obj].is_grammar_rule) =>
             {
                 self.error("objects of this type cannot be modified or replaced");
                 None
@@ -6928,7 +6929,7 @@ impl Parser<'_, '_> {
                     declared_only: false,
                     ext_redef: false,
                     is_dict: false,
-                    is_gramprod: false,
+                    is_grammar_rule: false,
                     gram: None,
                     del_props: Vec::new(),
                 });
@@ -6968,7 +6969,7 @@ impl Parser<'_, '_> {
 
     /// Find the grammar production a name is, or make it one. Nothing
     /// comes back if the name is something else.
-    fn declare_gramprod(&mut self, name: &[u8]) -> Option<usize> {
+    fn declare_grammar_rule(&mut self, name: &[u8]) -> Option<usize> {
         // A rule compiled while the program runs can only name the
         // productions the program has.
         if self.prog.dynamic.is_some() {
@@ -6991,7 +6992,7 @@ impl Parser<'_, '_> {
                     declared_only: false,
                     ext_redef: false,
                     is_dict: false,
-                    is_gramprod: true,
+                    is_grammar_rule: true,
                     gram: None,
                     del_props: Vec::new(),
                 });
@@ -7000,7 +7001,7 @@ impl Parser<'_, '_> {
                 self.prog.globals.insert(name.to_vec(), Global::Obj(obj));
                 obj
             }
-            Some(Global::Obj(obj)) if self.prog.objs[obj].is_gramprod => {
+            Some(Global::Obj(obj)) if self.prog.objs[obj].is_grammar_rule => {
                 self.prog.objs[obj].is_extern = false;
                 obj
             }
@@ -7019,14 +7020,18 @@ impl Parser<'_, '_> {
                 return None;
             }
         };
-        let known = self.prog.gramprods.iter().position(|prod| prod.sym == obj);
+        let known = self
+            .prog
+            .grammar_rules
+            .iter()
+            .position(|prod| prod.sym == obj);
         Some(known.unwrap_or_else(|| {
-            self.prog.gramprods.push(GramProd {
+            self.prog.grammar_rules.push(GrammarRule {
                 sym: obj,
                 declared: false,
                 alts: Vec::new(),
             });
-            self.prog.gramprods.len() - 1
+            self.prog.grammar_rules.len() - 1
         }))
     }
 
@@ -7040,7 +7045,7 @@ impl Parser<'_, '_> {
         let mut prod = None;
         if self.next() == Tok::Sym {
             prod_name = self.cur_text();
-            prod = self.declare_gramprod(&prod_name);
+            prod = self.declare_grammar_rule(&prod_name);
         } else {
             self.error_curtok("expected symbol name after 'grammar', but found \"%\"");
         }
@@ -7075,7 +7080,7 @@ impl Parser<'_, '_> {
         } else if redef == Redef::No && self.cur() == Tok::Sem {
             // Only a declaration.
             if let Some(prod) = prod {
-                self.prog.gramprods[prod].declared = true;
+                self.prog.grammar_rules[prod].declared = true;
             }
             self.next();
             return Ok(());
@@ -7111,12 +7116,12 @@ impl Parser<'_, '_> {
             // again for that.
             let private = is_named && gram_obj.is_some();
             if private {
-                prod = self.declare_gramprod(&prod_name);
+                prod = self.declare_grammar_rule(&prod_name);
             }
             let alts = self.parse_gram_alts(gram_obj, &mut arrows)?;
             match (private, gram_obj, prod) {
                 (true, Some(obj), _) => self.prog.objs[obj].gram = Some((prod, alts)),
-                (false, _, Some(prod)) => self.prog.gramprods[prod].alts.extend(alts),
+                (false, _, Some(prod)) => self.prog.grammar_rules[prod].alts.extend(alts),
                 _ => {}
             }
         }
@@ -7305,15 +7310,15 @@ impl Parser<'_, '_> {
                     let name = self.cur_text();
                     let mut global = self.prog.globals.get(&name).copied();
                     if global.is_none() && !self.syntax_only {
-                        let Some(prod) = self.declare_gramprod(&name) else {
+                        let Some(prod) = self.declare_grammar_rule(&name) else {
                             return Ok(alts);
                         };
-                        global = Some(Global::Obj(self.prog.gramprods[prod].sym));
+                        global = Some(Global::Obj(self.prog.grammar_rules[prod].sym));
                     }
                     let kind = match global {
                         None => None,
                         Some(Global::Obj(obj)) => {
-                            if !self.prog.objs[obj].is_gramprod {
+                            if !self.prog.objs[obj].is_grammar_rule {
                                 self.error_curtok(
                                     "object \"%\" is not valid in a grammar rule - \
                                      only production names are allowed",
@@ -7566,7 +7571,7 @@ impl Parser<'_, '_> {
                             declared_only: false,
                             ext_redef: false,
                             is_dict: true,
-                            is_gramprod: false,
+                            is_grammar_rule: false,
                             gram: None,
                             del_props: Vec::new(),
                         });
@@ -7737,7 +7742,7 @@ impl Parser<'_, '_> {
             declared_only: false,
             ext_redef: false,
             is_dict: false,
-            is_gramprod: false,
+            is_grammar_rule: false,
             gram: None,
             del_props: Vec::new(),
         });

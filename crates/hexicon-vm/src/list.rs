@@ -1,4 +1,4 @@
-//! The list intrinsic class, and the sequence operations it shares with
+//! The list built-in class, and the sequence operations it shares with
 //! vectors.
 //!
 //! A list never changes. Every method that "modifies" a list returns a new

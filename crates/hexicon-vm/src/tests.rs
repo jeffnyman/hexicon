@@ -14,7 +14,7 @@ use crate::vm::Vm;
 
 // ---- building images ----
 
-/// Index of each intrinsic class in the test images' dependency list.
+/// Index of each built-in class in the test images' dependency list.
 const META_PROGRAM_OBJECT: u8 = 0;
 
 /// Index of each function set in the test images' dependency list.
@@ -628,7 +628,7 @@ fn runaway_recursion_overflows_the_stack() {
 }
 
 #[test]
-fn intrinsic_functions_check_their_arguments() {
+fn builtin_functions_check_their_arguments() {
     let consts = Consts::default();
     let mut code = Code::default();
     let main = code.function(1, 0);
@@ -932,7 +932,7 @@ fn console_aligns_tabs() {
 
 // ---- regular expressions ----
 
-use crate::lookup::LookupTable;
+use crate::map::Map;
 use crate::regex::{GROUP_COUNT, Pattern};
 
 /// Match a pattern at the start of text. Returns the matched length.
@@ -1051,8 +1051,8 @@ fn regex_survives_empty_loops() {
 // ---- lookup tables ----
 
 #[test]
-fn new_lookup_table_is_empty() {
-    let table = LookupTable::new(8, 4, false);
+fn new_map_is_empty() {
+    let table = Map::new(8, 4, false);
     assert_eq!(table.bucket_count(), 8);
     assert_eq!(table.slot_count(), 4);
     assert!(table.entries().is_empty());
@@ -1075,17 +1075,17 @@ fn random_numbers_repeat_until_seeded() {
     assert_ne!(first, third);
 }
 
-// ---- BigNumber ----
+// ---- Decimal ----
 
-use crate::bignum::Big;
-use crate::bignum_math::{self, Cache};
+use crate::decimal::Big;
+use crate::decimal_math::{self, Cache};
 
 fn big(text: &str) -> Big {
     Big::parse(text, Big::precision_from_str(text))
 }
 
 #[test]
-fn bignumber_arithmetic_keeps_the_larger_precision() {
+fn decimal_arithmetic_keeps_the_larger_precision() {
     assert_eq!(Big::add(&big("1.5"), &big("2.25")).to_text(), "3.75");
     assert_eq!(Big::sub(&big("1.5"), &big("2.25")).to_text(), "-.75");
     assert_eq!(Big::mul(&big("1.5"), &big("2.25")).to_text(), "3.38");
@@ -1095,7 +1095,7 @@ fn bignumber_arithmetic_keeps_the_larger_precision() {
 }
 
 #[test]
-fn bignumber_holds_what_an_integer_cannot() {
+fn decimal_holds_what_an_integer_cannot() {
     let limit = Big::from_int(i32::MAX.into(), 10);
     let one = Big::from_int(1, 10);
     let past = Big::add(&limit, &one);
@@ -1105,7 +1105,7 @@ fn bignumber_holds_what_an_integer_cannot() {
 }
 
 #[test]
-fn bignumber_reads_other_radixes() {
+fn decimal_reads_other_radixes() {
     assert_eq!(Big::parse_radix("ff", 16).to_text(), "255");
     assert_eq!(
         Big::parse_radix("ffffffffffffffff", 16).to_text(),
@@ -1116,15 +1116,15 @@ fn bignumber_reads_other_radixes() {
 }
 
 #[test]
-fn bignumber_computes_constants_and_roots() {
+fn decimal_computes_constants_and_roots() {
     let mut cache = Cache::default();
     let pi = cache.pi(10).expect("pi").with_prec(10, true);
     assert_eq!(pi.to_text(), "3.141592654");
     let e = cache.e(10).expect("e").with_prec(10, true);
     assert_eq!(e.to_text(), "2.718281828");
-    let root = bignum_math::sqrt_into(10, &big("2.000000000")).expect("root");
+    let root = decimal_math::sqrt_into(10, &big("2.000000000")).expect("root");
     assert_eq!(root.to_text(), "1.414213562");
-    assert!(bignum_math::sqrt_into(10, &big("-2")).is_err());
+    assert!(decimal_math::sqrt_into(10, &big("-2")).is_err());
 }
 
 #[test]
@@ -1155,14 +1155,14 @@ fn hashes_match_the_standard_answers() {
 }
 
 #[test]
-fn bignumber_converts_to_and_from_binary() {
+fn decimal_converts_to_and_from_binary() {
     let mut cache = Cache::default();
-    let (bytes, overflow) = bignum_math::to_ieee754(&big("1.5"), 64, &mut cache).expect("double");
+    let (bytes, overflow) = decimal_math::to_ieee754(&big("1.5"), 64, &mut cache).expect("double");
     assert!(!overflow);
     assert_eq!(bytes, 1.5f64.to_le_bytes());
-    let (bytes, _) = bignum_math::to_ieee754(&big("-0.15625"), 32, &mut cache).expect("float");
+    let (bytes, _) = decimal_math::to_ieee754(&big("-0.15625"), 32, &mut cache).expect("float");
     assert_eq!(bytes, (-0.15625f32).to_le_bytes());
-    let back = bignum_math::from_ieee754(&2.5f64.to_le_bytes(), &mut cache).expect("double");
+    let back = decimal_math::from_ieee754(&2.5f64.to_le_bytes(), &mut cache).expect("double");
     assert_eq!(back.to_text(), "2.5");
 
     let (bytes, overflow) = big("-2").to_p8(true);
@@ -1325,17 +1325,17 @@ fn collector_spares_what_a_savepoint_can_bring_back() {
 #[test]
 fn collector_empties_weak_tables_of_dead_values() {
     let mut table = ObjectTable::new();
-    let mut weak = LookupTable::new(8, 8, true);
+    let mut weak = Map::new(8, 8, true);
     let value = table.alloc(Object::String(b"value".as_slice().into()));
     weak.insert_for_test(Value::Int(1), Value::Obj(value));
     weak.insert_for_test(Value::Int(2), Value::Int(7));
-    let weak = table.alloc(Object::LookupTable(Box::new(weak)));
+    let weak = table.alloc(Object::Map(Box::new(weak)));
 
     let candidates = table.collect_mark(&[Value::Obj(weak)], false);
     table.collect_sweep(&candidates, &[]);
     assert!(table.get(value).is_none());
     match table.get(weak) {
-        Some(Object::LookupTable(weak)) => {
+        Some(Object::Map(weak)) => {
             assert_eq!(weak.entries(), [(Value::Int(2), Value::Int(7))]);
         }
         _ => unreachable!(),
@@ -1452,14 +1452,14 @@ fn table_keys_hash_as_in_the_reference() {
     // Saved tables depend on this: the two halves of an integer
     // multiplied, and the characters of a string added up.
     let mut vm = vm_with_one_object();
-    let mut table = LookupTable::new(16, 8, false);
+    let mut table = Map::new(16, 8, false);
     table.insert_for_test(Value::Int(1), Value::True);
     let table = vm.new_table(table);
     let abc = vm.new_str("abc");
     vm.table_set(table, Value::Int(70_000), Value::Int(1))
         .expect("set");
     vm.table_set(table, abc, Value::Int(2)).expect("set");
-    let Some(Object::LookupTable(table)) = vm.objects.get(table) else {
+    let Some(Object::Map(table)) = vm.objects.get(table) else {
         panic!("a table");
     };
     let (buckets, _, _) = table.save_parts();
@@ -1472,7 +1472,7 @@ fn table_keys_hash_as_in_the_reference() {
 // ---- the parser classes ----
 
 use crate::dict::Dictionary;
-use crate::gram::GramProd;
+use crate::gram::GrammarRule;
 use crate::strcomp::StrComp;
 
 /// A comparator that ignores case, accepts words cut to four characters,
@@ -1592,7 +1592,7 @@ fn production_reads_and_writes_its_alternatives() {
     data.extend_from_slice(&[20, 0, 2, 10, 0]);
     data.extend_from_slice(&[21, 0, 1, 5, 0, 0, 0]);
     data.extend_from_slice(&[0, 0, 5]);
-    let (production, used) = GramProd::from_bytes(&data).expect("well formed");
+    let (production, used) = GrammarRule::from_bytes(&data).expect("well formed");
     assert_eq!(used, data.len());
     assert_eq!(production.alts.len(), 1);
     assert_eq!(production.alts[0].tokens.len(), 4);
@@ -2397,7 +2397,7 @@ fn a_run_before_the_image_is_written_is_kept_in_it() {
 #[test]
 fn what_a_callback_made_and_dropped_is_freed_while_its_caller_runs() {
     let mut table = ObjectTable::new();
-    // An intrinsic, at the first level, makes an object it holds, then
+    // A built-in, at the first level, makes an object it holds, then
     // calls program code, which makes two and returns one.
     table.at_safe_point(1);
     let held = table.alloc(Object::String(b"held".as_slice().into()));
@@ -2407,7 +2407,7 @@ fn what_a_callback_made_and_dropped_is_freed_while_its_caller_runs() {
     let returned = table.alloc(Object::String(b"returned".as_slice().into()));
     table.leave_nested(1, Value::Obj(returned));
 
-    // A collection now, as the intrinsic goes on, keeps what it may be
+    // A collection now, as the built-in goes on, keeps what it may be
     // holding and frees the rest.
     let candidates = table.collect_mark(&[], true);
     assert_eq!(candidates, [dropped]);
@@ -2455,18 +2455,18 @@ fn a_block_that_outgrows_its_heap_cell_is_counted_twice() {
 
 #[test]
 fn a_string_buffer_grows_in_steps_and_undo_keeps_its_room() {
-    use crate::object::StrBuf;
+    use crate::object::StringBuilder;
     let mut table = ObjectTable::new();
-    let id = table.alloc(Object::StringBuffer(StrBuf::new(16, 16)));
+    let id = table.alloc(Object::StringBuilder(StringBuilder::new(16, 16)));
     table.savepoint();
-    if let Some(Object::StringBuffer(buffer)) = table.get_mut(id) {
+    if let Some(Object::StringBuilder(buffer)) = table.get_mut(id) {
         buffer.chars.extend("seventeen letters".chars());
         buffer.grow();
         assert_eq!(buffer.room, 32, "grown by a step of 16");
     }
     assert!(table.undo());
     match table.get(id) {
-        Some(Object::StringBuffer(buffer)) => {
+        Some(Object::StringBuilder(buffer)) => {
             assert!(buffer.chars.is_empty());
             assert_eq!(buffer.room, 32, "the room it grew to is not given back");
         }

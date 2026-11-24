@@ -1,9 +1,9 @@
-//! The DynamicFunc intrinsic class: functions compiled while the program
+//! The CompiledCode built-in class: functions compiled while the program
 //! runs, from source text, against the program's own global names.
 //!
 //! The code of each is put after the program's own, at an address of its
 //! own, so that it runs like any other function. A function compiled can
-//! have functions nested in it, each a DynamicFunc of its own, which its
+//! have functions nested in it, each a CompiledCode of its own, which its
 //! code refers to by object.
 
 use std::rc::Rc;
@@ -21,7 +21,7 @@ use crate::vm::Vm;
 
 /// A function compiled while the program runs.
 #[derive(Debug, Clone)]
-pub struct DynFunc {
+pub struct CompiledCode {
     /// Where its code is, among the VM's code.
     pub addr: u32,
     /// The code: its header, its instructions, and its tables.
@@ -36,7 +36,7 @@ pub struct DynFunc {
     pub method_ctx: Value,
 }
 
-impl DynFunc {
+impl CompiledCode {
     /// A function read from an image or a saved game: the length of the
     /// code, the number of objects it refers to, the method context, the
     /// source, the code, and where in it each object's number is. The
@@ -67,7 +67,7 @@ impl DynFunc {
         })
     }
 
-    /// The size of what [`DynFunc::read`] reads.
+    /// The size of what [`CompiledCode::read`] reads.
     pub(crate) fn data_len(data: &[u8]) -> Option<usize> {
         let len = usize::from(u16::from_le_bytes([*data.first()?, *data.get(1)?]));
         let refs = usize::from(u16::from_le_bytes([*data.get(2)?, *data.get(3)?]));
@@ -143,7 +143,7 @@ impl DynHost for FuncObjects<'_> {
         (0..count)
             .map(|_| {
                 self.vm
-                    .alloc_obj(Object::DynFunc(Box::new(DynFunc::placeholder())))
+                    .alloc_obj(Object::CompiledCode(Box::new(CompiledCode::placeholder())))
                     .0
             })
             .collect()
@@ -151,10 +151,10 @@ impl DynHost for FuncObjects<'_> {
 }
 
 impl Vm {
-    /// `new DynamicFunc(source, globals?, locals?, macros?)`: compile the
+    /// `new CompiledCode(source, globals?, locals?, macros?)`: compile the
     /// source, against the table of global names and the table of macros
     /// given, which are what `globalSymbols` gives.
-    pub(crate) fn create_dynfunc(&mut self, argc: u32) -> VmResult<ObjId> {
+    pub(crate) fn create_compiled_code(&mut self, argc: u32) -> VmResult<ObjId> {
         if !(1..=4).contains(&argc) {
             return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
         }
@@ -196,7 +196,7 @@ impl Vm {
         for (index, (id, func)) in compiled.funcs.into_iter().enumerate() {
             let id = ObjId(id);
             let addr = self.add_dynamic_code(&func.code);
-            let dynfunc = DynFunc {
+            let compiled_code = CompiledCode {
                 addr,
                 code: func.code.into(),
                 obj_refs: func.obj_refs.iter().map(|&at| at as u16).collect(),
@@ -207,7 +207,8 @@ impl Vm {
                     _ => Value::Nil,
                 },
             };
-            self.objects.replace(id, Object::DynFunc(Box::new(dynfunc)));
+            self.objects
+                .replace(id, Object::CompiledCode(Box::new(compiled_code)));
             main.get_or_insert(id);
         }
         main.ok_or_else(|| VmError::new(code::BAD_TYPE_BIF))
@@ -225,12 +226,12 @@ impl Vm {
             return Ok(None);
         };
         let mut frames = Vec::new();
-        if self.frame_desc(locals).is_some() {
+        if self.stack_frame(locals).is_some() {
             frames.push(locals);
         } else if let Some(len) = self.list_like_len(Value::Obj(locals))? {
             for index in 1..=len {
                 if let Value::Obj(id) = self.list_like_get(Value::Obj(locals), index)?
-                    && self.frame_desc(id).is_some()
+                    && self.stack_frame(id).is_some()
                 {
                     frames.push(id);
                 } else if index == 1 {
@@ -241,7 +242,7 @@ impl Vm {
         }
         let mut innermost = None;
         for (index, &id) in frames.iter().enumerate() {
-            let Some(desc) = self.frame_desc(id) else {
+            let Some(desc) = self.stack_frame(id) else {
                 continue;
             };
             if index == 0 && !self.frame_ref_self(desc.fref).is_nil() {
@@ -251,7 +252,7 @@ impl Vm {
             if desc.scope == 0 {
                 continue;
             }
-            for sym in self.frame_desc_syms(desc) {
+            for sym in self.stack_frame_syms(desc) {
                 let number = self.frame_var_number(desc.fref, &sym) as u16;
                 context.locals.push(DynLocal {
                     name: sym.name,
@@ -289,16 +290,16 @@ impl Vm {
             .objects
             .ids()
             .filter(|&id| {
-                matches!(self.objects.get(id), Some(Object::DynFunc(func)) if func.addr == UNPLACED)
+                matches!(self.objects.get(id), Some(Object::CompiledCode(func)) if func.addr == UNPLACED)
             })
             .collect();
         for id in ids {
             let code = match self.objects.get(id) {
-                Some(Object::DynFunc(func)) => Rc::clone(&func.code),
+                Some(Object::CompiledCode(func)) => Rc::clone(&func.code),
                 _ => continue,
             };
             let addr = self.add_dynamic_code(&code);
-            if let Some(Object::DynFunc(func)) = self.objects.get_mut(id) {
+            if let Some(Object::CompiledCode(func)) = self.objects.get_mut(id) {
                 func.addr = addr;
             }
         }
@@ -326,7 +327,7 @@ impl Vm {
                 context.metaclass_props.push(entry.method_props.clone());
             }
         }
-        if let Some(Object::LookupTable(table)) = globals.and_then(|id| self.objects.get(id)) {
+        if let Some(Object::Map(table)) = globals.and_then(|id| self.objects.get(id)) {
             for (key, value) in table.entries() {
                 let Some(name) = self.as_str(key) else {
                     continue;
@@ -336,7 +337,7 @@ impl Vm {
                 }
             }
         }
-        if let Some(Object::LookupTable(table)) = macros.and_then(|id| self.objects.get(id)) {
+        if let Some(Object::Map(table)) = macros.and_then(|id| self.objects.get(id)) {
             for (key, value) in table.entries() {
                 if let (Some(name), Some(mac)) = (self.as_str(key), self.dyn_macro(value)) {
                     context.macros.push(LinkMacro {
@@ -364,7 +365,7 @@ impl Vm {
                     } else {
                         match object {
                             Object::Program(_) => DynObjKind::ProgramObject,
-                            Object::GramProd(_) => DynObjKind::GrammarProd,
+                            Object::GrammarRule(_) => DynObjKind::GrammarRule,
                             Object::Dict(_) => DynObjKind::Dictionary,
                             Object::IntClassMod(_) => DynObjKind::ClassModifier,
                             _ => DynObjKind::Other,
@@ -422,8 +423,8 @@ impl Vm {
         })
     }
 
-    /// Call a method of the DynamicFunc class.
-    pub(crate) fn dynfunc_method(
+    /// Call a method of the CompiledCode class.
+    pub(crate) fn compiled_code_method(
         &mut self,
         id: ObjId,
         index: u16,
@@ -434,7 +435,7 @@ impl Vm {
         };
         self.native_method(argc, desc, |vm, _| {
             Ok(match vm.objects.get(id) {
-                Some(Object::DynFunc(func)) => func.source,
+                Some(Object::CompiledCode(func)) => func.source,
                 _ => Value::Nil,
             })
         })

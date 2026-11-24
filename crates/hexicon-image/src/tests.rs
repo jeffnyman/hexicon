@@ -376,7 +376,7 @@ fn symbols_and_values() {
     );
     assert_eq!(
         image.symbol("someFunction"),
-        Some(Value::IntrinsicFunction { set: 1, index: 3 })
+        Some(Value::BuiltinFunction { set: 1, index: 3 })
     );
     assert_eq!(image.symbol("missing"), None);
 

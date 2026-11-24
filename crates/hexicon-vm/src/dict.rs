@@ -1,4 +1,4 @@
-//! The Dictionary intrinsic class: the words a game's parser knows, each
+//! The Dictionary built-in class: the words a game's parser knows, each
 //! with the objects it can refer to and the part of speech it is for
 //! each.
 //!

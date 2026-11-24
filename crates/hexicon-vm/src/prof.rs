@@ -53,7 +53,7 @@ pub(crate) const GC_WEAK: u32 = 13;
 /// A built-in function: this plus the set's number times 256 plus the
 /// function's.
 pub(crate) const BIF: u32 = 0x1_0000;
-/// A method of an intrinsic class: this plus the class's place among
+/// A method of a built-in class: this plus the class's place among
 /// the kinds times 256 plus the method's number.
 pub(crate) const NATIVE: u32 = 0x2_0000;
 

@@ -1,4 +1,4 @@
-//! Decimal floating-point arithmetic for the BigNumber intrinsic class.
+//! Decimal floating-point arithmetic for the Decimal built-in class.
 //!
 //! The virtual machine does a program's arithmetic with it, and the
 //! compiler works out constant expressions with it, so that a sum the
@@ -1500,7 +1500,7 @@ impl Big {
         (magnitude, overflow)
     }
 
-    /// An unsigned integer as a BigNumber.
+    /// An unsigned integer as a Decimal.
     pub fn from_u64(value: u64, prec: usize) -> Self {
         let mut n = Self::zero(prec);
         n.set_uint(value);
@@ -1537,7 +1537,7 @@ impl Big {
         (bytes, overflow)
     }
 
-    /// A 64-bit integer, stored low byte first, as a BigNumber.
+    /// A 64-bit integer, stored low byte first, as a Decimal.
     pub fn from_p8(mut bytes: [u8; 8], signed: bool) -> Self {
         let neg = signed && bytes[7] & 0x80 != 0;
         if neg {
@@ -1572,7 +1572,7 @@ impl Big {
     }
 
     /// A BER compressed integer, given as its seven-bit groups, as a
-    /// BigNumber.
+    /// Decimal.
     pub fn from_ber(groups: &[u8]) -> Self {
         // The precision comes from the number of bits, with the same
         // rounded logarithm of 2 the reference uses.

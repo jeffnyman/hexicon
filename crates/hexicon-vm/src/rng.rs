@@ -829,7 +829,7 @@ impl Vm {
         Ok(())
     }
 
-    /// An integer from an integer or a BigNumber.
+    /// An integer from an integer or a Decimal.
     fn cast_num_to_int(&self, value: Value) -> VmResult<i32> {
         match value {
             Value::Int(n) => Ok(n),

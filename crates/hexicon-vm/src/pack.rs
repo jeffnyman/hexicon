@@ -12,8 +12,8 @@
 //! exact handling of counts, padding, and running out of arguments is
 //! what programs depend on.
 
-use crate::bignum::Big;
-use crate::bignum_math;
+use crate::decimal::Big;
+use crate::decimal_math;
 use crate::error::{ErrParam, VmError, VmResult, code};
 use crate::object::Object;
 use crate::value::Value;
@@ -937,8 +937,8 @@ impl Packer<'_> {
         }
     }
 
-    /// A value as a BigNumber: an integer, a number written as text, or
-    /// a BigNumber.
+    /// A value as a Decimal: an integer, a number written as text, or
+    /// a Decimal.
     fn big_value(&mut self, value: Value) -> VmResult<Big> {
         if let Value::Int(n) = value {
             return Ok(Big::from_int(n.into(), 10));
@@ -1064,7 +1064,7 @@ impl Packer<'_> {
             }
             'L' => {
                 // An unsigned value past the integer range has to come as
-                // a BigNumber or as text.
+                // a Decimal or as text.
                 let n = if self.vm.as_big(value).is_some() || self.vm.as_str(value).is_some() {
                     let (n, overflow) = self.big_value(value)?.to_u32();
                     if overflow && !pct {
@@ -1127,7 +1127,7 @@ impl Packer<'_> {
                 } else {
                     let number = self.big_value(value)?;
                     let (bytes, overflow) =
-                        bignum_math::to_ieee754(&number, bits, &mut self.vm.big_cache)
+                        decimal_math::to_ieee754(&number, bits, &mut self.vm.big_cache)
                             .map_err(|_| VmError::new(code::OUT_OF_RANGE))?;
                     if overflow && !pct {
                         return Err(VmError::new(code::NUM_OVERFLOW));
@@ -1619,7 +1619,7 @@ impl Packer<'_> {
                 Value::Int(i32::from_le_bytes([b[0], b[1], b[2], b[3]]))
             }
             'L' => {
-                // An unsigned value is a BigNumber, unless `~` asks for
+                // An unsigned value is a Decimal, unless `~` asks for
                 // an integer where one will do.
                 let b = self.read_num(4, t)?;
                 let n = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
@@ -1659,7 +1659,7 @@ impl Packer<'_> {
             }
             'f' | 'd' => {
                 let b = self.read_num(if t.code == 'f' { 4 } else { 8 }, t)?;
-                let number = bignum_math::from_ieee754(&b, &mut self.vm.big_cache)
+                let number = decimal_math::from_ieee754(&b, &mut self.vm.big_cache)
                     .map_err(|_| VmError::new(code::OUT_OF_RANGE))?;
                 self.vm.new_big(number)
             }

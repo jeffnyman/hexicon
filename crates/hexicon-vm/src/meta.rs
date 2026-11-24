@@ -1,4 +1,4 @@
-//! The intrinsic classes ("metaclasses") the VM provides, and the table
+//! The built-in classes ("metaclasses") the VM provides, and the table
 //! that ties them to the ones an image asks for.
 
 use crate::error::{ErrParam, VmError, VmResult, code};
@@ -6,7 +6,7 @@ use crate::value::{INVALID_PROP, ObjId, PropId};
 
 macro_rules! metaclasses {
     ($( $variant:ident $name:literal $version:literal $parent:ident; )*) => {
-        /// An intrinsic class the VM knows about.
+        /// A built-in class the VM knows about.
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[allow(missing_docs)]
         pub enum MetaKind {
@@ -14,7 +14,7 @@ macro_rules! metaclasses {
         }
 
         impl MetaKind {
-            /// Every intrinsic class, in a fixed order.
+            /// Every built-in class, in a fixed order.
             pub const ALL: &'static [MetaKind] = &[ $( MetaKind::$variant, )* ];
 
             /// The class's name in images, without the version suffix.
@@ -31,7 +31,7 @@ macro_rules! metaclasses {
                 }
             }
 
-            /// The intrinsic class this one derives from.
+            /// The built-in class this one derives from.
             #[allow(unreachable_patterns)]
             pub const fn parent(self) -> Option<MetaKind> {
                 match self {
@@ -49,32 +49,32 @@ metaclasses! {
     Root "root-object" "030004" Root;
     ProgramObject "hexicon-object" "030005" Root;
     IntClassMod "int-class-mod" "030000" Root;
-    IntrinsicClass "intrinsic-class" "030001" Root;
+    BuiltinClass "intrinsic-class" "030001" Root;
     String "string" "030008" Root;
     Collection "collection" "030000" Root;
     List "list" "030008" Collection;
     Vector "vector" "030005" Collection;
-    LookupTable "lookuptable" "030003" Collection;
-    WeakRefLookupTable "weakreflookuptable" "030001" LookupTable;
+    Map "lookuptable" "030003" Collection;
+    WeakMap "weakreflookuptable" "030001" Map;
     Iterator "iterator" "030001" Root;
     IndexedIterator "indexed-iterator" "030000" Iterator;
-    LookupTableIterator "lookuptable-iterator" "030000" Iterator;
-    AnonFuncPtr "anon-func-ptr" "030000" Vector;
-    BigNumber "bignumber" "030001" Root;
+    MapIterator "lookuptable-iterator" "030000" Iterator;
+    Function "anon-func-ptr" "030000" Vector;
+    Decimal "bignumber" "030001" Root;
     ByteArray "bytearray" "030002" Root;
     CharacterSet "character-set" "030001" Root;
     Date "date" "030000" Root;
     Dictionary "dictionary2" "030001" Root;
-    DynamicFunc "dynamic-func" "030000" Root;
+    CompiledCode "dynamic-func" "030000" Root;
     FileName "filename" "030000" Root;
     File "file" "030003" Root;
-    StackFrameDesc "stack-frame-desc" "030000" Root;
+    StackFrame "stack-frame-desc" "030000" Root;
     StackFrameRef "stack-frame-ref" "030000" Root;
-    GrammarProduction "grammar-production" "030002" Root;
+    GrammarRule "grammar-production" "030002" Root;
     HttpRequest "http-request" "030001" Root;
     HttpServer "http-server" "030000" Root;
-    RexPattern "regex-pattern" "030000" Root;
-    StringBuffer "stringbuffer" "030000" Root;
+    Regex "regex-pattern" "030000" Root;
+    StringBuilder "stringbuffer" "030000" Root;
     StringComparator "string-comparator" "030000" Root;
     TemporaryFile "tempfile" "030000" Root;
     TimeZone "timezone" "030000" Root;
@@ -87,7 +87,7 @@ impl MetaKind {
     }
 }
 
-/// One intrinsic class as an image uses it.
+/// One built-in class as an image uses it.
 #[derive(Debug, Clone)]
 pub struct MetaEntry {
     /// Which class this is.
@@ -99,7 +99,7 @@ pub struct MetaEntry {
     /// The property the image uses for each of the class's methods. Method
     /// numbers start at 1, so method `n` is at index `n - 1`.
     pub method_props: Vec<PropId>,
-    /// The intrinsic class object that represents the class to the
+    /// The built-in class object that represents the class to the
     /// program, or the invalid ID until it is known.
     pub class_obj: ObjId,
     /// The lowest property in `method_props`.
@@ -163,7 +163,7 @@ impl MetaEntry {
     }
 }
 
-/// The intrinsic classes in use, in the order of the image's dependency
+/// The built-in classes in use, in the order of the image's dependency
 /// list. Byte code refers to classes by their index here.
 #[derive(Debug, Clone, Default)]
 pub struct MetaTable {
@@ -260,7 +260,7 @@ impl MetaTable {
         self.entry(kind).map_or(0, |entry| entry.method_index(prop))
     }
 
-    /// The intrinsic class object for a class, or the invalid ID.
+    /// The built-in class object for a class, or the invalid ID.
     pub fn class_obj(&self, kind: MetaKind) -> ObjId {
         self.entry(kind).map_or(ObjId::INVALID, |e| e.class_obj)
     }

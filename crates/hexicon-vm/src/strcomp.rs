@@ -1,4 +1,4 @@
-//! The StringComparator intrinsic class: the rules a dictionary uses to
+//! The StringComparator built-in class: the rules a dictionary uses to
 //! decide whether a word a player typed matches a word it knows.
 //!
 //! A comparator can ignore case, accept a word cut short after some

@@ -2177,7 +2177,7 @@ fn an_integer_too_large_to_be_one_is_a_number_that_is_not() {
 fn a_constant_integer_division_by_zero_is_done_again_as_a_big_number() {
     // The reference's integer division leaves its overflow flag as it
     // found it, set, so the division is done again, reported again, and
-    // left as a BigNumber, which `|` cannot take. A remainder is not.
+    // left as a Decimal, which `|` cannot take. A remainder is not.
     let divide = "1: error: divide by zero in constant expression";
     assert_eq!(
         compile_messages("_main(args) { return [7 / 0, 7 % 0, 7 / 0 | 1]; }\n"),
@@ -2227,7 +2227,7 @@ fn a_regular_expression_is_an_object_that_points_at_its_text() {
 }
 
 #[test]
-fn a_list_of_keys_and_values_is_a_lookup_table() {
+fn a_list_of_keys_and_values_is_a_map() {
     let compiled = compile_text("_main(args) { return [1 -> 2, 3 -> 4, * -> 5]; }\n");
     assert!(
         compiled.diagnostics.is_empty(),
@@ -3326,7 +3326,7 @@ fn grammar_rules_are_compiled_while_a_program_runs() {
                 b"atom".to_vec(),
                 DynSymbol::Object {
                     id: 30,
-                    kind: DynObjKind::GrammarProd,
+                    kind: DynObjKind::GrammarRule,
                 },
             ),
             (b"t1".to_vec(), DynSymbol::Property(50)),

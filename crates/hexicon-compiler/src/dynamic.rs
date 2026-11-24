@@ -1,5 +1,5 @@
 //! The dynamic compiler: code compiled while a program runs, as
-//! `DynamicFunc` and the system library's `Compiler` object ask, against
+//! `CompiledCode` and the system library's `Compiler` object ask, against
 //! the names of the program that is running.
 //!
 //! The reference compiles such code as it compiles a program, with a few
@@ -69,7 +69,7 @@ pub enum DynObjKind {
     /// An object that can be called like a function.
     Invokable,
     /// A grammar production.
-    GrammarProd,
+    GrammarRule,
     /// A dictionary.
     Dictionary,
     /// An object that holds what the program adds to a built-in class.
@@ -198,7 +198,7 @@ pub enum DynGramMatch {
     Star,
 }
 
-/// Compile the rules of a grammar production, as `GrammarProd.addAlt`
+/// Compile the rules of a grammar production, as `GrammarRule.addAlt`
 /// gives them: alternatives as a `grammar` statement has them before its
 /// colon, against the program's global names. The error messages, if it
 /// cannot, a line each.

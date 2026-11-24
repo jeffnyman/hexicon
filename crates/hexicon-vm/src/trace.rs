@@ -4,7 +4,7 @@
 use hexicon_bytecode::{Opcode, decode};
 
 use crate::error::{ErrParam, VmError, VmResult, code};
-use crate::lookup::LookupTable;
+use crate::map::Map;
 use crate::value::Value;
 use crate::vm::{NativeCall, Return, Vm};
 
@@ -166,7 +166,7 @@ impl Vm {
         let mut frame_args: Vec<Value> = Vec::new();
 
         if level.offset == 0 {
-            // Native code. Describe the intrinsic function or method, if
+            // Native code. Describe the built-in function or method, if
             // the VM recorded which it was.
             if let Some(call) = &level.native {
                 if let Some((set, index)) = call.function {
@@ -261,7 +261,7 @@ impl Vm {
                     9..=32 => 32,
                     _ => 64,
                 };
-                let table = self.new_table(LookupTable::new(buckets, args.len(), false));
+                let table = self.new_table(Map::new(buckets, args.len(), false));
                 self.push(Value::Obj(table));
                 pushed += 1;
                 for (name, slot) in args.into_iter().rev() {
@@ -304,7 +304,7 @@ impl Vm {
     /// of each name and its value. Only a program compiled for debugging
     /// records the names; for any other, the table is empty.
     fn stack_locals(&mut self, level: &Level) -> VmResult<Value> {
-        let table = self.new_table(LookupTable::new(32, 64, false));
+        let table = self.new_table(Map::new(32, 64, false));
         let result = Value::Obj(table);
         self.push(result);
         let filled = self.fill_stack_locals(table, level);

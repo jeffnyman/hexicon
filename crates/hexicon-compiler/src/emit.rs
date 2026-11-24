@@ -211,17 +211,17 @@ pub(crate) struct Generated {
     pub max_list_cnt: usize,
     /// The numbers that are not integers, each an object: its number,
     /// and its data as the virtual machine keeps it.
-    pub bignums: Vec<(u32, Vec<u8>)>,
+    pub decimals: Vec<(u32, Vec<u8>)>,
     /// The regular expressions, each an object: its number, and where
     /// its text is in the constants.
-    pub rexpats: Vec<(u32, Target)>,
+    pub regexes: Vec<(u32, Target)>,
     /// The dictionaries, each an object: its number, and its words in
     /// the order the image has them, each with the objects it is a
     /// word for and the property it is their word by.
     pub dicts: Vec<(u32, Vec<DictWord>)>,
     /// The grammar productions, each an object: its number, and its
     /// data as the image has it.
-    pub gramprods: Vec<(u32, Vec<u8>)>,
+    pub grammar_rules: Vec<(u32, Vec<u8>)>,
     /// What was found wrong when the program was put together, that
     /// is nowhere in particular in the source.
     pub link_errors: Vec<String>,
@@ -872,7 +872,7 @@ pub(crate) fn link_generate(prog: &mut Program, out: Generated, enum_ids: Vec<u3
                 }
             }
         }
-        out.gramprods.push((prog.objs[*sym].id, data));
+        out.grammar_rules.push((prog.objs[*sym].id, data));
     }
     generator.prog.objdefs = objdefs;
     out
@@ -1068,7 +1068,7 @@ impl Gen<'_> {
                 // built into the virtual machine, stays a name.
                 Some(Global::Obj(obj))
                     if self.prog.objs[*obj].is_dict
-                        || self.prog.objs[*obj].is_gramprod
+                        || self.prog.objs[*obj].is_grammar_rule
                         || self.is_func_obj(*obj) =>
                 {
                     Expr::Sym(name)
@@ -1609,7 +1609,7 @@ impl Gen<'_> {
     fn merge_grammar(&mut self) -> Vec<(usize, Vec<GramAlt>)> {
         let mut productions: Vec<(usize, Vec<GramAlt>)> = self
             .prog
-            .gramprods
+            .grammar_rules
             .iter()
             .map(|prod| (prod.sym, prod.alts.clone()))
             .collect();
@@ -1633,7 +1633,7 @@ impl Gen<'_> {
             }
         }
         for (index, (sym, alts)) in productions.iter().enumerate() {
-            if alts.is_empty() && !self.prog.gramprods[index].declared {
+            if alts.is_empty() && !self.prog.grammar_rules[index].declared {
                 self.out.link_errors.push(format!(
                     "grammar rule \"{}\" has no alternatives defined",
                     show_name(&self.prog.objs[*sym].name)
@@ -1837,7 +1837,7 @@ impl Gen<'_> {
     /// refer to.
     /// Make the object a constant number that is not an integer is.
     /// Each place such a constant is used gets an object of its own.
-    fn gen_bignum_obj(&mut self, text: &[u8], promoted: bool) -> u32 {
+    fn gen_decimal_obj(&mut self, text: &[u8], promoted: bool) -> u32 {
         if promoted {
             self.log(
                 Severity::Warning,
@@ -1846,17 +1846,17 @@ impl Gen<'_> {
         }
         let id = self.prog.next_obj_id;
         self.prog.next_obj_id += 1;
-        let big = hexicon_bignum::Big::parse_source(&String::from_utf8_lossy(text));
-        self.out.bignums.push((id, big.to_bytes()));
+        let big = hexicon_decimal::Big::parse_source(&String::from_utf8_lossy(text));
+        self.out.decimals.push((id, big.to_bytes()));
         id
     }
 
     /// Make the object a regular expression in the source is.
-    fn gen_rexpat_obj(&mut self, text: &[u8]) -> u32 {
+    fn gen_regex_obj(&mut self, text: &[u8]) -> u32 {
         let id = self.prog.next_obj_id;
         self.prog.next_obj_id += 1;
         let target = self.const_str_target(text);
-        self.out.rexpats.push((id, target));
+        self.out.regexes.push((id, target));
         id
     }
 
@@ -1864,8 +1864,8 @@ impl Gen<'_> {
     /// made objects when code is generated.
     fn gen_const_obj(&mut self, value: &Value) -> Option<u32> {
         match value {
-            Value::Float { text, promoted } => Some(self.gen_bignum_obj(text, *promoted)),
-            Value::ReStr(text) => Some(self.gen_rexpat_obj(text)),
+            Value::Float { text, promoted } => Some(self.gen_decimal_obj(text, *promoted)),
+            Value::ReStr(text) => Some(self.gen_regex_obj(text)),
             _ => None,
         }
     }

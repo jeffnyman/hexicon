@@ -2,22 +2,22 @@
 
 use std::rc::Rc;
 
-use crate::bignum::Big;
-use crate::lookup::LookupTable;
+use crate::decimal::Big;
+use crate::map::Map;
 use crate::program_object::ProgramObject;
 use crate::regex::Pattern;
 use crate::value::{ObjId, Value};
 
-/// An intrinsic class object: the object that represents one of the VM's
+/// A built-in class object: the object that represents one of the VM's
 /// built-in classes to the program.
 #[derive(Debug, Clone)]
-pub struct IntrinsicClass {
+pub struct BuiltinClass {
     /// Index of the class in the image's metaclass dependency list.
     pub meta_index: u16,
     /// The modifier object holding program-defined methods for the class,
     /// or the invalid ID.
     pub modifier: ObjId,
-    /// Class-level state some intrinsic classes keep.
+    /// Class-level state some built-in classes keep.
     #[allow(dead_code)]
     pub class_state: Value,
 }
@@ -27,7 +27,7 @@ pub struct IntrinsicClass {
 pub enum Object {
     /// A program-defined object or class.
     Program(ProgramObject),
-    /// The program's extensions to an intrinsic class. It has the same
+    /// The program's extensions to a built-in class. It has the same
     /// structure as a program-defined object.
     IntClassMod(ProgramObject),
     /// A string, as UTF-8 text.
@@ -51,9 +51,9 @@ pub enum Object {
         last: i32,
     },
     /// A lookup table.
-    LookupTable(Box<LookupTable>),
+    Map(Box<Map>),
     /// An iterator over a lookup table.
-    LookupIter {
+    MapIter {
         /// The table being iterated.
         table: ObjId,
         /// The slot of the entry last returned, counting from 1; zero
@@ -69,7 +69,7 @@ pub enum Object {
     /// A string comparator: rules for matching words.
     StrComp(std::rc::Rc<crate::strcomp::StrComp>),
     /// A grammar production: a rule of a parser's grammar.
-    GramProd(Box<crate::gram::GramProd>),
+    GrammarRule(Box<crate::gram::GrammarRule>),
     /// A dictionary: a parser's vocabulary.
     Dict(Box<crate::dict::Dictionary>),
     /// A byte array: bytes that can change in place.
@@ -86,14 +86,14 @@ pub enum Object {
     /// A temporary file, by name. The file is deleted when the object
     /// goes. An object loaded from an image has no name and no file.
     TempFile(String),
-    /// A BigNumber: a decimal floating-point number.
-    BigNumber(Box<Big>),
+    /// A Decimal: a decimal floating-point number.
+    Decimal(Box<Big>),
     /// A string buffer: text that can change in place.
-    StringBuffer(StrBuf),
+    StringBuilder(StringBuilder),
     /// A function compiled while the program runs.
-    DynFunc(Box<crate::dynfunc::DynFunc>),
+    CompiledCode(Box<crate::compiled_code::CompiledCode>),
     /// A call of a function, while it runs and after: what a
-    /// `StackFrameDesc` refers to.
+    /// `StackFrame` refers to.
     FrameRef(Box<crate::frameref::FrameRef>),
     /// A place in a call, as a stack trace gives it.
     FrameDesc(crate::frameref::FrameDesc),
@@ -105,9 +105,9 @@ pub enum Object {
         /// when it is first used.
         compiled: Option<Rc<Pattern>>,
     },
-    /// An intrinsic class object.
-    Class(IntrinsicClass),
-    /// An object of an intrinsic class Hexicon does not implement yet. Its
+    /// A built-in class object.
+    Class(BuiltinClass),
+    /// An object of a built-in class Hexicon does not implement yet. Its
     /// image data is kept so the image still loads.
     Opaque {
         /// Index of the class in the image's metaclass dependency list.
@@ -253,12 +253,12 @@ pub struct ObjectTable {
     /// The value of `serial` when the instruction now running at the
     /// innermost level began. See [`ObjectTable::collect_mark`].
     safe_serial: u32,
-    /// What the intrinsics at outer levels may be holding while program
+    /// What the builtins at outer levels may be holding while program
     /// code they called runs: for each such call, the level of the
-    /// intrinsic, and the serials of the objects it had created since its
+    /// built-in, and the serials of the objects it had created since its
     /// instruction began (after the first, up to the second).
     held_ranges: Vec<(u32, u32, u32)>,
-    /// The results such calls returned to an intrinsic, with its level.
+    /// The results such calls returned to a built-in, with its level.
     held_results: Vec<(u32, Value)>,
     /// Objects from the image that have changed since it was loaded, as
     /// they were then. Restoring and restarting begin from these.
@@ -584,7 +584,7 @@ impl ObjectTable {
             if let Some(slot) = self.slots.get_mut(id as usize) {
                 // Undoing changes to a string buffer's text does not take
                 // back the room it grew to, in the reference.
-                if let (Some(Object::StringBuffer(now)), Object::StringBuffer(then)) =
+                if let (Some(Object::StringBuilder(now)), Object::StringBuilder(then)) =
                     (&slot.object, &mut object)
                 {
                     then.room = now.room;
@@ -604,7 +604,7 @@ impl ObjectTable {
         self.saved_refs.clear();
     }
 
-    /// The program-defined object (or intrinsic class modifier) with an ID.
+    /// The program-defined object (or built-in class modifier) with an ID.
     pub fn program_object(&self, id: ObjId) -> Option<&ProgramObject> {
         match self.get(id)? {
             Object::Program(object) | Object::IntClassMod(object) => Some(object),
@@ -612,7 +612,7 @@ impl ObjectTable {
         }
     }
 
-    /// The program-defined object (or intrinsic class modifier) with an
+    /// The program-defined object (or built-in class modifier) with an
     /// ID, for modification.
     pub fn program_object_mut(&mut self, id: ObjId) -> Option<&mut ProgramObject> {
         match self.get_mut(id)? {
@@ -713,16 +713,16 @@ fn count_object(object: &Object, vector_room: u32) {
         Object::Vector(_) => "vector",
         Object::AnonFn(_) => "anon-func-ptr",
         Object::IndexedIter { .. } => "indexed-iterator",
-        Object::LookupIter { .. } => "lookuptable-iterator",
-        Object::LookupTable(table) if table.weak => "weakreflookuptable",
-        Object::LookupTable(_) => "lookuptable",
+        Object::MapIter { .. } => "lookuptable-iterator",
+        Object::Map(table) if table.weak => "weakreflookuptable",
+        Object::Map(_) => "lookuptable",
         Object::Pattern { .. } => "regex-pattern",
-        Object::StringBuffer(_) => "stringbuffer",
-        Object::BigNumber(_) => "bignumber",
+        Object::StringBuilder(_) => "stringbuffer",
+        Object::Decimal(_) => "bignumber",
         Object::ByteArray(_) => "bytearray",
         Object::CharSet { .. } => "character-set",
         Object::StrComp(_) => "string-comparator",
-        Object::GramProd(_) => "grammar-production",
+        Object::GrammarRule(_) => "grammar-production",
         Object::Dict(_) => "dictionary2",
         Object::Class(_) => "intrinsic-class",
         Object::File(_) => "file",
@@ -730,7 +730,7 @@ fn count_object(object: &Object, vector_room: u32) {
         Object::TimeZone(_) => "timezone",
         Object::FileName(_) => "filename",
         Object::TempFile(_) => "tempfile",
-        Object::DynFunc(_) => "dynamic-func",
+        Object::CompiledCode(_) => "dynamic-func",
         Object::FrameRef(_) => "stack-frame-ref",
         Object::FrameDesc(_) => "stack-frame-desc",
         Object::Opaque { .. } => "-",
@@ -795,7 +795,7 @@ fn references(object: &Object, out: &mut Vec<Value>) {
         Object::List(items) => out.extend(items.iter().copied()),
         Object::Vector(items) | Object::AnonFn(items) => out.extend(items.iter().copied()),
         Object::IndexedIter { collection, .. } => out.push(*collection),
-        Object::LookupTable(table) => {
+        Object::Map(table) => {
             for (key, value) in table.entries() {
                 out.push(key);
                 if !table.weak {
@@ -806,11 +806,11 @@ fn references(object: &Object, out: &mut Vec<Value>) {
                 out.push(table.default_value);
             }
         }
-        Object::LookupIter { table, .. } => out.push(Value::Obj(*table)),
+        Object::MapIter { table, .. } => out.push(Value::Obj(*table)),
         // A dictionary keeps its comparator, but not the objects its
         // words refer to.
         Object::Dict(dictionary) => out.push(Value::Obj(dictionary.comparator)),
-        Object::GramProd(production) => production.references(out),
+        Object::GrammarRule(production) => production.references(out),
         Object::Pattern { source, .. } => out.push(*source),
         Object::Class(class) => {
             out.push(Value::Obj(class.modifier));
@@ -821,7 +821,7 @@ fn references(object: &Object, out: &mut Vec<Value>) {
             out.push(file.spec);
         }
         // What its code refers to, its source, and its method context.
-        Object::DynFunc(func) => {
+        Object::CompiledCode(func) => {
             out.extend(func.object_refs().map(Value::Obj));
             out.push(func.source);
             out.push(func.method_ctx);
@@ -844,8 +844,8 @@ fn references(object: &Object, out: &mut Vec<Value>) {
         | Object::TempFile(_)
         | Object::CharSet { .. }
         | Object::ByteArray(_)
-        | Object::BigNumber(_)
-        | Object::StringBuffer(_)
+        | Object::Decimal(_)
+        | Object::StringBuilder(_)
         | Object::StrComp(_)
         | Object::Opaque { .. } => {}
     }
@@ -854,7 +854,7 @@ fn references(object: &Object, out: &mut Vec<Value>) {
 /// The text of a string buffer, and the room the reference would have
 /// allocated for it, which an image or a saved game records.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StrBuf {
+pub struct StringBuilder {
     /// The characters.
     pub chars: Vec<char>,
     /// How many characters there is room for.
@@ -863,13 +863,13 @@ pub struct StrBuf {
     pub step: u32,
 }
 
-impl StrBuf {
+impl StringBuilder {
     /// The most room a buffer can have.
     pub const MAX_ROOM: u32 = 0x7fff_ffff;
 
     /// An empty buffer with this much room, growing by this much.
-    pub fn new(room: u32, step: u32) -> StrBuf {
-        StrBuf {
+    pub fn new(room: u32, step: u32) -> StringBuilder {
+        StringBuilder {
             chars: Vec::new(),
             room,
             step,
@@ -883,12 +883,12 @@ impl StrBuf {
         if len > self.room {
             let step = self.step.max(1);
             self.room = len.div_ceil(step).saturating_mul(step);
-            crate::heap::count(crate::heap::strbuf_bytes(self), "stringbuffer");
+            crate::heap::count(crate::heap::string_builder_bytes(self), "stringbuffer");
         }
     }
 }
 
-impl std::ops::Deref for StrBuf {
+impl std::ops::Deref for StringBuilder {
     type Target = Vec<char>;
 
     fn deref(&self) -> &Vec<char> {
@@ -898,7 +898,7 @@ impl std::ops::Deref for StrBuf {
 
 impl ObjectTable {
     /// Note that an instruction is starting at this level of nested
-    /// runs, with no intrinsic at this level in the middle of its work.
+    /// runs, with no built-in at this level in the middle of its work.
     #[inline]
     pub fn at_safe_point(&mut self, depth: u32) {
         self.safe_serial = self.serial;
@@ -916,7 +916,7 @@ impl ObjectTable {
         }
     }
 
-    /// Note that an intrinsic at this level is calling program code,
+    /// Note that a built-in at this level is calling program code,
     /// which runs a level deeper: what it created before the call it may
     /// still be holding.
     pub fn enter_nested(&mut self, depth: u32) {
@@ -924,9 +924,9 @@ impl ObjectTable {
             .push((depth, self.safe_serial, self.serial));
     }
 
-    /// Note that program code an intrinsic at this level called has
+    /// Note that program code a built-in at this level called has
     /// returned this to it. What the code created and did not return is
-    /// garbage, as far as the intrinsic is concerned.
+    /// garbage, as far as the built-in is concerned.
     pub fn leave_nested(&mut self, depth: u32, result: Value) {
         self.safe_serial = self.serial;
         if matches!(result, Value::Obj(_)) {
@@ -1040,12 +1040,12 @@ impl ObjectTable {
     /// caller to say which have finalizers.
     ///
     /// The roots are the values the caller gives, every object from the
-    /// image, and what the savepoints refer to. While an intrinsic
+    /// image, and what the savepoints refer to. While a built-in
     /// function or method is in the middle of its work, which is when
     /// `in_native` is set, it can be holding objects that nothing else
     /// refers to yet. Those are all newer than the last safe point, so
     /// everything newer than that counts as a root too. So does what an
-    /// intrinsic at an outer level may be holding while program code it
+    /// built-in at an outer level may be holding while program code it
     /// called runs: what it created before the call, and what earlier
     /// calls returned to it.
     pub fn collect_mark(&mut self, roots: &[Value], in_native: bool) -> Vec<ObjId> {
@@ -1055,7 +1055,7 @@ impl ObjectTable {
         let mut all_roots: Vec<Value> = roots.to_vec();
         all_roots.extend(self.held_results.iter().map(|&(_, value)| value));
         let safe_serial = self.safe_serial;
-        // The serials the intrinsics at each level may be holding, merged
+        // The serials the builtins at each level may be holding, merged
         // into ranges in order, so that each object is a search away from
         // knowing whether it is in one, however deep the levels go.
         let mut ranges: Vec<(u32, u32)> = self
@@ -1181,7 +1181,7 @@ impl ObjectTable {
         };
         let mut stale: Vec<(usize, Vec<usize>, bool)> = Vec::new();
         for (id, slot) in self.slots.iter().enumerate() {
-            if let Some(Object::LookupTable(table)) = &slot.object {
+            if let Some(Object::Map(table)) = &slot.object {
                 if table.weak {
                     let entries: Vec<usize> = (0..table.slot_count())
                         .filter(|&index| {
@@ -1198,7 +1198,7 @@ impl ObjectTable {
             }
         }
         for (id, entries, default_gone) in stale {
-            if let Some(Object::LookupTable(table)) = &mut self.slots[id].object {
+            if let Some(Object::Map(table)) = &mut self.slots[id].object {
                 for index in entries {
                     table.remove_slot(index);
                 }
@@ -1212,7 +1212,7 @@ impl ObjectTable {
         for slot in &mut self.slots {
             match &mut slot.object {
                 Some(Object::Dict(dictionary)) => dictionary.remove_dead(&is_alive),
-                Some(Object::GramProd(production)) => production.forget_comparator(&is_alive),
+                Some(Object::GrammarRule(production)) => production.forget_comparator(&is_alive),
                 _ => {}
             }
         }
@@ -1234,7 +1234,7 @@ impl ObjectTable {
                 keep
             });
             for (_, object) in changes.iter_mut() {
-                if let Object::LookupTable(table) = object {
+                if let Object::Map(table) = object {
                     if table.weak {
                         // The keys of the entries dropped no longer count.
                         for index in 0..table.slot_count() {

@@ -1,4 +1,4 @@
-//! The lookup table intrinsic class: an associative array.
+//! The lookup table built-in class: an associative array.
 //!
 //! Programs can see the order of a table's entries, through iteration and
 //! the methods that list keys and values. That order is the order of the
@@ -26,7 +26,7 @@ struct Slot {
 
 /// A lookup table.
 #[derive(Debug, Clone)]
-pub struct LookupTable {
+pub struct Map {
     /// The first slot of each hash bucket.
     buckets: Vec<Link>,
     slots: Vec<Slot>,
@@ -38,7 +38,7 @@ pub struct LookupTable {
     pub weak: bool,
 }
 
-impl LookupTable {
+impl Map {
     /// An empty table.
     pub fn new(bucket_count: usize, capacity: usize, weak: bool) -> Self {
         let mut table = Self {
@@ -194,7 +194,7 @@ impl LookupTable {
             self.add_slots((count / 2).max(16));
             // The reference allocates the table anew at its new size.
             crate::heap::count(
-                crate::heap::lookup_bytes(self.buckets.len(), self.slots.len()),
+                crate::heap::map_bytes(self.buckets.len(), self.slots.len()),
                 if self.weak {
                     "weakreflookuptable"
                 } else {
@@ -312,7 +312,7 @@ impl Vm {
     ///
     /// The oddities: an integer hashes to the product of its two 16-bit
     /// halves, which is zero for every integer under 65,536, so those all
-    /// share a bucket. And a BigNumber hashes by its digits, so one equal
+    /// share a bucket. And a Decimal hashes by its digits, so one equal
     /// to an integer is not found under that integer.
     fn key_hash(&self, key: Value) -> u32 {
         let fold = |n: u32| (n & 0xffff) ^ (n >> 16);
@@ -342,7 +342,7 @@ impl Vm {
             }
             Value::Enum(n) => fold(n),
             Value::Obj(id) => match self.objects.get(id) {
-                Some(Object::BigNumber(big)) => big
+                Some(Object::Decimal(big)) => big
                     .digs
                     .iter()
                     .fold(0u32, |hash, &d| hash.wrapping_add(d.into()))
@@ -354,7 +354,7 @@ impl Vm {
                     .iter()
                     .fold(0u32, |hash, &byte| hash.wrapping_add(byte.into())),
                 // The characters as UTF-16.
-                Some(Object::StringBuffer(buffer)) => buffer
+                Some(Object::StringBuilder(buffer)) => buffer
                     .iter()
                     .fold(0u32, |hash, &c| hash.wrapping_add(u32::from(c) & 0xffff)),
                 Some(Object::Vector(items)) => items
@@ -367,16 +367,16 @@ impl Vm {
         }
     }
 
-    fn table(&self, id: ObjId) -> VmResult<&LookupTable> {
+    fn table(&self, id: ObjId) -> VmResult<&Map> {
         match self.objects.get(id) {
-            Some(Object::LookupTable(table)) => Ok(table),
+            Some(Object::Map(table)) => Ok(table),
             _ => Err(VmError::new(code::BAD_TYPE_BIF)),
         }
     }
 
-    fn table_mut(&mut self, id: ObjId) -> VmResult<&mut LookupTable> {
+    fn table_mut(&mut self, id: ObjId) -> VmResult<&mut Map> {
         match self.objects.get_mut(id) {
-            Some(Object::LookupTable(table)) => Ok(table),
+            Some(Object::Map(table)) => Ok(table),
             _ => Err(VmError::new(code::BAD_TYPE_BIF)),
         }
     }
@@ -426,8 +426,8 @@ impl Vm {
     }
 
     /// Create a table object.
-    pub(crate) fn new_table(&mut self, table: LookupTable) -> ObjId {
-        self.alloc_obj(Object::LookupTable(Box::new(table)))
+    pub(crate) fn new_table(&mut self, table: Map) -> ObjId {
+        self.alloc_obj(Object::Map(Box::new(table)))
     }
 
     /// Construct a table from the arguments to `new`: nothing, a list of
@@ -452,7 +452,7 @@ impl Vm {
         if buckets == 0 || capacity == 0 {
             return Err(VmError::new(code::BAD_VAL_BIF));
         }
-        let id = self.new_table(LookupTable::new(buckets, capacity, weak));
+        let id = self.new_table(Map::new(buckets, capacity, weak));
         if !source.is_nil() {
             let len = self.list_like_len(source)?.unwrap_or(0);
             let mut index = 1;
@@ -597,7 +597,7 @@ impl Vm {
             self.new_table(copy)
         };
         Ok(Value::Obj(
-            self.alloc_obj(Object::LookupIter { table, slot: 0 }),
+            self.alloc_obj(Object::MapIter { table, slot: 0 }),
         ))
     }
 
@@ -614,14 +614,14 @@ impl Vm {
     /// Advance a table iterator. Returns the next value, or `None` at
     /// the end.
     pub(crate) fn table_iter_next(&mut self, id: ObjId) -> VmResult<Option<Value>> {
-        let Some(&Object::LookupIter { table, slot }) = self.objects.get(id) else {
+        let Some(&Object::MapIter { table, slot }) = self.objects.get(id) else {
             return Ok(None);
         };
         let next = self.table_next_slot(table, slot + 1);
         if next == 0 {
             return Ok(None);
         }
-        if let Some(Object::LookupIter { slot, .. }) = self.objects.get_mut(id) {
+        if let Some(Object::MapIter { slot, .. }) = self.objects.get_mut(id) {
             *slot = next;
         }
         Ok(self
@@ -632,7 +632,7 @@ impl Vm {
 
     /// Call a method of the iterator class on a table iterator.
     pub(crate) fn table_iter_method(&mut self, id: ObjId, index: u16) -> VmResult<Value> {
-        let Some(&Object::LookupIter { table, slot }) = self.objects.get(id) else {
+        let Some(&Object::MapIter { table, slot }) = self.objects.get(id) else {
             return Err(VmError::new(code::BAD_TYPE_BIF));
         };
         Ok(match index {
@@ -644,7 +644,7 @@ impl Vm {
             2 => Value::logical(self.table_next_slot(table, slot + 1) != 0),
             // resetIterator()
             3 => {
-                if let Some(Object::LookupIter { slot, .. }) = self.objects.get_mut(id) {
+                if let Some(Object::MapIter { slot, .. }) = self.objects.get_mut(id) {
                     *slot = 0;
                 }
                 Value::Nil

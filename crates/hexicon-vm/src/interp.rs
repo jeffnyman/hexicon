@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 
 use hexicon_bytecode::Opcode;
 
-use crate::bignum_obj::Arith;
+use crate::decimal_obj::Arith;
 use crate::error::{ErrParam, VmError, VmResult, code};
 use crate::meta::MetaKind;
 use crate::object::Object;
@@ -1009,7 +1009,7 @@ impl Vm {
                         }
                     }
 
-                    // ---- output and intrinsic functions ----
+                    // ---- output and built-in functions ----
                     Opcode::Say => {
                         let offset = dword!();
                         self.push(Value::SString(offset));
@@ -1365,7 +1365,7 @@ impl Vm {
     }
 
     // Integer arithmetic. A result that does not fit in 32 bits becomes
-    // a BigNumber.
+    // a Decimal.
 
     pub(crate) fn int_add(&mut self, a: i32, b: i32) -> VmResult<Value> {
         match a.checked_add(b) {
@@ -1439,7 +1439,7 @@ impl Vm {
         };
         match self.objects.get(id) {
             Some(Object::IndexedIter { .. }) => return self.indexed_iter_next(id),
-            Some(Object::LookupIter { .. }) => return self.table_iter_next(id),
+            Some(Object::MapIter { .. }) => return self.table_iter_next(id),
             Some(Object::Opaque { .. }) => {
                 return Err(self.unimplemented_object(id, "iteration"));
             }
@@ -1460,7 +1460,7 @@ impl Vm {
             .map(Some)
     }
 
-    /// Create an object of an intrinsic class, for the `new` instructions.
+    /// Create an object of a built-in class, for the `new` instructions.
     /// The constructor arguments are on the stack. Returns the address to
     /// continue at; the new object ends up in register 0.
     fn new_object(
@@ -1477,7 +1477,7 @@ impl Vm {
             let (_, next) = self.create_program_object(argc, transient, Some(return_pc))?;
             return Ok(next);
         }
-        let id = self.create_intrinsic(kind, argc)?;
+        let id = self.create_builtin(kind, argc)?;
         if transient {
             self.objects.set_transient(id);
         }
@@ -1485,11 +1485,11 @@ impl Vm {
         Ok(return_pc)
     }
 
-    /// Construct an object of an intrinsic class from arguments on the
+    /// Construct an object of a built-in class from arguments on the
     /// stack, removing them.
-    fn create_intrinsic(&mut self, kind: MetaKind, argc: u32) -> VmResult<ObjId> {
+    fn create_builtin(&mut self, kind: MetaKind, argc: u32) -> VmResult<ObjId> {
         match kind {
-            MetaKind::AnonFuncPtr => {
+            MetaKind::Function => {
                 if argc < 1 {
                     return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
                 }
@@ -1567,16 +1567,16 @@ impl Vm {
                 self.discard(argc as usize);
                 Ok(self.alloc_obj(Object::List(items.into())))
             }
-            MetaKind::LookupTable => self.create_table(argc, false),
-            MetaKind::WeakRefLookupTable => self.create_table(argc, true),
-            MetaKind::StringBuffer => self.create_strbuf(argc),
-            MetaKind::DynamicFunc => self.create_dynfunc(argc),
-            MetaKind::BigNumber => self.create_big(argc),
+            MetaKind::Map => self.create_table(argc, false),
+            MetaKind::WeakMap => self.create_table(argc, true),
+            MetaKind::StringBuilder => self.create_string_builder(argc),
+            MetaKind::CompiledCode => self.create_compiled_code(argc),
+            MetaKind::Decimal => self.create_big(argc),
             MetaKind::File => Err(VmError::new(code::BAD_DYNAMIC_NEW)),
             MetaKind::ByteArray
             | MetaKind::CharacterSet
             | MetaKind::StringComparator
-            | MetaKind::GrammarProduction
+            | MetaKind::GrammarRule
             | MetaKind::FileName
             | MetaKind::TemporaryFile
             | MetaKind::Date
@@ -1590,13 +1590,13 @@ impl Vm {
                     MetaKind::ByteArray => self.create_bytes(argc)?,
                     MetaKind::CharacterSet => self.create_charset(argc)?,
                     MetaKind::StringComparator => self.create_strcomp(argc)?,
-                    MetaKind::GrammarProduction => self.create_gram(argc)?,
+                    MetaKind::GrammarRule => self.create_gram(argc)?,
                     _ => self.create_dict(argc)?,
                 };
                 self.discard(argc as usize);
                 Ok(id)
             }
-            MetaKind::RexPattern => {
+            MetaKind::Regex => {
                 if argc != 1 {
                     return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
                 }
@@ -1604,8 +1604,8 @@ impl Vm {
                 self.discard(1);
                 Ok(id)
             }
-            MetaKind::IntrinsicClass => Err(VmError::new(code::ILLEGAL_NEW)),
-            MetaKind::StackFrameDesc | MetaKind::StackFrameRef => {
+            MetaKind::BuiltinClass => Err(VmError::new(code::ILLEGAL_NEW)),
+            MetaKind::StackFrame | MetaKind::StackFrameRef => {
                 Err(VmError::new(code::BAD_DYNAMIC_NEW))
             }
             other => Err(VmError::unimplemented(format!(

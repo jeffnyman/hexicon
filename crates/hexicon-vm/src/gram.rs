@@ -1,4 +1,4 @@
-//! The GrammarProduction intrinsic class: a rule of a game's grammar,
+//! The GrammarRule built-in class: a rule of a game's grammar,
 //! and the parser that matches a list of tokens against it.
 //!
 //! A production has alternatives, each a sequence of things to match: a
@@ -78,7 +78,7 @@ type LiteralHashes = Rc<Vec<Vec<u32>>>;
 
 /// A grammar production.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct GramProd {
+pub(crate) struct GrammarRule {
     pub alts: Rc<Vec<Alt>>,
     /// The production has changed since it was loaded.
     pub modified: bool,
@@ -87,7 +87,7 @@ pub(crate) struct GramProd {
     hashes: Option<(ObjId, LiteralHashes)>,
 }
 
-impl GramProd {
+impl GrammarRule {
     /// Read a production's alternatives from image or saved data.
     /// Returns the production and how many bytes it took.
     pub(crate) fn from_bytes(data: &[u8]) -> Option<(Self, usize)> {
@@ -154,7 +154,7 @@ impl GramProd {
         ))
     }
 
-    /// The alternatives as [`GramProd::from_bytes`] reads them.
+    /// The alternatives as [`GrammarRule::from_bytes`] reads them.
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         let mut out = Vec::new();
         let u16_put = |out: &mut Vec<u8>, n: u16| out.extend_from_slice(&n.to_le_bytes());
@@ -311,30 +311,30 @@ const METHODS: &[(&str, NativeDesc)] = &[
 ];
 
 impl Vm {
-    fn gram(&self, id: ObjId) -> VmResult<&GramProd> {
+    fn gram(&self, id: ObjId) -> VmResult<&GrammarRule> {
         match self.objects.get(id) {
-            Some(Object::GramProd(production)) => Ok(production),
+            Some(Object::GrammarRule(production)) => Ok(production),
             _ => Err(VmError::new(code::INVAL_OBJ_TYPE)),
         }
     }
 
-    fn gram_mut(&mut self, id: ObjId) -> VmResult<&mut GramProd> {
+    fn gram_mut(&mut self, id: ObjId) -> VmResult<&mut GrammarRule> {
         match self.objects.get_mut(id) {
-            Some(Object::GramProd(production)) => Ok(production),
+            Some(Object::GrammarRule(production)) => Ok(production),
             _ => Err(VmError::new(code::INVAL_OBJ_TYPE)),
         }
     }
 
-    /// `new GrammarProd()`.
+    /// `new GrammarRule()`.
     pub(crate) fn create_gram(&mut self, argc: u32) -> VmResult<ObjId> {
         if argc != 0 {
             return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
         }
-        let production = GramProd {
+        let production = GrammarRule {
             modified: true,
-            ..GramProd::default()
+            ..GrammarRule::default()
         };
-        Ok(self.alloc_obj(Object::GramProd(Box::new(production))))
+        Ok(self.alloc_obj(Object::GrammarRule(Box::new(production))))
     }
 
     pub(crate) fn gram_method(
@@ -561,7 +561,7 @@ impl Vm {
                     // Go into the other production. This state waits
                     // until an alternative of it finishes.
                     let (sub, prop) = (*sub, item.prop);
-                    if !matches!(self.objects.get(sub), Some(Object::GramProd(_))) {
+                    if !matches!(self.objects.get(sub), Some(Object::GrammarRule(_))) {
                         return Err(VmError::new(code::INVAL_OBJ_TYPE));
                     }
                     parser.states[index].sub_target_prop = prop;
@@ -650,7 +650,7 @@ impl Vm {
         if state.circular {
             if !matches!(
                 self.objects.get(state.production),
-                Some(Object::GramProd(_))
+                Some(Object::GrammarRule(_))
             ) {
                 return Err(VmError::new(code::INVAL_OBJ_TYPE));
             }

@@ -1,4 +1,4 @@
-//! The Date and TimeZone intrinsic classes.
+//! The Date and TimeZone built-in classes.
 //!
 //! A Date is a moment in time, kept as a day number and a time of day in
 //! UTC. The day number counts from March 1 of the year 0 in the Gregorian
@@ -7,7 +7,7 @@
 
 use std::rc::Rc;
 
-use crate::bignum::{self, Big};
+use crate::decimal::{self, Big};
 use crate::error::{VmError, VmResult, code};
 use crate::meta::MetaKind;
 use crate::object::Object;
@@ -1763,7 +1763,7 @@ impl Vm {
     pub(crate) fn date_sub(&mut self, id: ObjId, other: Value) -> VmResult<Value> {
         let (mut dayno, mut daytime) = self.as_date(Value::Obj(id)).unwrap_or_default();
         if let Some((other_day, other_time)) = self.as_date(other) {
-            // The difference in days, as a BigNumber.
+            // The difference in days, as a Decimal.
             let day = |dayno: i32, daytime: i32| {
                 let fraction = Big::div(
                     &Big::from_int(daytime.into(), 32),
@@ -2221,7 +2221,7 @@ fn format_date(
                 )
                 .unwrap_or_else(|| Big::zero(32));
                 let julian = Big::add(&Big::from_int(day + 1_721_119, 32), &fraction);
-                let text = julian.format(-1, -1, 10, -1, bignum::FORMAT_POINT, None);
+                let text = julian.format(-1, -1, 10, -1, decimal::FORMAT_POINT, None);
                 out.extend_from_slice(text.as_bytes());
             }
             b'u' => number(out, date.date.iso_weekday(), 1),

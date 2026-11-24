@@ -1,4 +1,4 @@
-//! The mathematical functions of BigNumber: roots, logarithms,
+//! The mathematical functions of Decimal: roots, logarithms,
 //! exponentials, and trigonometry.
 //!
 //! Each follows the reference VM's method: the same
@@ -8,7 +8,7 @@
 
 use std::cmp::Ordering;
 
-use crate::bignum::Big;
+use crate::decimal::Big;
 
 /// Why a function has no result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -277,7 +277,7 @@ pub fn exp_into(prec: usize, src: &Big, cache: &mut Cache) -> MathResult<Big> {
         let term = if use_int_fact {
             let mut term = reg(work, &power);
             term.div_by_long(n_fact);
-            // Switch to the BigNumber factorial before the integer one
+            // Switch to the Decimal factorial before the integer one
             // overflows a 32-bit long.
             if n_fact > 0x7fff_ffff / 10 / (n + 1) {
                 use_int_fact = false;
@@ -350,7 +350,7 @@ pub fn asin_acos_into(prec: usize, src: &Big, is_acos: bool, cache: &mut Cache) 
         digs: vec![7, 0, 7, 1, 0, 6, 7, 8, 1, 4],
         exp: 0,
         neg: false,
-        kind: crate::bignum::Kind::Num,
+        kind: crate::decimal::Kind::Num,
         zero: false,
     };
     let mut use_sqrt = false;
@@ -826,16 +826,16 @@ pub fn to_ieee754(src: &Big, bits: usize, cache: &mut Cache) -> MathResult<(Vec<
         return Ok((val.bytes, false));
     }
     match src.kind {
-        crate::bignum::Kind::Inf => {
+        crate::decimal::Kind::Inf => {
             val.set_infinity(src.neg);
             return Ok((val.bytes, false));
         }
-        crate::bignum::Kind::NaN => {
+        crate::decimal::Kind::NaN => {
             val.set_exp(val.emax + 1);
             val.set_mbit(0, true);
             return Ok((val.bytes, false));
         }
-        crate::bignum::Kind::Num => {}
+        crate::decimal::Kind::Num => {}
     }
     // Both formats have exponents of up to eleven bits, which take four
     // decimal digits.
@@ -925,10 +925,10 @@ pub fn from_ieee754(bytes: &[u8], cache: &mut Cache) -> MathResult<Big> {
     if val.exp() == val.emax + 1 {
         result.zero = false;
         if val.mantissa_is_zero() {
-            result.kind = crate::bignum::Kind::Inf;
+            result.kind = crate::decimal::Kind::Inf;
             result.neg = val.sign();
         } else {
-            result.kind = crate::bignum::Kind::NaN;
+            result.kind = crate::decimal::Kind::NaN;
         }
         return Ok(result);
     }

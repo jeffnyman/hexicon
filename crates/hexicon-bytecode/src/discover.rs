@@ -176,7 +176,7 @@ impl Finder<'_> {
             let layout = match image.metaclass_of(block).base_name() {
                 "hexicon-object" | "int-class-mod" => ObjectLayout::Properties,
                 "vector" | "anon-func-ptr" => ObjectLayout::Vector,
-                "lookuptable" | "weakreflookuptable" => ObjectLayout::LookupTable,
+                "lookuptable" | "weakreflookuptable" => ObjectLayout::Map,
                 _ => continue,
             };
             for object in &block.objects {
@@ -297,7 +297,7 @@ impl Finder<'_> {
                     self.value(holder(element));
                 }
             }
-            ObjectLayout::LookupTable => {
+            ObjectLayout::Map => {
                 // Bucket count, entry count, first free index, the bucket
                 // indexes, then each entry's key, value, and next index.
                 let buckets = u16_at(0)? as usize;
@@ -320,7 +320,7 @@ impl Finder<'_> {
 enum ObjectLayout {
     Properties,
     Vector,
-    LookupTable,
+    Map,
 }
 
 fn holder(bytes: &[u8]) -> Value {

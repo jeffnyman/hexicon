@@ -17,7 +17,7 @@
 
 use std::cell::Cell;
 
-use crate::object::{Object, StrBuf};
+use crate::object::{Object, StringBuilder};
 
 /// The bytes after which the reference collects.
 pub(crate) const BYTES_BETWEEN_GC: i64 = 6 * 1024 * 1024;
@@ -96,12 +96,12 @@ pub(crate) fn vector_bytes(room: usize) -> i64 {
 }
 
 /// A lookup table with so many buckets and slots.
-pub(crate) fn lookup_bytes(buckets: usize, slots: usize) -> i64 {
+pub(crate) fn map_bytes(buckets: usize, slots: usize) -> i64 {
     (32 + 8 * buckets + 40 * slots) as i64
 }
 
 /// A string buffer with room for so many characters.
-pub(crate) fn strbuf_bytes(buffer: &StrBuf) -> i64 {
+pub(crate) fn string_builder_bytes(buffer: &StringBuilder) -> i64 {
     16 + 2 * (i64::from(buffer.room) - 1)
 }
 
@@ -114,16 +114,16 @@ pub(crate) fn object_bytes(object: &Object, vector_room: usize) -> i64 {
         Object::List(items) => 2 + 5 * items.len() as i64,
         Object::Vector(_) | Object::AnonFn(_) => vector_bytes(vector_room),
         Object::IndexedIter { .. } => 21,
-        Object::LookupIter { .. } => 9,
-        Object::LookupTable(table) => lookup_bytes(table.bucket_count(), table.slot_count()),
+        Object::MapIter { .. } => 9,
+        Object::Map(table) => map_bytes(table.bucket_count(), table.slot_count()),
         Object::Pattern { .. } => 24,
-        Object::StringBuffer(buffer) => strbuf_bytes(buffer),
-        Object::BigNumber(big) => 5 + (big.digs.len() as i64 + 1) / 2,
+        Object::StringBuilder(buffer) => string_builder_bytes(buffer),
+        Object::Decimal(big) => 5 + (big.digs.len() as i64 + 1) / 2,
         // A count, and a pointer to each page of 256 MB.
         Object::ByteArray(bytes) => 4 + 8 * bytes.len().div_ceil(1 << 28) as i64,
         Object::CharSet { name, .. } => 29 + name.len() as i64,
         Object::StrComp(comparator) => comparator.heap_bytes(),
-        Object::GramProd(_) => 72,
+        Object::GrammarRule(_) => 72,
         Object::Dict(_) => 56,
         Object::Class(_) => 32,
         Object::File(_) => 40,
@@ -132,7 +132,7 @@ pub(crate) fn object_bytes(object: &Object, vector_room: usize) -> i64 {
         Object::TempFile(name) => 16 + name.len() as i64,
         // The fixed part, a number for each object referred to, the
         // object's number before the code, and the code.
-        Object::DynFunc(func) => {
+        Object::CompiledCode(func) => {
             48 + 2 * (func.obj_refs.len() as i64 - 1).max(0) + 4 + func.code.len() as i64
         }
         // The fixed part, with a slot for each variable past the first.

@@ -12,7 +12,7 @@ license.workspace = true
 profile = []
 
 [dependencies]
-hexicon-bignum = { path = "../hexicon-bignum" }
+hexicon-decimal = { path = "../hexicon-decimal" }
 hexicon-bytecode = { path = "../hexicon-bytecode" }
 # The compiler, for code compiled while a program runs: no libraries
 # built in, which only building a game needs.

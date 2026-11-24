@@ -6,7 +6,7 @@
 //! some operators are tried again.
 
 use crate::ast::{BinOp, ConstVal, Expr, UnOp, Value};
-use hexicon_bignum::{Big, FORMAT_POINT};
+use hexicon_decimal::{Big, FORMAT_POINT};
 use std::cmp::Ordering;
 
 /// A constant number as the arithmetic on numbers that are not
@@ -333,7 +333,7 @@ fn arithmetic(op: BinOp, left: Expr, right: Expr, errors: &mut Vec<String>) -> F
                         // caller never cleared; built for Windows, the
                         // flag is set, so the division is done again as
                         // numbers that are not integers. That reports
-                        // the error a second time and leaves a BigNumber
+                        // the error a second time and leaves a Decimal
                         // 1. Its remainder clears the flag first.
                         (1, op == BinOp::Div)
                     } else if op == BinOp::Div {

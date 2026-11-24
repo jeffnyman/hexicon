@@ -1,5 +1,5 @@
 //! Character sets: converting between text and the bytes of an encoding,
-//! and the CharacterSet intrinsic class that names one.
+//! and the CharacterSet built-in class that names one.
 //!
 //! UTF-8 and UTF-16 are built in. Every other set is a table embedded in
 //! the VM, in `data/charmaps.bin`: for each, a byte giving the length of

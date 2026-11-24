@@ -75,7 +75,7 @@ hexicon/
   crates/
     hexicon-image/        .t3 image parsing and validation; no VM dependency
     hexicon-bytecode/     the instruction set, decoder, and disassembler
-    hexicon-bignum/       decimal floating-point arithmetic, for the VM's BigNumber and the compiler's constants
+    hexicon-decimal/      decimal floating-point arithmetic, for the VM's Decimal and the compiler's constants
     hexicon-vm/           values, object table, interpreter, metaclasses, GC, undo, save/restore
     hexicon-compiler/     the compiler; see compiler-plan.md
     hexicon-host/         the host interface trait and shared host types

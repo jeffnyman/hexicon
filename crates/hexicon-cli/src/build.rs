@@ -322,7 +322,7 @@ fn global_symbol(symbol: &hexicon_compiler::RuntimeSymbol) -> hexicon_image::Glo
             dictionary: false,
         },
         RuntimeValue::Enum(id) => GlobalSymbolKind::Enumerator { id, token: false },
-        RuntimeValue::BuiltIn { set, index } => GlobalSymbolKind::IntrinsicFunction {
+        RuntimeValue::BuiltIn { set, index } => GlobalSymbolKind::BuiltinFunction {
             index,
             set,
             has_return: true,
@@ -330,7 +330,7 @@ fn global_symbol(symbol: &hexicon_compiler::RuntimeSymbol) -> hexicon_image::Glo
             max_argc: 0,
             varargs: false,
         },
-        RuntimeValue::Class(class_object) => GlobalSymbolKind::IntrinsicClass {
+        RuntimeValue::Class(class_object) => GlobalSymbolKind::BuiltinClass {
             metaclass_index: 0,
             class_object,
         },

@@ -1,4 +1,4 @@
-//! The vector intrinsic class: a list that changes in place.
+//! The vector built-in class: a list that changes in place.
 //!
 //! Most methods that would return a new list for a list modify the vector
 //! and return it.

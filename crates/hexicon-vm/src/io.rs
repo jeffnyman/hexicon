@@ -821,7 +821,7 @@ impl Vm {
                 items.push(match i32::try_from(seconds) {
                     Ok(seconds) => Value::Int(seconds),
                     Err(_) => {
-                        let big = crate::bignum::Big::from_int(seconds, 20);
+                        let big = crate::decimal::Big::from_int(seconds, 20);
                         self.new_big(big)
                     }
                 });
