@@ -7,7 +7,7 @@ What Hexad is to become, and how, is in [docs/hexad-plan.md](../../docs/hexad-pl
 ## What is here
 
 - `hexicon.toml`: the library's manifest. Its sources are in the order adv3Lite's `adv3Lite.tl` gives them.
-- The library's sources, in Hexicon's language (`.hxn`), and `hexad.h`, its header, which a game's sources get by importing Hexad. They were converted from adv3Lite's `.t` files by `hexicon convert`, which gave the built-in functions Hexicon's names (`hexicon.h`) and changed nothing else.
+- The library's sources, in Hexicon's language (`.hxn`), and `hexad.h`, its header, which a game's sources get by importing Hexad. They were converted from adv3Lite's `.t` files by a converter Hexicon had then, which gave the built-in functions Hexicon's names (`hexicon.h`) and changed nothing else.
 - `english/`: the English messages and parsing, with a manifest of their own, chosen by `LANGUAGE`.
 - `extensions/`: adv3Lite's optional extensions, which a game includes by naming them among its sources (`"extensions/relations"` in a manifest).
 - `browser.t` and `menuweb.t`, which belong to adv3Lite's web variant and are not in the manifest yet.
@@ -46,4 +46,4 @@ Each Hexicon source of the game imports it, which gives the file Hexad's header 
 import hexad;
 ```
 
-A game written for adv3Lite moves to Hexad by `hexicon convert`, then importing Hexad where it included `advlite.h` and naming `hexad` among its libraries.
+A game written for adv3Lite is rewritten in Hexicon to move to Hexad: Hexicon's names for the built-in functions, `import hexad;` where it included `advlite.h`, `hexad` among its libraries, and the declarations (`action`, `dobj`, `verb`) where it used the macros. Hexicon had a converter that did this until 2026-11-24.

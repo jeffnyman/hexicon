@@ -6054,10 +6054,11 @@ impl Gen<'_> {
     fn call_internal_bif(&mut self, name: &[u8], what: &str, argc: usize) {
         // The function may have Hexicon's name for it, as it has in
         // Hexicon's system library.
-        let hexicon_name = crate::convert::RENAMES
+        const HEXICON_NAMES: [(&[u8], &[u8]); 1] = [(b"t3GetNamedArg", b"namedArg")];
+        let hexicon_name = HEXICON_NAMES
             .iter()
-            .find(|(old, _)| old.as_bytes() == name)
-            .map(|(_, new)| new.as_bytes());
+            .find(|(old, _)| *old == name)
+            .map(|(_, new)| *new);
         // Found by neither, the message names the TADS 3 name, as the
         // reference's does.
         let found = std::iter::once(name)

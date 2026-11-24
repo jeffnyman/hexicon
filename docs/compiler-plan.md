@@ -77,7 +77,6 @@ crates/
     src/project.rs        what to build: the options and the modules, from the command line,
                           project files (.t3m), and libraries (.tl), as t3make reads them
     src/manifest.rs       Hexicon's manifests (hexicon.toml), for games and libraries
-    src/convert.rs        converting TADS 3 source, project files, and libraries to Hexicon
     src/names.rs          checked names: properties a game gives values that nothing reads
     src/builtin.rs        the libraries built into the compiler (lib/system, lib/hexad)
     build.rs              their table, made from lib when the compiler is built

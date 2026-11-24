@@ -1,7 +1,6 @@
 //! The `hexicon` command-line tool.
 
 mod build;
-mod convert;
 mod new;
 mod preprocess;
 mod resources;
@@ -106,14 +105,6 @@ commands:
                                run a program as it is run before its
                                image is written, and write the image it
                                leaves
-  convert <folder> <new-folder>
-                               make a TADS 3 game or library into a
-                               Hexicon one, in a new folder: sources
-                               become .hxn files with Hexicon's names for
-                               the system library's functions, classes,
-                               and headers, a project file
-                               (.t3m) becomes hexicon.toml, and a library
-                               (.tl) a .toml beside it
   preprocess [options] <source>
                                write a source file's preprocessed text;
                                the options are:
@@ -211,9 +202,6 @@ fn main() -> ExitCode {
     }
     if let ["new", rest @ ..] = args.as_slice() {
         return new::run(rest, USAGE);
-    }
-    if let ["convert", rest @ ..] = args.as_slice() {
-        return convert::run(rest, USAGE);
     }
     if let ["preprocess", rest @ ..] = args.as_slice() {
         return preprocess::run(rest, USAGE, preprocess::Output::Text);
