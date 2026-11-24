@@ -5,9 +5,6 @@ import hexad;
 /*
  *   ***************************************************************************
  *   messages.t
- *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve, but is
- *   based substantially on the Mercury Library (c) 2012 Michael J. Roberts
  */
 
 /* ------------------------------------------------------------------------ */

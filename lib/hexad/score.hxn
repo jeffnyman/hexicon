@@ -1,9 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Copyright (c) 2000, 2006 by Michael J. Roberts.  All Rights Reserved. 
- *   Lightly adapted for adv3Lite by Eric Eve
- *   
  *   TADS 3 Library - scoring
  *   
  *   This module defines objects related to keeping track of the player's

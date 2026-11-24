@@ -4,7 +4,6 @@ import hexad;
 /*
  *.   Brightness Exteension for adv3Lite
  *.   Version 1.0   29-Oct-22
- *.   Eric Eve
  *.
  *   This extension provides much of the adv3 ligthting levels functionality in a slightly different
  *   form for the adv3Lite library.

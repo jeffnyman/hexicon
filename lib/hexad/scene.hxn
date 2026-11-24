@@ -6,7 +6,6 @@ import hexad;
  *   ****************************************************************************
  *    scene.t 
  *    This module forms an optional part of the adv3Lite library 
- *    (c) 2012-13 Eric Eve
  */
 
 /* 

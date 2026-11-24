@@ -1,8 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
- *   
  *   TADS 3 Library - main header
  *   
  *   This file provides definitions of macros, properties, and other

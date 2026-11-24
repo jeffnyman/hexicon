@@ -15,8 +15,6 @@ import hexad;
 
 tiaactionID: ModuleID
     name = 'TIA Action'
-    byline = 'by Eric Eve'
-    htmlByline = 'by Eric Eve'
     version = '1'    
 ;
 

@@ -2,7 +2,7 @@
 import hexad;
 
 /* 
- *   RULES EXTENSION by Eric Eve July 2014
+ *   RULES EXTENSION
  *
  *   The rules.t extension allows Inform7-style rules and rulebooks to be
  *   defined in a TADS 3 game.

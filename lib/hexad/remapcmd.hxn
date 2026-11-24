@@ -13,18 +13,6 @@
  *      1. Provide the actual text for the new command
  *  OR  2. Do a normal doInstead command with the appropriate values [via execute()]
  *      3. Or put out a message with "" that ends the command [via execute()]
- *
- *
- *  Contributed by Mitchell Mlinar
- *  Copyright (c) 2025
- *
- *  Licensed using MIT defintion
- *
- *
- *  v1.00: 14 Oct 2025
- *  v1.02: 15 Oct 2025 (thanks to advice/feedback from Eric Eve)
- *  v1.03: 16 Oct 2025 (thanks to additional advice/feedback from Eric Eve)
- *
  */
 
 import hexad;

@@ -7,7 +7,6 @@ import hexad;
 /*---------------------------------------------------------------------------*/
 /*
  *   cmdHelp Extension
- *.  by Eric Eve
  *
  *   Experimental extension to give help to players who enter a empty command.
  */

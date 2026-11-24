@@ -22,8 +22,6 @@ import hexad;
 
 sensoryID: ModuleID
     name = 'Sensory'
-    byline = 'by Eric Eve'
-    htmlByline = 'by Eric Eve'
     version = '2'    
 ;
 

@@ -5,10 +5,6 @@ import hexad;
 /*
  *   ***************************************************************************
  *   lister.t
- *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve, and is
- *   substantially borrowed from the Mercury library (c) 2012 Michael J.
- *   Roberts.
  */
 
 

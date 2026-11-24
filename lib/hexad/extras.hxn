@@ -6,11 +6,6 @@ import hexad;
  *   ***************************************************************************
  *   extras.t
  *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
- *
- *
- *
- *
  *   This file contains a number of (in principle) optional classes that can be
  *   used in addition to Thing. A game does not need to use any of these classes
  *   since authors can always just set the appropriate properties on thing, but

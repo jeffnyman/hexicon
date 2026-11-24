@@ -3,9 +3,7 @@ import hexad;
 /*
  *   SUBTIME EXTENSION
  *
- *   Copyright 2003, 2006 Michael J. Roberts
- *
- *   Adapted for use with adv3Lite by Eric Eve; the changes include using the
+ *   The changes from the original include using the
  *   Date class rather than the custom format for storing dates and times used
  *   in MJR's original version.
  *
@@ -13,8 +11,6 @@ import hexad;
  *   that attempts to mimic the player's subjective experience of time passing
  *   in the scenario while still allowing for occasional, reasonably precise
  *   time readings, such as from a wristwatch in the game world.
- *
- *
  */
 
 property gameStartTime;
@@ -79,7 +75,7 @@ clockManager: PreinitObject
         if (nextTime != nil)
         {
             /*   
-             *   In Mike Roberts's version of subtime, the clock is slowed down
+             *   In the original version of subtime, the clock is slowed down
              *   if the base scaled time would take us within two hours of the
              *   next event time, but this may be inappropriate if the game is
              *   working to a much shorter or longer timescale. So we instead
@@ -192,7 +188,7 @@ clockManager: PreinitObject
      *   Even so, you might want to adjust this value up or down according to
      *   your sense of the pacing of your game.
      *
-     *   In Mike Roberts's implementation, the baseScaleFactor was defined as a
+     *   In the original implementation, the baseScaleFactor was defined as a
      *   constant value of 60. This is still the default value, but if there is
      *   a next event we take the scale factor from that event's scaleFactor so
      *   that we can vary the pace of time according to the spacing of events if

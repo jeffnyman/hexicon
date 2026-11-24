@@ -3,9 +3,6 @@
 /*
  *   TADS 3 Library - Menu System
  *   
- *   Copyright 2003 by Stephen Granade
- *.  Modifications copyright 2003, 2010 Michael J. Roberts
- *   
  *   This module is designed to make it easy to add on-screen menu trees to
  *   a game.  Note that we're not using the term "menu" in its modern GUI
  *   sense of a compact, mouse-driven pop-up list.  The style of menu we
@@ -24,10 +21,6 @@
  *   
  *   The user interface for the menu system is implemented in menucon.t for
  *   traditional console interpreter, and in menuweb.t for the Web UI.
- *   
- *   Stephen Granade adapted this module from his TADS 2 menu system, and
- *   Mike Roberts made some minor cosmetic changes to integrate it with the
- *   main TADS 3 library.  
  */
 
 import hexad;

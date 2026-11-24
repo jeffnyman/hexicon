@@ -21,8 +21,6 @@ import hexad;
 
 fueledID: ModuleID
     name = 'Fueled Light Source'
-    byline = 'by Eric Eve'
-    htmlByline = 'by Eric Eve'
     version = '1'    
 ;
 

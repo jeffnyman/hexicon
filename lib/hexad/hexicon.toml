@@ -1,8 +1,8 @@
 # Hexad, the library for Hexicon games.
 #
-# Hexad begins as adv3Lite 2.2.3.2, by Eric Eve (see LICENSE.MD), and
-# these are its sources in adv3Lite's order. A source named with ".t" is
-# still TADS 3; one with no extension is a Hexicon (.hxn) source.
+# These are its sources, in the order they are built. A source named
+# with ".t" is still TADS 3; one with no extension is a Hexicon (.hxn)
+# source.
 
 [library]
 name = "Hexad"

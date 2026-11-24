@@ -1,11 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Based on Copyright (c) 2002, 2006 by Michael J. Roberts
- *   
- *   Based on exitslister.t, copyright 2002 by Steve Breslin and
- *   incorporated by permission.  
- *   
  *   TADS 3 Library - Exits Lister
  *   
  *   This module provides an automatic exit lister that shows the apparent

@@ -5,7 +5,7 @@ import hexad;
 /*
  *   *********************************************************************************
  *
- *   This module provides the LookDir extension for the adv3Lite library (c) 2024 Eric Eve
+ *   This module provides the LookDir extension.
  *
  *   Version 2.1  24-Jan-25
  *

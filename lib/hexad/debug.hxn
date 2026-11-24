@@ -6,11 +6,6 @@ import hexad;
  *   ************************************************************************
  *   debug.t This module forms part of the adv3Lite library, and defines a
  *   number of commands that can be used for debugging purposes.
- *
- *   (c) 2012-13 Eric Eve (but based partly on code borrowed from the Mercury
- *   library (c) Michael J. Roberts).
- *
- *
  */
 
 
@@ -383,12 +378,6 @@ modify TadsObject
     
 ;
 
-
-/* 
- *   Adaptation for use with adv3Lite of the tests extension based on work by
- *   Ben Cressy, Eric Eve, and N.R.Turner with substantial enhancements by 
- *   Mitch Mlinar
- */
 
 /*
  *   To use this facility, define Test objects like so:

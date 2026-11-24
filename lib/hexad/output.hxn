@@ -5,9 +5,6 @@ import hexad;
 /*
  *   ***************************************************************************
  *   output.t
- *
- *   This module forms part of the adv3Lite library (c) 2012-24 Eric Eve, based
- *   heavily in parts on the equivalent code in adv3 (c) Micheal J. Roberts.
  */
 
 /* ------------------------------------------------------------------------ */

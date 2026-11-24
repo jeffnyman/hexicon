@@ -1,9 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Copyright (c) 2000, 2006 by Michael J. Roberts.  All Rights Reserved. 
- *   Adapted for adv3lite library by Eric Eve
- *   
  *   TADS 3 Library - Hint System
  *   
  *   This module provides a hint system framework.  Games can use this

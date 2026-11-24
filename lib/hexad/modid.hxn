@@ -1,8 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
- *   
  *   adv3Lite Library - module ID's
  *   
  *   This module defines a framework for "module ID's."  The module ID
@@ -592,13 +590,10 @@ class GameID: GameInfoModuleID
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The library's ID. Hexad began as adv3Lite 2.2.3.2, by Eric Eve.
+ *   Hexad's library ID.
  */
 moduleHexad: ModuleID
     name = 'Hexad'
-    byline = 'based on adv3Lite by Eric Eve'
-    htmlByline = 'based on adv3Lite by <a href="mailto:eric.eve@hmc.ox.ac.uk">'
-                 + 'Eric Eve</a>'
     version = '0.1.0'
 
     /*

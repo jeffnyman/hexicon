@@ -9,8 +9,6 @@ import hexad;
 
 symconnID: ModuleID
     name = 'Symconn'
-    byline = 'by Eric Eve'
-    htmlByline = 'by Eric Eve'
     version = '3'    
 ;
 

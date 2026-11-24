@@ -19,8 +19,6 @@ import hexad;
  */
 roomPartID: ModuleID
     name = 'Room Parts'
-    byline = 'by Eric Eve'
-    htmlByline = 'by Eric Eve'
     version = '1'    
 ;
 

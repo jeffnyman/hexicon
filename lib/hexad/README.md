@@ -2,7 +2,7 @@
 
 Hexad is the library for Hexicon games: the world model, the parser, and the messages a game is built on.
 
-It began as adv3Lite 2.2.3.2, by Eric Eve, which was itself built from Michael J. Roberts's adv3 and Mercury libraries. adv3Lite's license is in [LICENSE.MD](LICENSE.MD), and its notice is kept with every copy. What Hexad is to become, and how, is in [docs/hexad-plan.md](../../docs/hexad-plan.md).
+What Hexad is to become, and how, is in [docs/hexad-plan.md](../../docs/hexad-plan.md).
 
 ## What is here
 

@@ -1,9 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
- *   Slightly adapted by Eric Eve for use with adv3Lite
- *   
  *   TADS 3 Library: Instructions for new players
  *   
  *   This module defines the INSTRUCTIONS command, which provides the

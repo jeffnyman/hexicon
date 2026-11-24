@@ -8,9 +8,6 @@ import hexad;
  *   This file defines the senseRegion class and the modifications to other
  *   classes needed to support it. It can be omitted from games that don't need
  *   the functionality it provides.
- *
- *   This file forms part of the adv3Lite library by Eric Eve (c) 2012, 2013
- *
  */
 
 

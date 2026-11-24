@@ -5,10 +5,6 @@ import hexad;
  *   ***************************************************************************
  *   attachables.t
  *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
- *
- *
- *
  *   The attachables file provides a framework for simple and common case
  *   attachables.
  *
@@ -16,7 +12,6 @@ import hexad;
  *   the same as ATTACH B TO A. It also treats it as a many-to-one relationship:
  *   the object that is attached can only be attached to one object at a time,
  *   but the object it's attached to can have multiple objects attached to it.
- *
  */
 
 /* 

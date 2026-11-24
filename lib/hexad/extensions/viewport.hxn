@@ -22,8 +22,6 @@ import hexad;
 
 viewportID: ModuleID
     name = 'Viewport'
-    byline = 'by Eric Eve'
-    htmlByline = 'by Eric Eve'
     version = '1'    
 ;
 

@@ -7,10 +7,6 @@ import hexad;
  *   ***************************************************************************
  *   gadget.t
  *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
- *
- *
- *
  *   This module contains definitions for various control gadgets like buttons,
  *   levers and dials.
  */

@@ -6,9 +6,6 @@ import hexad;
  *   *************************************************************************
  *   thoughts.t
  *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
- *
- *
  *   This file adds support for a THINK about command
  */
 

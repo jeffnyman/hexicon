@@ -1,8 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
- *   
  *   TADS 3 Library: banner manager
  *   
  *   This module defines the banner manager, which provides high-level
@@ -13,9 +11,6 @@
  *   character-mode terminal, or could be a window in a GUI system).  The
  *   game can control the creation and destruction of banner windows, and
  *   can control their placement and size.
- *   
- *   This implementation is based in part on Steve Breslin's banner
- *   manager, used by permission.  
  */
 
 import hexad;

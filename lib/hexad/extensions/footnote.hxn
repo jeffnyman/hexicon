@@ -3,13 +3,9 @@
 /* 
  *   FOOTNOTE EXTENSION
  *
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
- *   
  *   TADS 3 Library - footnotes
  *   
  *   This module defines objects related to footnotes.  
- *
- *   Slightly modified for use with adv3Lite by Eric Eve
  */
 
 /* include the library header */

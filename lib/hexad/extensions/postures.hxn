@@ -22,8 +22,6 @@ import hexad;
 
 posturesID: ModuleID
     name = 'Postures'
-    byline = 'by Eric Eve'
-    htmlByline = 'by Eric Eve'
     version = '1'    
 ;
 

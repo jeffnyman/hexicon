@@ -6,9 +6,6 @@ import hexad;
 /*
  *   **************************************************************************
  *   doer.t
- *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve, but is
- *   heavily based on parts of the Mercury library (c) 2012 Michael J. Roberts.
  */
 
 /*  

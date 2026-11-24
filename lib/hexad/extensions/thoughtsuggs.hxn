@@ -7,8 +7,7 @@ import hexad;
 /*
  *   *************************************************************************** thoughtsuggs.t
  *
- *   This module provides the Thought Sugestions extension for the adv3Lite library (c) 2024 Eric
- *   Eve
+ *   This module provides the Thought Sugestions extension.
  *
  *   Version 1.0  07-Dec-2024
  *
@@ -18,7 +17,6 @@ import hexad;
  *   ThoughtManager object and provided with a name property.
  *
  *   The thoughtsuggs.t required thoughts.t and actor.t to be present in the game.
- *
  */
 
 

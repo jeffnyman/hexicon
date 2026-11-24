@@ -1,9 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
- *   Adapted for adv3Lite by Eric Eve
- *   
  *   adv3Lite Library - miscellaneous definitions
  *   
  *   This module contains miscellaneous definitions that don't have a

@@ -6,9 +6,6 @@ import hexad;
 /*
  *   ****************************************************************************
  *    actor.t 
- *
- *    This module forms part of the adv3Lite library 
- *    (c) 2012-13 Eric Eve
  */
 
 /* Declare the eventList property in case the eventList module isn't included */

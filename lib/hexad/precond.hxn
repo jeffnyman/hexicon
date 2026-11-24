@@ -5,10 +5,6 @@ import hexad;
 /*
  *   ***************************************************************************
  *   precond.t
- *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
- *
- *   Based on code in the adv3 library (c) Michael J. Roberts.
  */
 
 /* 

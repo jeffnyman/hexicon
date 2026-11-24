@@ -3,7 +3,7 @@ import hexad;
 #include <hexicon.h>
 
 /* 
- *   RELATIONS EXTENSION by Eric Eve July 2014
+ *   RELATIONS EXTENSION
  *
  *   The relations.t extension allows Inform7-style relations to be
  *   defined in a TADS 3 game.
