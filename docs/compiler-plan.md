@@ -2,6 +2,8 @@
 
 Status: draft, 2026-11-19
 
+> The tools this plan names for comparing with the reference (`pp-compare.sh`, `compile-compare.sh`, `suite-compare.sh`, `game-compare.sh`, `tools/reference`, `tools/conformance`, the generators of the VM's tables, and the rest) were removed on 2026-11-24, when Hexicon stopped testing against TADS 3 (language plan, "Retiring TADS 3"). What they established is kept in `tests/programs`, checked by `tools/program-check.py`. Where this plan says that something was checked by them, that is what was done at the time.
+
 ## Goal
 
 Build the Hexicon compiler in Rust: a program that turns source text into an image the Hexicon VM runs. The first target is compiling unmodified TADS 3 source, meaning a game's own files together with the library it is built on (adv3 or adv3Lite), into an image that plays the same as one built by the stock `t3make`.
@@ -85,17 +87,10 @@ crates/
     src/compile.rs        the two readings of each source, and what comes back to the caller
   hexicon-cli/            `hexicon build`, `hexicon preprocess`, and `hexicon tokens`
 tools/
-  pp-compare.sh           preprocesses files with Hexicon and the reference's test program, and compares;
-                          with --tokens, compares the tokens
-  reference/tok_dump.cpp  lists a file's tokens using the reference's own tokenizer
-  compile-compare.sh      compiles files with Hexicon and with `t3make`, and compares the images
-                          and the messages; a folder is a program of several source files
+  program-check.py        checks Hexicon against tests/programs: the compiler's test programs,
+                          each with its image's fingerprint, its messages, and what it prints
+  game-check.py           builds and plays whole games on Hexad, kept outside the repository
   image-diff.py           compares two images, leaving out the parts that mean nothing
-  compile-tests/          programs for compile-compare.sh, and the generator of random ones;
-                          suite-compare.sh builds the test suite's programs with both compilers,
-                          and game-compare.sh the games, each from its project file
-  program-check.py        checks Hexicon against tests/programs, the compile tests converted to
-                          Hexicon with what they print, recorded once against the reference
 ```
 
 The compiler reads files through a small interface the caller supplies, as the VM reaches the outside through its host. That keeps it usable inside the VM, in a browser, and in tests.

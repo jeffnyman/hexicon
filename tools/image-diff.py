@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Compare two program images.
 
-usage: image-diff.py <ours.t3> <reference.t3> <unspecified>
+usage: image-diff.py <first> <second> <unspecified>
 
-The third file lists the parts of our image that mean nothing, each as
-an offset and a length on a line: `hexicon build --unspecified` writes
-it. They are the time stamp, the bytes in the header that are the
-compiler's own, and fields that are written but never read, some of
-which the reference compiler leaves holding whatever was in its memory.
-Those parts are not compared.
+The third file lists the parts of the first image that mean nothing,
+each as an offset and a length on a line: `hexicon build --unspecified`
+writes it. They are the time stamp, the bytes in the header that are the
+compiler's own, and fields that are written but never read. Those parts
+are not compared, in either image.
 
 Prints nothing and exits with 0 if the images are otherwise the same;
 if not, says which block the first difference in each differing block
@@ -55,8 +54,8 @@ def main():
     for index, (a, b) in enumerate(zip(ours_blocks, theirs_blocks)):
         if (a[0], a[1]) != (b[0], b[1]):
             print(
-                f"block {index}: ours is {a[0]} at {a[1]},"
-                f" the reference's is {b[0]} at {b[1]}"
+                f"block {index}: the first is {a[0]} at {a[1]},"
+                f" the second {b[0]} at {b[1]}"
             )
             same = False
             break
@@ -79,10 +78,10 @@ def main():
         show = lambda data, mask=mask, start=start, at=at: bytes(
             x ^ mask for x in data[start : at + 16]
         ).hex(" ")
-        print("  ours:      " + show(mine))
-        print("  reference: " + show(other))
+        print("  first:  " + show(mine))
+        print("  second: " + show(other))
     if same and len(ours_blocks) != len(theirs_blocks):
-        print(f"{len(ours_blocks)} blocks, the reference has {len(theirs_blocks)}")
+        print(f"{len(ours_blocks)} blocks, the second has {len(theirs_blocks)}")
         same = False
     sys.exit(0 if same else 1)
 

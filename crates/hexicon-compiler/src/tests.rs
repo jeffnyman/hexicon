@@ -1,9 +1,8 @@
 //! Tests for the compiler.
 //!
-//! The preprocessor's real test is the comparison with the reference
-//! compiler over whole libraries (`tools/pp-compare.sh`). These pin down
-//! the behavior that comparison established, on cases small enough to
-//! read.
+//! The preprocessor was checked against the reference compiler over whole
+//! libraries. These pin down the behavior that comparison established, on
+//! cases small enough to read; tests/programs has whole programs.
 
 use std::collections::HashMap;
 
@@ -430,9 +429,9 @@ fn tokenizer_problems() {
 
 // ---- compiling ----
 //
-// The compiler's real test is the comparison of whole images with the
-// reference compiler's (`tools/compile-compare.sh`). These pin down
-// what that comparison established.
+// The compiler was checked against the reference compiler, image by
+// image. These pin down what that comparison established; tests/programs
+// has whole programs.
 
 use crate::{CompileOptions, Compiled, compile};
 

@@ -1,9 +1,10 @@
 //! Character sets: converting between text and the bytes of an encoding,
 //! and the CharacterSet intrinsic class that names one.
 //!
-//! UTF-8 and UTF-16 are built in. Every other set is a table from the
-//! reference VM's collection, embedded in the VM (see
-//! `tools/gen-charmaps.py`). A table does more than list the characters
+//! UTF-8 and UTF-16 are built in. Every other set is a table embedded in
+//! the VM, in `data/charmaps.bin`: for each, a byte giving the length of
+//! its name, the name, the table's length as a 32-bit little-endian
+//! integer, and the table. A table does more than list the characters
 //! a set has: it also gives a stand-in for many it lacks, so that `à`
 //! becomes `a` in ASCII instead of a question mark.
 

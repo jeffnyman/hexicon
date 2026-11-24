@@ -12,7 +12,40 @@ use std::rc::Rc;
 
 use crate::date::CalDate;
 
-// `tools/gen-timezones.py` builds the file, and describes its layout.
+// The time zones, from the IANA's zoneinfo data, in a layout of Hexicon's
+// own. Numbers are little-endian, and a name is a byte giving its length
+// and then the name.
+//
+//     "HXTZ", and the format version as a 32-bit integer: 1
+//     the number of zones, of links, and of abbreviations, 32 bits each
+//     for each zone: its name, the two letters of its country (or zeros),
+//         and the offset in the file of its record, 32 bits
+//     for each link, which is another name for a zone: the name, and the
+//         zone's index, 32 bits
+//     for each abbreviation: its name, a count as a byte, and for each
+//         zone that uses it: the zone's index, 32 bits; the offset from
+//         UTC in milliseconds, 32 bits, signed; and "S", "D", or "B" for
+//         standard time, daylight time, or both
+//     for each zone, its record: the record's length, 16 bits, and then
+//         the number of transitions, 16 bits
+//         the number of time types, 16 bits
+//         the number of rules, a byte
+//         the length of the abbreviations, a byte
+//         for each transition: the day number and the time of day in
+//             milliseconds, 32 bits each, signed, and the index of the
+//             time type it changes to, a byte
+//         for each rule: the offset of its abbreviation, a byte; the
+//             month; how the day is chosen; the day; the weekday, a byte
+//             each; the time of day in milliseconds, 24 bits, and a byte
+//             saying which clock that is on; and the offset from UTC and
+//             the daylight saving, in milliseconds, 32 bits each, signed
+//         for each time type: the offset from UTC and the daylight
+//             saving, 32 bits each, signed, and the offset of its
+//             abbreviation, a byte
+//         the abbreviations, each ended by a zero byte
+//         a zero byte, or else the country as two letters, the
+//             coordinates as 15 characters and a zero byte, and a comment
+//             as a length byte, the text, and a zero byte
 static DATABASE: &[u8] = include_bytes!("../data/timezones.bin");
 
 const MS_PER_DAY: i32 = 24 * 60 * 60 * 1000;

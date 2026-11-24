@@ -21,7 +21,7 @@ adv3Lite's manual, templates, and cut-down variants (`adv3Liter`, `adv3Litest`) 
 - Actions and their handlers are Hexicon's declarations (`action Take(dobj): TAction`, `dobj Take { ... }`, `dobj Search as LookIn`), not `DefineTAction`, `dobjFor`, and `asDobjFor`. They make the same program. `hexad.h` keeps the macros, so a game may use either.
 - The library's `ModuleID` is `moduleHexad`, which VERSION shows as "Hexad version 0.1.0", where adv3Lite has `moduleAdv3Lite`.
 
-`tools/compile-tests/hexad-compare.sh` plays adv3Lite's games on both libraries and checks that this is all that differs.
+Until 2026-11-24 a comparison played adv3Lite's games on both libraries and checked that this was all that differed. Those games, in Hexicon, are now played on Hexad alone by `tools/game-check.py`.
 
 ## Using it
 

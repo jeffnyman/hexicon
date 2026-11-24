@@ -34,6 +34,10 @@ commands:
       --plain                  treat a terminal as plain input and output:
                                80 columns, no pauses, and keys read as lines
       --nomore                 do not pause when a screenful has gone by
+      --clock <time>           start the clock at a time in UTC
+                               (2000-01-01T09:15:00), and move it on a
+                               millisecond each time the program reads it,
+                               so that it reads the same on every run
       -I, --script <file>      read input from a command script before
                                asking for any
       --sandbox <dir>          the folder the program's file access is
@@ -137,6 +141,7 @@ fn main() -> ExitCode {
             script: None,
             sandbox: None,
             safety: (2, 2),
+            clock: None,
         };
         let mut rest = rest;
         loop {
@@ -151,6 +156,17 @@ fn main() -> ExitCode {
                 }
                 ["--nomore", tail @ ..] => {
                     options.paging = false;
+                    rest = tail;
+                }
+                ["--clock", time, tail @ ..] => {
+                    let Some(millis) = unix_millis_of(time) else {
+                        eprintln!(
+                            "hexicon: --clock takes a time such as 2000-01-01T09:15:00, \
+                             not \"{time}\""
+                        );
+                        return ExitCode::FAILURE;
+                    };
+                    options.clock = Some(millis);
                     rest = tail;
                 }
                 ["-I" | "--script", file, tail @ ..] => {
@@ -250,6 +266,44 @@ struct RunOptions<'a> {
     sandbox: Option<&'a str>,
     /// The file safety levels for reading and for writing.
     safety: (u8, u8),
+    /// The time the clock starts at, in milliseconds since 1970 began,
+    /// for a clock that reads the same on every run.
+    clock: Option<i64>,
+}
+
+/// A time written `YYYY-MM-DDTHH:MM:SS`, in UTC, as milliseconds since
+/// 1970 began.
+fn unix_millis_of(text: &str) -> Option<i64> {
+    let (date, time) = text.split_once('T')?;
+    let numbers = |part: &str, sep: char| -> Option<Vec<i64>> {
+        part.split(sep).map(|n| n.parse().ok()).collect()
+    };
+    let [year, month, day] = numbers(date, '-')?[..] else {
+        return None;
+    };
+    let [hour, minute, second] = numbers(time, ':')?[..] else {
+        return None;
+    };
+    if !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 59
+    {
+        return None;
+    }
+    // Days since 1970 began, by the civil calendar.
+    let (y, m) = if month <= 2 {
+        (year - 1, month + 9)
+    } else {
+        (year, month - 3)
+    };
+    let era = y.div_euclid(400);
+    let year_of_era = y - era * 400;
+    let day_of_year = (153 * m + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    let days = era * 146_097 + day_of_era - 719_468;
+    Some(((days * 24 + hour) * 60 + minute) * 60_000 + second * 1000)
 }
 
 /// A host that writes program output to standard output, reads input
@@ -271,6 +325,9 @@ struct Console {
     /// every seed is the same, so that a program which reseeds at random
     /// (`randomize()`) still makes the same choices on every run.
     entropy: bool,
+    /// For a clock that reads the same on every run, the time it reads
+    /// next, in milliseconds since 1970 began.
+    clock: Option<i64>,
 }
 
 impl Console {
@@ -711,6 +768,14 @@ impl Host for Console {
     // The standard library does not know the local time zone's offset,
     // so without a zone name local time is UTC.
     fn time(&mut self) -> hexicon_host::Time {
+        if let Some(next) = &mut self.clock {
+            let unix_millis = *next;
+            *next += 1;
+            return hexicon_host::Time {
+                unix_millis,
+                utc_offset_seconds: 0,
+            };
+        }
         let unix_millis = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |elapsed| elapsed.as_millis() as i64);
@@ -768,6 +833,7 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
         stall: std::env::var_os("HEXICON_TEST_SUSPEND").is_some(),
         stalled: false,
         entropy: options.seed_random,
+        clock: options.clock,
     };
     let mut vm = match Vm::new(&image, Box::new(console)) {
         Ok(vm) => vm,
@@ -848,6 +914,7 @@ pub(crate) fn preinit_image(
         stall: false,
         stalled: false,
         entropy: true,
+        clock: None,
     };
     let mut vm = Vm::new(&image, Box::new(console)).map_err(|error| error.to_string())?;
     vm.set_image_name(path);
@@ -1230,6 +1297,21 @@ mod tests {
     }
 
     #[test]
+    fn a_clock_time_is_read_in_utc() {
+        assert_eq!(super::unix_millis_of("1970-01-01T00:00:00"), Some(0));
+        assert_eq!(
+            super::unix_millis_of("2000-01-01T09:15:00"),
+            Some(946_718_100_000)
+        );
+        assert_eq!(
+            super::unix_millis_of("2024-02-29T23:59:59"),
+            Some(1_709_251_199_000)
+        );
+        assert_eq!(super::unix_millis_of("2000-13-01T00:00:00"), None);
+        assert_eq!(super::unix_millis_of("2000-01-01"), None);
+    }
+
+    #[test]
     fn without_entropy_every_random_seed_is_the_same() {
         use hexicon_host::Host;
         let console = |entropy| super::Console {
@@ -1240,6 +1322,7 @@ mod tests {
             stall: false,
             stalled: false,
             entropy,
+            clock: None,
         };
         let seed = |entropy| {
             let mut bytes = [0u8; 64];

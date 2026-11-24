@@ -2,6 +2,8 @@
 
 Status: draft, 2026-11-18
 
+> The tools this plan names for comparing with the reference (`pp-compare.sh`, `compile-compare.sh`, `suite-compare.sh`, `game-compare.sh`, `tools/reference`, `tools/conformance`, the generators of the VM's tables, and the rest) were removed on 2026-11-24, when Hexicon stopped testing against TADS 3 (language plan, "Retiring TADS 3"). What they established is kept in `tests/programs`, checked by `tools/program-check.py`. Where this plan says that something was checked by them, that is what was done at the time.
+
 ## Goal
 
 Build the Hexicon virtual machine in Rust. The first milestone target is running unmodified TADS 3 game images (`.t3` files produced by the stock `t3make` compiler) with output identical to the reference `t3run` interpreter, natively and in the browser via WebAssembly.
@@ -80,8 +82,8 @@ hexicon/
     hexicon-cli/          native terminal runner: `hexicon run`, `hexicon dump`, `hexicon disasm`; uses `crossterm` for the terminal
     hexicon-wasm/         the VM as a WebAssembly module that a page's JavaScript runs
   tools/
-    reference/            builds the reference toolchain and runs its test suite
-    conformance/          runs the suite's programs under Hexicon and the reference, and compares
+    program-check.py      checks Hexicon against tests/programs (see tests/README.md)
+    game-check.py         builds and plays whole games on Hexad, kept outside the repository
     build-web.sh          builds the WebAssembly module and its JavaScript into web/pkg
     build-web.ps1         the same, for PowerShell
     web-serve.js          serves the repository on this machine, for opening the page

@@ -6,7 +6,7 @@
 //! the reference's preprocess-only mode writes it: a `#line` directive
 //! wherever the text stops following on from the line before, and
 //! otherwise one line of output for each line of source. Tokens are
-//! listed one to a line, as `tools/reference/tok_dump.cpp` lists them.
+//! listed one to a line.
 
 use std::io::Write as _;
 use std::process::ExitCode;
