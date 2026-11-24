@@ -300,26 +300,51 @@ The lamp flares, and its beam swings out over the water.
 
 ## When something goes wrong
 
-`hexicon build` says what it finds wrong, with the file and the line. Some problems are **warnings**: the game is built, but something in it is probably not what you meant. Hexicon looks out for one kind of mistake that is otherwise silent, a misspelled property:
+`hexicon build` says what it finds wrong: what the problem is, the file and line it is on, the line itself, and often a note on what to do about it. Some problems are **warnings**: the game is built, but something in it is probably not what you meant. Hexicon looks out for one kind of mistake that is otherwise silent, a misspelled property:
 
 ```
-start.hxn(94): warning: property "isSwitchabel" is given a value here, but nothing reads it - did you mean "isSwitchable"?
+warning: "isSwitchabel" is given a value here, but nothing reads it
+  --> start.hxn:94
+   |
+94 |     isSwitchabel = true
+   |
+   = did you mean "isSwitchable"?
 ```
 
 Without the warning, the lamp would simply not switch on, and the player would be told they cannot do that. The same goes for a handler for an action that does not exist:
 
 ```
-start.hxn(132): warning: handler "dobj Opne" is never called - did you mean "dobj Open"?
+warning: the handler "dobj Opne" is never called
+  --> start.hxn:132
+    |
+132 |     dobj Opne { verify() { } }
+    |
+    = did you mean "dobj Open"?
 ```
 
-Other problems are **errors**, and stop the build. The commonest is a missing semicolon at the end of an object. The next line then reads as part of the same object, and the message is about that line:
+Other problems are **errors**, and stop the build. The commonest is a missing semicolon at the end of an object. Hexicon sees that the next object starts before this one has ended, and shows both:
 
 ```
-start.hxn(42): error: invalid lvalue - cannot apply "++" operator to expression
-start.hxn(42): error: unterminated object definition
+error: the object above ends without a ';'
+  --> start.hxn:40
+   |
+40 |     "A battered tin box, wedged between two rocks. "
+41 |
+42 | ++ brassKey: Key 'small brass key'
+   |
+   = each object ends with ';', and the next starts here
 ```
 
-Line 42 is the key's `++ brassKey`, but the mistake is the line before it: the box has no `;`. When a message makes no sense where it points, look just above it.
+A name that is not defined anywhere, often a misspelling, gets the name it is most like, if there is one:
+
+```
+error: "Kye" is not defined anywhere
+  --> start.hxn:43
+   |
+43 | ++ brassKey: Kye 'small brass key'
+   |
+   = did you mean "Key"?
+```
 
 ## Where to go next
 

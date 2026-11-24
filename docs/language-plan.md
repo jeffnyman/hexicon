@@ -28,11 +28,12 @@ Stage 2 has to come before stage 3. Without the reference or tests of its own, n
 
 - **A source file is TADS 3 or Hexicon, and its extension says which.** TADS 3 files compile exactly as they do now, with the reference's quirks. Nothing in this plan changes them.
 - **Both dialects compile to the same symbols, objects, and image.** A Hexicon file can use adv3Lite's classes, and a TADS 3 file can use what a Hexicon file defines. That makes the move gradual: a library or a game can change one file at a time.
-- **Hexicon files drop behavior kept only for parity.** So far (2026-11-23) there are two such changes:
+- **Hexicon files drop behavior kept only for parity.** So far (2026-11-24) there are three such changes:
   - A warning is reported once. The reference reads each source twice and reports a warning from the first reading again in the second.
   - An `#if`, `#elif`, or `#line` with something after its expression is an error. The reference checks for the end of the line one token late, so `#if 1 2` passes there.
+  - A postfix `++` or `--` is on the line of what it applies to, and a `+` that starts a line naming an object (`+ key: Key`) starts that object rather than adding to the line before. The reference reads both as carrying on the expression, which is how a missing `;` after an object becomes two messages about the next line.
 
-  `'ab' + nil` already adds nothing in both dialects, since the reference's result depends on its memory. Later, messages can give the column and show the line. An included file is read in the dialect of the source that includes it.
+  `'ab' + nil` already adds nothing in both dialects, since the reference's result depends on its memory. Messages for Hexicon files are in Hexicon's words and show the source (change 4). An included file is read in the dialect of the source that includes it.
 - **The image stays T3 until something needs more.** A feature that needs the VM's help gets it as an addition that existing images never use, so the VM keeps running every TADS 3 game unchanged. A new image format is a decision for when a feature requires one, not before.
 
 ## How a language with no reference stays tested
@@ -192,8 +193,12 @@ As built (milestone 3), the check is the other way round. A misspelled *read* is
 - is one slip from a property the program does read: a letter left out, added, or changed, two swapped, or a difference of case. Names that differ only in a final `_` or a final digit are a family, not a slip.
 
 ```
-plane.hxn(725): warning: property "missinqQ" is given a value here, but nothing reads it - did you mean "missingQ"?
-start.hxn(536): warning: handler "dobj ClimpUp" is never called - did you mean "dobj ClimbUp"?
+warning: "isSwitchabel" is given a value here, but nothing reads it
+  --> start.hxn:94
+   |
+94 |     isSwitchabel = true
+   |
+   = did you mean "isSwitchable"?
 ```
 
 Libraries' sources are not checked: a library defines properties for games to read, and which it reads depends on what a game includes. TADS 3 sources are not checked either.
@@ -278,7 +283,28 @@ import hexad;
 
 ### 4. Messages written for the reader
 
-Hexicon files get messages with the line and column and the line of source itself, and they come from declarations rather than from inside a macro expansion. TADS 3 files keep the reference's messages, which the comparison checks.
+Hexicon files get messages with the line of source itself, and they come from declarations rather than from inside a macro expansion. TADS 3 files keep the reference's messages, which the comparison checks.
+
+As built (2026-11-24):
+
+- **The form.** `hexicon build` shows a problem in a Hexicon source as what it is, where, the lines of source, and a note:
+
+  ```
+  error: the object above ends without a ';'
+    --> start.hxn:40
+     |
+  40 |     "A battered tin box, wedged between two rocks. "
+  41 |
+  42 | ++ brassKey: Key 'small brass key'
+     |
+     = each object ends with ';', and the next starts here
+  ```
+
+  A message is shown once. After a string with no end, the rest of that file's messages follow from it, so they are counted rather than shown. A TADS 3 source's messages keep the reference's form, `start.t(42): error: ...`.
+- **The words.** The compiler finds problems as the reference does and says them in its words. For a Hexicon source, `crates/hexicon-compiler/src/wording.rs` says the common ones again: names not defined, names defined twice, strings with no end, objects with no `;` or `}`, a definition that cannot start, an include not found, values that fit no template, and the three warnings about local variables. A message not in its table keeps the reference's words.
+- **What the parser knows.** A missing `;` after an object is said where the object ends, with the next object's first line, rather than as two messages about that line. The dialect's reading of `++` and `+` at the start of a line makes that possible (see "Two dialects").
+- **Suggestions.** A name that is not defined anywhere gets the program's name it is one slip from, by the same rule as checked names: `"weigth" is not defined anywhere`, `did you mean "weight"?`.
+- **Not yet.** The column, and messages from inside a macro's expansion, which keep the line of the macro's use.
 
 ### Later, and only if wanted
 
@@ -316,7 +342,7 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
    - **The converter writes them** in any file that includes `advlite.h`: each `DefineTAction(Take)` and the other `Define...Action` macros as an `action`, each `dobjFor(Take)` as `dobj Take`, and `dobjFor(Search) asDobjFor(LookIn)` as `dobj Search as LookIn`. Macro definitions, strings, comments, and files on adv3 are left alone. It now also takes Hexicon sources, which brings them up to date, and it no longer notes a rename it could not make when the program uses only the new name.
    - **The round trip** (`convert-compare.sh`): adv3Lite, with its extensions and English, and Airport converted with the declarations give images identical to the originals'. Ditch Day and adv3 are not touched.
    - **Hexad adopted them** (548 declarations in 25 files). Airport and the ten exercises built on it give images identical to those built on the Hexad before, preinitialized and not, and in debug builds, line records included, but for the build time and the folder's name.
-   - **Checked names speak the new form:** `handler "dobj ClimpUp" is never called - did you mean "dobj ClimbUp"?`
+   - **Checked names speak the new form:** `the handler "dobj ClimpUp" is never called`, with `did you mean "dobj ClimbUp"?` for its note (change 4).
 5. **Modules.** Exit: Hexad and a game built with `import` rather than headers, with identical images. Done (2026-11-24), as described under change 3:
    - **Hexad imports itself:** its manifest names `advlite.h` as its header, and its 77 sources say `import hexad;` where they included it. Airport and the ten exercises built on it give images identical to those on the Hexad before, preinitialized, and in debug builds but for the build time and the folder's name.
    - **A game imports Hexad:** `hexad-compare.sh` now also builds Airport from `.hxn` sources that say `import hexad;`, from a manifest, and checks that its image is the one built from Airport's TADS 3 sources on Hexad.

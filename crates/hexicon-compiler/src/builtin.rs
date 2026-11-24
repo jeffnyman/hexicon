@@ -36,7 +36,7 @@ fn in_root(path: &str) -> Option<String> {
 
 /// A built-in file, by its path (`<hexicon>/system/tads.h`, with either
 /// kind of slash).
-pub(crate) fn file(path: &str) -> Option<&'static [u8]> {
+pub fn file(path: &str) -> Option<&'static [u8]> {
     let name = in_root(path)?;
     FILES
         .iter()

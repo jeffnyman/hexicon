@@ -338,6 +338,7 @@ fn start<'a>(
             line: 0,
             severity: Severity::Error,
             message: format!("unable to open source file \"{source}\""),
+            ..Default::default()
         });
     }
     pp.set_compile_mode();
@@ -384,6 +385,7 @@ pub fn compile_program(
         let mut found = pp.take_diagnostics();
         let mut warnings = Vec::new();
         if Dialect::of(source) == Dialect::Hexicon {
+            found.iter_mut().for_each(crate::wording::for_hexicon);
             (warnings, found) = found
                 .into_iter()
                 .partition(|d| d.severity == Severity::Warning);
@@ -426,7 +428,14 @@ pub fn compile_program(
         let mut parser = Parser::new(&mut pp, false, known.clone());
         parser.set_module(module, options.source_text_group);
         let mut prog = parser.parse_top();
-        let found = pp.take_diagnostics();
+        let mut found = pp.take_diagnostics();
+        let hexicon = Dialect::of(source) == Dialect::Hexicon;
+        if hexicon {
+            for diagnostic in &mut found {
+                crate::wording::for_hexicon(diagnostic);
+                crate::wording::suggest_name(diagnostic, &prog.globals);
+            }
+        }
         // A warning only the first reading gave is still reported.
         for warning in std::mem::take(&mut first_warnings[index]) {
             if !found.contains(&warning) {
@@ -457,12 +466,18 @@ pub fn compile_program(
             } else {
                 pp.file_name(diagnostic.file).to_owned()
             };
-            compiled.diagnostics.push(Diagnostic {
+            let mut diagnostic = Diagnostic {
                 file,
                 line: diagnostic.line,
                 severity: diagnostic.severity,
                 message: diagnostic.message,
-            });
+                ..Default::default()
+            };
+            if hexicon {
+                crate::wording::for_hexicon(&mut diagnostic);
+                crate::wording::suggest_name(&mut diagnostic, &prog.globals);
+            }
+            compiled.diagnostics.push(diagnostic);
         }
         if has_errors(&compiled.diagnostics) {
             return compiled;
@@ -492,6 +507,7 @@ pub fn compile_program(
             line: 0,
             severity,
             message,
+            ..Default::default()
         });
     };
     let Linked {

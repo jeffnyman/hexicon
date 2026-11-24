@@ -158,19 +158,23 @@ impl Checker {
             // The handlers of one action, given in one place, are one
             // mistake: `dobj ClimpUp { ... }` defines
             // `verifyDobjClimpUp` and the rest.
-            let message = match (handler(name), handler(meant)) {
-                (Some((role, action)), Some((meant_role, meant_action))) if role == meant_role => {
+            let (message, note) = match (handler(name), handler(meant)) {
+                (Some((role, action)), Some((meant_role, meant_action))) if role == meant_role => (
                     format!(
-                        "handler \"{role} {}\" is never called - did you mean \"{role} {}\"?",
-                        String::from_utf8_lossy(action),
+                        "the handler \"{role} {}\" is never called",
+                        String::from_utf8_lossy(action)
+                    ),
+                    format!(
+                        "did you mean \"{role} {}\"?",
                         String::from_utf8_lossy(meant_action)
-                    )
-                }
-                _ => format!(
-                    "property \"{}\" is given a value here, but nothing reads it - \
-                     did you mean \"{}\"?",
-                    String::from_utf8_lossy(name),
-                    String::from_utf8_lossy(meant)
+                    ),
+                ),
+                _ => (
+                    format!(
+                        "\"{}\" is given a value here, but nothing reads it",
+                        String::from_utf8_lossy(name)
+                    ),
+                    format!("did you mean \"{}\"?", String::from_utf8_lossy(meant)),
                 ),
             };
             let duplicate = out
@@ -182,6 +186,9 @@ impl Checker {
                     line: *line,
                     severity: Severity::Warning,
                     message,
+                    note: Some(note),
+                    hexicon: true,
+                    ..Default::default()
                 });
             }
         }

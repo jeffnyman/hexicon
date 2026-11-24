@@ -554,6 +554,11 @@ pub(crate) struct Globals {
 }
 
 impl Globals {
+    /// Every name the program has.
+    pub(crate) fn names(&self) -> impl Iterator<Item = &[u8]> {
+        self.map.keys().map(Vec::as_slice)
+    }
+
     /// What a name means, which counts as a use of it.
     pub(crate) fn get(&self, name: &[u8]) -> Option<&Global> {
         let found = self.map.get(name);
@@ -1194,6 +1199,8 @@ pub(crate) struct Parser<'p, 'a> {
     pp_expr: bool,
     /// The language of the directive whose expression is being read.
     pp_dialect: crate::Dialect,
+    /// The line of the token before the current one.
+    prev_line: u32,
     /// Objects named by a token whose text the reference keeps only in
     /// the line being read: the name, which buffer, where the name ended
     /// in it, and the object.
@@ -1455,6 +1462,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             tok,
             pp_expr: false,
             pp_dialect: crate::Dialect::Tads3,
+            prev_line: 0,
             unkept_objs: Vec::new(),
             syntax_only,
             prog,
@@ -1510,6 +1518,7 @@ impl<'p, 'a> Parser<'p, 'a> {
     }
 
     fn next(&mut self) -> Tok {
+        self.prev_line = self.tok.cur_token().line;
         let tok = self.tok.next_token();
         if let Some(on) = self.tok.take_source_text_group() {
             self.set_source_text_group(on);
@@ -5413,6 +5422,11 @@ impl Parser<'_, '_> {
                 .iter()
                 .find(|(tok, _)| *tok == cur)
                 .map(|(_, op)| *op);
+            // In Hexicon, a + at the start of a line that goes on to name
+            // an object is that object's, not an addition.
+            if found.is_some() && cur == Tok::Plus && self.starts_plus_object() {
+                return Some(lhs);
+            }
             let Some(op) = found else {
                 // `is in` and `not in` are tests of equality too. Neither
                 // word is a keyword.
@@ -5559,6 +5573,14 @@ impl Parser<'_, '_> {
                 Tok::LPar if allow_call => sub = self.parse_call(sub)?,
                 Tok::LBrack => sub = self.parse_subscript(sub)?,
                 Tok::Dot if allow_member => sub = self.parse_member(sub)?,
+                // In Hexicon, ++ and -- after an expression are on its
+                // line: on the next, a ++ starts the next object.
+                Tok::Inc | Tok::Dec
+                    if self.tok.dialect() == crate::Dialect::Hexicon
+                        && self.tok.cur_token().line > self.prev_line =>
+                {
+                    return Some(sub);
+                }
                 Tok::Inc => {
                     self.next();
                     sub = self.parse_inc_dec(AsiOp::PostInc, sub);
@@ -8001,6 +8023,60 @@ impl Parser<'_, '_> {
         }
     }
 
+    /// Whether, in a Hexicon source, the current token starts an object
+    /// placed with `+`: a `+` (or `++`, and so on) at the start of its
+    /// line, then a name, then what follows an object's name or class (a
+    /// colon, a string, `@`, `[`, `->`, or another name). The tokens are
+    /// read to see, and put back.
+    fn starts_plus_object(&mut self) -> bool {
+        if self.tok.dialect() != crate::Dialect::Hexicon
+            || !matches!(self.cur(), Tok::Plus | Tok::Inc)
+            || self.tok.cur_token().line <= self.prev_line
+        {
+            return false;
+        }
+        let prev_line = self.prev_line;
+        let mut taken = vec![self.tok.cur_token().clone()];
+        let mut tok = self.next();
+        while matches!(tok, Tok::Plus | Tok::Inc) {
+            taken.push(self.tok.cur_token().clone());
+            tok = self.next();
+        }
+        let mut starts = false;
+        if tok == Tok::Sym {
+            taken.push(self.tok.cur_token().clone());
+            tok = self.next();
+            starts = matches!(
+                tok,
+                Tok::Colon | Tok::SStr | Tok::DStr | Tok::At | Tok::LBrack | Tok::Arrow | Tok::Sym
+            );
+        }
+        taken.push(self.tok.cur_token().clone());
+        for token in taken[1..].iter().rev() {
+            self.tok.push_token(token.clone());
+        }
+        self.tok.replace_current(taken[0].clone());
+        self.prev_line = prev_line;
+        starts
+    }
+
+    /// An object ends without its `;` (or `}`), and the next definition
+    /// starts. In Hexicon, the problem is said where the object ends,
+    /// with that line and the next one shown.
+    fn missing_object_end(&mut self, missing_end: &str) {
+        if self.tok.dialect() == crate::Dialect::Hexicon && missing_end.contains("semicolon") {
+            let (end, next) = (self.prev_line, self.tok.cur_token().line);
+            self.tok.log_noted(
+                end,
+                "the object above ends without a ';'".to_owned(),
+                "each object ends with ';', and the next starts here".to_owned(),
+                (end, next),
+            );
+        } else {
+            self.error_curtok(missing_end);
+        }
+    }
+
     /// Read an object's properties, up to the semicolon that ends the
     /// definition, or the closing brace if it has braces.
     fn parse_obj_prop_list(
@@ -8061,7 +8137,7 @@ impl Parser<'_, '_> {
                 | Tok::Object
                 | Tok::Grammar
                 | Tok::Enum => {
-                    self.error_curtok(missing_end);
+                    self.missing_object_end(missing_end);
                     return Ok(());
                 }
                 Tok::Sym => {
@@ -8088,7 +8164,7 @@ impl Parser<'_, '_> {
                         self.prog.globals.get(&self.cur_text()),
                         Some(Global::Obj(_))
                     ) {
-                        self.error_curtok(missing_end);
+                        self.missing_object_end(missing_end);
                         return Ok(());
                     }
                     if !is_nested {

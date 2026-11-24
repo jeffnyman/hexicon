@@ -100,6 +100,29 @@ pub struct Diagnostic {
     pub severity: Severity,
     /// What is wrong.
     pub message: String,
+    /// More about it, said below it: in a Hexicon source, what to look
+    /// at.
+    pub note: Option<String>,
+    /// The lines of the source to show with it, first and last; with
+    /// none, the line it is on.
+    pub lines: Option<(u32, u32)>,
+    /// It is in a Hexicon source, and said in Hexicon's words (see
+    /// [`crate::wording`]), and shown with the source.
+    pub hexicon: bool,
+}
+
+impl Default for Diagnostic {
+    fn default() -> Self {
+        Self {
+            file: String::new(),
+            line: 0,
+            severity: Severity::Error,
+            message: String::new(),
+            note: None,
+            lines: None,
+            hexicon: false,
+        }
+    }
 }
 
 /// A line of preprocessed text and where it came from.
@@ -589,6 +612,7 @@ impl<'a> Preprocessor<'a> {
                     line: self.last_line,
                     severity: Severity::Fatal,
                     message: TOO_MANY_ERRORS.to_owned(),
+                    ..Default::default()
                 });
                 self.gave_up = true;
             }
@@ -664,6 +688,7 @@ impl<'a> Preprocessor<'a> {
             line: self.last_line,
             severity,
             message,
+            ..Default::default()
         });
     }
 

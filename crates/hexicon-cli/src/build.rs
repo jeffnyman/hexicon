@@ -55,6 +55,55 @@ fn timestamp(now: SystemTime) -> [u8; 24] {
     stamp
 }
 
+/// A problem in a Hexicon source, as Hexicon shows one: what it is,
+/// where, the lines of the source, and a note on it.
+///
+/// ```text
+/// error: the object above ends without a ';'
+///   --> start.hxn:41
+///    |
+/// 41 |     "A battered tin box, wedged between two rocks. "
+/// 42 | ++ brassKey: Key 'small brass key'
+///    |
+///    = each object ends with ';', and the next starts here
+/// ```
+fn show_hexicon(problem: &hexicon_compiler::pp::Diagnostic, kind: &str) -> String {
+    let mut out = format!(
+        "{kind}: {}\n  --> {}:{}\n",
+        problem.message, problem.file, problem.line
+    );
+    let (first, last) = problem.lines.unwrap_or((problem.line, problem.line));
+    let text = hexicon_compiler::builtin::file(&problem.file)
+        .map(<[u8]>::to_vec)
+        .or_else(|| std::fs::read(&problem.file).ok())
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
+    let lines: Vec<(u32, &str)> = match &text {
+        Some(text) => text
+            .lines()
+            .zip(1u32..)
+            .map(|(line, n)| (n, line))
+            .filter(|(n, _)| (first..=last).contains(n))
+            .collect(),
+        None => Vec::new(),
+    };
+    let width = last.to_string().len();
+    let gutter = " ".repeat(width);
+    if !lines.is_empty() {
+        out += &format!("{gutter} |\n");
+        for (n, line) in &lines {
+            let shown = format!("{n:>width$} | {line}");
+            out += shown.trim_end();
+            out.push('\n');
+        }
+        out += &format!("{gutter} |\n");
+    }
+    if let Some(note) = &problem.note {
+        out += &format!("{gutter} = {note}\n");
+    }
+    out.push('\n');
+    out
+}
+
 /// Where the system's headers and library are: in `include` and `lib`
 /// beside the program, unless `-FI` and `-FL` say otherwise, and else
 /// the ones built in; and the folders of the `HEXICON_LIB` environment
@@ -144,7 +193,26 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
 
     let compiled = compile_program(&mut DiskFiles, &sources, &options);
     let mut warned = false;
+    // In a Hexicon source, a message is shown once, and what follows a
+    // string with no end in the same file is only counted: it follows
+    // from that.
+    let mut shown: Vec<(String, u32, String)> = Vec::new();
+    let mut swallowed: Vec<(String, usize)> = Vec::new();
     for problem in &compiled.diagnostics {
+        if problem.hexicon {
+            if let Some((_, count)) = swallowed.iter_mut().find(|(file, _)| *file == problem.file) {
+                *count += 1;
+                continue;
+            }
+            let key = (problem.file.clone(), problem.line, problem.message.clone());
+            if shown.contains(&key) {
+                continue;
+            }
+            shown.push(key);
+            if problem.message.starts_with("this string has no end") {
+                swallowed.push((problem.file.clone(), 0));
+            }
+        }
         let kind = match problem.severity {
             Severity::Error => "error",
             Severity::Fatal => "fatal error",
@@ -159,12 +227,22 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
                 continue;
             }
         };
-        if problem.file.is_empty() {
+        if problem.hexicon && !problem.file.is_empty() {
+            eprint!("{}", show_hexicon(problem, kind));
+        } else if problem.file.is_empty() {
             eprintln!("{kind}: {}", problem.message);
         } else {
             eprintln!(
                 "{}({}): {kind}: {}",
                 problem.file, problem.line, problem.message
+            );
+        }
+    }
+    for (file, count) in swallowed {
+        if count > 0 {
+            eprintln!(
+                "({count} more problems in {file} follow from the string with no end, \
+                 and are not shown)\n"
             );
         }
     }

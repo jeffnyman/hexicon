@@ -4045,12 +4045,34 @@ mod checked_names {
         assert_eq!(
             messages("game.hxn", GAME),
             [
-                "game.hxn(2): property \"isTakable\" is given a value here, but nothing reads it \
-                 - did you mean \"isTakeable\"?",
-                "game.hxn(3): handler \"dobj Takee\" is never called - did you mean \
-                 \"dobj Take\"?",
-                "game.hxn(6): property \"isTakable\" is given a value here, but nothing reads it \
-                 - did you mean \"isTakeable\"?",
+                "game.hxn(2): \"isTakable\" is given a value here, but nothing reads it",
+                "game.hxn(3): the handler \"dobj Takee\" is never called",
+                "game.hxn(6): \"isTakable\" is given a value here, but nothing reads it",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_name_meant_is_in_the_note() {
+        let mut files = Files::default()
+            .with("lib.t", LIBRARY)
+            .with("game.hxn", GAME);
+        let options = CompileOptions {
+            from_library: vec![true, false],
+            ..CompileOptions::default()
+        };
+        let notes: Vec<Option<String>> =
+            crate::compile_program(&mut files, &["lib.t", "game.hxn"], &options)
+                .diagnostics
+                .into_iter()
+                .map(|d| d.note)
+                .collect();
+        assert_eq!(
+            notes,
+            [
+                Some("did you mean \"isTakeable\"?".to_owned()),
+                Some("did you mean \"dobj Take\"?".to_owned()),
+                Some("did you mean \"isTakeable\"?".to_owned()),
             ]
         );
     }
@@ -4072,7 +4094,7 @@ mod checked_names {
         assert!(
             found
                 .iter()
-                .any(|m| m.starts_with("game.hxn(4): handler \"dobj Takee\"")),
+                .any(|m| m.starts_with("game.hxn(4): the handler \"dobj Takee\"")),
             "{found:?}"
         );
     }
@@ -4408,4 +4430,77 @@ fn the_first_folder_with_a_library_has_it_whatever_kind_it_is() {
             sys_path(&["game", "main.t"])
         ]
     );
+}
+
+mod hexicon_messages {
+    use super::{CompileOptions, Files};
+    use crate::pp::Diagnostic;
+
+    fn diagnostics(name: &str, text: &str) -> Vec<Diagnostic> {
+        let mut files = Files::default().with(name, text);
+        crate::compile_program(&mut files, &[name], &CompileOptions::default()).diagnostics
+    }
+
+    const MISSING: &str = "+ property location;\nbox: object\n    name = 'box'\n\n+ key: object\n;\n_main(args) { }\n";
+
+    #[test]
+    fn a_missing_semicolon_is_said_where_the_object_ends() {
+        let found = diagnostics("game.hxn", MISSING);
+        assert_eq!(found.len(), 1, "{found:?}");
+        let d = &found[0];
+        assert_eq!(d.message, "the object above ends without a ';'");
+        assert_eq!((d.line, d.lines), (3, Some((3, 5))));
+        assert!(d.hexicon && d.note.is_some());
+        // TADS 3 sources keep the reference's messages.
+        let found = diagnostics("game.t", MISSING);
+        assert!(found.iter().all(|d| !d.hexicon), "{found:?}");
+        assert!(
+            found
+                .iter()
+                .all(|d| d.message != "the object above ends without a ';'" && d.note.is_none()),
+            "{found:?}"
+        );
+    }
+
+    #[test]
+    fn an_increment_on_its_own_line_is_still_one() {
+        let text = "_main(args) { local n = 1; n++; local m = n\n++; return m; }\n";
+        let found = diagnostics("game.hxn", text);
+        // `n\n++;`: the ++ is not n's, and the statement is not finished.
+        assert!(!found.is_empty());
+        let fine = diagnostics("game.hxn", "_main(args) { local n = 1; n++; return n; }\n");
+        assert_eq!(fine, Vec::<Diagnostic>::new());
+    }
+
+    #[test]
+    fn messages_are_in_hexicons_words_with_names_suggested() {
+        let text = "rock: object weight = 3;\n\
+                    _main(args) { local x = rock.weigth; return x + nothere(); }\n\
+                    notThere() { }\n";
+        let found = diagnostics("game.hxn", text);
+        let shown: Vec<(String, Option<String>)> = found
+            .iter()
+            .map(|d| (d.message.clone(), d.note.clone()))
+            .collect();
+        assert!(
+            shown.contains(&(
+                "\"weigth\" is not defined anywhere".to_owned(),
+                Some("did you mean \"weight\"?".to_owned())
+            )),
+            "{shown:?}"
+        );
+        assert!(
+            shown.contains(&(
+                "\"nothere\" is not defined anywhere".to_owned(),
+                Some("did you mean \"notThere\"?".to_owned())
+            )),
+            "{shown:?}"
+        );
+        let tads = diagnostics("game.t", text);
+        assert!(
+            tads.iter()
+                .any(|d| d.message.starts_with("undefined symbol")),
+            "{tads:?}"
+        );
+    }
 }

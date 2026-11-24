@@ -129,6 +129,11 @@ impl Preprocessor<'_> {
         self.prv = SrcToken::new(Tok::Invalid);
     }
 
+    /// Make a token the current one, as if it had just been read.
+    pub(crate) fn replace_current(&mut self, token: SrcToken) {
+        self.cur = token;
+    }
+
     /// Put a token in front of what is still to be read.
     pub fn push_token(&mut self, token: SrcToken) {
         self.pushed.push(token);
@@ -479,6 +484,26 @@ impl Preprocessor<'_> {
         self.warning(message);
     }
 
+    /// Report a problem at a line, with a note, showing a run of lines.
+    pub(crate) fn log_noted(
+        &mut self,
+        line: u32,
+        message: String,
+        note: String,
+        lines: (u32, u32),
+    ) {
+        let file = self.file_name(self.last_desc.unwrap_or(0)).to_owned();
+        self.push_diagnostic(super::Diagnostic {
+            file,
+            line,
+            severity: Severity::Error,
+            message,
+            note: Some(note),
+            lines: Some(lines),
+            ..Default::default()
+        });
+    }
+
     /// Report a problem at a given position.
     pub(crate) fn log_at(&mut self, file: usize, line: u32, severity: Severity, message: String) {
         let file = self.file_name(file).to_owned();
@@ -487,6 +512,7 @@ impl Preprocessor<'_> {
             line,
             severity,
             message,
+            ..Default::default()
         });
     }
 
