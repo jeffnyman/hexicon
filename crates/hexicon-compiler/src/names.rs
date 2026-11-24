@@ -8,7 +8,7 @@
 //! unless something defines the misspelling too. A misspelled
 //! definition is not: an object that says `isTakable = nil` where the
 //! library reads `isTakeable` has a property that nothing reads, and the
-//! one the library reads keeps its inherited value. `dobjFor(Takee)` is
+//! one the library reads keeps its inherited value. `dobj Takee { }` is
 //! the same mistake for a whole handler: it defines `verifyDobjTakee`
 //! and the rest, and nothing calls them.
 //!
@@ -156,13 +156,12 @@ impl Checker {
                 continue;
             };
             // The handlers of one action, given in one place, are one
-            // mistake: `dobjFor(ClimpUp)` defines `verifyDobjClimpUp`
-            // and the rest.
+            // mistake: `dobj ClimpUp { ... }` defines
+            // `verifyDobjClimpUp` and the rest.
             let message = match (handler(name), handler(meant)) {
                 (Some((role, action)), Some((meant_role, meant_action))) if role == meant_role => {
                     format!(
-                        "\"{role}For({})\" defines handlers that nothing calls - \
-                         did you mean \"{role}For({})\"?",
+                        "handler \"{role} {}\" is never called - did you mean \"{role} {}\"?",
                         String::from_utf8_lossy(action),
                         String::from_utf8_lossy(meant_action)
                     )
@@ -191,7 +190,7 @@ impl Checker {
 }
 
 /// The parts of the name of an action's handler for one of its
-/// objects: the role, as the macro that defines the handlers names it
+/// objects: the role, as a handler declares it
 /// (`dobj`), and the action (`verifyDobjTake` is `dobj` and `Take`).
 fn handler(name: &[u8]) -> Option<(&'static str, &[u8])> {
     const STAGES: [&[u8]; 6] = [

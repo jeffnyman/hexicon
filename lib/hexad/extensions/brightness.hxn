@@ -379,7 +379,7 @@ modify Thing
      *   brightnessForReading) then stop the read action at the check stage by displaying our
      *   tooDarkToReadMsg.
      */
-    dobjFor(Read)
+    dobj Read
     {        
         check()
         {

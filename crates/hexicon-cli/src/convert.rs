@@ -2,7 +2,10 @@
 //! a Hexicon one in a new folder.
 //!
 //! Source files (`.t`) become Hexicon sources (`.hxn`) and headers stay
-//! headers, each with Hexicon's names for the built-in functions. A
+//! headers, each with Hexicon's names for the built-in functions, and
+//! with Hexicon's declarations for adv3Lite's actions and handlers.
+//! Hexicon sources (`.hxn`) get the same, which brings a Hexicon
+//! program written before a declaration was added up to date. A
 //! project file (`.t3m`) becomes a game's manifest: `hexicon.toml` if it
 //! is the only one in its folder, and `<name>.toml` otherwise. A library
 //! (`.tl`) becomes `<name>.toml` beside where it was, which is where a
@@ -79,7 +82,7 @@ fn convert_folder(from: &Path, to: &Path) -> Result<(), String> {
     // can be made.
     let mut used = HashSet::new();
     for rel in &files {
-        if matches!(ext_of(rel).as_str(), "t" | "h") {
+        if matches!(ext_of(rel).as_str(), "t" | "h" | "hxn") {
             used.extend(convert::code_names(&read(rel)?));
         }
     }
@@ -101,7 +104,7 @@ fn convert_folder(from: &Path, to: &Path) -> Result<(), String> {
         .map(|rel| key_of(rel))
         .collect();
 
-    let (mut converted, mut renamed, mut copied) = (0, 0, 0);
+    let (mut converted, mut renamed, mut declared, mut copied) = (0, 0, 0, 0);
     for rel in &files {
         let ext = ext_of(rel);
         let text = read(rel)?;
@@ -113,9 +116,10 @@ fn convert_folder(from: &Path, to: &Path) -> Result<(), String> {
             sources.contains(&key_of(&normalize(&path)))
         };
         let (out_rel, data) = match ext.as_str() {
-            "t" | "h" => {
+            "t" | "h" | "hxn" => {
                 let result = convert::convert_source(&text, &renames);
                 renamed += result.renamed;
+                declared += result.declarations;
                 converted += 1;
                 let out_rel = if ext == "t" {
                     rel.with_extension("hxn")
@@ -176,7 +180,8 @@ fn convert_folder(from: &Path, to: &Path) -> Result<(), String> {
         std::fs::write(&dest, data).map_err(|e| format!("{}: {e}", dest.display()))?;
     }
     eprintln!(
-        "converted {converted} files ({renamed} names renamed), copied {copied}, into {}",
+        "converted {converted} files ({renamed} names renamed, {declared} actions and handlers \
+         declared), copied {copied}, into {}",
         to.display()
     );
     Ok(())

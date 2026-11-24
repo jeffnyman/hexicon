@@ -22,7 +22,7 @@ class Button: Thing
     isFixed = true
     
     /* Handle the Push command */
-    dobjFor(Push)
+    dobj Push
     {
         /* A Button is a good choice for a PUSH command */
         verify() { logicalRank(120); }
@@ -74,7 +74,7 @@ class Lever: Thing
     }
     
     /* Handle Pulling this Lever */
-    dobjFor(Pull)
+    dobj Pull
     {
         verify()
         {
@@ -99,7 +99,7 @@ class Lever: Thing
         pulled position. ')
     
     /* Handle Pushing this Lever */
-    dobjFor(Push)
+    dobj Push
     {
         verify()
         {
@@ -179,7 +179,7 @@ class Settable: Thing
     canSetMeTo = true
     
     /* Handle a SET TO command targeted at this Settable */
-    dobjFor(SetTo)
+    dobj SetTo
     {    
         /* Check whether we're being set to a valid setting */
         check()
@@ -214,7 +214,7 @@ class Settable: Thing
      */
     isFixed = true
     
-    dobjFor(Set)
+    dobj Set
     {
         action() { askMissingLiteral(SetTo); }
     }   
@@ -223,10 +223,10 @@ class Settable: Thing
 
 /* A Dial is Simply a Settable we can turn as well as set */
 class Dial: Settable
-    dobjFor(TurnTo) asDobjFor(SetTo)
+    dobj TurnTo as SetTo
     canTurnMeTo = true
     
-    dobjFor(Turn) 
+    dobj Turn 
     {
         action() {askMissingLiteral(TurnTo); }
     }

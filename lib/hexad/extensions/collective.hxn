@@ -324,7 +324,7 @@ class DispensingCollective: Collective
      *   what the player typed matches the plural vocab (e.g. 'grapes') and the
      *   latter otherwise. [COLLECTIVE EXTENSION]
      */
-    dobjFor(Take)
+    dobj Take
     {
         verify()
         {
@@ -378,7 +378,7 @@ class DispensingCollective: Collective
      *   to be - it doesn't yet exist in scope to be the object of the command.)
 	 *   [COLLECTIVE EXTENSION]
      */
-    iobjFor(TakeFrom)
+    iobj TakeFrom
     {
         verify()
         {
@@ -402,7 +402,7 @@ class DispensingCollective: Collective
         dobj} from {1}. ', exhaustedName)
     
     /*	[COLLECTIVE EXTENSION] */
-    dobjFor(TakeFrom)
+    dobj TakeFrom
     {
         verify()
         {

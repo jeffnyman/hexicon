@@ -1954,6 +1954,10 @@ impl<'p, 'a> Parser<'p, 'a> {
             let result = match self.cur() {
                 Tok::Eof => break,
                 Tok::Function | Tok::Method => self.parse_function(true, Redef::No),
+                Tok::Sym if self.at_hexicon_form(&[b"action"]) => {
+                    self.lower_action();
+                    Ok(())
+                }
                 Tok::Sym => {
                     self.parse_object_or_func(Redef::No, suppress_error, &mut suppress_next_error)
                 }
@@ -8034,6 +8038,9 @@ impl Parser<'_, '_> {
             };
             match self.cur() {
                 Tok::PropertySet => self.parse_propertyset()?,
+                Tok::Sym if self.at_hexicon_form(&[b"dobj", b"iobj", b"aobj"]) => {
+                    self.lower_handler();
+                }
                 Tok::Sem => {
                     // Inside braces a semicolon is an empty property.
                     self.next();
@@ -8144,6 +8151,200 @@ impl Parser<'_, '_> {
                 }
             }
         }
+    }
+
+    /// Whether a Hexicon form starts here: one of `words`, and then a
+    /// name. Neither is anything in TADS 3, where a name followed by a
+    /// name does not start a definition or a property.
+    fn at_hexicon_form(&mut self, words: &[&[u8]]) -> bool {
+        if self.tok.dialect() != crate::Dialect::Hexicon {
+            return false;
+        }
+        let text = self.tok.cur_token().text.as_slice();
+        if !words.contains(&text) {
+            return false;
+        }
+        let after = self.next();
+        self.tok.unget_token();
+        after == Tok::Sym
+    }
+
+    /// Put tokens made for a Hexicon form in front of the current one,
+    /// and make the first of them current. Each is given the place of
+    /// the form, so that what is reported about them is reported there.
+    fn lower_to(&mut self, place: &SrcToken, tokens: &[(Tok, &[u8])]) {
+        let current = self.tok.cur_token().clone();
+        self.tok.push_token(current);
+        for &(typ, text) in tokens.iter().rev() {
+            let mut token = place.clone();
+            token.typ = typ;
+            token.text = text.to_vec();
+            token.int_val = 0;
+            token.lowered = true;
+            self.tok.push_token(token);
+        }
+        self.next();
+    }
+
+    /// A handler, in Hexicon: `dobj Take { ... }`, the methods and
+    /// properties that handle an action for one of its objects, or
+    /// `dobj Search as LookIn`, which handles it as another action. Also
+    /// `iobj` and `aobj`. Each is what adv3Lite's `dobjFor(Take)` and
+    /// `dobjFor(Search) asDobjFor(LookIn)` make:
+    /// `propertyset '*DobjTake' { ... }`, and for `as` a group of the
+    /// six methods that call the other action's.
+    fn lower_handler(&mut self) {
+        let role: &[u8] = match self.tok.cur_token().text.as_slice() {
+            b"dobj" => b"Dobj",
+            b"iobj" => b"Iobj",
+            _ => b"Aobj",
+        };
+        let place = self.tok.cur_token().clone();
+        self.next();
+        let action = self.cur_text();
+        let pattern = [b"*", role, &action].concat();
+        let mut tokens: Vec<(Tok, Vec<u8>)> = vec![
+            (Tok::PropertySet, b"propertyset".to_vec()),
+            (Tok::SStr, pattern),
+        ];
+        if self.next() == Tok::Sym && self.cur_text() == b"as" {
+            if self.next() != Tok::Sym {
+                self.error_curtok("expected the name of an action after 'as', but found \"%\"");
+                return;
+            }
+            let other = self.cur_text();
+            self.next();
+            let name = |stage: &[u8]| [stage, role, &other].concat();
+            let call = |tokens: &mut Vec<(Tok, Vec<u8>)>, stage: &[u8], parens: bool, ret: bool| {
+                tokens.push((Tok::Sym, stage.to_vec()));
+                if parens {
+                    tokens.push((Tok::LPar, b"(".to_vec()));
+                    tokens.push((Tok::RPar, b")".to_vec()));
+                }
+                tokens.push((Tok::LBrace, b"{".to_vec()));
+                if ret {
+                    tokens.push((Tok::Return, b"return".to_vec()));
+                }
+                tokens.push((Tok::Sym, name(stage)));
+                tokens.push((Tok::Sem, b";".to_vec()));
+                tokens.push((Tok::RBrace, b"}".to_vec()));
+            };
+            tokens.push((Tok::LBrace, b"{".to_vec()));
+            call(&mut tokens, b"preCond", false, true);
+            call(&mut tokens, b"verify", true, false);
+            call(&mut tokens, b"remap", true, true);
+            call(&mut tokens, b"check", true, false);
+            call(&mut tokens, b"action", true, false);
+            call(&mut tokens, b"report", true, false);
+            tokens.push((Tok::RBrace, b"}".to_vec()));
+        } else if self.cur() != Tok::LBrace {
+            self.error_curtok(
+                "expected '{' or 'as' after the action a handler is for, but found \"%\"",
+            );
+            return;
+        }
+        let tokens: Vec<(Tok, &[u8])> = tokens
+            .iter()
+            .map(|(t, text)| (*t, text.as_slice()))
+            .collect();
+        self.lower_to(&place, &tokens);
+    }
+
+    /// An action, in Hexicon: `action PutIn(dobj, iobj): TIAction`, then
+    /// the properties of the action object as in any definition. It is
+    /// what adv3Lite's `DefineTIAction(PutIn)` makes: the object, with
+    /// `baseActionClass` itself and, for each of the objects the action
+    /// takes, the properties that say which of an object's properties
+    /// handle it (`verDobjProp = &verifyDobjPutIn` and the rest, stage by
+    /// stage).
+    fn lower_action(&mut self) {
+        let place = self.tok.cur_token().clone();
+        self.next();
+        let name = self.cur_text();
+        let mut roles: Vec<&[u8]> = Vec::new();
+        if self.next() == Tok::LPar {
+            loop {
+                self.next();
+                let role: &[u8] = match (self.cur(), self.cur_text().as_slice()) {
+                    (Tok::Sym, b"dobj") => b"Dobj",
+                    (Tok::Sym, b"iobj") => b"Iobj",
+                    (Tok::Sym, b"aobj") => b"Aobj",
+                    _ => {
+                        self.error_curtok(
+                            "expected dobj, iobj, or aobj among an action's objects, but found \"%\"",
+                        );
+                        return;
+                    }
+                };
+                if roles.contains(&role) {
+                    self.error_curtok("an action's objects name \"%\" twice");
+                }
+                roles.push(role);
+                match self.next() {
+                    Tok::Comma => {}
+                    Tok::RPar => {
+                        self.next();
+                        break;
+                    }
+                    _ => {
+                        self.error_curtok(
+                            "expected ',' or ')' in an action's objects, but found \"%\"",
+                        );
+                        return;
+                    }
+                }
+            }
+        }
+        if self.cur() != Tok::Colon {
+            self.error_curtok(
+                "expected ':' and the action's class after its name, but found \"%\"",
+            );
+            return;
+        }
+        let mut tokens: Vec<(Tok, Vec<u8>)> =
+            vec![(Tok::Sym, name.clone()), (Tok::Colon, b":".to_vec())];
+        loop {
+            if self.next() != Tok::Sym {
+                self.error_curtok("expected the action's class, but found \"%\"");
+                return;
+            }
+            tokens.push((Tok::Sym, self.cur_text()));
+            if self.next() != Tok::Comma {
+                break;
+            }
+            tokens.push((Tok::Comma, b",".to_vec()));
+        }
+        let mut assign = |prop: Vec<u8>, value: Vec<u8>, address: bool| {
+            tokens.push((Tok::Sym, prop));
+            tokens.push((Tok::Eq, b"=".to_vec()));
+            if address {
+                tokens.push((Tok::And, b"&".to_vec()));
+            }
+            tokens.push((Tok::Sym, value));
+        };
+        assign(b"baseActionClass".to_vec(), name.clone(), false);
+        const STAGES: [(&[u8], &[u8]); 6] = [
+            (b"ver", b"verify"),
+            (b"remap", b"remap"),
+            (b"preCond", b"preCond"),
+            (b"check", b"check"),
+            (b"action", b"action"),
+            (b"report", b"report"),
+        ];
+        for (short, full) in STAGES {
+            for role in &roles {
+                assign(
+                    [short, role, b"Prop"].concat(),
+                    [full, role, &name].concat(),
+                    true,
+                );
+            }
+        }
+        let tokens: Vec<(Tok, &[u8])> = tokens
+            .iter()
+            .map(|(t, text)| (*t, text.as_slice()))
+            .collect();
+        self.lower_to(&place, &tokens);
     }
 
     /// Read the start of a group of properties, up to its opening

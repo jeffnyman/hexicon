@@ -4,7 +4,9 @@
 //! A source file keeps its text, except that the names Hexicon gives
 //! the built-in functions ([`RENAMES`]) replace the TADS names, in code
 //! and in comments but never in the text of a string, and a file whose
-//! code uses one includes `<hexicon.h>`. A project file (`.t3m`) becomes
+//! code uses one includes `<hexicon.h>`. In a file that includes adv3Lite's
+//! header (`advlite.h`), its macros for actions and their handlers
+//! become Hexicon's declarations ([`FORMS`]). A project file (`.t3m`) becomes
 //! a game's manifest and a library (`.tl`) a library's, each saying what
 //! the original said. The converted program compiles to the same image
 //! as the original: that is how the converter is checked.
@@ -43,6 +45,42 @@ pub const RENAMES: &[(&str, &str)] = &[
     ("T3MacroHasVarargs", "MacroHasVarargs"),
 ];
 
+/// adv3Lite's macros that define actions, each with the objects the
+/// action takes and its class: `DefineTIAction(PutIn)` becomes
+/// `action PutIn(dobj, iobj): TIAction`. A class of `None` is the macro's
+/// second argument and those after it (`DefineTActionSub(Take, Cls)`,
+/// `DefineAction(Jump, IAction)`).
+pub const FORMS: &[(&str, &[&str], Option<&str>)] = &[
+    ("DefineAction", &[], None),
+    ("DefineSystemAction", &[], Some("SystemAction")),
+    ("DefineIAction", &[], Some("IAction")),
+    ("DefineLiteralAction", &[], Some("LiteralAction")),
+    ("DefineTopicAction", &[], Some("TopicAction")),
+    ("DefineNumericAction", &[], Some("NumericAction")),
+    ("DefineTAction", &["dobj"], Some("TAction")),
+    ("DefineTActionSub", &["dobj"], None),
+    ("DefineLiteralTAction", &["dobj"], Some("LiteralTAction")),
+    ("DefineTopicTAction", &["dobj"], Some("TopicTAction")),
+    ("DefineNumericTAction", &["dobj"], Some("NumericTAction")),
+    ("DefineTIAction", &["dobj", "iobj"], Some("TIAction")),
+    ("DefineTIActionSub", &["dobj", "iobj"], None),
+    (
+        "DefineTIAAction",
+        &["dobj", "iobj", "aobj"],
+        Some("TIAAction"),
+    ),
+    ("DefineTIAActionSub", &["dobj", "iobj", "aobj"], None),
+];
+
+/// adv3Lite's macros for an action's handlers for one of its objects,
+/// the macro that handles it as another action's, and the role Hexicon
+/// writes: `dobjFor(Search) asDobjFor(LookIn)` is `dobj Search as LookIn`.
+const HANDLERS: &[(&str, &str, &str)] = &[
+    ("dobjFor", "asDobjFor", "dobj"),
+    ("iobjFor", "asIobjFor", "iobj"),
+    ("aobjFor", "asAobjFor", "aobj"),
+];
+
 /// Where a name was found in a source file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Name {
@@ -50,6 +88,8 @@ struct Name {
     end: usize,
     /// In code, or in a comment.
     in_code: bool,
+    /// In a directive (`#define`), whose code is a macro's.
+    in_directive: bool,
 }
 
 /// A reader of a source file's text that finds the names in its code
@@ -63,6 +103,9 @@ struct Scanner<'t> {
     text: &'t [u8],
     pos: usize,
     names: Vec<Name>,
+    /// In a directive, which runs to the end of its line and over the
+    /// newlines a backslash splices.
+    in_directive: bool,
 }
 
 fn is_name_start(c: u8) -> bool {
@@ -91,6 +134,7 @@ impl Scanner<'_> {
             start,
             end: self.pos,
             in_code,
+            in_directive: self.in_directive,
         });
     }
 
@@ -133,6 +177,10 @@ impl Scanner<'_> {
             }
             match c {
                 b'\n' => {
+                    let before = text[..self.pos].trim_ascii_end();
+                    if !before.ends_with(b"\\") || text[..self.pos].ends_with(b"\n") {
+                        self.in_directive = false;
+                    }
                     line_start = !embedded;
                     self.pos += 1;
                     prev_name = b"";
@@ -143,6 +191,7 @@ impl Scanner<'_> {
                     continue;
                 }
                 b'#' if line_start => {
+                    self.in_directive = true;
                     self.pos += 1;
                     while matches!(self.at(0), b' ' | b'\t') {
                         self.pos += 1;
@@ -214,6 +263,7 @@ fn scan(text: &[u8]) -> Vec<Name> {
         text,
         pos: 0,
         names: Vec::new(),
+        in_directive: false,
     };
     scanner.code(false);
     scanner.names
@@ -236,6 +286,11 @@ pub fn usable_renames(used: &HashSet<String>) -> (Vec<(&'static str, &'static st
     let mut skipped = Vec::new();
     for &(old, new) in RENAMES {
         if used.contains(new) {
+            // A program converted already uses the new names and not
+            // the old: there is nothing to say.
+            if !used.contains(old) {
+                continue;
+            }
             skipped.push(format!(
                 "{old} is not renamed {new}: the program already uses the name {new}"
             ));
@@ -253,32 +308,170 @@ pub struct ConvertedSource {
     pub text: Vec<u8>,
     /// How many names were renamed, in code and in comments.
     pub renamed: usize,
+    /// How many actions and handlers were written as Hexicon's
+    /// declarations.
+    pub declarations: usize,
+}
+
+/// Whether a file includes adv3Lite's header, whose macros for actions
+/// and handlers it may then use.
+fn includes_advlite(text: &[u8]) -> bool {
+    text.split(|&c| c == b'\n').any(|line| {
+        let line = line.trim_ascii_start();
+        line.strip_prefix(b"#").is_some_and(|rest| {
+            let rest = rest.trim_ascii_start();
+            rest.starts_with(b"include")
+                && rest
+                    .to_ascii_lowercase()
+                    .windows(9)
+                    .any(|w| w == b"advlite.h")
+        })
+    })
+}
+
+/// The arguments of a macro call at `pos` (after its name), each a name,
+/// and where the call ends; or nothing, if that is not what is there.
+fn call_args(text: &[u8], mut pos: usize) -> Option<(Vec<&[u8]>, usize)> {
+    let skip = |pos: &mut usize| {
+        while matches!(text.get(*pos), Some(b' ' | b'\t')) {
+            *pos += 1;
+        }
+    };
+    skip(&mut pos);
+    if text.get(pos) != Some(&b'(') {
+        return None;
+    }
+    pos += 1;
+    let mut args = Vec::new();
+    loop {
+        skip(&mut pos);
+        let start = pos;
+        if !text.get(pos).copied().is_some_and(is_name_start) {
+            return None;
+        }
+        while text.get(pos).copied().is_some_and(is_name_char) {
+            pos += 1;
+        }
+        args.push(&text[start..pos]);
+        skip(&mut pos);
+        match text.get(pos) {
+            Some(b',') => pos += 1,
+            Some(b')') => return Some((args, pos + 1)),
+            _ => return None,
+        }
+    }
+}
+
+/// The edits that make adv3Lite's macros for actions and handlers
+/// Hexicon's declarations: each the span of text replaced, and what
+/// replaces it.
+fn declaration_edits(text: &[u8], names: &[Name]) -> Vec<(usize, usize, Vec<u8>)> {
+    let mut edits = Vec::new();
+    let mut next_free = 0;
+    for name in names {
+        if !name.in_code || name.in_directive || name.start < next_free {
+            continue;
+        }
+        let word = &text[name.start..name.end];
+        if let Some(&(_, redirect, role)) = HANDLERS.iter().find(|(m, _, _)| m.as_bytes() == word) {
+            let Some((args, end)) = call_args(text, name.end) else {
+                continue;
+            };
+            let [action] = args[..] else {
+                continue;
+            };
+            let mut new = [role.as_bytes(), b" ", action].concat();
+            let mut stop = end;
+            // `dobjFor(Search) asDobjFor(LookIn)`: the same role, handled
+            // as another action.
+            let mut after = end;
+            while text.get(after).is_some_and(u8::is_ascii_whitespace) {
+                after += 1;
+            }
+            if text[after..].starts_with(redirect.as_bytes())
+                && !text
+                    .get(after + redirect.len())
+                    .copied()
+                    .is_some_and(is_name_char)
+                && let Some((other, other_end)) = call_args(text, after + redirect.len())
+                && let [other] = other[..]
+            {
+                new.extend_from_slice(&text[end..after]);
+                new.extend_from_slice(b"as ");
+                new.extend_from_slice(other);
+                stop = other_end;
+            }
+            edits.push((name.start, stop, new));
+            next_free = stop;
+        } else if let Some(&(_, roles, class)) = FORMS.iter().find(|(m, _, _)| m.as_bytes() == word)
+        {
+            let Some((args, end)) = call_args(text, name.end) else {
+                continue;
+            };
+            let (action, classes): (&[u8], Vec<&[u8]>) = match (class, &args[..]) {
+                (Some(class), [action]) => (action, vec![class.as_bytes()]),
+                (None, [action, classes @ ..]) if !classes.is_empty() => (action, classes.to_vec()),
+                _ => continue,
+            };
+            let mut new = [b"action ", action].concat();
+            if !roles.is_empty() {
+                new.push(b'(');
+                new.extend_from_slice(roles.join(", ").as_bytes());
+                new.push(b')');
+            }
+            new.extend_from_slice(b": ");
+            new.extend_from_slice(&classes.join(&b", "[..]));
+            edits.push((name.start, end, new));
+            next_free = end;
+        }
+    }
+    edits
 }
 
 /// Convert a source file or a header: the names in `renames` replaced in
 /// its code and comments, and `#include <hexicon.h>` added if its code
-/// uses one of them.
+/// uses one of them; and in a file that includes adv3Lite's header, its
+/// macros for actions and handlers written as Hexicon's declarations.
 pub fn convert_source(text: &[u8], renames: &[(&str, &str)]) -> ConvertedSource {
-    let mut out = Vec::with_capacity(text.len());
-    let mut last = 0;
+    let names = scan(text);
+    let mut edits: Vec<(usize, usize, Vec<u8>)> = Vec::new();
     let mut renamed = 0;
     let mut in_code = false;
-    for name in scan(text) {
+    for name in &names {
         let word = &text[name.start..name.end];
         let Some(&(_, new)) = renames.iter().find(|(old, _)| old.as_bytes() == word) else {
             continue;
         };
-        out.extend_from_slice(&text[last..name.start]);
-        out.extend_from_slice(new.as_bytes());
-        last = name.end;
+        edits.push((name.start, name.end, new.as_bytes().to_vec()));
         renamed += 1;
         in_code |= name.in_code;
+    }
+    let mut declarations = 0;
+    if includes_advlite(text) {
+        let forms = declaration_edits(text, &names);
+        declarations = forms.len();
+        edits.extend(forms);
+    }
+    edits.sort_by_key(|edit| edit.0);
+    let mut out = Vec::with_capacity(text.len());
+    let mut last = 0;
+    for (start, end, new) in edits {
+        if start < last {
+            continue;
+        }
+        out.extend_from_slice(&text[last..start]);
+        out.extend_from_slice(&new);
+        last = end;
     }
     out.extend_from_slice(&text[last..]);
     if in_code && !contains(&out, b"<hexicon.h>") {
         out = with_include(&out);
     }
-    ConvertedSource { text: out, renamed }
+    ConvertedSource {
+        text: out,
+        renamed,
+        declarations,
+    }
 }
 
 fn contains(text: &[u8], what: &[u8]) -> bool {

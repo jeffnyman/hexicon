@@ -54,9 +54,9 @@ class Odor: SensoryEmanation
     notImportantMsg = BMsg(only smell, '{I} {can\'t} do that to a smell. ')
     
     /*   Treat Smelling an Odor as equivalent to Examining it. */
-    dobjFor(SmellSomething) asDobjFor(Examine)   
+    dobj SmellSomething as Examine   
         
-    dobjFor(Examine) { preCond = [objSmellable] }
+    dobj Examine { preCond = [objSmellable] }
     
     /* 
      *   Since we turn SMELL into EXAMINE we want our sightSize to be our
@@ -94,9 +94,9 @@ class Noise: SensoryEmanation
     notImportantMsg = BMsg(only listen, '{I} {can\'t} do that to a sound. ')
     
     /*   Treat Listening to a Noise as equivalent to Examining it. */
-    dobjFor(ListenTo) asDobjFor(Examine)    
+    dobj ListenTo as Examine    
        
-    dobjFor(Examine) { preCond = [objAudible] }
+    dobj Examine { preCond = [objAudible] }
     
     /* 
      *   Since we turn LISTEN TO into EXAMINE we want our sightSize to be our
@@ -172,7 +172,7 @@ class Surface: Thing
      *   special case.
      */
     
-    dobjFor(Search)
+    dobj Search
     {
         preCond = [objVisible, touchObj]
         verify() {}
@@ -331,7 +331,7 @@ class Distant: ProxyDest, Decoration
      *   GO TO command) is precisely what we don't want to happen. We therefore
      *   need to provide custom GoTo handling on a Distant object.
      */
-    dobjFor(GoTo) 
+    dobj GoTo 
     {
         verify()
         {
@@ -442,7 +442,7 @@ class Unthing: Decoration
     
     
     /* Make Unthings verify with the lowest possible score */         
-    dobjFor(Default)
+    dobj Default
     {
         verify()
         {
@@ -450,7 +450,7 @@ class Unthing: Decoration
         }
     }
     
-    iobjFor(Default)
+    iobj Default
     {
         verify()
         {
@@ -626,7 +626,7 @@ class Heavy: Fixture
 class Immovable: Thing
     
     /* Respond to an attempt to TAKE by ruling it out at the check stage. */
-    dobjFor(Take)
+    dobj Take
     {
         check() { say(cannotTakeMsg); }                
     }
@@ -652,13 +652,13 @@ class Immovable: Thing
 class StairwayUp: TravelConnector, Thing
     
     /* Climbing a StairwayUp is equivalent to travelling via it. */
-    dobjFor(Climb)
+    dobj Climb
     {        
         action() { travelVia(gActor); }        
     }
     
     /* Climbing up a Stairway up is the same as Climbing it. */
-    dobjFor(ClimbUp) asDobjFor(Climb)
+    dobj ClimbUp as Climb
     
     /* A StairwayUp is usually something fixed in place. */
     isFixed = true
@@ -718,7 +718,7 @@ class StairwayUp: TravelConnector, Thing
 class StairwayDown: TravelConnector, Thing
     
     /* Climbing down a StairwayDown is equivalent to travelling via it. */
-    dobjFor(ClimbDown)
+    dobj ClimbDown
     {       
         action { travelVia(gActor); }
     }
@@ -909,7 +909,7 @@ class DSStairway: DSCon, StairwayUp
      */
     upOrDown = inUpper ? downDir.name : upDir.name
     
-    dobjFor(Climb)
+    dobj Climb
     {        
         verify()
         {
@@ -921,7 +921,7 @@ class DSStairway: DSCon, StairwayUp
     
     cannotClimbMsg = BMsg(cant climb from here, '{I} {can\'t} climb up {the dobj} from {here}. ')
     
-    dobjFor(ClimbDown)
+    dobj ClimbDown
     {
         verify()
         {
@@ -944,7 +944,7 @@ class DSStairway: DSCon, StairwayUp
     cannotClimbDownMsg = BMsg(cant climb doen from here, 
                               '{I} {can\'t} climb down {the dobj} from {here}. ')
     
-    iobjFor(PushTravelClimbUp)
+    iobj PushTravelClimbUp
     {
         verify()
         {
@@ -955,7 +955,7 @@ class DSStairway: DSCon, StairwayUp
         }        
     }
     
-    iobjFor(PushTravelClimbDown)
+    iobj PushTravelClimbDown
     {
         verify()
         {
@@ -984,24 +984,24 @@ class DSStairway: DSCon, StairwayUp
 class Passage: TravelConnector, Thing
 
     /* Going through a Passage is equivalent to travelling via it. */
-    dobjFor(GoThrough)
+    dobj GoThrough
     {        
         preCond = [travelPermitted, touchObj]
         
         action() { travelVia(gActor); }
     }
     
-    iobjFor(PushTravelThrough)
+    iobj PushTravelThrough
     {
         preCond = [travelPermitted, touchObj]
     }  
     
     
     /* Entering a Passage is the same as going through it */
-    dobjFor(Enter) asDobjFor(GoThrough)
+    dobj Enter as GoThrough
     
      /* Going along a Passage is the same as going through it */
-    dobjFor(GoAlong) asDobjFor(GoThrough)  
+    dobj GoAlong as GoThrough  
     
     /* A Passage is usually something fixed in place. */
     isFixed = true
@@ -1031,13 +1031,13 @@ class Passage: TravelConnector, Thing
  */
 class PathPassage: Passage
     /* Make following a path the same as going through it. */
-    dobjFor(Follow) asDobjFor(GoThrough)
+    dobj Follow as GoThrough
     
     /* Make going down a path the same as going through it. */
-    dobjFor(ClimbDown) asDobjFor(GoThrough)
+    dobj ClimbDown as GoThrough
     
     /* Make going up a path the same as going through it. */
-    dobjFor(ClimbUp) asDobjFor(GoThrough)
+    dobj ClimbUp as GoThrough
     
     /* One most naturally talks of going 'down' a path */
     traversalMsg = BMsg(traverse path passage, 'down {1}', theName)
@@ -1090,14 +1090,14 @@ class ProxyDest: object
 class Enterable: ProxyDest, Fixture
     
     /* To enter an Enterable the actor must travel via its connector. */
-    dobjFor(Enter)
+    dobj Enter
     {
         verify() {}
         action() { connector.travelVia(gActor); }
     }
     
     /* The handling of an attempt to push something inside this object */
-    iobjFor(PushTravelEnter)
+    iobj PushTravelEnter
     {
         /* 
          *   To push something inside this object we must be able to touch this
@@ -1138,8 +1138,8 @@ class Enterable: ProxyDest, Fixture
     }
     
     /* Looking in or searching an Enterable surely requires that we enter it. */
-    dobjFor(LookIn) asDobjFor(Enter)
-    dobjFor(Search) asDobjFor(Enter)
+    dobj LookIn as Enter
+    dobj Search as Enter
     
     /*   
      *   Our connector is the TravelConnector via which an actor travels on
@@ -1191,7 +1191,7 @@ class ProxyRoom: ProxyDest, Passage
         inherited();
     }
     
-    dobjFor(LookIn) asDobjFor(TravelVia)
+    dobj LookIn as TravelVia
 ;
 
 /* 
@@ -1288,7 +1288,7 @@ class Switch: Thing
     isSwitchable = true
     
     /* FLIP SWITCH is equivalent to SWITCH SWITCH */
-    dobjFor(Flip) asDobjFor(SwitchVague)
+    dobj Flip as SwitchVague
 ;
 
 /*  
@@ -1305,10 +1305,10 @@ class Flashlight: Switch
     }
     
     /* Lighting a Flashlight is equivalent to switching it on */
-    dobjFor(Light) asDobjFor(SwitchOn)
+    dobj Light as SwitchOn
     
     /* Extinguishing a Flashlight is equivalent to switching it off */
-    dobjFor(Extinguish) asDobjFor(SwitchOff)
+    dobj Extinguish as SwitchOff
 ;
 
 /* 

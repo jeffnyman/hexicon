@@ -2443,7 +2443,7 @@ modify Actor
     /* In general we can talk to actors */
     canTalkToMe = true
     
-    dobjFor(TalkTo)
+    dobj TalkTo
     {  
         action()
         {
@@ -2451,7 +2451,7 @@ modify Actor
         }
     }
     
-    dobjFor(AskAbout)
+    dobj AskAbout
     {     
         action()
         {
@@ -2459,7 +2459,7 @@ modify Actor
         }
     }
     
-    dobjFor(AskFor)
+    dobj AskFor
     {     
         action()
         {
@@ -2467,7 +2467,7 @@ modify Actor
         }
     }
     
-    dobjFor(TellAbout)
+    dobj TellAbout
     {
         action()
         {
@@ -2475,7 +2475,7 @@ modify Actor
         }
     }
     
-    dobjFor(TalkAbout)
+    dobj TalkAbout
     {        
         action()
         {
@@ -2485,7 +2485,7 @@ modify Actor
     
        
     
-    dobjFor(SayTo)
+    dobj SayTo
     {        
         action()
         {
@@ -2500,7 +2500,7 @@ modify Actor
         {i} {say}. ')   
     
     
-    dobjFor(QueryAbout)
+    dobj QueryAbout
     {        
         action()
         {
@@ -2526,7 +2526,7 @@ modify Actor
      */
     kissRank = 100
     
-    dobjFor(Kiss)
+    dobj Kiss
     {       
         action()
         {
@@ -2572,7 +2572,7 @@ modify Actor
      */
     attackResponseMsg = cannotAttackMsg
     
-    dobjFor(Attack) 
+    dobj Attack 
     {       
         action()
         {
@@ -2583,7 +2583,7 @@ modify Actor
     
     
     
-    dobjFor(AttackWith) asDobjFor(Attack)
+    dobj AttackWith as Attack
     
     
     touchResponseMsg = BMsg(should not touch actor, '{The subj dobj} {doesn\'t
@@ -2593,7 +2593,7 @@ modify Actor
     touchDesc = touchResponseMsg
     
     
-    dobjFor(Feel)
+    dobj Feel
     {
         action()
         {
@@ -2609,7 +2609,7 @@ modify Actor
     
     
     
-    iobjFor(GiveTo)
+    iobj GiveTo
     {        
         action()
         {
@@ -2617,7 +2617,7 @@ modify Actor
         }
     }
     
-    iobjFor(ShowTo)
+    iobj ShowTo
     {        
         action()
         {
@@ -2640,7 +2640,7 @@ modify Actor
     
       
     
-    iobjFor(ThrowTo)
+    iobj ThrowTo
     {
         action()
         {
@@ -2697,7 +2697,7 @@ modify Actor
             so that {he obj} land{s/ed} on the ground instead. ');
     }
     
-    dobjFor(Follow)
+    dobj Follow
     {
         preCond = []
         

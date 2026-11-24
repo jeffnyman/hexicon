@@ -131,7 +131,7 @@ class SimpleAttachable: Thing
     
     
     /*  Handling for the ATTACH TO action */
-    dobjFor(AttachTo)
+    dobj AttachTo
     {
         preCond = [objHeld]
         
@@ -171,7 +171,7 @@ class SimpleAttachable: Thing
         {the dobj} to anything else while {he dobj}{\'s} attached to {1}. ',
                                  makeListStr(attachedToList, &theName))      
     
-    iobjFor(AttachTo)
+    iobj AttachTo
     {
         preCond = [touchObj]
         
@@ -192,7 +192,7 @@ class SimpleAttachable: Thing
     notAttachedMsg = BMsg(not attached, '{The subj dobj} {is}n\'t attached to
         anything. ')
     
-    dobjFor(Detach)
+    dobj Detach
     {
         preCond = [touchObj]
         
@@ -220,7 +220,7 @@ class SimpleAttachable: Thing
     okayDetachMsg = BMsg(okay detach, '{I} detach{es/ed} {1}. ', gActionListStr)
     
     
-    dobjFor(DetachFrom)
+    dobj DetachFrom
     {
         preCond = [touchObj]
         
@@ -260,7 +260,7 @@ class SimpleAttachable: Thing
     cannotDetachMsg = BMsg(cannot detach this, '{The subj dobj} {cannot} be
         detached from {1}. ', location.theName)
     
-    iobjFor(DetachFrom)
+    iobj DetachFrom
     {
         verify()
         {
@@ -298,11 +298,11 @@ class SimpleAttachable: Thing
         attached to {the iobj}. ')
 
     /* Treat Fasten and Unfasten as equivalent to Attach and Detach */
-    dobjFor(FastenTo) asDobjFor(AttachTo)
-    iobjFor(FastenTo) asIobjFor(AttachTo)
-    dobjFor(UnfastenFrom) asDobjFor(DetachFrom)
-    iobjFor(UnfastenFrom) asIobjFor(DetachFrom)
-    dobjFor(Unfasten) asDobjFor(Detach)
+    dobj FastenTo as AttachTo
+    iobj FastenTo as AttachTo
+    dobj UnfastenFrom as DetachFrom
+    iobj UnfastenFrom as DetachFrom
+    dobj Unfasten as Detach
     
     /* 
      *   We can't take this object while it's attached. Note that this is
@@ -310,7 +310,7 @@ class SimpleAttachable: Thing
      *   attachedTo != nil) not to the object it's attached to (which can be
      *   taken with the attached object still attached to it.
      */    
-    dobjFor(Take)
+    dobj Take
     {
         preCond = [touchObj, objDetached]
     }
@@ -616,7 +616,7 @@ class Attachable: NearbyAttachable
             || (reverseConnect(obj) && obj.allowAttach(self));
     }
     
-    dobjFor(AttachTo)
+    dobj AttachTo
     {
         preCond = [touchObj]
         
@@ -715,7 +715,7 @@ class PlugAttachable: object
         isPluggedIn = stat;
     }
     
-    dobjFor(PlugInto)    
+    dobj PlugInto    
     {
         verify()
         {
@@ -763,7 +763,7 @@ class PlugAttachable: object
     alreadyPluggedInMsg = BMsg(already plugged in vague, '{The subj {dobj} {is}
         already plugged in. ')
     
-    iobjFor(PlugInto)
+    iobj PlugInto
     {
         preCond = [touchObj]     
         
@@ -796,7 +796,7 @@ class PlugAttachable: object
         any more into {the iobj}. ')
     
     
-    iobjFor(AttachTo)
+    iobj AttachTo
     {
         check()
         {
@@ -816,7 +816,7 @@ class PlugAttachable: object
         be plugged into {the iobj}. ')
     
     
-    dobjFor(UnplugFrom)
+    dobj UnplugFrom
     {
         verify()
         {
@@ -857,7 +857,7 @@ class PlugAttachable: object
         plugged into {the iobj}. ')
     
     
-    dobjFor(Unplug)
+    dobj Unplug
     {
         verify()
         {
@@ -888,7 +888,7 @@ class PlugAttachable: object
     
     okayDetachMsg = BMsg(okay unplug, '{I} unplug{s/?ed} {1}. ', gActionListStr)
     
-    dobjFor(PlugIn)
+    dobj PlugIn
     {
         verify()
         {

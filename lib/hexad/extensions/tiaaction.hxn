@@ -379,7 +379,7 @@ class TIAAction: TIAction
  */ 
 modify Thing
      /* Defined on TIAAction extension. */
-    aobjFor(Default)
+    aobj Default
     {
         verify()
         {

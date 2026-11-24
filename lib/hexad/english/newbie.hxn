@@ -420,7 +420,7 @@ somethingPreParser: StringPreParser
  *   a LOOK command, but we'll also tell the player just to use LOOK in 
  *   future.
  */
-DefineIAction(LookHere)
+action LookHere: IAction
     execAction(cmd)
     {
         gActor.getOutermostRoom.lookAroundWithin();
@@ -553,7 +553,7 @@ pronounUsePreParser: StringPreParser
  *   Trap commands like WHERE CAN I GET HELP. Print a suitable Help message, 
  *   and then explain the use of the HELP command.
  */
-DefineSystemAction(WhereHelp)
+action WhereHelp: SystemAction
     execAction(cmd)
     {
         "[A simple HELP would do]<.p>";
@@ -580,7 +580,7 @@ VerbRule(WhereHelp)
     isActive = (gPlayerChar.currentInterlocutor == nil)
 ;
 
-DefineSystemAction(Help)
+action Help: SystemAction
     execAction(cmd)   {   helpMessage.printMsg();   }
 ;
 
@@ -631,7 +631,7 @@ VerbRule(WhatNext)
  *   Provide a command to display a brief introduction to playing IF (as an 
  *   alternative to the full INSTRUCTIONS menu provided by the TADS 3 library)
  */
-DefineSystemAction(Intro)
+action Intro: SystemAction
     execAction(cmd) { helpMessage.briefIntro(); }
 ;
 
@@ -643,7 +643,7 @@ VerbRule(Intro)
 ;
 
 /* Provide a command to show the player a sample transcript */
-DefineSystemAction(Sample)
+action Sample: SystemAction
     execAction(cmd) { helpMessage.showSample(); }
 ;
 
@@ -770,7 +770,7 @@ VerbRule(WhatThisGame)
  *   phrased. Then display a list of available exits from the current 
  *   location.
  */
-DefineIAction(GoSomewhere)
+action GoSomewhere: IAction
     execAction(cmd)
     {
         "If you want to go somewhere, use one of the compass directions (NORTH,
@@ -802,7 +802,7 @@ modify VagueTravel
  *   Trap commands like WHERE AM I or WHERE ARE WE or WHAT IS HERE. Perform 
  *   a LOOK command but explain that LOOK is the phrasing to use.
  */
-DefineIAction(WhereAmI)
+action WhereAmI: IAction
     execAction(cmd)
     {
         gActor.getOutermostRoom.lookAroundWithin();
@@ -838,7 +838,7 @@ VerbRule(WhatsHere)
  *   perform an EXAMINE ME command to add any game-specific player character 
  *   description. 
  */
-DefineIAction(WhoAmI)
+action WhoAmI: IAction
     execAction(cmd)
     {
         "[You're the main character of the game.  Of course, the game author
@@ -865,7 +865,7 @@ VerbRule(WhoAmI)
  *   Trap commands like WHERE CAN I GO. Perform an EXITS command to list the 
  *   exits, but then tell the player to use the wording EXITS in future.
  */
-DefineIAction(WhereGo)
+action WhereGo: IAction
     execAction(cmd)
     {
         nestedAction(Exits);
@@ -941,7 +941,7 @@ seekPreParser: StringPreParser
  *   present.
  */    
 
-DefineTopicAction(Seek)
+action Seek: TopicAction
     execAction(cmd)
     {
         local obj = getBestMatch(cmd);

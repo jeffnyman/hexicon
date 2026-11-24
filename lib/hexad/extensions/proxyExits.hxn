@@ -48,10 +48,10 @@ passagewayProxy: ProxyExit
     exitProp = &passageway
     travelAction = Passageway
     decorationActions = inherited + [ClimbUp, ClimbDown, GoAlong, Follow]
-    dobjFor(ClimbUp) asDobjFor(TravelVia)
-    dobjFor(ClimbDown) asDobjFor(TravelVia)
-    dobjFor(Follow) asDobjFor(TravelVia)
-    dobjFor(GoAlong) asDobjFor(TravelVia)
+    dobj ClimbUp as TravelVia
+    dobj ClimbDown as TravelVia
+    dobj Follow as TravelVia
+    dobj GoAlong as TravelVia
     notImportantMsg = BMsg(passage not important, 'There\'s no need to fiddle with such an ordinary
         passage. ')
 ;
@@ -71,7 +71,7 @@ pathwayProxy: ProxyExit
     decorationActions = inherited + [Take, Climb, ClimbUp, ClimbDown, GoAlong, Follow]
     
     /* TAKE PATH is equivalent to GO ALONG PATH */
-    dobjFor(Take)
+    dobj Take
     {
         verify()
         {
@@ -81,11 +81,11 @@ pathwayProxy: ProxyExit
         action() { doInstead(TravelVia, self); }
     }
     
-    dobjFor(Climb) asDobjFor(TravelVia)
-    dobjFor(ClimbUp) asDobjFor(TravelVia)
-    dobjFor(ClimbDown) asDobjFor(TravelVia)
-    dobjFor(Follow) asDobjFor(TravelVia)
-    dobjFor(GoAlong) asDobjFor(TravelVia)
+    dobj Climb as TravelVia
+    dobj ClimbUp as TravelVia
+    dobj ClimbDown as TravelVia
+    dobj Follow as TravelVia
+    dobj GoAlong as TravelVia
     
     notImportantMsg = BMsg(path not important, 'There\'s no need to fiddle with such an ordinary
         path. ')

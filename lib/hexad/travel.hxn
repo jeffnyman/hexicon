@@ -692,13 +692,13 @@ class Room: TravelConnector, Thing
     examineStatus() { display(&stateDesc); }
 
     /*  Examining a Room is the same as looking around within it. */
-    dobjFor(Examine)
+    dobj Examine
     {
         action() { lookAroundWithin(); }
     }
 
     /*  Going out of a Room is the same as executing an OUT command */
-    dobjFor(GetOutOf)
+    dobj GetOutOf
     {
         action() { GoOut.execAction(gCommand); }
     }
@@ -707,7 +707,7 @@ class Room: TravelConnector, Thing
      *   Pushing an object out of a Room is the same as pushing it via the OUT
      *   exit.
      */
-    iobjFor(PushTravelGetOutOf)
+    iobj PushTravelGetOutOf
     {
         action()
         {
@@ -809,7 +809,7 @@ class Room: TravelConnector, Thing
      *   other verify tests, so that the parser will choose a room to a similarly-named object, e.g.
      *   the Study rather than the Study Door.
      */
-    dobjFor(GoTo)
+    dobj GoTo
     {
         verify()
         {
@@ -1128,7 +1128,7 @@ class Door: TravelConnector, Thing
     }
     
     /*  Going through a door is the same as traveling via it. */
-    dobjFor(GoThrough)
+    dobj GoThrough
     {
         preCond = [travelPermitted, touchObj, objOpen]
         
@@ -1136,9 +1136,9 @@ class Door: TravelConnector, Thing
     }
     
     /*  Entering a door is the same as going through it. */
-    dobjFor(Enter) asDobjFor(GoThrough)
+    dobj Enter as GoThrough
     
-    iobjFor(PushTravelThrough)
+    iobj PushTravelThrough
     {
         preCond = [travelPermitted, touchObj, objOpen]
     }
@@ -1945,7 +1945,7 @@ class TravelConnector: object
      *   issued directly by a player, but a player command may be translated
      *   into this action.
      */    
-    dobjFor(TravelVia)
+    dobj TravelVia
     {
         preCond = [travelPermitted]
         
@@ -1960,13 +1960,13 @@ class TravelConnector: object
         }
     }
     
-    dobjFor(GoThrough)
+    dobj GoThrough
     {
         preCond = [travelPermitted]
     }
     
     
-    iobjFor(PushTravelThrough)
+    iobj PushTravelThrough
     {
         preCond = [travelPermitted]
         verify() 
@@ -2162,7 +2162,7 @@ class UnlistedProxyConnector: TravelConnector
       *   Handle going through this connector by calling our travelVia() method to execute travel
       *   via the connector for which we're a proxy.
       */
-    dobjFor(GoThrough)
+    dobj GoThrough
     {      
         preCond = [travelPermitted]   
         
@@ -2970,7 +2970,7 @@ class ProxyExit: MultiLoc, Decoration
      */
     travelAction = nil 
     
-    dobjFor(TravelVia)
+    dobj TravelVia
     {
         verify() {}
         action() { doInstead(travelAction); }
@@ -2980,8 +2980,8 @@ class ProxyExit: MultiLoc, Decoration
      *   The verious actions we want to trigger travel vis our associated exitAction. Instances may
      *   need to add or change these depending on what type of object we're representing.
      */
-    dobjFor(Enter) asDobjFor(TravelVia)
-    dobjFor(GoThrough) asDobjFor(TravelVia)
+    dobj Enter as TravelVia
+    dobj GoThrough as TravelVia
     
     /* 
      *   The list of actions we want our ProxyExit to respond to. Particular instances may want to

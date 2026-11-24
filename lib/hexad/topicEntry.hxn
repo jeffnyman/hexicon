@@ -326,7 +326,7 @@ class Consultable: TopicDatabase, Thing
     isConsultable = true
     
     /* Our handling of the ConsultAbout action when we're the direct object */
-    dobjFor(ConsultAbout)
+    dobj ConsultAbout
     {       
         
         action()
@@ -372,7 +372,7 @@ class Consultable: TopicDatabase, Thing
         }
     }
     
-    dobjFor(Read)
+    dobj Read
     {
         action()
         {

@@ -367,6 +367,9 @@ pub struct Preprocessor<'a> {
     pp_expr: bool,
     /// The language of the source being read.
     dialect: crate::Dialect,
+    /// While the current token is one a Hexicon form was lowered to,
+    /// the form's place: see [`SrcToken::lowered`].
+    lowered_pos: Option<(usize, u32)>,
 }
 
 impl<'a> Preprocessor<'a> {
@@ -415,6 +418,7 @@ impl<'a> Preprocessor<'a> {
             default_charset: "utf-8".to_owned(),
             pp_expr: false,
             dialect: crate::Dialect::Tads3,
+            lowered_pos: None,
         };
         pp.add_special(b"__LINE__", MacroKind::Line);
         pp.add_special(b"__FILE__", MacroKind::File);
@@ -438,6 +442,11 @@ impl<'a> Preprocessor<'a> {
     /// Name files without their folders in `__FILE__` and in messages.
     pub fn set_test_report_mode(&mut self, on: bool) {
         self.test_report = on;
+    }
+
+    /// The language the source being read is in.
+    pub(crate) fn dialect(&self) -> crate::Dialect {
+        self.dialect
     }
 
     /// Set the language of the source, which decides a few of the

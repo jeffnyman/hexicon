@@ -28,6 +28,10 @@ pub struct SrcToken {
     pub file: usize,
     /// The line it came from.
     pub line: u32,
+    /// It is one of the tokens a Hexicon form is lowered to: while it is
+    /// the current token, the parser is at the form's place, as it is at
+    /// a macro's while it reads the macro's expansion.
+    pub lowered: bool,
 }
 
 impl SrcToken {
@@ -38,6 +42,7 @@ impl SrcToken {
             int_val: 0,
             file: 0,
             line: 0,
+            lowered: false,
         }
     }
 }
@@ -86,9 +91,11 @@ impl Preprocessor<'_> {
             return Tok::Eof;
         }
         if let Some(token) = self.pushed.pop() {
+            self.lowered_pos = token.lowered.then_some((token.file, token.line));
             self.cur = token;
             return self.cur.typ;
         }
+        self.lowered_pos = None;
         loop {
             let typ = self.next_on_line_xlat_keep();
             if typ == Tok::NullTok {
@@ -160,6 +167,7 @@ impl Preprocessor<'_> {
             int_val: self.last_int_val,
             file: self.last_desc.unwrap_or(0),
             line: self.last_line,
+            lowered: false,
         }
     }
 
@@ -457,7 +465,8 @@ pub(super) fn xlat_escape(dst: &mut Vec<u8>, buf: &[u8], p: &mut usize, qu: u8, 
 impl Preprocessor<'_> {
     /// The file and line of the token most recently read.
     pub(crate) fn last_pos(&self) -> (usize, u32) {
-        (self.last_desc.unwrap_or(0), self.last_line)
+        self.lowered_pos
+            .unwrap_or((self.last_desc.unwrap_or(0), self.last_line))
     }
 
     /// Report an error at the current position.

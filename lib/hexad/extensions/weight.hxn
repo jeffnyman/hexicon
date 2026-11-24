@@ -156,7 +156,7 @@ modify Thing
      *   Modifications to PutIn handling to check for weight hidden inside this
      *   item. [WEIGHT EXTENSION]
      */
-    iobjFor(PutIn)
+    iobj PutIn
     {
         check()
         {
@@ -177,7 +177,7 @@ modify Thing
      *   Modifications to PutUnder handling to check for weight hidden under
      *   this item. [WEIGHT EXTENSION]
      */
-    iobjFor(PutUnder)
+    iobj PutUnder
     {
         check()
         {
@@ -198,7 +198,7 @@ modify Thing
      *   Modifications to PutBehind handling to check for weight hidden behind
      *   this item. [WEIGHT EXTENSION]
      */
-    iobjFor(PutBehind)
+    iobj PutBehind
     {
         check()
         {

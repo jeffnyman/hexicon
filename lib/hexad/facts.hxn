@@ -1529,7 +1529,7 @@ VerbRule(ListFacts)
     verbPhrase = 'list/listing facts'
 ;
 
-DefineSystemAction(ListFacts)
+action ListFacts: SystemAction
     execAction(cmd)
     {
         /* First check whether any facts have been added to the facts table. */
@@ -1562,7 +1562,7 @@ VerbRule(FactInfo)
     missingQ = 'which fact do you want info for'
 ;
 
-DefineSystemAction(FactInfo)
+action FactInfo: SystemAction
     execAction(cmd)
     {
         literal = cmd.dobj.name.toLower;

@@ -59,7 +59,7 @@ VerbRule(Debug)
 ;
 
 /* The Debug Action with various options */
-DefineSystemAction(Debug)
+action Debug: SystemAction
     execAction(cmd)
     {
         gLiteral = cmd.dobj.name.toLower;
@@ -92,7 +92,7 @@ DefineSystemAction(Debug)
 ;
 
 /* DEBUG without any options simply breaks into the debugger, as in adv3 */
-DefineSystemAction(DebugI)
+action DebugI: SystemAction
     execAction(cmd)
     {
         /* if the debugger is present, break into it */
@@ -149,7 +149,7 @@ actionTab: PreinitObject
  *   The Purloin Action allows a game author to take any object in the game
  *   while testing
  */
-DefineTAction(Purloin)    
+action Purloin(dobj): TAction    
     againRepeatsParse = true
     
     /* The PURLOIN action requires universal scope */
@@ -169,7 +169,7 @@ DefineTAction(Purloin)
  *   The GONEAR action allows the game author to move the player character to
  *   anywhere on the map, while testing.
  */
-DefineTAction(GoNear)   
+action GoNear(dobj): TAction   
     againRepeatsParse = true
     
     /* The GONEAR action requires universal scope */
@@ -190,7 +190,7 @@ DefineTAction(GoNear)
  *   bringing light to a dark location). Repeating the FIAT LUX action removes
  *   the light from the player character
  */
-DefineIAction(FiatLux)
+action FiatLux: IAction
     execAction(cmd)
     {
         gPlayerChar.isLit = !gPlayerChar.isLit;
@@ -203,7 +203,7 @@ DefineIAction(FiatLux)
 ;
 
 /* The EVALUATE action allows any expression to be evaluated */
-DefineLiteralAction(Evaluate)
+action Evaluate: LiteralAction
     
     /* 
      *   Do we want to use Compiler.compile rather than Compiler.eval()? By default we do since this
@@ -496,7 +496,7 @@ everything: object
     
 ;
 
-DefineSystemAction(AssertPlayerInRoom)
+action AssertPlayerInRoom: SystemAction
     
     /* For this action to work all known rooms also need to be in scope */
     addExtraScopeItems(whichRole?)
@@ -526,7 +526,7 @@ VerbRule(AssertPlayerInRoom)
 
 ///////////////////////////////////////////////
 
-DefineSystemAction(AssertPlayerHasItem)
+action AssertPlayerHasItem: SystemAction
     
     /* For this action to work all known rooms also need to be in scope */
     addExtraScopeItems(whichRole?)
@@ -557,7 +557,7 @@ VerbRule(AssertPlayerHasItem)
 
 ///////////////////////////////////////////////
 
-DefineSystemAction(AssertPlayerLacksItem)
+action AssertPlayerLacksItem: SystemAction
     
     /* For this action to work all known rooms also need to be in scope */
     addExtraScopeItems(whichRole?)
@@ -589,7 +589,7 @@ VerbRule(AssertPlayerLacksItem)
 
 ///////////////////////////////////////////////
 
-DefineSystemAction(AssertPlayerRoomHasItem)
+action AssertPlayerRoomHasItem: SystemAction
     
     /* For this action to work all known rooms also need to be in scope */
     addExtraScopeItems(whichRole?)
@@ -619,7 +619,7 @@ VerbRule(AssertPlayerRoomHasItem)
 
 ///////////////////////////////////////////////
 
-DefineSystemAction(AssertPlayerRoomLacksItem)
+action AssertPlayerRoomLacksItem: SystemAction
     
     /* For this action to work all known rooms also need to be in scope */
     addExtraScopeItems(whichRole?)
@@ -648,7 +648,7 @@ VerbRule(AssertPlayerRoomLacksItem)
 
 ///////////////////////////////////////////////
 
-DefineSystemAction(Assert)
+action Assert: SystemAction
     exec(cmd)
     {
         /* Recreate the literal text */
@@ -708,7 +708,7 @@ VerbRule(Assert)
 
 ///////////////////////////////////////////////
 
-DefineSystemAction(AssertMsgClear)
+action AssertMsgClear: SystemAction
     exec(cmd)
     {
         "Done.\n";
@@ -725,7 +725,7 @@ VerbRule(AssertMsgClear)
 
 ///////////////////////////////////////////////
 
-DefineSystemAction(AssertMsg)
+action AssertMsg: SystemAction
     exec(cmd)
     {
         local f = gCommandToks.cdr();
@@ -968,7 +968,7 @@ class Test: object
  *   The 'list tests' and 'list tests fully' commands can be used to list your
  *   test scripts from within the running game.
  */   
-DefineSystemAction(GListTests)
+action GListTests: SystemAction
     execAction(cmd)
     {
         if(allNewTests.lst.length == 0)
@@ -1016,7 +1016,7 @@ VerbRule(GListTests)
  *   The 'test X' command can be used with any Test object defined in the source
  *   code:
  */
-DefineLiteralAction(GTest)
+action GTest: LiteralAction
     /* 
      *   We override exec() rather than exeAction() here, since we want to skip
      *   all the normal turn sequence routines such as before and after
@@ -1052,7 +1052,7 @@ VerbRule(GTest)
 
 ////////////////////////////////////////////////
 
-DefineSystemAction(TestAll)
+action TestAll: SystemAction
     execAction(cmd)
     {
         if(allNewTests.lst.length == 0)

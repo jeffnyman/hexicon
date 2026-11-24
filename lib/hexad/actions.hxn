@@ -20,7 +20,7 @@ property thinkDesc;
 property follow;
 property optionsExplained;
 
-DefineSystemAction(Quit)
+action Quit: SystemAction
    
     
     execAction(cmd)
@@ -32,7 +32,7 @@ DefineSystemAction(Quit)
     }
 ;
 
-DefineSystemAction(Undo)
+action Undo: SystemAction
    
     
     execAction(cmd)
@@ -56,7 +56,7 @@ DefineSystemAction(Undo)
     
 ;
 
-DefineSystemAction(Restart)
+action Restart: SystemAction
     
     
     execAction(cmd)
@@ -101,7 +101,7 @@ DefineSystemAction(Restart)
     }
 ;
 
-DefineSystemAction(Credits)
+action Credits: SystemAction
     
     
     execAction(cmd)
@@ -111,7 +111,7 @@ DefineSystemAction(Credits)
     }
 ;
 
-DefineSystemAction(About)
+action About: SystemAction
     execAction(cmd)
     {
         versionInfo.showAbout();
@@ -119,7 +119,7 @@ DefineSystemAction(About)
     }
 ;
 
-DefineSystemAction(Version)
+action Version: SystemAction
     execAction(cmd)
     {
         local lst = ModuleID.getModuleList();
@@ -130,7 +130,7 @@ DefineSystemAction(Version)
     }
 ;
 
-DefineSystemAction(Exits)
+action Exits: SystemAction
     execAction(cmd)
     {
         if(gExitLister == nil)
@@ -140,7 +140,7 @@ DefineSystemAction(Exits)
     }
 ;
 
-DefineSystemAction(ExitsMode)
+action ExitsMode: SystemAction
     execAction(cmd)
     {
         if(gExitLister == nil)
@@ -164,7 +164,7 @@ DefineSystemAction(ExitsMode)
         
 ;
 
-DefineSystemAction(ExitsColour)
+action ExitsColour: SystemAction
     execAction(cmd)
     {
         if(gExitLister == nil)
@@ -199,7 +199,7 @@ sayNoExitLister()
 }
 
 
-DefineSystemAction(Score)
+action Score: SystemAction
     execAction(cmd)
     {
         /* show the simple score */
@@ -239,7 +239,7 @@ DefineSystemAction(Score)
     mentionedFullScore = nil
 ;
 
-DefineSystemAction(FullScore)
+action FullScore: SystemAction
     execAction(cmd)
     {
         /* show the full score in response to an explicit player request */
@@ -261,7 +261,7 @@ DefineSystemAction(FullScore)
    
 ;
 
-DefineSystemAction(Notify)
+action Notify: SystemAction
     execAction(cmd)
     {
         /* show the current notification status */
@@ -279,7 +279,7 @@ DefineSystemAction(Notify)
     }
 ;
 
-DefineSystemAction(NotifyOn)
+action NotifyOn: SystemAction
     execAction(cmd)
     {
         /* turn notifications on, and acknowledge the status */
@@ -293,7 +293,7 @@ DefineSystemAction(NotifyOn)
     }
 ;
 
-DefineSystemAction(NotifyOff)
+action NotifyOff: SystemAction
     execAction(cmd)
     {
         /* turn notifications off, and acknowledge the status */
@@ -307,7 +307,7 @@ DefineSystemAction(NotifyOff)
     }
 ;
 
-DefineSystemAction(ToggleDisambigEnumeration)    
+action ToggleDisambigEnumeration: SystemAction    
     execAction(cmd)
     {
         if(libGlobal.enumerateDisambigOptions)
@@ -323,7 +323,7 @@ DefineSystemAction(ToggleDisambigEnumeration)
     }
 ;
 
-DefineSystemAction(EnumerateSuggestions)
+action EnumerateSuggestions: SystemAction
     execAction(cmd)
     {
         if(defined(suggestedTopicLister))
@@ -338,7 +338,7 @@ DefineSystemAction(EnumerateSuggestions)
     }
 ;
 
-DefineSystemAction(HyperlinkSuggestions)
+action HyperlinkSuggestions: SystemAction
     execAction(cmd)       
     {
         /* First check that the player's interpreter is capable of displaying hyperlinks. */
@@ -360,7 +360,7 @@ DefineSystemAction(HyperlinkSuggestions)
     }
 ;
 
-DefineSystemAction(Hints)
+action Hints: SystemAction
     execAction(cmd)
     {
         if(gHintManager == nil)
@@ -378,7 +378,7 @@ DefineSystemAction(Hints)
 ;
         
 
-DefineSystemAction(HintsOff)
+action HintsOff: SystemAction
     execAction(cmd)
     {
         if(gHintManager == nil)
@@ -389,7 +389,7 @@ DefineSystemAction(HintsOff)
     }
 ;
 
-DefineSystemAction(ExtraHints)
+action ExtraHints: SystemAction
     execAction(cmd)
     {
         if(gExtraHintManager == nil || !gExtraHintManager.extraHintsExist())
@@ -447,7 +447,7 @@ DefineSystemAction(ExtraHints)
     extraHintsCmd = BMsg(extra hints command, 'EXTRA ')
 ;
 
-DefineSystemAction(TipsOn)
+action TipsOn: SystemAction
     execAction(cmd)
     {
         tipMode.isOn = true;
@@ -455,7 +455,7 @@ DefineSystemAction(TipsOn)
     }    
 ;
 
-DefineSystemAction(TipsOff)
+action TipsOff: SystemAction
     execAction(cmd)
     {
         tipMode.isOn = nil;
@@ -463,7 +463,7 @@ DefineSystemAction(TipsOff)
     }    
 ;
 
-DefineSystemAction(Brief)
+action Brief: SystemAction
     execAction(cmd)
     {
         if(gameMain.verbose)
@@ -480,7 +480,7 @@ DefineSystemAction(Brief)
     }
 ;
 
-DefineSystemAction(Verbose)
+action Verbose: SystemAction
     execAction(cmd)
     {
         if(gameMain.verbose)            
@@ -497,7 +497,7 @@ DefineSystemAction(Verbose)
 
 
 /* Set Inventory to TALL format */
-DefineSystemAction(InventoryTall)
+action InventoryTall: SystemAction
     execAction(cmd)
     {
         /* Register with the Inventory action that inventory listing should now be in tall format. */
@@ -509,7 +509,7 @@ DefineSystemAction(InventoryTall)
 ;
   
 /* Set Inventory to WIDE format */
-DefineSystemAction(InventoryWide)        
+action InventoryWide: SystemAction        
     execAction(cmd)
     {
         /* Register the Inventory action that inventory listing should now be in wide format. */
@@ -521,7 +521,7 @@ DefineSystemAction(InventoryWide)
 ;
 
 /* Set Inventory to HYBRID format */
-DefineSystemAction(InventoryHybrid)    
+action InventoryHybrid: SystemAction    
     execAction(cmd)
     {
         /* Register with the Inventory action inventory listing should now be in wide format. */
@@ -533,7 +533,7 @@ DefineSystemAction(InventoryHybrid)
 ;
 
 
-DefineIAction(Inventory)
+action Inventory: IAction
     execAction(cmd)
     {
         /* 
@@ -604,7 +604,7 @@ DefineIAction(Inventory)
     inventoryStyle = InventoryWide
 ;
 
-DefineIAction(Look)
+action Look: IAction
     execAction(cmd)
     {
         gActor.outermostVisibleParent().lookAroundWithin();
@@ -612,7 +612,7 @@ DefineIAction(Look)
 
 ;
 
-DefineIAction(Wait)
+action Wait: IAction
     execAction(cmd)
     {
         DMsg(wait, 'Time {dummy} pass{es/ed}. ');
@@ -635,14 +635,14 @@ Jump: SpecialTravelAction
     
 ;
 
-DefineIAction(Yell)
+action Yell: IAction
     execAction(cmd)
     {
         DMsg(yell, '{I} shout{s/ed} very loudly. ');
     }
 ;
 
-DefineIAction(Smell)
+action Smell: IAction
     execAction(cmd)
     {
         /* 
@@ -699,7 +699,7 @@ DefineIAction(Smell)
 ;
 
 
-DefineIAction(Listen)
+action Listen: IAction
     execAction(cmd)
     {
         /* 
@@ -746,7 +746,7 @@ DefineIAction(Listen)
     listRemoteSounds(lst) { return nil; }
 ;
 
-DefineIAction(Sleep)
+action Sleep: IAction
     execAction(cmd)
     {
         DMsg(no sleeping, 'This {dummy} {is} no time for sleeping. ');
@@ -977,7 +977,7 @@ Go: TravelAction
 ;
 
 
-DefineIAction(GetOut)
+action GetOut: IAction
     execAction(cmd)
     {        
         GoOut.execAction(cmd);
@@ -996,7 +996,7 @@ ClimbVague: SpecialTravelAction
  *   simply say that he is standing.
  */
 
-DefineIAction(Stand)
+action Stand: IAction
     execAction(cmd)
     {
         if(!gActor.location.ofKind(Room))
@@ -1010,14 +1010,14 @@ DefineIAction(Stand)
 ;
 
 
-DefineIAction(Sit)
+action Sit: IAction
     execAction(cmd)
     {
         askForDobj(SitOn);          
     }
 ;
 
-DefineIAction(Lie)
+action Lie: IAction
     execAction(cmd)
     {
         askForDobj(LieOn);
@@ -1029,7 +1029,7 @@ Travel: TravelAction
     direction = (dirMatch.dir)
 ;
 
-DefineIAction(VagueTravel)
+action VagueTravel: IAction
     execAction(cmd)
     {
         DMsg(vague travel, 'Which way do you want to go? ');       
@@ -1037,7 +1037,7 @@ DefineIAction(VagueTravel)
 ;
 
 
-DefineIAction(GoBack)
+action GoBack: IAction
     execAction(cmd)
     {
         local pathBack = nil;
@@ -1074,7 +1074,7 @@ DefineIAction(GoBack)
     }
 ;
 
-DefineSystemAction(GoToMode)
+action GoToMode: SystemAction
     execAction(c)
     {
         local vp = c.verbProd;
@@ -1099,7 +1099,7 @@ DefineSystemAction(GoToMode)
     }
 ;
 
-DefineTAction(GoTo)
+action GoTo(dobj): TAction
     
     /* Add all known items to scope */
     addExtraScopeItems(whichRole?)
@@ -1112,7 +1112,7 @@ DefineTAction(GoTo)
     reportImplicitActions = nil
 ;
 
-DefineIAction(Continue)
+action Continue: IAction
     execAction(cmd)
     {
         local path;
@@ -1234,7 +1234,7 @@ DefineIAction(Continue)
     }
 ;
 
-DefineSystemAction(Topics)
+action Topics: SystemAction
     execAction(cmd)
     {
         local otherActor = gPlayerChar.currentInterlocutor;
@@ -1251,7 +1251,7 @@ DefineSystemAction(Topics)
 ;
     
 
-DefineTAction(Examine)
+action Examine(dobj): TAction
     announceMultiAction = true
     
     getAll(cmd, role)
@@ -1271,7 +1271,7 @@ DefineTAction(Examine)
  *   Examine action.
  */
    
-DefineTAction(ExamineOrGoTo)
+action ExamineOrGoTo(dobj): TAction
     exec(cmd)
     {        
         if(defined(pcRouteFinder) && cmd.dobj.ofKind(Room)
@@ -1296,12 +1296,12 @@ DefineTAction(ExamineOrGoTo)
     
 ;
 
-DefineTAction(Follow)
+action Follow(dobj): TAction
     againRepeatsParse = nil   
 ;
 
 
-DefineTAction(Read)
+action Read(dobj): TAction
     announceMultiAction = true
     
     getAll(cmd, role)
@@ -1312,7 +1312,7 @@ DefineTAction(Read)
     againRepeatsParse = nil
 ;
 
-DefineTAction(SmellSomething)
+action SmellSomething(dobj): TAction
     announceMultiAction = true
     againRepeatsParse = nil
     
@@ -1330,7 +1330,7 @@ DefineTAction(SmellSomething)
     
 ;
 
-DefineTAction(ListenTo)
+action ListenTo(dobj): TAction
     announceMultiAction = true
     againRepeatsParse = nil
     
@@ -1348,7 +1348,7 @@ DefineTAction(ListenTo)
     
 ;
 
-DefineTAction(Taste)
+action Taste(dobj): TAction
     announceMultiAction = true
     getAll(cmd, role)
     {
@@ -1357,7 +1357,7 @@ DefineTAction(Taste)
     againRepeatsParse = nil
 ;
 
-DefineTAction(Feel)
+action Feel(dobj): TAction
     announceMultiAction = true
     getAll(cmd, role)
     {
@@ -1367,7 +1367,7 @@ DefineTAction(Feel)
 ;
 
 
-DefineTAction(Touch)
+action Touch(dobj): TAction
     announceMultiAction = true
     getAll(cmd, role)
     {
@@ -1376,7 +1376,7 @@ DefineTAction(Touch)
     againRepeatsParse = nil
 ;
 
-DefineTAction(Take)
+action Take(dobj): TAction
     
     getAll(cmd, role)
     {
@@ -1538,7 +1538,7 @@ DefineTAction(Take)
    
 ;
 
-DefineTAction(Drop)      
+action Drop(dobj): TAction      
     allowAll = true
     
     getAll(cmd, role)
@@ -1572,7 +1572,7 @@ DefineTAction(Drop)
 
 
 
-DefineTAction(Throw)
+action Throw(dobj): TAction
     getAll(cmd, role)
     {
         return scopeList.subset({ x: !x.isFixed});
@@ -1580,37 +1580,37 @@ DefineTAction(Throw)
 ;
 
 
-DefineTAction(Attack)
+action Attack(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Strike)
+action Strike(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Open)       
+action Open(dobj): TAction       
 ;
 
-DefineTAction(Close)        
+action Close(dobj): TAction        
 ;
 
-DefineTAction(LookIn)  
+action LookIn(dobj): TAction  
     againRepeatsParse = nil
 ;
 
-DefineTAction(LookUnder)    
+action LookUnder(dobj): TAction    
     againRepeatsParse = nil
 ;
 
-DefineTAction(LookBehind)
+action LookBehind(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(LookThrough)
+action LookThrough(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineIAction(LookDir)
+action LookDir: IAction
     baseActionClaas = LookDir    
        
     execAction(cmd)
@@ -1648,7 +1648,7 @@ DefineIAction(LookDir)
     direction = nil
 ;
 
-DefineIAction(LookDir2)    
+action LookDir2: IAction    
     execAction(cmd)
     {
         LookDir.execAction(cmd);
@@ -1659,26 +1659,26 @@ DefineIAction(LookDir2)
 ;
 
 
-DefineTAction(Unlock)    
+action Unlock(dobj): TAction    
 ;
 
-DefineTAction(Lock)        
+action Lock(dobj): TAction        
 ;
 
-DefineTAction(SwitchOn)        
+action SwitchOn(dobj): TAction        
 ;
 
-DefineTAction(SwitchOff)        
+action SwitchOff(dobj): TAction        
 ;
 
-DefineTAction(Turn)  
+action Turn(dobj): TAction  
     againRepeatsParse = nil
 ;
 
-DefineTAction(Wear)       
+action Wear(dobj): TAction       
 ;
 
-DefineTAction(Doff)    
+action Doff(dobj): TAction    
     allowAll = true    
     
     getAll(cmd, role)
@@ -1687,7 +1687,7 @@ DefineTAction(Doff)
     }
 ;
 
-DefineIAction(TakeOff)
+action TakeOff: IAction
     execAction(c)
     {
         DMsg(not a bird, '{I} {\'m} not a bird or a plane. ');
@@ -1700,121 +1700,121 @@ DefineIAction(TakeOff)
     }   
 ;
 
-DefineTAction(Break)
+action Break(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Climb)       
+action Climb(dobj): TAction       
 ;
 
-DefineTAction(ClimbUp)      
+action ClimbUp(dobj): TAction      
 ;
 
-DefineTAction(ClimbDown)        
+action ClimbDown(dobj): TAction        
 ;
 
-DefineTAction(Board)        
+action Board(dobj): TAction        
 ;
 
-DefineTAction(StandOn)   
+action StandOn(dobj): TAction   
 ;
 
-DefineTAction(SitOn)    
+action SitOn(dobj): TAction    
 ;
 
-DefineTAction(LieOn)    
+action LieOn(dobj): TAction    
 ;
 
 
-DefineTAction(StandIn)    
+action StandIn(dobj): TAction    
 ;
 
-DefineTAction(SitIn)    
+action SitIn(dobj): TAction    
 ;
 
-DefineTAction(LieIn)   
+action LieIn(dobj): TAction   
 ;
 
-DefineTAction(Enter)   
+action Enter(dobj): TAction   
 ;
 
-DefineTAction(GetOff)        
+action GetOff(dobj): TAction        
 ;
 
-DefineTAction(GetOutOf)    
+action GetOutOf(dobj): TAction    
 ;
     
-DefineTAction(GoThrough)    
+action GoThrough(dobj): TAction    
 ;
 
-DefineTAction(GoAlong)    
+action GoAlong(dobj): TAction    
 ;
 
-DefineTAction(TravelVia)
+action TravelVia(dobj): TAction
 ;
 
-DefineTAction(Push)
+action Push(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Pull)
+action Pull(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Search)
+action Search(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Remove)
+action Remove(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Move)
+action Move(dobj): TAction
     againRepeatsParse = nil
 ;
     
-DefineTAction(Light)   
+action Light(dobj): TAction   
 ;
 
-DefineTAction(Extinguish)    
+action Extinguish(dobj): TAction    
 ;
 
-DefineTAction(Eat)
+action Eat(dobj): TAction
 ;
 
-DefineTAction(Drink)
+action Drink(dobj): TAction
 ;
 
-DefineTAction(Clean)
+action Clean(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Dig)
+action Dig(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Kiss)
+action Kiss(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Detach)
+action Detach(dobj): TAction
     getAll(cmd, role)
     {
         return scopeList.subset({ x: x.attachedTo != nil});
     }
 ;
 
-DefineTIAction(DigWith)
+action DigWith(dobj, iobj): TIAction
     resolveIobjFirst = nil
     againRepeatsParse = nil
 ;
 
-DefineTIAction(CleanWith)
+action CleanWith(dobj, iobj): TIAction
     resolveIobjFirst = nil
     againRepeatsParse = nil
 ;
 
-DefineTIAction(MoveTo)
+action MoveTo(dobj, iobj): TIAction
     resolveIobjFirst = nil
     getAll(cmd, role)
     {
@@ -1826,7 +1826,7 @@ DefineTIAction(MoveTo)
     againRepeatsParse = nil
 ;
 
-DefineTIAction(MoveAwayFrom)    
+action MoveAwayFrom(dobj, iobj): TIAction    
     resolveIobjFirst = nil
     
     getAll(cmd, role)
@@ -1839,7 +1839,7 @@ DefineTIAction(MoveAwayFrom)
     againRepeatsParse = nil
 ;
 
-DefineTIAction(MoveWith)
+action MoveWith(dobj, iobj): TIAction
     resolveIobjFirst = nil
     
     getAll(cmd, role)
@@ -1849,7 +1849,7 @@ DefineTIAction(MoveWith)
     againRepeatsParse = nil
 ;
 
-DefineTIAction(PutOn)       
+action PutOn(dobj, iobj): TIAction       
     announceMultiAction = nil
     allowAll = true
     getAll(cmd, role)   
@@ -1895,7 +1895,7 @@ putAllScope(iobj, slist)
 }
 
 
-DefineTIAction(PutIn)          
+action PutIn(dobj, iobj): TIAction          
     announceMultiAction = nil
     allowAll = true
     
@@ -1909,7 +1909,7 @@ DefineTIAction(PutIn)
 
 
 
-DefineTIAction(PutUnder)      
+action PutUnder(dobj, iobj): TIAction      
     announceMultiAction = nil
     allowAll = true
     
@@ -1919,7 +1919,7 @@ DefineTIAction(PutUnder)
     }
 ;
 
-DefineTIAction(PutBehind)      
+action PutBehind(dobj, iobj): TIAction      
     announceMultiAction = nil
     allowAll = true
     
@@ -1931,46 +1931,46 @@ DefineTIAction(PutBehind)
 
 
 
-DefineTIAction(UnlockWith)      
+action UnlockWith(dobj, iobj): TIAction      
     resolveIobjFirst = nil
 ;
 
-DefineTIAction(LockWith)      
+action LockWith(dobj, iobj): TIAction      
     resolveIobjFirst = nil
 ;
 
-DefineTAction(Attach)
+action Attach(dobj): TAction
 ;
 
-DefineTIAction(AttachTo)    
+action AttachTo(dobj, iobj): TIAction    
     resolveIobjFirst = nil
 ;
 
-DefineTIAction(DetachFrom)    
+action DetachFrom(dobj, iobj): TIAction    
     getAll(cmd, role)
     {
         return scopeList.subset({ x: x.attachedTo == curIobj});
     }
 ;
 
-DefineTIAction(FastenTo)     
+action FastenTo(dobj, iobj): TIAction     
     resolveIobjFirst = nil
 ;
 
-DefineTIAction(TurnWith)
-    resolveIobjFirst = nil
-    againRepeatsParse = nil
-;
-
-DefineTAction(Cut)
-;
-
-DefineTIAction(CutWith)
+action TurnWith(dobj, iobj): TIAction
     resolveIobjFirst = nil
     againRepeatsParse = nil
 ;
 
-DefineTIAction(TakeFrom)    
+action Cut(dobj): TAction
+;
+
+action CutWith(dobj, iobj): TIAction
+    resolveIobjFirst = nil
+    againRepeatsParse = nil
+;
+
+action TakeFrom(dobj, iobj): TIAction    
     /* 
      *   If the command matched ALL filter out dobjs that aren't in the iobj by
      *   not executing the command for them.
@@ -2010,20 +2010,20 @@ DefineTIAction(TakeFrom)
     
 ;
 
-DefineTIAction(ThrowAt)    
+action ThrowAt(dobj, iobj): TIAction    
     resolveIobjFirst = nil
 ;
 
-DefineTIAction(ThrowTo)    
+action ThrowTo(dobj, iobj): TIAction    
     resolveIobjFirst = nil
 ;
 
-DefineTIAction(AttackWith)
+action AttackWith(dobj, iobj): TIAction
     resolveIobjFirst = nil
     againRepeatsParse = nil
 ;
 
-DefineTAction(ThrowDir)
+action ThrowDir(dobj): TAction
     execAction(cmd)
     {
         direction = cmd.verbProd.dirMatch.dir;
@@ -2034,7 +2034,7 @@ DefineTAction(ThrowDir)
     againRepeatsParse = nil
 ;
 
-DefineIAction(JumpOffIntransitive)    
+action JumpOffIntransitive: IAction    
     execAction(cmd)
     {
         if(gActor.location.contType == On)
@@ -2044,26 +2044,26 @@ DefineIAction(JumpOffIntransitive)
     }    
 ;
 
-DefineTAction(JumpOff)    
+action JumpOff(dobj): TAction    
 ;
 
-DefineTAction(JumpOver)
+action JumpOver(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineLiteralTAction(TurnTo)    
+action TurnTo(dobj): LiteralTAction    
 ;
 
-DefineLiteralTAction(SetTo)    
+action SetTo(dobj): LiteralTAction    
 ;
 
-DefineTAction(Set)
+action Set(dobj): TAction
 ;
 
-DefineTAction(TypeOnVague)
+action TypeOnVague(dobj): TAction
 ;
 
-DefineLiteralTAction(TypeOn)
+action TypeOn(dobj): LiteralTAction
     againRepeatsParse = nil   
     
     doActionOnce()
@@ -2073,21 +2073,21 @@ DefineLiteralTAction(TypeOn)
     }
 ;
 
-DefineLiteralAction(Type)
+action Type: LiteralAction
     againRepeatsParse = nil
     
     execAction(cmd) { askForIobj(TypeOn); }
 ;
 
-DefineIAction(TypeVague)
+action TypeVague: IAction
     execAction(s) { askMissingLiteral(Type, DirectObject); }
 ;
 
-DefineLiteralTAction(EnterOn)
+action EnterOn(dobj): LiteralTAction
     againRepeatsParse = nil
 ;
 
-DefineLiteralTAction(WriteOn)
+action WriteOn(dobj): LiteralTAction
     againRepeatsParse = nil
     
     doActionOnce()
@@ -2097,13 +2097,13 @@ DefineLiteralTAction(WriteOn)
     }
 ;
 
-DefineLiteralAction(Write)
+action Write: LiteralAction
     againRepeatsParse = nil
 
     execAction(cmd) { askForIobj(WriteOn); }
 ;
 
-DefineIAction(WriteVague)
+action WriteVague: IAction
     execAction(c)
     {
         askMissingLiteral(Write, DirectObject);
@@ -2111,19 +2111,19 @@ DefineIAction(WriteVague)
 ;
 
 
-DefineTopicTAction(ConsultAbout)
+action ConsultAbout(dobj): TopicTAction
     againRepeatsParse = nil
     unhides = IndirectObject
 ;
 
-DefineTopicAction(ConsultWhatAbout)
+action ConsultWhatAbout: TopicAction
     execAction(cmd)
     {
         askForDobj(ConsultAbout);
     }
 ;
 
-DefineIAction(ConsultAboutVague)
+action ConsultAboutVague: IAction
     execAction(c)
     {
         DMsg(consult about vague, 'Please be more specific, e.g, CONSULT BLACK BOOK ABOUT MAGIC or
@@ -2131,74 +2131,74 @@ DefineIAction(ConsultAboutVague)
     }
 ;
 
-DefineTAction(SwitchVague)
+action SwitchVague(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Flip)
+action Flip(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTAction(Fasten)   
+action Fasten(dobj): TAction   
 ;
 
 
-DefineTAction(Burn)   
+action Burn(dobj): TAction   
 ;
 
-DefineTIAction(BurnWith)
+action BurnWith(dobj, iobj): TIAction
     resolveIobjFirst = nil
 ;
 
-DefineTAction(Pour)
+action Pour(dobj): TAction
     againRepeatsParse = nil
 ;
 
-DefineTIAction(PourOnto)    
-    resolveIobjFirst = nil
-    againRepeatsParse = nil
-;
-
-DefineTIAction(PourInto)
+action PourOnto(dobj, iobj): TIAction    
     resolveIobjFirst = nil
     againRepeatsParse = nil
 ;
 
-DefineTAction(Screw)    
+action PourInto(dobj, iobj): TIAction
+    resolveIobjFirst = nil
+    againRepeatsParse = nil
 ;
 
-DefineTIAction(ScrewWith)    
+action Screw(dobj): TAction    
+;
+
+action ScrewWith(dobj, iobj): TIAction    
     resolveIobjFirst = nil
 ;
     
-DefineTAction(Unscrew)
+action Unscrew(dobj): TAction
 ;
 
-DefineTIAction(UnscrewWith)    
+action UnscrewWith(dobj, iobj): TIAction    
     resolveIobjFirst = nil
 ;
 
-DefineTAction(Unfasten)
+action Unfasten(dobj): TAction
 ;
 
-DefineTIAction(UnfastenFrom)    
+action UnfastenFrom(dobj, iobj): TIAction    
 ;
 
-DefineTIAction(PlugInto)   
+action PlugInto(dobj, iobj): TIAction   
     resolveIobjFirst = nil
 ;
 
-DefineTAction(PlugIn)    
+action PlugIn(dobj): TAction    
 ;
 
-DefineTIAction(UnplugFrom)        
+action UnplugFrom(dobj, iobj): TIAction        
 ;
 
-DefineTAction(Unplug)    
+action Unplug(dobj): TAction    
 ;
 
 
-DefineTAction(PushTravelDir)
+action PushTravelDir(dobj): TAction
     
     isPushTravelAction = true
     
@@ -2302,7 +2302,7 @@ DefineTAction(PushTravelDir)
     doTravel() { delegated TravelAction(); }
 ;
 
-DefineTIAction(PushTravelThrough)
+action PushTravelThrough(dobj, iobj): TIAction
     viaMode = Through
     
     isPushTravelAction = true
@@ -2324,25 +2324,25 @@ DefineTIAction(PushTravelThrough)
     }
 ;
 
-DefineTIAction(PushTravelEnter)
+action PushTravelEnter(dobj, iobj): TIAction
     viaMode = Into
     
     isPushTravelAction = true
 ;
 
-DefineTIAction(PushTravelGetOutOf)
+action PushTravelGetOutOf(dobj, iobj): TIAction
     viaMode = OutOf
     
     isPushTravelAction = true
 ;
 
-DefineTIAction(PushTravelClimbUp)
+action PushTravelClimbUp(dobj, iobj): TIAction
     viaMode = Up
     
     isPushTravelAction = true
 ;
 
-DefineTIAction(PushTravelClimbDown)
+action PushTravelClimbDown(dobj, iobj): TIAction
     viaMode = Down
     
     isPushTravelAction = true
@@ -2352,7 +2352,7 @@ DefineTIAction(PushTravelClimbDown)
 
 
 
-DefineTAction(TalkTo)
+action TalkTo(dobj): TAction
     isConversational = true
 ;
 
@@ -2532,7 +2532,7 @@ Hello: IAction
     isConversational = true
 ;
 
-DefineLiteralTAction(TellTo)
+action TellTo(dobj): LiteralTAction
     exec(cmd)
     {
         /* 
@@ -2548,27 +2548,27 @@ DefineLiteralTAction(TellTo)
 ;
 
 
-DefineTopicTAction(AskAbout)    
+action AskAbout(dobj): TopicTAction    
     isConversational = true
     unhides = IndirectObject
 ;
 
-DefineTopicTAction(AskFor)    
+action AskFor(dobj): TopicTAction    
     isConversational = true
     unhides = IndirectObject
 ;
 
-DefineTopicTAction(TellAbout)   
+action TellAbout(dobj): TopicTAction   
     isConversational = true
     unhides = IndirectObject
 ;
 
-DefineTopicTAction(TalkAbout)    
+action TalkAbout(dobj): TopicTAction    
     isConversational = true
     unhides = IndirectObject
 ;
 
-DefineTopicTAction(QueryAbout)    
+action QueryAbout(dobj): TopicTAction    
     execAction(cmd)
     {
         qType = cmd.verbProd.qtype;
@@ -2585,11 +2585,11 @@ DefineTopicTAction(QueryAbout)
     unhides = IndirectObject
 ;
 
-DefineTopicTAction(SayTo)    
+action SayTo(dobj): TopicTAction    
     isConversational = true
 ;
 
-DefineTIAction(GiveTo)     
+action GiveTo(dobj, iobj): TIAction     
     /* 
      *   The summaryReport can be set by a GiveTopic to a single-quoted string in
      *   BMsg format, with {1} standing in for gActionListStr, in order to
@@ -2618,7 +2618,7 @@ DefineTIAction(GiveTo)
     }
 ;
 
-DefineTIAction(ShowTo)   
+action ShowTo(dobj, iobj): TIAction   
     showReport = nil
     summaryProp = nil
     
@@ -2696,7 +2696,7 @@ ThinkAbout: TopicAction
     unhides = true
 ;
 
-DefineIAction(Think)
+action Think: IAction
     execAction(cmd)
     {
         /* 
@@ -2812,7 +2812,7 @@ TalkAboutImplicit: ImplicitConversationAction
     topicListProperty = &talkTopics
 ;
 
-DefineTAction(ShowToImplicit)
+action ShowToImplicit(dobj): TAction
     showReport = nil
     
     /* 
@@ -2834,7 +2834,7 @@ DefineTAction(ShowToImplicit)
     }
 ;
 
-DefineTAction(GiveToImplicit)
+action GiveToImplicit(dobj): TAction
     showReport = nil
     
     /* 
@@ -2882,7 +2882,7 @@ SayAction: ImplicitConversationAction
  *   A Special Action is one that's been triggered from a SpecialAction object to cover cases where
  *   there's no other existing action in the game it can divert to.
  */
-DefineTAction(SpecialAction)
+action SpecialAction(dobj): TAction
     specialPhrase = nil
 ;
 
@@ -3013,7 +3013,7 @@ class FileOpAction: SystemAction
  *   Turn scripting on.  This creates a text file that contains a
  *   transcript of all commands and responses from this point forward.
  */
-DefineAction(ScriptOn, FileOpAction)
+action ScriptOn: FileOpAction
     /* our file dialog parameters - ask for a log file to save */
     filePromptMsg = (BMsg(get scripting prompt, 'Please select a name for the
         new script file'))
@@ -3105,7 +3105,7 @@ DefineAction(ScriptOn, FileOpAction)
  *   command syntax.  The grammar rule must set our fname_ property to a
  *   quotedStringPhrase subproduction. 
  */
-DefineAction(ScriptString, ScriptOn)
+action ScriptString: ScriptOn
     execAction(cmd)
     {
         /* if there's a filename, we don't need to prompt */
@@ -3126,7 +3126,7 @@ DefineAction(ScriptString, ScriptOn)
  *   Turn scripting off.  This stops recording the game transcript started
  *   with the most recent SCRIPT command. 
  */
-DefineSystemAction(ScriptOff)
+action ScriptOff: SystemAction
     execAction(cmd)
     {
         /* turn off scripting */
@@ -3165,7 +3165,7 @@ DefineSystemAction(ScriptOff)
  *   RECORD - this is similar to SCRIPT, but stores a file containing only
  *   the command input, not the output. 
  */
-DefineAction(Record, FileOpAction)
+action Record: FileOpAction
     /* our file dialog parameters - ask for a log file to save */
     filePromptMsg = (BMsg(get recording prompt, 'Please select a name for the 
         new command log file'))
@@ -3233,12 +3233,12 @@ DefineAction(Record, FileOpAction)
 ;
 
 /* subclass of Record action that sets up an event script recording */
-DefineAction(RecordEvents, Record)
+action RecordEvents: Record
     logFileType = LogTypeScript
 ;
 
 /* subclass of Record action taking a quoted string for the filename */
-DefineAction(RecordString, Record)
+action RecordString: Record
     execAction(cmd)
     {
         /* set up scripting to the filename specified in the command */
@@ -3247,7 +3247,7 @@ DefineAction(RecordString, Record)
 ;
 
 /* subclass of RecordString action that sets up an event script recording */
-DefineAction(RecordEventsString, RecordString)
+action RecordEventsString: RecordString
     logFileType = LogTypeScript
 ;
 
@@ -3255,7 +3255,7 @@ DefineAction(RecordEventsString, RecordString)
  *   Turn command recording off.  This stops recording the command log
  *   started with the most recent RECORD command.  
  */
-DefineSystemAction(RecordOff)
+action RecordOff: SystemAction
     execAction(cmd)
     {
         /* turn off recording */
@@ -3292,7 +3292,7 @@ DefineSystemAction(RecordOff)
 /*
  *   REPLAY - play back a command log previously recorded. 
  */
-DefineAction(Replay, FileOpAction)
+action Replay: FileOpAction
     /* our file dialog parameters - ask for a log file to save */
     filePromptMsg = (BMsg(get replay prompt, 'Please select the command log file
         to replay'))
@@ -3351,7 +3351,7 @@ DefineAction(Replay, FileOpAction)
 ;
 
 /* subclass of Replay action taking a quoted string for the filename */
-DefineAction(ReplayString, Replay)
+action ReplayString: Replay
     execAction(cmd)
     {
         /* 
@@ -3377,7 +3377,7 @@ DefineAction(ReplayString, Replay)
  *   Special "save" action.  This command saves the current game state to
  *   an external file for later restoration. 
  */
-DefineAction(Save, FileOpAction)
+action Save: FileOpAction
     /* the file dialog prompt */
     filePromptMsg = (BMsg(get save prompt, 'Save game to file'))
 
@@ -3452,7 +3452,7 @@ DefineAction(Save, FileOpAction)
  *   string (with the quotes) must be stored in our fname_ property by
  *   assignment of a quotedStringPhrase production in the grammar rule.  
  */
-DefineAction(SaveString, Save)
+action SaveString: Save
     execAction(cmd)
     {
         /* 
@@ -3463,7 +3463,7 @@ DefineAction(SaveString, Save)
     }
 ;
 
-DefineSystemAction(Restore)
+action Restore: SystemAction
     execAction(cmd)
     {
         /* ask for a file and restore it */
@@ -3699,7 +3699,7 @@ DefineSystemAction(Restore)
  *   string (with the quotes) must be stored in our fname_ property by
  *   assignment of a quotedStringPhrase production in the grammar rule.  
  */
-DefineAction(RestoreString, Restore)
+action RestoreString: Restore
     execAction(cmd)
     {
         /* 
@@ -3715,7 +3715,7 @@ DefineAction(RestoreString, Restore)
 ;
 
 
-DefineSystemAction(Again)
+action Again: SystemAction
     
     exec(cmd)
     {
@@ -3747,7 +3747,7 @@ DefineSystemAction(Again)
 
 /* Dummy action to provide an action context. */
 
-DefineTIAction(DoNothing)
+action DoNothing(dobj, iobj): TIAction
     curDobj = gPlayerChar
     curIobj = gPlayerChar.location
     curObj = curDobj

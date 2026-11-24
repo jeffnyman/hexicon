@@ -38,7 +38,7 @@ modify Parser
 ;
 
 /* [CMDHELP EXTENSION] */
-DefineSystemAction(CmdMenu)
+action CmdMenu: SystemAction
     showOptions()
     {
         DMsg(cmdhelp show options,
@@ -875,7 +875,7 @@ modify Thing
      *   Modified for CMDHELP EXTENSION. Note the last turn on which this
      *   object was examined.
      */
-    dobjFor(Examine)
+    dobj Examine
     {
         action()
         {

@@ -514,7 +514,7 @@ modify Room
      *   If we're ezamined from a remote location, display our remoteDesc rather than look around
      *   within us.
      */
-    dobjFor(Examine)
+    dobj Examine
     {
         action()
         {
@@ -882,7 +882,7 @@ modify Thing
      *   say we're too far away to see any detail. If we're in the same room as
      *   the actor, simply carry out the regular (inherited) method.
      */
-    dobjFor(Examine)
+    dobj Examine
     {
         action()
         {
@@ -936,7 +936,7 @@ modify Thing
      *   same room as the actor, simply carry out the regular (inherited)
      *   method.
      */
-    dobjFor(ListenTo)
+    dobj ListenTo
     {
         action()
         {
@@ -989,7 +989,7 @@ modify Thing
      *   Modify the effect of a Read action to prevent this item being read from
      *   a remote location unless isReadableFrom(gActor) is true.
      */    
-    dobjFor(Read)
+    dobj Read
     {
         verify()
         {
@@ -1010,7 +1010,7 @@ modify Thing
      *   same room as the actor, simply carry out the regular (inherited)
      *   method.
      */
-    dobjFor(SmellSomething)
+    dobj SmellSomething
     {
         action()
         {
@@ -1059,7 +1059,7 @@ modify Thing
         far away to smell distinctly. ')
     
     /* Modify the effects of throwing something at this object */
-    iobjFor(ThrowAt)
+    iobj ThrowAt
     {
         action()
         {
@@ -1163,7 +1163,7 @@ modify Thing
                              gActor.getOutermostRoom);
     }
      
-    dobjFor(LookIn)
+    dobj LookIn
     {
         check()
         {

@@ -346,7 +346,7 @@ VerbRule(FootnotesStatus)
 /*
  *   Footnote -   [FOOTNOTE EXTENSION]
  */
-DefineSystemAction(FootnoteAction)
+action FootnoteAction: SystemAction
     execAction(c)
     {
         /* ask the Footnote class to do the work */
@@ -366,7 +366,7 @@ DefineSystemAction(FootnoteAction)
 
 
 /* base class for FOOTNOTES xxx commands [FOOTNOTE EXTENSION]*/
-DefineSystemAction(Footnotes)
+action Footnotes: SystemAction
     execAction(c)
     {
         if (libGlobal.footnoteClass != nil)
@@ -407,20 +407,20 @@ DefineSystemAction(Footnotes)
     }
 ;
 
-DefineAction(FootnotesFullAction, Footnotes)
+action FootnotesFullAction: Footnotes
     showFootnotes = FootnotesFull
 ;
 
-DefineAction(FootnotesMediumAction, Footnotes)
+action FootnotesMediumAction: Footnotes
     showFootnotes = FootnotesMedium
 ;
 
-DefineAction(FootnotesOffAction, Footnotes)
+action FootnotesOffAction: Footnotes
     showFootnotes = FootnotesOff
 ;
 
 /* [FOOTNOTE EXTENSION] */
-DefineSystemAction(FootnotesStatus)
+action FootnotesStatus: SystemAction
     execAction(c)
     {
         /* show the current status */

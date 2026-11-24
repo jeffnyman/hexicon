@@ -3717,7 +3717,7 @@ mod converter {
 
     #[test]
     fn a_rename_to_a_name_the_program_uses_is_not_made() {
-        let used = code_names(b"print(x) { return x; } // vmId\n'setSay'");
+        let used = code_names(b"print(x) { tadsSay(x); } // vmId\n'setSay'");
         assert!(used.contains("print") && !used.contains("vmId") && !used.contains("setSay"));
         let (renames, skipped) = usable_renames(&used);
         assert!(!renames.iter().any(|(old, _)| *old == "tadsSay"));
@@ -3726,6 +3726,10 @@ mod converter {
             skipped,
             ["tadsSay is not renamed print: the program already uses the name print"]
         );
+        // A program converted already has only the new name: nothing to
+        // say about it.
+        let (_, skipped) = usable_renames(&code_names(b"f(x) { print(x); }"));
+        assert_eq!(skipped, Vec::<String>::new());
     }
 
     #[test]
@@ -3790,6 +3794,56 @@ sources = [\"a\", \"b.t\", \"sub/c\", \"d.hxn\"] # \"a.t\"
             result.notes,
             ["the line \"what: ever\" is not carried over"]
         );
+    }
+
+    #[test]
+    fn adv3lites_actions_and_handlers_become_declarations() {
+        let text = "#include <advlite.h>\n\
+            DefineTAction(Take)\n    execAction(cmd) { }\n;\n\
+            DefineTIAction(PutIn);\n\
+            DefineSystemAction(Quit);\n\
+            DefineTActionSub(Lift, TAction);\n\
+            DefineAction(Jump, IAction, Mixin);\n\
+            box: Thing\n\
+            \x20   dobjFor(Take) { verify() { } }\n\
+            \x20   dobjFor( Search ) asDobjFor(LookIn)\n\
+            \x20   iobjFor(PutIn)\n        asIobjFor(PutOn)\n\
+            \x20   dobjFor(Open) asIobjFor(Unlock)\n\
+            \x20   desc = \"dobjFor(Take) in a string\" // dobjFor(Take) in a comment\n\
+            ;\n";
+        assert_eq!(
+            converted(text),
+            "#include <advlite.h>\n\
+            action Take(dobj): TAction\n    execAction(cmd) { }\n;\n\
+            action PutIn(dobj, iobj): TIAction;\n\
+            action Quit: SystemAction;\n\
+            action Lift(dobj): TAction;\n\
+            action Jump: IAction, Mixin;\n\
+            box: Thing\n\
+            \x20   dobj Take { verify() { } }\n\
+            \x20   dobj Search as LookIn\n\
+            \x20   iobj PutIn\n        as PutOn\n\
+            \x20   dobj Open asIobjFor(Unlock)\n\
+            \x20   desc = \"dobjFor(Take) in a string\" // dobjFor(Take) in a comment\n\
+            ;\n"
+        );
+    }
+
+    #[test]
+    fn macros_are_left_alone_in_their_definitions_and_without_advlite() {
+        let defines = "#include \"advlite.h\"\n\
+            #define asTake(x) \\\n    dobjFor(x) asDobjFor(Take)\n\
+            #define T DefineTAction(Take)\n\
+            DefineTAction(Drop);\n";
+        assert_eq!(
+            converted(defines),
+            "#include \"advlite.h\"\n\
+            #define asTake(x) \\\n    dobjFor(x) asDobjFor(Take)\n\
+            #define T DefineTAction(Take)\n\
+            action Drop(dobj): TAction;\n"
+        );
+        let adv3 = "#include <adv3.h>\nDefineTAction(Take);\nbox: Thing dobjFor(Take) { } ;\n";
+        assert_eq!(converted(adv3), adv3);
     }
 }
 
@@ -3869,8 +3923,8 @@ mod checked_names {
             [
                 "game.hxn(2): property \"isTakable\" is given a value here, but nothing reads it \
                  - did you mean \"isTakeable\"?",
-                "game.hxn(3): \"dobjFor(Takee)\" defines handlers that nothing calls - did you \
-                 mean \"dobjFor(Take)\"?",
+                "game.hxn(3): handler \"dobj Takee\" is never called - did you mean \
+                 \"dobj Take\"?",
                 "game.hxn(6): property \"isTakable\" is given a value here, but nothing reads it \
                  - did you mean \"isTakeable\"?",
             ]
@@ -3894,7 +3948,7 @@ mod checked_names {
         assert!(
             found
                 .iter()
-                .any(|m| m.starts_with("game.hxn(4): \"dobjFor(Takee)\"")),
+                .any(|m| m.starts_with("game.hxn(4): handler \"dobj Takee\"")),
             "{found:?}"
         );
     }
@@ -3930,5 +3984,175 @@ mod checked_names {
         ] {
             assert!(!is_slip(a.as_bytes(), b.as_bytes()), "{a} {b}");
         }
+    }
+}
+
+mod action_declarations {
+    use super::{CompileOptions, Compiled, Files};
+
+    /// The library and a game on it, both including the macros.
+    fn build(library_name: &str, game_name: &str, game: &str) -> Compiled {
+        let mut files = Files::default()
+            .with("macros.h", MACROS)
+            .with(library_name, LIBRARY)
+            .with(game_name, game);
+        crate::compile_program(
+            &mut files,
+            &[library_name, game_name],
+            &CompileOptions::default(),
+        )
+    }
+
+    /// adv3Lite's macros for actions and handlers, as `advlite.h` has
+    /// them, and enough of a library for them to make a program of.
+    const MACROS: &str = r#"
+#define objFor(which, action) propertyset '*' ## #@which ## #@action
+#define dobjFor(action) objFor(Dobj, action)
+#define iobjFor(action) objFor(Iobj, action)
+#define aobjFor(action) objFor(Aobj, action)
+#define asObjFor(obj, Action) \
+    { \
+        preCond { return preCond##obj##Action; } \
+        verify() { verify##obj##Action; } \
+        remap() { return remap##obj##Action; } \
+        check() { check##obj##Action; } \
+        action() { action##obj##Action; } \
+        report() { report##obj##Action; } \
+    }
+#define asDobjFor(action) asObjFor(Dobj, action)
+#define asIobjFor(action) asObjFor(Iobj, action)
+#define DefineAction(name, baseClass...) \
+    name: ##baseClass \
+    baseActionClass = name
+#define DefineIAction(name) DefineAction(name, IAction)
+#define DefineTActionSub(name, cls) \
+    DefineAction(name, cls) \
+    verDobjProp = &verifyDobj##name \
+    remapDobjProp = &remapDobj##name \
+    preCondDobjProp = &preCondDobj##name \
+    checkDobjProp = &checkDobj##name \
+    actionDobjProp  = &actionDobj##name \
+    reportDobjProp = &reportDobj##name
+#define DefineTAction(name) DefineTActionSub(name, TAction)
+#define DefineTIActionSub(name, cls) \
+    DefineAction(name, cls) \
+    verDobjProp = &verifyDobj##name \
+    verIobjProp = &verifyIobj##name \
+    remapDobjProp = &remapDobj##name \
+    remapIobjProp = &remapIobj##name \
+    preCondDobjProp = &preCondDobj##name \
+    preCondIobjProp = &preCondIobj##name \
+    checkDobjProp = &checkDobj##name \
+    checkIobjProp = &checkIobj##name \
+    actionDobjProp  = &actionDobj##name \
+    actionIobjProp = &actionIobj##name \
+    reportDobjProp = &reportDobj##name \
+    reportIobjProp = &reportIobj##name
+#define DefineTIAction(name) DefineTIActionSub(name, TIAction)
+"#;
+
+    /// The library: its classes, and a start that uses the game.
+    const LIBRARY: &str = r#"#include "macros.h"
+class Action: object;
+class IAction: Action;
+class TAction: Action;
+class TIAction: TAction;
+class Thing: object;
+property verifyDobjTake, verifyDobjPutIn, verifyIobjPutIn, isFull;
+_main(args) {
+    local verify = PutIn.verDobjProp;
+    return box.(verify)() + Take.baseActionClass.execAction(nil) + Jump.execAction(nil);
+}
+"#;
+
+    const WITH_MACROS: &str = r#"#include "macros.h"
+DefineTAction(Take)
+    execAction(cmd) { return 1; }
+;
+DefineTIAction(PutIn);
+DefineIAction(Jump)
+    execAction(cmd) { return 3; }
+;
+box: Thing
+    dobjFor(Take) { verify() { return 2; } action() { } }
+    dobjFor(PutIn) asDobjFor(Take)
+    iobjFor(PutIn) {
+        preCond = []
+        verify() { if (isFull) return nil; }
+    }
+    isFull = nil
+;
+"#;
+
+    const IN_HEXICON: &str = r#"#include "macros.h"
+action Take(dobj): TAction
+    execAction(cmd) { return 1; }
+;
+action PutIn(dobj, iobj): TIAction;
+action Jump: IAction
+    execAction(cmd) { return 3; }
+;
+box: Thing
+    dobj Take { verify() { return 2; } action() { } }
+    dobj PutIn as Take
+    iobj PutIn {
+        preCond = []
+        verify() { if (isFull) return nil; }
+    }
+    isFull = nil
+;
+"#;
+
+    fn image(game: &str) -> Vec<u8> {
+        let compiled = build("lib.hxn", "game.hxn", game);
+        let errors: Vec<_> = compiled
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity != crate::pp::Severity::Warning)
+            .map(|d| format!("{}({}): {}", d.file, d.line, d.message))
+            .collect();
+        assert_eq!(errors, Vec::<String>::new());
+        compiled.image.expect("an image")
+    }
+
+    #[test]
+    fn actions_and_handlers_are_what_the_macros_make() {
+        assert_eq!(image(IN_HEXICON), image(WITH_MACROS));
+    }
+
+    #[test]
+    fn a_tads_3_source_has_no_such_forms() {
+        let compiled = build("lib.t", "game.t", IN_HEXICON);
+        assert!(compiled.image.is_none());
+    }
+
+    #[test]
+    fn names_called_dobj_and_action_are_still_names() {
+        // An object called action, and properties called dobj, iobj,
+        // and aobj, beside the forms.
+        let game = format!(
+            "{IN_HEXICON}action: Thing dobj = 1 iobj(x) {{ return x; }} ;\n\
+             crate: Thing dobj = action aobj {{ return dobj; }} ;\n"
+        );
+        let compiled = build("lib.hxn", "game.hxn", &game);
+        assert!(compiled.image.is_some(), "{:?}", compiled.diagnostics);
+    }
+
+    #[test]
+    fn a_handler_needs_a_body_or_as() {
+        let game = "box: Thing dobj Take = 1 ;\n";
+        let compiled = build("lib.hxn", "game.hxn", game);
+        let messages: Vec<_> = compiled
+            .diagnostics
+            .iter()
+            .map(|d| d.message.clone())
+            .collect();
+        assert!(
+            messages
+                .iter()
+                .any(|m| m
+                    == "expected '{' or 'as' after the action a handler is for, but found \"=\""),
+            "{messages:?}"
+        );
     }
 }

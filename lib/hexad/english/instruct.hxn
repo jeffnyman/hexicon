@@ -79,7 +79,7 @@
  *   a meta-action outside of the story.  System actions don't consume any
  *   game time.  
  */
-DefineSystemAction(Instructions)
+action Instructions: SystemAction
     /*
      *   This property tells us how complete the verb list is.  By default,
      *   we'll assume that the instructions fail to disclose every required

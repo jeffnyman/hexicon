@@ -3133,9 +3133,9 @@ transient displayProbe: object
  */
 
 failVerifyObj: Thing
-    dobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}
-    iobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}    
-    aobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}   
+    dobj Default { verify {inaccessible(inaccessibleMsg);}}
+    iobj Default { verify {inaccessible(inaccessibleMsg);}}    
+    aobj Default { verify {inaccessible(inaccessibleMsg);}}   
     
     inaccessibleMsg = BMsg(dummy object inaccessible, 'The dummy failVerifyObj is not a valid object
         of a command. ')

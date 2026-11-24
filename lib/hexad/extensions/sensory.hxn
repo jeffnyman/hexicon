@@ -639,7 +639,7 @@ modify Thing
 	 * If I have an associated Noise object which isn't emanating, assume
 	 * I have fallen silent, otherwise carry out the inherited handling.
 	 */
-    dobjFor(ListenTo)
+    dobj ListenTo
     {
         action()
         {
@@ -660,7 +660,7 @@ modify Thing
 	 * If I have an associated Odor object which isn't emanating, assume
 	 * I no longer smell of anything, otherwise carry out the inherited handling.
 	 */
-    dobjFor(SmellSomething)
+    dobj SmellSomething
     {
         action()
         {

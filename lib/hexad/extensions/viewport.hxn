@@ -106,7 +106,7 @@ class Viewport: object
 	 *  For the VIEWPORT EXTENSION add desribing rooms visible through this viewport 
 	 *  to the inherited behaviour 
 	 */
-    dobjFor(LookThrough)
+    dobj LookThrough
     {
         action()
         {
@@ -211,7 +211,7 @@ modify Room
     }
     
     /*  [MODIFIED FOR VIEWPORT EXTENSION] */
-    dobjFor(Examine)
+    dobj Examine
     {
         action()
         {

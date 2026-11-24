@@ -845,7 +845,7 @@ relationPath(start, rel, target)
 /*  Debugging commands for RELATIONS EXTENSION */
 
 /* List relations defined in the game [RELATIONS EXTENSION] */
-DefineSystemAction(ListRelations)
+action ListRelations: SystemAction
     execAction(c)
     {
         /* Get a list of relations defined in the relation table */
@@ -920,7 +920,7 @@ VerbRule(ListRelations)
 ;
 
 /* Debugging action to list what a relation currently relates [RELATIONS EXTENSION]*/
-DefineSystemAction(RelationDetails)
+action RelationDetails: SystemAction
     execAction(c)
     {
         /* Note the literal string associated with this command. */

@@ -4375,7 +4375,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   property is true. By default we just stop the action at the verify
      *   stage and display our notImportantMsg.
      */    
-    dobjFor(Default)
+    dobj Default
     {
         verify
         {
@@ -4383,7 +4383,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    iobjFor(Default)
+    iobj Default
     {
         verify()
         {
@@ -4417,7 +4417,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* Now the handling for specific actions */
     
-    dobjFor(Examine)
+    dobj Examine
     {
         preCond = [objVisible]
         
@@ -4510,7 +4510,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotSmellMsg = BMsg(cannot smell, '{I} {can\'t} smell {the dobj}. ')
     
-    dobjFor(SmellSomething)
+    dobj SmellSomething
     {
         preCond = [objSmellable]
         
@@ -4529,7 +4529,7 @@ class Thing:  ReplaceRedirector, Mentionable
     smellNothingMsg = BMsg(smell nothing, '{I} {smell} nothing out of the
                     ordinary.<.p>')
     
-    dobjFor(ListenTo)
+    dobj ListenTo
     {
         
         preCond = [objAudible]
@@ -4553,7 +4553,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotTasteMsg = BMsg(cannot taste, '{The subj dobj} {is} not suitable for
         tasting. ')
     
-    dobjFor(Taste)
+    dobj Taste
     {
         preCond = [touchObj]
         
@@ -4591,7 +4591,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     checkFeelMsg = nil
     
-    dobjFor(Feel)    
+    dobj Feel    
     {
         preCond = [touchObj]
         
@@ -4624,9 +4624,9 @@ class Thing:  ReplaceRedirector, Mentionable
     isTakeable = (!isFixed)
     
     /* Make TOUCH act the sane as FEEL */
-    dobjFor(Touch) asDobjFor(Feel)
+    dobj Touch as Feel
     
-    dobjFor(Take)    
+    dobj Take    
     {
         preCond = [touchObj]
         
@@ -4892,7 +4892,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canDropContents = nil
     
-    dobjFor(Drop)
+    dobj Drop
     {
         preCond = [touchObj, objNotWorn, objCarried]
         
@@ -4925,7 +4925,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default an object is readable if it defines a non-nil readDesc */
     isReadable = (propType(&readDesc) != TypeNil)
     
-    dobjFor(Read)
+    dobj Read
     {
         preCond = [objVisible]
         
@@ -4954,7 +4954,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     isFollowable = nil
     
-    dobjFor(Follow)
+    dobj Follow
     {
         preCond = [objVisible]
         
@@ -4983,7 +4983,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     isAttackable = nil
     
-    dobjFor(Attack)
+    dobj Attack
     {
         preCond = [touchObj]
         
@@ -5018,7 +5018,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotAttackMsg = BMsg(cannot attack, 'It{dummy}{\'s} best to avoid
         pointless violence. ')
     
-    dobjFor(AttackWith)
+    dobj AttackWith
     {
         preCond = [touchObj]
         
@@ -5042,7 +5042,7 @@ class Thing:  ReplaceRedirector, Mentionable
     futileToAttackMsg = BMsg(futile attack, 'Attacking {1} prove{s/d} futile. ', 
                              gActionListStr)
     
-    iobjFor(AttackWith)
+    iobj AttackWith
     {
         preCond = [objHeld]
         verify() 
@@ -5065,7 +5065,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotAttackWithMsg = BMsg(cannot attack with, '{I} {can\'t} attack
         anything with {that iobj}. ')
     
-    dobjFor(Strike) asDobjFor(Attack)
+    dobj Strike as Attack
     
     /* 
      *   By default treat everything as breakable, but there are somethings that
@@ -5076,7 +5076,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /*   Probably most things shouldn't be broken though. */
     shouldBeBroken = nil
     
-    dobjFor(Break)
+    dobj Break
     {
         preCond = [touchObj]
         
@@ -5098,7 +5098,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default something is throwable unless it's fixed in place. */
     isThrowable = (!isFixed)
     
-    dobjFor(ThrowDir)
+    dobj ThrowDir
     {
         preCond = [objHeld ,objNotWorn]
         
@@ -5171,7 +5171,7 @@ class Thing:  ReplaceRedirector, Mentionable
     autoUnlock = nil
     
     
-    dobjFor(Open)
+    dobj Open
     {
         
         preCond = autoUnlock ? [touchObj, objUnlocked] : [touchObj]
@@ -5250,7 +5250,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default something is closeable if it's openable */         
     isCloseable = (isOpenable)
     
-    dobjFor(Close)
+    dobj Close
     {
         preCond = [touchObj]
         
@@ -5297,7 +5297,7 @@ class Thing:  ReplaceRedirector, Mentionable
     isTurnable = true
     
     
-    dobjFor(Turn)
+    dobj Turn
     {
         
         preCond = [touchObj]
@@ -5324,7 +5324,7 @@ class Thing:  ReplaceRedirector, Mentionable
     turnNoEffectMsg = BMsg(turn useless, 'Turning {1} {dummy} achieve{s/d}
         nothing. ', gActionListStr)
     
-    dobjFor(TurnWith)
+    dobj TurnWith
     {
         preCond = [touchObj]
         
@@ -5348,7 +5348,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default things can't be used to turn other things with */
     canTurnWithMe = nil
     
-    iobjFor(TurnWith)
+    iobj TurnWith
     {
         preCond = [objHeld]
         verify() 
@@ -5371,7 +5371,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default things can't be cut */
     isCuttable = nil
     
-    dobjFor(Cut)
+    dobj Cut
     {
         preCond = [touchObj]
         verify() 
@@ -5383,7 +5383,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action() { askForIobj(CutWith); }
     }
     
-    dobjFor(CutWith)
+    dobj CutWith
     {
         preCond = [touchObj]
         verify() 
@@ -5396,7 +5396,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Most things can't be used to cut other things with */
     canCutWithMe = nil
     
-    iobjFor(CutWith)
+    iobj CutWith
     {
         preCond = [objHeld]
         
@@ -5432,7 +5432,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     findHiddenDest = (autoTakeOnFindHidden ? gActor : location)
       
-    dobjFor(LookIn)
+    dobj LookIn
     {
         preCond = [objVisible, containerInteriorVisible]
         
@@ -5554,7 +5554,7 @@ class Thing:  ReplaceRedirector, Mentionable
     canLookUnderMe = true  
     
     
-    dobjFor(LookUnder)
+    dobj LookUnder
     {
         preCond = [objVisible, touchObj]
         
@@ -5644,7 +5644,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */    
     canLookBehindMe = true    
     
-    dobjFor(LookBehind)
+    dobj LookBehind
     {
         preCond = [objVisible, touchObj]
         
@@ -5740,7 +5740,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canLookThroughMe = true
     
-    dobjFor(LookThrough)
+    dobj LookThrough
     {
         preCond = [objVisible]
         
@@ -5763,7 +5763,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Most things cannot be gone through */
     canGoThroughMe = nil
     
-    dobjFor(GoThrough)
+    dobj GoThrough
     {
         preCond = [touchObj]
         verify() 
@@ -5780,7 +5780,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Most things cannot be gone along */
     canGoAlongMe = nil
     
-    dobjFor(GoAlong)
+    dobj GoAlong
     {
         preCond = [touchObj]
         verify() 
@@ -5797,7 +5797,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* We can at least try to push most things. */
     isPushable = true
     
-    dobjFor(Push)
+    dobj Push
     {
         preCond = [touchObj]
         verify()
@@ -5818,7 +5818,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* We can at least try to pull most things. */
     isPullable = true
     
-    dobjFor(Pull)
+    dobj Pull
     {
         preCond = [touchObj]
         
@@ -5845,7 +5845,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPutMsg = cannotTakeMsg
     
        
-    dobjFor(PutOn)
+    dobj PutOn
     {
         preCond = [objHeld, objNotWorn]
         
@@ -5888,7 +5888,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPutInSelfMsg = BMsg(cannot put in self, '{I} {can\'t} put {the dobj}
         {1} {itself dobj}. ', gIobj.objInPrep)
     
-    iobjFor(PutOn)
+    iobj PutOn
     {
         
         preCond = [touchObj]
@@ -5918,7 +5918,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPutOnMsg = BMsg(cannot put on,'{I} {can\'t} put anything on {the
         iobj}. '   )
     
-    dobjFor(PutIn)
+    dobj PutIn
     {
         preCond = [objHeld, objNotWorn]
         
@@ -5954,7 +5954,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
         
-    iobjFor(PutIn)
+    iobj PutIn
     {
         preCond = [containerInteriorAccessible, touchObj]
         
@@ -6012,7 +6012,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    dobjFor(PutUnder)
+    dobj PutUnder
     {
         preCond = [objHeld, objNotWorn]
         
@@ -6049,7 +6049,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
     }
     
-    iobjFor(PutUnder)
+    iobj PutUnder
     {
         preCond = [touchObj]
         
@@ -6105,7 +6105,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPutUnderMsg = BMsg(cannot put under, '{I} {cannot} put anything under
         {the iobj}. ' )
         
-    dobjFor(PutBehind)
+    dobj PutBehind
     {
         preCond = [objHeld, objNotWorn]
         
@@ -6141,7 +6141,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
     }
     
-    iobjFor(PutBehind)
+    iobj PutBehind
     {
         preCond = [touchObj]
         
@@ -6218,7 +6218,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   property in addition would only confuse things and might break the
      *   logic.
      */    
-    dobjFor(UnlockWith)
+    dobj UnlockWith
     {
         
         preCond = [touchObj]
@@ -6287,7 +6287,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canUnlockWithMe = nil 
     
-    iobjFor(UnlockWith)
+    iobj UnlockWith
     {
         preCond = [touchObj]
         
@@ -6307,7 +6307,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotUnlockWithSelfMsg = BMsg(cannot unlock with self, '{I} {can\'t} unlock
         anything with itself. ' )
     
-    dobjFor(LockWith)
+    dobj LockWith
     {
         preCond  = [objClosed, touchObj]
         
@@ -6357,7 +6357,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canLockWithMe = (canUnlockWithMe)
     
-    iobjFor(LockWith)
+    iobj LockWith
     {
         preCond = [touchObj]
         
@@ -6378,7 +6378,7 @@ class Thing:  ReplaceRedirector, Mentionable
         anything with itself. ' )
     
     
-    dobjFor(Unlock)
+    dobj Unlock
     {
         preCond = [touchObj]
         
@@ -6454,7 +6454,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     okayUnlockMsg = 'Unlocked.|{I} unlock{s/ed} {1}. '
     
-    dobjFor(Lock)
+    dobj Lock
     {
         preCond = [objClosed, touchObj]
         
@@ -6610,7 +6610,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    dobjFor(SwitchOn)
+    dobj SwitchOn
     {
         
         preCond = [touchObj]
@@ -6639,7 +6639,7 @@ class Thing:  ReplaceRedirector, Mentionable
     alreadyOnMsg = BMsg(already switched on, '{The subj dobj} {is} already
         switched on. ')
     
-    dobjFor(SwitchOff)
+    dobj SwitchOff
     {
         preCond = [touchObj]
         
@@ -6666,7 +6666,7 @@ class Thing:  ReplaceRedirector, Mentionable
        ')
     
     
-    dobjFor(SwitchVague)
+    dobj SwitchVague
     {
         verify()
         {
@@ -6692,7 +6692,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     isFlippable = (isSwitchable)
     
-    dobjFor(Flip)
+    dobj Flip
     {
         verify() 
         { 
@@ -6707,7 +6707,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default we assume most things aren't burnable */
     isBurnable = nil
     
-    dobjFor(Burn)
+    dobj Burn
     {
         preCond = [touchObj]
         verify() 
@@ -6717,7 +6717,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
         
-    dobjFor(BurnWith)
+    dobj BurnWith
     {
         preCond = [touchObj]        
         verify() 
@@ -6733,7 +6733,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canBurnWithMe = nil
     
-    iobjFor(BurnWith)
+    iobj BurnWith
     {
         preCond = [objHeld]
         verify() 
@@ -6747,7 +6747,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotBurnWithMsg = BMsg(cannot burn with, '{I} {can\'t} burn {the dobj}
         with {that iobj}. ')
     
-    dobjFor(Wear)
+    dobj Wear
     {
         preCond = [objHeld]
         
@@ -6776,7 +6776,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default we assume that something's doffable if it's wearable */
     isDoffable = (isWearable)
     
-    dobjFor(Doff)
+    dobj Doff
     {
         
         verify()
@@ -6811,7 +6811,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Most things can't be climbed */
     isClimbable = nil
     
-    dobjFor(Climb)
+    dobj Climb
     {
         preCond = [touchObj]
         verify() 
@@ -6823,7 +6823,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     canClimbUpMe = (isClimbable)
     
-    dobjFor(ClimbUp)
+    dobj ClimbUp
     {
         preCond = [touchObj]
         verify() 
@@ -6838,7 +6838,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     canClimbDownMe = (isClimbable)
     
-    dobjFor(ClimbDown)
+    dobj ClimbDown
     {
         preCond = [touchObj]
         verify() 
@@ -6851,7 +6851,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotClimbDownMsg = BMsg(cannot climb down, '{The subj dobj} {is} not
         something {i} {can} climb down. ')
     
-    dobjFor(Throw)
+    dobj Throw
     {
         preCond = [objHeld, objNotWorn]
         
@@ -6877,7 +6877,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    dobjFor(Board)
+    dobj Board
     {
         preCond = [touchObj, actorInStagingLocation]
         
@@ -6925,9 +6925,9 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Since we don't track postures in this library we'll treat STAND ON as
      *   equivalent to BOARD
      */    
-    dobjFor(StandOn) asDobjWithoutVerifyFor(Board)
-    dobjFor(SitOn) asDobjWithoutVerifyFor(Board)
-    dobjFor(LieOn) asDobjWithoutVerifyFor(Board)
+    dobj StandOn asDobjWithoutVerifyFor(Board)
+    dobj SitOn asDobjWithoutVerifyFor(Board)
+    dobj LieOn asDobjWithoutVerifyFor(Board)
     
     /*  
      *   Although we don't track postures as such, some objects may be better
@@ -6960,7 +6960,7 @@ class Thing:  ReplaceRedirector, Mentionable
     lieOnScore = 100
     standOnScore = 100
     
-    dobjFor(StandOn)
+    dobj StandOn
     {
         verify()
         {
@@ -6973,7 +6973,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(SitOn)
+    dobj SitOn
     {
         verify()
         {
@@ -6986,7 +6986,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(LieOn)
+    dobj LieOn
     {
         verify()
         {
@@ -7015,7 +7015,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /*   Treat Enter X as equivalent to Get In X */
     
-    dobjFor(Enter) 
+    dobj Enter 
     {
         preCond = [touchObj, containerOpen, actorInStagingLocation]
         
@@ -7059,9 +7059,9 @@ class Thing:  ReplaceRedirector, Mentionable
      *   By default we'll treat standing, sitting or lying IN something as
      *   simply equivalent to entering it.
      */
-    dobjFor(StandIn) asDobjFor(Enter)
-    dobjFor(SitIn) asDobjFor(Enter)
-    dobjFor(LieIn) asDobjFor(Enter)
+    dobj StandIn as Enter
+    dobj SitIn as Enter
+    dobj LieIn as Enter
     
     /* 
      *   Our exitLocation is the location an actor should be moved to when s/he
@@ -7072,7 +7072,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /*   Our staging location is where we need to be to get on/in us */
     stagingLocation = (exitLocation)
     
-    dobjFor(GetOff)
+    dobj GetOff
     {        
         preCond = [actorOutOfSubNested]
         
@@ -7093,7 +7093,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report() { say(okayGetOutOfMsg); }
     }
             
-    dobjFor(GetOutOf) 
+    dobj GetOutOf 
     {
         preCond = [containerOpen, actorOutOfSubNested]
         
@@ -7127,7 +7127,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   a language-specific construct). If we want REMOVE to be treated as a separate
      *   action, set separateRemove to to true.
      */    
-    dobjFor(Remove)
+    dobj Remove
     {
         /* 
          *   We still need a verify() routine to help the parser find a suitable
@@ -7164,7 +7164,7 @@ class Thing:  ReplaceRedirector, Mentionable
         ')
     
     /* Treat SEARCH as equivalent to LOOK IN */
-    dobjFor(Search) asDobjFor(LookIn)
+    dobj Search as LookIn
     
     /* 
      *   By default we assume anything fixed isn't moveable unless it explicitly can be moved by
@@ -7177,7 +7177,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   there's no obvious effect, so by default this action does nothing
      *   except say it's done nothing.
      */
-    dobjFor(Move)
+    dobj Move
     {
         preCond = [touchObj]
         
@@ -7197,7 +7197,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotMoveMsg = BMsg(cannot move, '{The subj dobj} {won\'t} budge. ')  
     
-    dobjFor(MoveWith)
+    dobj MoveWith
     {
         preCond = [touchObj]
         
@@ -7227,7 +7227,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canMoveWithMe = nil
     
-    iobjFor(MoveWith)
+    iobj MoveWith
     {
         preCond = [objHeld]
         
@@ -7260,7 +7260,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   chair's movedTo property before deciding whether the top shelf was
      *   accesssible.
      */
-    dobjFor(MoveTo)
+    dobj MoveTo
     {
         preCond = location.ofKind(Room) ? [touchObj] : [objHeld]
         
@@ -7312,7 +7312,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* In general there's no reason why most objects can't be moved to. */
     canMoveToMe = true
     
-    iobjFor(MoveTo)
+    iobj MoveTo
     {
         preCond = [touchObj]
         
@@ -7340,7 +7340,7 @@ class Thing:  ReplaceRedirector, Mentionable
     alreadyMovedToMsg = BMsg(already moved to, '{The subj dobj} {has} already
         been moved to {the iobj}. ')
     
-    dobjFor(MoveAwayFrom)
+    dobj MoveAwayFrom
     {
         preCond = [touchObj]
         
@@ -7365,7 +7365,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     } 
     
-    iobjFor(MoveAwayFrom)
+    iobj MoveAwayFrom
     {
         verify()
         {
@@ -7386,7 +7386,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Lighting an object makes it a light source by making its isLit property
      *   true.
      */
-    dobjFor(Light)
+    dobj Light
     {
         preCond = [touchObj]
         
@@ -7424,7 +7424,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     isExtinguishable = true
     
-    dobjFor(Extinguish)
+    dobj Extinguish
     {
         preCond = [touchObj]
         
@@ -7455,7 +7455,7 @@ class Thing:  ReplaceRedirector, Mentionable
         extinguished. ')
     
         
-    dobjFor(Eat)
+    dobj Eat
     {
         preCond = [objHeld]
         
@@ -7481,7 +7481,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Most things aren't drinkable */
     isDrinkable = nil
     
-    dobjFor(Drink)
+    dobj Drink
     {
         preCond = [touchObj]
         
@@ -7531,7 +7531,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   be defined by setting mustBeCleanedWith to an object or a list of
      *   objects that can be used to clean this direct object.
      */
-    dobjFor(Clean)
+    dobj Clean
     {
         preCond = [touchObj]
         
@@ -7587,7 +7587,7 @@ class Thing:  ReplaceRedirector, Mentionable
     okayCleanMsg = DMsg(okay clean, 'Cleaned.|{I} clean{s/ed} {1}. ',
                         gActionListStr)
     
-    dobjFor(CleanWith)
+    dobj CleanWith
     {
         preCond = [touchObj]
         
@@ -7627,7 +7627,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */      
     canCleanWithMe = nil
     
-    iobjFor(CleanWith)
+    iobj CleanWith
     {
         preCond = [objHeld]
         verify() 
@@ -7643,7 +7643,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Most things are not suitable for digging in*/
     isDiggable = nil
     
-    dobjFor(Dig)
+    dobj Dig
     {
         preCond = [touchObj]
         verify() 
@@ -7670,7 +7670,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   cannot model the effect of digging in general, so it's up to game code
      *   to implement this on particular objects as required.
      */
-    dobjFor(DigWith)
+    dobj DigWith
     {
         preCond = [touchObj]
         verify() 
@@ -7680,7 +7680,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
         
-    iobjFor(DigWith)
+    iobj DigWith
     {
         preCond = [objHeld]
         verify() 
@@ -7705,9 +7705,9 @@ class Thing:  ReplaceRedirector, Mentionable
      *   where we first check that the direct object is actually in the indirect
      *   object.
      */
-    dobjFor(TakeFrom) asDobjWithoutVerifyFor(Take)
+    dobj TakeFrom asDobjWithoutVerifyFor(Take)
     
-    dobjFor(TakeFrom)
+    dobj TakeFrom
     {           
         verify()
         {
@@ -7760,7 +7760,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }        
     }
     
-    iobjFor(TakeFrom)
+    iobj TakeFrom
     {
         preCond = [touchObj]
         
@@ -7792,7 +7792,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canSupply = nil
         
-    dobjFor(ThrowAt)
+    dobj ThrowAt
     {
         preCond = [objHeld, objNotWorn]
         
@@ -7818,7 +7818,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canThrowAtMe = true
     
-    iobjFor(ThrowAt)
+    iobj ThrowAt
     {
         preCond = [objVisible]
         
@@ -7857,7 +7857,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotThrowAtSelfMsg = BMsg(cannot throw at self, '{The subj dobj} {can\'t}
         be thrown at {itself dobj}. ')
     
-    dobjFor(ThrowTo)
+    dobj ThrowTo
     {
         preCond = [objHeld, objNotWorn]
         
@@ -7871,7 +7871,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canThrowToMe = nil
     
-    iobjFor(ThrowTo)
+    iobj ThrowTo
     {
         preCond = [objVisible]
         
@@ -7902,7 +7902,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Turning something To is setting it to a value by rotating it, such as
      *   turning a dial to point to a particular number.
      */
-    dobjFor(TurnTo)
+    dobj TurnTo
     {
         preCond = [touchObj]
         
@@ -7946,7 +7946,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     canSetMeTo = nil
     
-    dobjFor(SetTo)
+    dobj SetTo
     {
         preCond = [touchObj]
         
@@ -7986,7 +7986,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   The GoTo action allows the player character to navigate the map through
      *   the use of commands such as GO TO LOUNGE.
      */
-    dobjFor(GoTo)
+    dobj GoTo
     {
         verify()
         {
@@ -8135,7 +8135,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     isAttachable = nil
     
-    dobjFor(Attach)
+    dobj Attach
     {
         preCond = [touchObj]        
         verify() 
@@ -8146,7 +8146,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action() { askForIobj(AttachTo); }
     }
     
-    dobjFor(AttachTo)
+    dobj AttachTo
     {
         preCond = [touchObj]        
         verify() 
@@ -8158,7 +8158,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     canAttachToMe = nil
     
-    iobjFor(AttachTo)
+    iobj AttachTo
     {
         preCond = [touchObj]
         verify() 
@@ -8182,7 +8182,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     isDetachable = nil
     
-    dobjFor(Detach)
+    dobj Detach
     {
         preCond = [touchObj]
         verify() 
@@ -8196,7 +8196,7 @@ class Thing:  ReplaceRedirector, Mentionable
         which {the subj dobj} could be detached. ')
     
     
-    dobjFor(DetachFrom)
+    dobj DetachFrom
     {
         preCond = [touchObj]
         
@@ -8212,7 +8212,7 @@ class Thing:  ReplaceRedirector, Mentionable
 
     canDetachFromMe = nil
     
-    iobjFor(DetachFrom)
+    iobj DetachFrom
     {
         verify()
         {
@@ -8245,7 +8245,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     makeFastened(stat) { isFastened = stat; }
     
-    dobjFor(Fasten)
+    dobj Fasten
     {
         preCond = [touchObj]
         verify() 
@@ -8273,7 +8273,7 @@ class Thing:  ReplaceRedirector, Mentionable
 
         
     
-    dobjFor(FastenTo)
+    dobj FastenTo
     {
         preCond = [objHeld]
         verify() 
@@ -8285,7 +8285,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     canFastenToMe = nil
     
-    iobjFor(FastenTo)
+    iobj FastenTo
     {
         preCond = [touchObj]
         verify() 
@@ -8306,7 +8306,7 @@ class Thing:  ReplaceRedirector, Mentionable
                                 
     isUnfastenable = nil
     
-    dobjFor(Unfasten)
+    dobj Unfasten
     {
         preCond = [touchObj]
         verify() 
@@ -8322,7 +8322,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    dobjFor(UnfastenFrom)
+    dobj UnfastenFrom
     {
         preCond = [touchObj]
         verify() 
@@ -8337,7 +8337,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     canUnfastenFromMe = nil
     
-    iobjFor(UnfastenFrom)
+    iobj UnfastenFrom
     {
         preCond = [touchObj]
         verify()             
@@ -8371,7 +8371,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   verify stage. A fuller implementation is provided by the PlugAttachable
      *   class in the optional attachables module.
      */                      
-    dobjFor(PlugInto)
+    dobj PlugInto
     {
         preCond = [touchObj]
         
@@ -8386,7 +8386,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    iobjFor(PlugInto)
+    iobj PlugInto
     {
         preCond = [touchObj]
         verify()
@@ -8407,7 +8407,7 @@ class Thing:  ReplaceRedirector, Mentionable
     isUnplugable = (isPlugable)
     canUnplugFromMe = (canPlugIntoMe)
     
-    dobjFor(UnplugFrom)
+    dobj UnplugFrom
     {
         preCond = [touchObj]
         
@@ -8421,7 +8421,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    iobjFor(UnplugFrom)
+    iobj UnplugFrom
     {
         preCond = []
         
@@ -8443,7 +8443,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotUnplugFromMsg = BMsg(cannot unplug from, '{I} {can\'t} unplug anything
         from {the iobj}. ')
     
-    dobjFor(PlugIn)
+    dobj PlugIn
     {
         preCond = [touchObj]
         
@@ -8454,7 +8454,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(Unplug)
+    dobj Unplug
     {
         preCond = [touchObj]
         
@@ -8474,7 +8474,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     kissRank = 80
     
-    dobjFor(Kiss)
+    dobj Kiss
     {
         preCond = [touchObj]
         
@@ -8534,7 +8534,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canJumpOffMe = (gActor.location == self && contType == On)
     
-    dobjFor(JumpOff)
+    dobj JumpOff
     {
         preCond = [touchObj]
         
@@ -8569,7 +8569,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   The base handling of JumpOver is simply to rule it out at the verify
      *   stage.
      */
-    dobjFor(JumpOver)
+    dobj JumpOver
     {
         preCond = [touchObj]
         
@@ -8595,7 +8595,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   The Set command by itself doesn't do much. By default we just rule it
      *   out at the verify stage.
      */
-    dobjFor(Set)
+    dobj Set
     {
         preCond = [touchObj]
         verify() 
@@ -8617,7 +8617,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Game code that needs objects that can be typed on is responsible for
      *   handling these actions in custom code.
      */
-    dobjFor(TypeOn)
+    dobj TypeOn
     {
         preCond = [touchObj]
         verify() 
@@ -8627,7 +8627,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(TypeOnVague)
+    dobj TypeOnVague
     {
         preCond = [touchObj]
         verify() 
@@ -8656,7 +8656,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   further handling the library can provide for a 'general' case so it's
      *   up to game code to define it for specific cases.
      */
-    dobjFor(EnterOn)
+    dobj EnterOn
     {
         preCond = [touchObj]
         verify() 
@@ -8674,7 +8674,7 @@ class Thing:  ReplaceRedirector, Mentionable
     canWriteOnMe = nil
     
     /*  By default we simply rule out writing on things at the verify stage. */
-    dobjFor(WriteOn)
+    dobj WriteOn
     {
         preCond = [touchObj]
         verify() 
@@ -8696,7 +8696,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   verify stage. For a fuller implementation that allows consulting use
      *   the Consultable class.
      */
-    dobjFor(ConsultAbout)
+    dobj ConsultAbout
     {
         preCond = [touchObj]
         verify() 
@@ -8732,7 +8732,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   these actions on specific objects will need to provide further handling
      *   for them.
      */
-    dobjFor(Pour)
+    dobj Pour
     {
         preCond = [touchObj]
         verify() 
@@ -8742,7 +8742,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(PourOnto)
+    dobj PourOnto
     {
         preCond = [touchObj]
         
@@ -8769,7 +8769,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    iobjFor(PourOnto)
+    iobj PourOnto
     {
         preCond = [touchObj]
         
@@ -8791,7 +8791,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    dobjFor(PourInto)
+    dobj PourInto
     {
         preCond = [touchObj]
         verify()
@@ -8815,7 +8815,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     allowPourIntoMe = nil
     
-    iobjFor(PourInto)
+    iobj PourInto
     {
         preCond = [touchObj]
         
@@ -8861,7 +8861,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   the verify stage. It's up to game code to provide specific handling for
      *   objects that can be screwed and unscrewed.
      */
-    dobjFor(Screw)
+    dobj Screw
     {
         preCond = [touchObj]
         verify() 
@@ -8871,7 +8871,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }        
     }
     
-    dobjFor(ScrewWith)
+    dobj ScrewWith
     {
         preCond = [touchObj]
         verify() 
@@ -8881,7 +8881,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }       
     }
     
-    iobjFor(ScrewWith)
+    iobj ScrewWith
     {
         preCond = [objHeld]
         verify() 
@@ -8897,7 +8897,7 @@ class Thing:  ReplaceRedirector, Mentionable
     isUnscrewable = (isScrewable)
     canUnscrewWithMe = (canScrewWithMe)
     
-    dobjFor(Unscrew)
+    dobj Unscrew
     {
         preCond = [touchObj]
         verify() 
@@ -8907,7 +8907,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }        
     }
     
-    dobjFor(UnscrewWith)
+    dobj UnscrewWith
     {
         preCond = [touchObj]
         verify() 
@@ -8917,7 +8917,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }      
     }
     
-    iobjFor(UnscrewWith)
+    iobj UnscrewWith
     {
         preCond = [objHeld]
         verify() 
@@ -9012,7 +9012,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   PushTravelDir handles pushing an object in a particular direction, e.g.
      *   PUSH BOX NORTH
      */
-    dobjFor(PushTravelDir)
+    dobj PushTravelDir
     {
         preCond = [touchObj, travelPermitted]
         
@@ -9276,7 +9276,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   PushTravelThrough handles pushing something through something, such as a door or archway.
      *   Most of the actual handling is dealt with by the common routines defined above.
      */
-    dobjFor(PushTravelThrough)    
+    dobj PushTravelThrough    
     {
         preCond = [touchObj]
         verify()   {   verifyPushTravel(Through);   }
@@ -9284,7 +9284,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action() { doPushTravel(Through); }
     }
     
-    iobjFor(PushTravelThrough)
+    iobj PushTravelThrough
     {
         preCond = [travelPermitted, touchObj]
         verify() 
@@ -9307,7 +9307,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   where HOUSE represents the outside of a separate location) is handled
      *   on the Enterable class.
      */         
-    dobjFor(PushTravelEnter)
+    dobj PushTravelEnter
     {
         preCond = [touchObj]
         verify()  {  verifyPushTravel(Into);  }        
@@ -9317,7 +9317,7 @@ class Thing:  ReplaceRedirector, Mentionable
     okayPushIntoMsg = BMsg(okay push into, '{I} <<if matchPullOnly>> pull{s/ed}
                 <<else>> push{es/ed}<<end>> {the dobj} into {the iobj}. ')
     
-    iobjFor(PushTravelEnter)
+    iobj PushTravelEnter
     {
         preCond = [containerOpen]
         verify() 
@@ -9345,7 +9345,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPushIntoMsg = BMsg(cannot push into, '{I} {can\'t} {1}
         anything into {the iobj}. ', gVerbWord)
     
-    dobjFor(PushTravelGetOutOf)
+    dobj PushTravelGetOutOf
     {
         preCond = [touchObj]
         verify()
@@ -9359,7 +9359,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    iobjFor(PushTravelGetOutOf)
+    iobj PushTravelGetOutOf
     {
         preCond = [touchObj]
         
@@ -9385,7 +9385,7 @@ class Thing:  ReplaceRedirector, Mentionable
     okayPushOutOfMsg = BMsg(okay push out of, '{I} <<if matchPullOnly>> pull{s/ed}
                 <<else>> push{es/ed}<<end>> {the dobj} {outof iobj}. ')
     
-    dobjFor(PushTravelClimbUp)
+    dobj PushTravelClimbUp
     {
         preCond = [touchObj]
         verify()  {  verifyPushTravel(Up);  }
@@ -9393,7 +9393,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action() { doPushTravel(Up); }
     }
     
-    iobjFor(PushTravelClimbUp)
+    iobj PushTravelClimbUp
     {
         preCond = [travelPermitted, touchObj]
         
@@ -9409,7 +9409,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPushUpMsg = BMsg(cannot push up, '{I} {can\'t} {1}
         anything up {the iobj}. ', gVerbWord)
     
-    dobjFor(PushTravelClimbDown)
+    dobj PushTravelClimbDown
     {
         preCond = [touchObj]
         verify()  { verifyPushTravel(Down);  }
@@ -9417,7 +9417,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action() { doPushTravel(Down); }
     }
     
-    iobjFor(PushTravelClimbDown)
+    iobj PushTravelClimbDown
     {
         preCond = [travelPermitted, touchObj]
         
@@ -9453,7 +9453,7 @@ class Thing:  ReplaceRedirector, Mentionable
     canTalkToMe = nil
     
     
-    dobjFor(AskAbout)
+    dobj AskAbout
     {
         preCond = [canTalkToObj]
         verify() 
@@ -9466,7 +9466,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(AskFor)
+    dobj AskFor
     {
         preCond = [canTalkToObj]
         verify() 
@@ -9480,7 +9480,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    dobjFor(TellAbout)
+    dobj TellAbout
     {
         preCond = [canTalkToObj]
         verify() 
@@ -9494,7 +9494,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
         
-    dobjFor(SayTo)
+    dobj SayTo
     {
         preCond = [canTalkToObj]
         verify() 
@@ -9514,7 +9514,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     allowImplicitSay = nil
     
-    dobjFor(QueryAbout)
+    dobj QueryAbout
     {
         preCond = [canTalkToObj]
         verify() 
@@ -9527,7 +9527,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(TalkAbout)
+    dobj TalkAbout
     {
         preCond = [canTalkToObj]
         verify() 
@@ -9540,7 +9540,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(TalkTo)
+    dobj TalkTo
     {
         preCond = [canTalkToObj]
         verify() 
@@ -9560,7 +9560,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {is} generally pointless. ')
         
     
-    dobjFor(GiveTo)
+    dobj GiveTo
     {
         preCond = [objHeld, objNotWorn]
         verify()
@@ -9582,7 +9582,7 @@ class Thing:  ReplaceRedirector, Mentionable
     alreadyHasMsg = BMsg(already has, '{The subj iobj} already {has}
         {the dobj}.')
     
-    iobjFor(GiveTo)
+    iobj GiveTo
     {
         preCond = [touchObj]
         verify() 
@@ -9601,7 +9601,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotGiveToSelfMsg = BMsg(cannot give to self, '{I} {can\'t} give anything
         to {himself actor}. ')
     
-    dobjFor(ShowTo)
+    dobj ShowTo
     {
         preCond = isFixed ? [objVisible] : [objHeld]  
         report()
@@ -9614,7 +9614,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    iobjFor(ShowTo)
+    iobj ShowTo
     {
         preCond = [touchObj]
         verify() 
@@ -9633,7 +9633,7 @@ class Thing:  ReplaceRedirector, Mentionable
         to {himself actor}. ')
     
     
-    dobjFor(ShowToImplicit)
+    dobj ShowToImplicit
     {
         preCond = isFixed ? [objVisible] : [objHeld]
         
@@ -9661,7 +9661,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    dobjFor(GiveToImplicit)
+    dobj GiveToImplicit
     {
         preCond = [objHeld]
         
@@ -9696,7 +9696,7 @@ class Thing:  ReplaceRedirector, Mentionable
         longer talking to anyone. ')
     
    
-    dobjFor(SpecialAction)
+    dobj SpecialAction
     {
         verify() 
         {
@@ -9717,7 +9717,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   directly into his/her inventory, wherever it is currently. We don't
      *   allow absolutely anything to be purloined, as this could cause chaos.
      */
-    dobjFor(Purloin)
+    dobj Purloin
     {
         verify()
         {
@@ -9785,7 +9785,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   The GoNear action allows the player character to teleport around the
      *   map.
      */
-    dobjFor(GoNear)
+    dobj GoNear
     {       
         verify()
         {
@@ -9912,7 +9912,7 @@ class Key: Thing
     /* A key is something we can unlock with. */
     canUnlockWithMe = true
     
-    iobjFor(UnlockWith)
+    iobj UnlockWith
     {
         preCond = [objHeld]
         
@@ -9977,7 +9977,7 @@ class Key: Thing
     
     okayUnlockWithMsg = '{I} unlock{s/ed} {the dobj} with {the iobj}. '
     
-    iobjFor(LockWith)
+    iobj LockWith
     {
         preCond = [objHeld]
         

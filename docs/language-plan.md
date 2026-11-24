@@ -174,7 +174,7 @@ As built (milestone 3), the check is the other way round. A misspelled *read* is
 
 ```
 plane.hxn(725): warning: property "missinqQ" is given a value here, but nothing reads it - did you mean "missingQ"?
-start.hxn(536): warning: "dobjFor(ClimpUp)" defines handlers that nothing calls - did you mean "dobjFor(ClimbUp)"?
+start.hxn(536): warning: handler "dobj ClimpUp" is never called - did you mean "dobj ClimbUp"?
 ```
 
 Libraries' sources are not checked: a library defines properties for games to read, and which it reads depends on what a game includes. TADS 3 sources are not checked either.
@@ -205,6 +205,32 @@ Thing
 
 Each declaration lowers to exactly what the macros produce today, so the images are identical. The main open question is that adv3 and adv3Lite lower handlers to slightly different property names. Two answers are possible: the library could declare its own lowering, much as templates are declared now, or Hexicon could support only Hexad's lowering.
 
+As built (milestone 4, 2026-11-24), the syntax is:
+
+```
+action Take(dobj): TAction;
+action PutIn(dobj, iobj): TIAction;
+action Jump: IAction
+    execAction(cmd) { ... }
+;
+
+Thing
+    dobj Take {
+        preCond = [touchObj]
+        verify() { if (!isTakeable) illogical(cannotTakeMsg); }
+        action() { actionMoveInto(gActor); }
+    }
+    dobj Search as LookIn
+    iobj PutIn { ... }
+;
+```
+
+- **An action** names the objects it takes (`dobj`, `iobj`, `aobj`, in that order) and its classes, and then has the properties of any object definition. It lowers to what adv3Lite's `DefineTIActionSub(PutIn, TIAction)` makes: the object, `baseActionClass = PutIn`, and for each stage and each object the property that names its handler (`verDobjProp = &verifyDobjPutIn`, `verIobjProp = &verifyIobjPutIn`, `remapDobjProp = ...`, in the macros' order). The objects are written out rather than worked out from the class, so the compiler needs to know nothing of Hexad's classes.
+- **A handler** is the role and the action, then a block of the handler's methods and properties, which lowers to `propertyset '*DobjTake' { ... }`. `dobj Search as LookIn` handles one action as another of the same role, and lowers to the six methods `asDobjFor(LookIn)` makes. Anything that expands to a block can follow `dobj Search` instead, so adv3Lite's other redirecting macros (`asIobjFor`, `asDobjWithoutVerifyFor`) still work. A handler, like any property, ends without a semicolon.
+- **The words are not reserved.** `action`, `dobj`, `iobj`, and `aobj` start these forms only when a name follows them, where nothing in TADS 3 could, so a property called `action` or a local called `dobj` is still a name.
+- **The lowering is to tokens.** The parser reads the tokens the macros would have made, each given the place of the form, so messages and the debugger's line records are the same as the macros give.
+- **The lowering is adv3Lite's, and so Hexad's** (open question 2). A Hexicon file on adv3 can use the handler form, but adv3's own macros also check the action's name in a debug build, which this does not.
+
 ### 3. Modules instead of headers
 
 Every file of a TADS 3 game starts with `#include <adv3.h>` or `<advlite.h>`, and every name in the game and its library shares one namespace. Hexicon files would say `import hexad;` instead. That brings in the library's declarations (templates, actions, and the macros that remain) without pasting text, and a name that clashes can be qualified. Names in the image stay global, made unique where they need to be, so modules lower without a VM change. The preprocessor stays for conditional compilation.
@@ -223,7 +249,7 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
 ## Open questions
 
 1. How far should the language go? This plan is conservative: TADS 3 plus checks and declarations. A bolder language is possible, at the cost of the converter round trip and of authors reading it on sight. With TADS 3 to be retired, reading it on sight matters less over time than it does now.
-2. Should handler syntax serve both libraries or only Hexad? With TADS 3 to be retired, Hexad alone is the likely answer.
+2. Should handler syntax serve both libraries or only Hexad? With TADS 3 to be retired, Hexad alone is the likely answer. Decided (2026-11-24): the declarations lower as adv3Lite's macros do, which is Hexad's lowering.
 
 ## Milestones
 
@@ -245,5 +271,9 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
    - **Planted misspellings are caught**, a property's and a handler's, in the unit tests.
    - **Run over Hexad's own sources** while it was being built, it found two of adv3Lite's own slips, now fixed in Hexad (see the Hexad plan).
    - **The comparisons that build Hexicon sources** (`convert-compare.sh`, `manifest-compare.sh`) show these warnings and leave them out of what they compare. The converted Ditch Day treats warnings as errors, so its comparison turns that off.
-4. **Action declarations.** Exit: the converter writes them for adv3Lite's actions, and the round trip still gives identical images.
+4. **Action declarations.** Exit: the converter writes them for adv3Lite's actions, and the round trip still gives identical images. Done (2026-11-24), as described under change 2:
+   - **The converter writes them** in any file that includes `advlite.h`: each `DefineTAction(Take)` and the other `Define...Action` macros as an `action`, each `dobjFor(Take)` as `dobj Take`, and `dobjFor(Search) asDobjFor(LookIn)` as `dobj Search as LookIn`. Macro definitions, strings, comments, and files on adv3 are left alone. It now also takes Hexicon sources, which brings them up to date, and it no longer notes a rename it could not make when the program uses only the new name.
+   - **The round trip** (`convert-compare.sh`): adv3Lite, with its extensions and English, and Airport converted with the declarations give images identical to the originals'. Ditch Day and adv3 are not touched.
+   - **Hexad adopted them** (548 declarations in 25 files). Airport and the ten exercises built on it give images identical to those built on the Hexad before, preinitialized and not, and in debug builds, line records included, but for the build time and the folder's name.
+   - **Checked names speak the new form:** `handler "dobj ClimpUp" is never called - did you mean "dobj ClimbUp"?`
 5. **Modules.** Exit: Hexad and a game built with `import` rather than headers, with identical images.

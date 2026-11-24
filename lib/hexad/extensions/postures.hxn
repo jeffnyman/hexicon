@@ -190,7 +190,7 @@ modify Thing
 	 *  to standing. Otherwise we first move the actor to the dobj and then change the
 	 *  actor's posture to standing.
 	 */
-    dobjFor(StandOn)
+    dobj StandOn
     {
         remap = remapOn
         preCond = [touchObj, actorInStagingLocation]
@@ -227,7 +227,7 @@ modify Thing
      *   the dobj, we just try to change the actor's posture to sitting. Otherwise we first move the
      *   actor to the dobj and then change the actor's posture to sitting.
      */
-    dobjFor(SitOn)
+    dobj SitOn
     {
         remap = remapOn
         preCond = [touchObj, actorInStagingLocation]
@@ -258,7 +258,7 @@ modify Thing
 	 *  to lying. Otherwise we first move the actor to the dobj and then change the
 	 *  actor's posture to lying.
 	 */
-    dobjFor(LieOn)
+    dobj LieOn
     {
         remap = remapOn
         preCond = [touchObj, actorInStagingLocation]
@@ -289,7 +289,7 @@ modify Thing
      *   ends up in; we use the new location's default posture.
      *   [MODIFIED FOR POSTURES EXTENSION]
      */
-    dobjFor(Board)
+    dobj Board
     {
         action()
         {
@@ -316,7 +316,7 @@ modify Thing
      *   If an actor gets off something, we need to know what posture the actor
      *   ends up in. We use the new location's defaultPosture. [MODIFIED FOR POSTURES EXTENSION]
      */
-    dobjFor(GetOff)
+    dobj GetOff
     {
         action()
         {
@@ -362,7 +362,7 @@ modify Thing
     }
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
-    dobjFor(StandIn)
+    dobj StandIn
     {
         /* If I have a remapIn object, then remap this action to it. */
         remap = remapIn
@@ -412,7 +412,7 @@ modify Thing
      *  SitIn is handled much like StandIn 
      *  [MODIFIED FOR POSTURES EXTENSION]
      */
-    dobjFor(SitIn)
+    dobj SitIn
     {
         remap = remapIn
         preCond = [touchObj, actorInStagingLocation]
@@ -444,7 +444,7 @@ modify Thing
      *  LieIn is handled much like StandIn 
      *  [MODIFIED FOR POSTURES EXTENSION]
      */
-    dobjFor(LieIn)
+    dobj LieIn
     {
         remap = remapOn
         preCond = [touchObj, actorInStagingLocation]
@@ -477,7 +477,7 @@ modify Thing
      *   actor ends up in.
      *   [MODIFIED FOR POSTURES EXTENSION]
      */
-    dobjFor(Enter)
+    dobj Enter
     {
         action()
         {
@@ -497,7 +497,7 @@ modify Thing
      *   the actor ends up in. We use the new location's default posture.
      *  [MODIFIED FOR POSTURES EXTENSION]
      */
-    dobjFor(GetOutOf)
+    dobj GetOutOf
     {
         action()
         {
@@ -712,65 +712,65 @@ modify Door
         return inherited(traveler);
     }   
     
-    dobjFor(GoThrough)
+    dobj GoThrough
     {
         preCond = inherited + actorInTravelPosture
     }
 ;
 
 modify Passage
-    dobjFor(GoThrough)
+    dobj GoThrough
     {
         preCond = inherited + actorInTravelPosture
     }
 ;
 
 modify StairwayUp
-    dobjFor(Climb)     
+    dobj Climb     
     {
         preCond = inherited + actorInTravelPosture
     }
     
-    dobjFor(ClimbDown)     
+    dobj ClimbDown     
     {
         preCond = inherited + actorInTravelPosture
     }
 ;
 
 modify StairwayDown
-    dobjFor(Climb)     
+    dobj Climb     
     {
         preCond = inherited + actorInTravelPosture
     }
     
-    dobjFor(ClimbDown)     
+    dobj ClimbDown     
     {
         preCond = inherited + actorInTravelPosture
     }
 ;
 
 modify Thing
-    iobjFor(PushTravelThrough)
+    iobj PushTravelThrough
     {
         preCond = inherited + actorInTravelPosture
     }
     
-    iobjFor(PushTravelEnter)
+    iobj PushTravelEnter
     {
          preCond = inherited + actorInTravelPosture
     }
     
-    iobjFor(PushTravelGetOutOf)
+    iobj PushTravelGetOutOf
     {
         preCond = inherited + actorInTravelPosture
     }
     
-    iobjFor(PushTravelClimbUp)
+    iobj PushTravelClimbUp
     {
         preCond = inherited + actorInTravelPosture
     }
     
-    iobjFor(PushTravelClimbDown)
+    iobj PushTravelClimbDown
     {
         preCond = inherited + actorInTravelPosture
     }
