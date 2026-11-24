@@ -51,7 +51,7 @@ Today every stage is checked against the reference. A Hexicon-only feature has n
 | Header | `.h` | None needed once modules exist (below). A `.h` can still be included. |
 | Library manifest | `.tl` | `hexicon.toml` |
 | Project | `.t3m` | `hexicon.toml` |
-| Image | `.t3` | `.t3` while the format is T3 |
+| Game (the image) | `.t3` | `.hxg` (2026-11-24); the format inside is still T3's, and `hexicon run` and the web player take either |
 | Saved game | `.t3v` | `.t3v` while the format is T3 |
 
 The obvious names are taken: `.hex` is Intel HEX and `.hx` is Haxe. As far as I know, `.hxn` is not in common use.
@@ -67,7 +67,7 @@ sources = ["start", "gatearea", "plane", "npcs"]
 libraries = ["system", "adv3Lite"]       # or { name = "adv3Lite", exclude = ["scene"] }
 # or, where the order of libraries and sources matters, one list:
 # modules = [{ library = "system" }, "reflect.t", { library = "adv3/adv3" }, "main"]
-image = "airport.t3"                     # default: the first source's name
+image = "airport.hxg"                    # default: the first source's name, as .hxg
 resources = ["pics"]                     # as after -res: file, or file=name
 
 [defines]                                # -D; true is -D NAME, false is -U NAME

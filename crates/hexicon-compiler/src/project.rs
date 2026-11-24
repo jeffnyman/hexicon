@@ -60,6 +60,10 @@ pub struct Project {
     /// What was said about the project that does not stop the build,
     /// in the words the reference uses: problems with libraries.
     pub messages: Vec<String>,
+    /// It is a Hexicon project, read from a manifest (`hexicon.toml`),
+    /// and not a TADS 3 project file or a command line, whose builds
+    /// look as the reference's do.
+    pub manifest: bool,
 }
 
 /// A file or a folder to bundle as resources.
@@ -723,7 +727,9 @@ impl Reader<'_, '_> {
                 // The first source names the image, if nothing else
                 // has.
                 if self.image.is_none() {
-                    self.image = Some(format!("{}.t3", rem_ext(&path)));
+                    // A Hexicon game is a .hxg file; a TADS 3 one .t3.
+                    let ext = if self.manifest { "hxg" } else { "t3" };
+                    self.image = Some(format!("{}.{ext}", rem_ext(&path)));
                 }
                 if self.manifest {
                     // Named, as a library's sources are, without the
@@ -1139,6 +1145,7 @@ impl Reader<'_, '_> {
             debug: self.debug,
             resources: self.resources,
             messages: self.messages,
+            manifest: self.manifest,
         })
     }
 }

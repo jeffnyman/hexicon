@@ -126,7 +126,7 @@ pub(crate) fn create(folder: &Path) -> Result<(String, String), String> {
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
     let title = title_of(&name);
-    let image = format!("{}.t3", if name.is_empty() { "game" } else { &name });
+    let image = format!("{}.hxg", if name.is_empty() { "game" } else { &name });
     std::fs::create_dir_all(folder).map_err(|e| format!("{shown}: {e}"))?;
     for (file, text) in [
         ("hexicon.toml", manifest(&title, &image)),
@@ -189,7 +189,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&folder);
         let game = folder.join("my-game");
         let (title, image) = create(&game).unwrap();
-        assert_eq!((title.as_str(), image.as_str()), ("My Game", "my-game.t3"));
+        assert_eq!((title.as_str(), image.as_str()), ("My Game", "my-game.hxg"));
         // Not over a folder with something in it.
         assert!(create(&game).is_err());
 

@@ -55,10 +55,11 @@ fn timestamp(now: SystemTime) -> [u8; 24] {
     stamp
 }
 
-/// Where the system's headers and library are: as for the reference,
-/// in `include` and `lib` beside the program, unless `-FI` and `-FL`
-/// say otherwise; and the folders of the `TADSLIB` environment
-/// variable for more libraries.
+/// Where the system's headers and library are: in `include` and `lib`
+/// beside the program, unless `-FI` and `-FL` say otherwise, and else
+/// the ones built in; and the folders of the `HEXICON_LIB` environment
+/// variable for more libraries (or of `TADSLIB`, which TADS 3 projects
+/// may set, if it is not set).
 fn default_paths() -> ProjectPaths {
     let exe_dir = std::env::current_exe()
         .ok()
@@ -66,7 +67,8 @@ fn default_paths() -> ProjectPaths {
         .unwrap_or_default();
     let beside = |name: &str| exe_dir.join(name).to_string_lossy().into_owned();
     let separator = if cfg!(windows) { ';' } else { ':' };
-    let user_libraries = std::env::var("TADSLIB")
+    let user_libraries = std::env::var("HEXICON_LIB")
+        .or_else(|_| std::env::var("TADSLIB"))
         .map(|value| {
             value
                 .split(separator)
@@ -223,6 +225,11 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     if let Err(error) = std::fs::write(&output, image) {
         eprintln!("hexicon: {output}: {error}");
         return ExitCode::FAILURE;
+    }
+    // A Hexicon project says what it made. (A TADS 3 project file's
+    // build says what the reference's does, which is nothing.)
+    if project.manifest {
+        println!("Built {output}.");
     }
     if let Some(path) = unspecified {
         let list: String = image_unspecified

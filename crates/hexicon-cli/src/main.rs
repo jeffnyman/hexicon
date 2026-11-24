@@ -26,8 +26,9 @@ commands:
   new <folder>                 start a game in a new folder: a manifest
                                (hexicon.toml) and a first source
                                (start.hxn) on Hexad, ready to build
-  run [options] <image.t3> [args...]
-                               run a program; the options are:
+  run [options] <game> [args...]
+                               play a game (a .hxg file, or a TADS 3
+                               game's .t3); the options are:
       --norand                 make the same random choices on every run,
                                even when the program reseeds at random
       --plain                  treat a terminal as plain input and output:
@@ -42,15 +43,15 @@ commands:
                                anywhere but writing only in the sandbox,
                                2 for the sandbox only, 3 for reading in
                                the sandbox only, 4 for nowhere (default 22)
-  build [options] <module>...  compile a program image from its source
-                               files and libraries, put together in the
-                               order given, after the system library's
-                               _main; the options are those of the
-                               reference's t3make, which a manifest
-                               (hexicon.toml) or a project file (.t3m)
-                               can also give. A .hxn source is Hexicon,
-                               any other TADS 3. A library is a .tl file
-                               or a folder with a hexicon.toml:
+  build [options] [<module>...]
+                               build a game from its sources and
+                               libraries, as its manifest (hexicon.toml)
+                               says; with no options, the manifest in
+                               the current folder. The options say the
+                               same as a manifest can, and build TADS 3
+                               projects (.t3m) too. A .hxn source is
+                               Hexicon, any other TADS 3. A library is a
+                               folder with a hexicon.toml, or a .tl file:
       -f <project>             read more options and modules from a
                                manifest, a folder with one, or a project
                                file (default: hexicon.toml, or else
@@ -59,8 +60,10 @@ commands:
       -source <file>           a source file, whatever its name
       -lib <file>              a library, whatever its name; -x <name>
                                after it leaves out one of its sources
-      -o <image.t3>            where to write the image (default: beside
-                               the first source, with the extension .t3)
+      -o <game>                where to write the game (default: the
+                               manifest's image, or beside the first
+                               source, as a .hxg file, or a .t3 file
+                               for a TADS 3 project)
       -I <dir>                 a folder to look for included files in
       -D <name>[=<text>]       define a macro (as nothing, without a text)
       -U <name>                undefine a macro
@@ -95,10 +98,10 @@ commands:
                                nothing, such as the time it was compiled,
                                each as an offset and a length; a comparison
                                of two images should skip them
-  preinit [--unspecified <file>] <image.t3> <new.t3> [args...]
+  preinit [--unspecified <file>] <game> <new-game> [args...]
                                run a program as it is run before its
                                image is written, and write the image it
-                               leaves, as the reference's t3pre does
+                               leaves
   convert <folder> <new-folder>
                                make a TADS 3 game or library into a
                                Hexicon one, in a new folder: sources
@@ -117,9 +120,9 @@ commands:
       --test                   name files without their folders
   tokens [options] <source>    list a source file's tokens, as the compiler
                                reads them; the options are the same
-  dump <image.t3>              describe the contents of a program image file
-  disasm <image.t3>            list the byte code of every function found
-  disasm --summary <image.t3>  report how much of the code was accounted for
+  dump <game>                  describe the contents of a game file
+  disasm <game>                list the byte code of every function found
+  disasm --summary <game>      report how much of the code was accounted for
 ";
 
 fn main() -> ExitCode {

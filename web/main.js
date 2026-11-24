@@ -387,7 +387,7 @@ element("file").addEventListener("change", async (event) => {
 
 await init();
 
-// A page address can name a game to load: index.html?game=games/sample.t3
+// A page address can name a game to load: index.html?game=games/sample.hxg
 const address = new URLSearchParams(location.search).get("game");
 if (address) {
   try {
