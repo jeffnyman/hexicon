@@ -1,0 +1,129 @@
+// The Lighthouse: the example game of Getting Started with Hexicon.
+
+import hexad;
+
+// What the game is called, and who wrote it.
+versionInfo: GameID
+    IFID = '5C2A6E7B-1D4F-4A83-9E21-7B3C0F8D2A64'
+    name = 'The Lighthouse'
+    byline = 'by the Hexicon guide'
+    version = '1'
+;
+
+// How the game begins.
+gameMain: GameMainDef
+    initialPlayerChar = me
+    maxScore = 2
+
+    showIntro()
+    {
+        "The storm has been building all afternoon, and the lighthouse has
+        not been lit. Somebody has to do it.\b";
+    }
+;
+
+// The shore, where the game begins.
+shore: Room 'Rocky Shore'
+    "Waves break on the rocks behind you. The lighthouse rises to the north,
+    its door set into the stone. "
+
+    north = lighthouseDoor
+;
+
++ lighthouseDoor: Door 'door; heavy wooden'
+    "A heavy wooden door, studded with iron. "
+    otherSide = insideDoor
+    keyList = [brassKey]
+;
+
++ tinBox: OpenableContainer 'tin box; battered'
+    "A battered tin box, wedged between two rocks. "
+;
+
+++ brassKey: Key 'small brass key'
+    "A small brass key, green with age. "
+;
+
+// Inside the lighthouse.
+lighthouseBase: Room 'Foot of the Lighthouse'
+    "A spiral stair climbs into the dark. The door leads back out, to the
+    south. "
+
+    south = insideDoor
+    up = lampRoom
+;
+
++ insideDoor: Door 'door; heavy wooden'
+    "The door you came in by. "
+    otherSide = lighthouseDoor
+;
+
++ keeper: Actor 'old keeper; grey-bearded; man him'
+    "The keeper is old and grey-bearded, and he is shivering. "
+;
+
+++ HelloTopic
+    "<q>Thank goodness,</q> the keeper says. <q>My legs won't take the
+    stairs tonight.</q> "
+;
+
+++ AskTopic @lamp
+    "<q>It's at the top of the stair,</q> he says. <q>Just switch it on.</q> "
+;
+
+++ AskTopic @tStorm
+    "<q>Worst I've seen,</q> he says. <q>There'll be ships out there.</q> "
+;
+
+++ DefaultAnyTopic
+    "The keeper only shakes his head. "
+;
+
+tStorm: Topic 'storm';
+
+// The lamp room, where the game ends.
+lampRoom: Room 'Lamp Room'
+    "Glass on every side, and the sea black beyond it. The stair leads back
+    down. "
+
+    down = lighthouseBase
+;
+
++ lamp: Fixture 'great lamp; brass'
+    "A great brass lamp, cold and dark. "
+    isSwitchable = true
+
+    // Everyone knows of the lamp, so the player can ask about it before
+    // seeing it.
+    familiar = true
+
+    makeOn(stat)
+    {
+        inherited(stat);
+        if (stat)
+        {
+            "The lamp flares, and its beam swings out over the water. ";
+            litLamp.awardPointsOnce();
+            finishGameMsg(ftVictory, [finishOptionUndo]);
+        }
+    }
+;
+
+// The player, who starts on the shore.
+me: Player 'you'
+    location = shore
+;
+
+// What can earn points.
+openedDoor: Achievement +1 "unlocking the lighthouse";
+litLamp: Achievement +1 "lighting the lamp";
+
+// The door earns its point the first time it is unlocked.
+modify lighthouseDoor
+    makeLocked(stat)
+    {
+        inherited(stat);
+        if (!stat)
+            openedDoor.awardPointsOnce();
+    }
+;

@@ -1,0 +1,8 @@
+[game]
+name = "The Lighthouse"
+libraries = ["system", "hexad"]
+sources = ["start"]
+image = "lighthouse.hxg"
+
+[defines]
+LANGUAGE = "english"

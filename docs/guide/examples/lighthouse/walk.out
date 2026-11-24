@@ -1,0 +1,84 @@
+The storm has been building all afternoon, and the lighthouse has not been lit.
+Somebody has to do it.
+
+Rocky Shore
+Waves break on the rocks behind you.  The lighthouse rises to the north, its
+door set into the stone.
+
+You can see a tin box here.
+
+>look
+Rocky Shore
+Waves break on the rocks behind you.  The lighthouse rises to the north, its
+door set into the stone.
+
+You can see a tin box here.
+
+>north
+(first trying to open the door)
+The door is locked.
+
+>x box
+A battered tin box, wedged between two rocks.
+
+>open box
+Opening the tin box reveals a small brass key.
+
+>take key
+Taken.
+
+>unlock door with key
+You unlock the door with the small brass key.
+
+(Your score has just increased by one point.)
+
+If you’d prefer not to be notified about score changes in the future, type
+NOTIFY OFF.
+
+>open door
+Opened.
+
+>north
+Foot of the Lighthouse
+A spiral stair climbs into the dark.  The door leads back out, to the south.
+
+The old keeper is here.
+
+>x keeper
+The keeper is old and grey-bearded, and he is shivering.
+
+>talk to keeper
+“Thank goodness,” the keeper says.  “My legs won’t take the stairs tonight.”
+
+>ask keeper about storm
+“Worst I’ve seen,” he says.  “There’ll be ships out there.”
+
+>ask keeper about lamp
+“It’s at the top of the stair,” he says.  “Just switch it on.”
+
+>ask keeper about fish
+The keeper only shakes his head.
+
+>score
+In 13 turns you have scored 1 of a total 2 points.  To see your complete list
+of achievements, use the FULL SCORE command.
+
+>up
+Lamp Room
+Glass on every side, and the sea black beyond it.  The stair leads back down.
+
+>x lamp
+A great brass lamp, cold and dark.
+
+>turn on lamp
+The lamp flares, and its beam swings out over the water.
+
+(Your score has just increased by one point.)
+
+*** YOU HAVE WON ***
+
+
+Would you like to RESTART the story, UNDO the last move, RESTORE a saved
+position, or QUIT?
+
+>

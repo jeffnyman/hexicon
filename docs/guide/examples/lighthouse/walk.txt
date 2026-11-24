@@ -1,0 +1,18 @@
+<eventscript>
+<line>look
+<line>north
+<line>x box
+<line>open box
+<line>take key
+<line>unlock door with key
+<line>open door
+<line>north
+<line>x keeper
+<line>talk to keeper
+<line>ask keeper about storm
+<line>ask keeper about lamp
+<line>ask keeper about fish
+<line>score
+<line>up
+<line>x lamp
+<line>turn on lamp

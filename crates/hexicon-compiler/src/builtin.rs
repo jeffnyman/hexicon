@@ -23,7 +23,8 @@ pub const SYSTEM: &str = "<hexicon>/system";
 
 /// The built-in files, by their paths in [`ROOT`] (`system/tads.h`,
 /// `hexad/english/english.hxn`).
-pub(crate) const FILES: &[(&str, &[u8])] = include!(concat!(env!("OUT_DIR"), "/built_in_files.rs"));
+pub(crate) static FILES: &[(&str, &[u8])] =
+    include!(concat!(env!("OUT_DIR"), "/built_in_files.rs"));
 
 /// A path in [`ROOT`] as the table has it: after the root, with `/`.
 fn in_root(path: &str) -> Option<String> {
