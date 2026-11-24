@@ -549,13 +549,13 @@ intrinsic class TimeZone 'timezone/030000' : Object
      *   In many cases, the history list contains a number of periods that
      *   could have been inferred from the ongoing rules, so strictly
      *   speaking they don't need to be enumerated in the history.  When
-     *   they're included, it's for faster run-time lookup.  TADS
+     *   they're included, it's for faster run-time lookup.  Hexicon
      *   pre-computes rule-based transitions up to the present and a few
      *   years into the future, since history-based lookups are much faster
      *   than applying the rules.  We expect that the typical program will
      *   mostly work with dates close to the present time, so we pre-compute
      *   transitions for a few years into the future to speed things up for
-     *   the typical case.  For changes after the last enumerated entry, TADS
+     *   the typical case.  For changes after the last enumerated entry, Hexicon
      *   applies the rules, so transitions in the far future will be
      *   correctly figured when needed.
      */

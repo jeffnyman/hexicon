@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /*
- *   TADS 3 Library - Menu System, web interface edition
+ *   Hexad - Menu System, web interface edition
  *   
  *   This implements the menusys user interface for the web 
  *   interface.  

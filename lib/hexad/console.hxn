@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /* 
- *   TADS 3 Library - console input/output manager
+ *   Hexad - console input/output manager
  *   
  *   This module defines the low-level functions for handling input and
  *   output via the traditional interpreter's user interface, using the
@@ -17,7 +17,6 @@
 
 /* include the library header */
 import hexad;
-#include <hexicon.h>
 
 
 /* ------------------------------------------------------------------------ */

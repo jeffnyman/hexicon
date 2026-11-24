@@ -119,7 +119,7 @@
  *   The File intrinsic class provides access to files in the external file
  *   system.  This lets you create, read, and write files.  The class
  *   supports text files (with translations to and from local character
- *   sets), "data" files (using the special TADS 2 binary file format), and
+ *   sets), "data" files (using a binary format of its own), and
  *   "raw" files (this mode lets you manipulate files in arbitrary text or
  *   binary formats by giving you direct access to the raw bytes in the
  *   file).  
@@ -201,7 +201,7 @@ intrinsic class File 'file/030003': Object
      *   When a file is opened in data mode, you can read and write integers,
      *   strings, and 'true' values to the file, and the values in the file
      *   are marked with their datatype in a private data format.  Because
-     *   the file uses a tads-specific format, this mode cannot be used to
+     *   the file uses a format of its own, this mode cannot be used to
      *   read files created by other applications or write files for use by
      *   other applications; however, this storage format is convenient for
      *   storing simple data values because the File object takes care of
@@ -310,7 +310,7 @@ intrinsic class File 'file/030003': Object
      *   of the file.
      *   
      *   If the file is open in 'data' mode, this reads one data element
-     *   using the private tads-specific data format.  The result is a value
+     *   using the private data format of data files.  The result is a value
      *   of one of the types writable with writeFile() in 'data' mode.  In
      *   order to read a 'data' file, the file must have been previously
      *   written in 'data' mode.  
@@ -334,7 +334,7 @@ intrinsic class File 'file/030003': Object
      *   
      *   If the file is open in 'data' mode, this writes the value, which
      *   must be a string, integer, enum, or 'true' value, in a private
-     *   tads-specific data format that can later be read using the same
+     *   data format of data files that can later be read using the same
      *   format.  The values are converted to the private binary format,
      *   which is portable across platforms: a file written in 'data' mode
      *   on one machine can be copied (byte-for-byte) to another machine,
@@ -426,7 +426,7 @@ intrinsic class File 'file/030003': Object
      *   method opens a resource.  Resources differ from ordinary files in
      *   two important respects.  First, a resource is named with a
      *   URL-style path rather than a local file system name.  Second, a
-     *   resource can be embedded in the program's executable (.t3) file, or
+     *   resource can be embedded in the program's game (.hxg) file, or
      *   can be embedded in an external resource bundle (.3r0, etc) file.
      *   
      *   Resources are read-only, so the access mode is implicitly
@@ -501,7 +501,7 @@ intrinsic class File 'file/030003': Object
      *   definition string, and write the packed bytes to the file.  This
      *   function is designed to simplify writing files that use structured
      *   binary formats defined by third parties, such as JPEG or PDF.  The
-     *   function translates native TADS data values into selected binary
+     *   function translates the program's own data values into selected binary
      *   formats, and writes the resulting bytes to the file, all in a single
      *   operation.
      *   
@@ -614,7 +614,7 @@ intrinsic class TemporaryFile 'tempfile/030000': Object
      *   
      *   This method allows you to release the underlying file system
      *   resources as soon as you're done with the temp file.  It's never
-     *   necessary to do this.  TADS automatically deletes the underlying
+     *   necessary to do this.  Hexicon automatically deletes the underlying
      *   file system resources when the TemporaryFile object is deleted by
      *   the garbage collector (or when the program terminates), so the
      *   operating system file will be deleted eventually whether you call
@@ -633,7 +633,7 @@ intrinsic class TemporaryFile 'tempfile/030000': Object
 /* ------------------------------------------------------------------------ */
 /*
  *   The filename passed to the File "open" methods, as well as to most
- *   system functions that accept filename arguments, can be a TadsObject
+ *   system functions that accept filename arguments, can be a ProgramObject
  *   object in lieu of a string.  Such an object must implement the following
  *   methods:
  *   

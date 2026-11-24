@@ -12,7 +12,7 @@
 /*
  *   The CharacterSet intrinsic class provides information on character set
  *   translations and can be used to translate between the Unicode character
- *   set that the T3 VM uses internally for string values and the local
+ *   set that the virtual machine uses internally for string values and the local
  *   character set or sets used for display, keyboard input, and file I/O.  
  */
 intrinsic class CharacterSet 'character-set/030001': Object
@@ -32,9 +32,9 @@ intrinsic class CharacterSet 'character-set/030001': Object
      *   
      *   You can extend this basic set using mapping files.  You can create
      *   your own mapping files (see the System Manual to learn how), so
-     *   there's essentially no limit to the character sets that TADS can
+     *   there's essentially no limit to the character sets that Hexicon can
      *   work with.  You'll probably never need to create your own custom
-     *   mappings, though, because the standard TADS distributions include a
+     *   mappings, though, because Hexicon includes a
      *   large set of pre-built mappings that cover most systems currently in
      *   use.  The standard set includes the various ISO 8859 variants, plus
      *   proprietary code pages for Windows, DOS, and Mac OS.
@@ -55,7 +55,7 @@ intrinsic class CharacterSet 'character-set/030001': Object
      *   Determine if the mapping is known.  This returns true if the
      *   character set has a known local mapping, nil if not.  Note that it
      *   doesn't matter whether or not the character set is actually in use
-     *   on the local platform; all that matters is that a T3 mapping file
+     *   on the local platform; all that matters is that a mapping file
      *   is available on this machine. 
      */
     isMappingKnown();

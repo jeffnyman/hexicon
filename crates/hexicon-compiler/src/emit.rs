@@ -5382,9 +5382,12 @@ impl Gen<'_> {
                 _ => self.undefined(name),
             }
         }
-        let Some(Global::Meta(tads_object)) =
-            self.prog.globals.get(b"TadsObject".as_slice()).copied()
-        else {
+        // The class is TadsObject in TADS 3, and ProgramObject in
+        // Hexicon's system library.
+        let class = [b"TadsObject".as_slice(), b"ProgramObject"]
+            .into_iter()
+            .find_map(|name| self.prog.globals.get(name).copied());
+        let Some(Global::Meta(tads_object)) = class else {
             self.error("\"TadsObject\" is not defined or is not an intrinsic class");
             return;
         };
@@ -6049,7 +6052,22 @@ impl Gen<'_> {
     /// Call a function the compiler itself needs, which a system
     /// header has to have declared.
     fn call_internal_bif(&mut self, name: &[u8], what: &str, argc: usize) {
-        match self.prog.globals.get(name).copied() {
+        // The function may have Hexicon's name for it, as it has in
+        // Hexicon's system library.
+        let hexicon_name = crate::convert::RENAMES
+            .iter()
+            .find(|(old, _)| old.as_bytes() == name)
+            .map(|(_, new)| new.as_bytes());
+        // Found by neither, the message names the TADS 3 name, as the
+        // reference's does.
+        let found = std::iter::once(name)
+            .chain(hexicon_name)
+            .find_map(|have| Some((have, self.prog.globals.get(have).copied()?)));
+        let (name, global) = match found {
+            Some((have, global)) => (have, Some(global)),
+            None => (name, None),
+        };
+        match global {
             None => self.error(format!(
                 "{what} require support function \"{}\", which is undefined",
                 show_name(name)

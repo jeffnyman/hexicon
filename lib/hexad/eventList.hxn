@@ -5,7 +5,7 @@ import hexad;
  *   ************************************************************************
  *   eventList.t This module forms an optional part of the adv3Lite library.
  *   
- *   adv3Lite Library - EventLists
+ *   Hexad - EventLists
  *
  *   This module contains definitions of various types of EventLists. These are
  *   defined in a separate module so that games that don't require EventLists

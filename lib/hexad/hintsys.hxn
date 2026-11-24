@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /* 
- *   TADS 3 Library - Hint System
+ *   Hexad - Hint System
  *   
  *   This module provides a hint system framework.  Games can use this
  *   framework to define context-sensitive hints for players.
@@ -608,8 +608,7 @@ hintManager: PreinitObject
             DMsg(sorry hints disabled, '<.parser>Sorry, but hints have been
                 disabled for this session, as you requested.  If you&rsquo;ve
                 changed your mind, you&rsquo;ll have to save your current
-                position, exit the TADS interpreter, and start a new interpreter
-                session.<./parser> ');
+                position, quit, and start a new session.<./parser> ');
             return;
         }
 

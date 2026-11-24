@@ -1,5 +1,5 @@
 #charset "us-ascii"
 
 #ifdef __DEBUG
-#include <dynfunc.t>
+#include <dynfunc.hxn>
 #endif

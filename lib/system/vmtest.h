@@ -10,12 +10,12 @@
  */
 
 /* 
- *   T3 Test system interface 
+ *   The virtual machine's test interface 
  */
 intrinsic 't3vmTEST/010000'
 {
-    t3test_get_obj_id(obj);
-    t3test_get_obj_gc_state(id);
-    t3test_get_charcode(c);
+    vmTestObjId(obj);
+    vmTestObjGcState(id);
+    vmTestCharCode(c);
 }
 

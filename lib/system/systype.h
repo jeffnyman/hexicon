@@ -9,7 +9,7 @@
 
 /* ------------------------------------------------------------------------ */
 /*
- *   TADS datatype codes.  These values are returned by propType(), etc.  
+ *   Datatype codes.  These values are returned by propType(), etc.  
  */
 #define TypeNil         1
 #define TypeTrue        2
@@ -231,11 +231,11 @@ intrinsic class AnonFuncPtr 'anon-func-ptr': Vector
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The "TADS Object" intrinsic class.  All objects that the program
+ *   The "ProgramObject" intrinsic class.  All objects that the program
  *   defines with the "class" or "object" statements descend from this
  *   class.  
  */
-intrinsic class TadsObject 'tads-object/030005': Object
+intrinsic class ProgramObject 'tads-object/030005': Object
 {
     /* 
      *   Create an instance of this object: in other words, create a new
@@ -285,7 +285,7 @@ intrinsic class TadsObject 'tads-object/030005': Object
      *   
      *   We could obtain the same effect dynamically like so:
      *   
-     *   local d = TadsObject.createInstanceOf([A, x], B, [C, y]);
+     *   local d = ProgramObject.createInstanceOf([A, x], B, [C, y]);
      *   
      *   Note that only *actual* lists are interpreted as constructor
      *   invokers here.  A list-like object (with operator[] and length()
@@ -304,9 +304,9 @@ intrinsic class TadsObject 'tads-object/030005': Object
 
     /*
      *   Set the superclass list.  scList is a list giving the new
-     *   superclasses.  The superclasses must all be TadsObject objects, with
-     *   one exception: the list [TadsObject] may be passed to create an
-     *   object based directly on TadsObject.  No other intrinsic classes can
+     *   superclasses.  The superclasses must all be ProgramObject objects, with
+     *   one exception: the list [ProgramObject] may be passed to create an
+     *   object based directly on ProgramObject.  No other intrinsic classes can
      *   be used in the list, and objects of other types cannot be used in
      *   the list.  
      */
@@ -543,7 +543,7 @@ intrinsic class String 'string/030008': Object
     split(delim?, limit?);
 
     /*
-     *   Convert special characters and TADS markups to standard HTML
+     *   Convert special characters and Hexicon's markups to standard HTML
      *   markups.  Returns a new string with the contents of the 'self'
      *   string processed as described below.
      *   
@@ -593,8 +593,8 @@ intrinsic class String 'string/030008': Object
      *   Note that this isn't a general-purpose HTML corrector: it doesn't
      *   correct ill-formed markups or standardize deprecated syntax or
      *   browser-specific syntax.  This function is specifically for
-     *   standardizing TADS-specific syntax, so that games can use the
-     *   traditional TADS syntax with the Web UI.  
+     *   standardizing Hexicon's own syntax, so that games can use the
+     *   same syntax with the Web UI.  
      */
     specialsToHtml(stateobj?);
 
@@ -1237,7 +1237,7 @@ intrinsic class RexPattern 'regex-pattern/030000': Object
  *   its caller.
  *   
  *   This object can't be created with 'new'.  Instead, you obtain these
- *   objects via the t3GetStackTrace() function.  That function retrieves
+ *   objects via the stackTrace() function.  That function retrieves
  *   information on an active stack frame in the current call stack,
  *   including the frame object.  
  */

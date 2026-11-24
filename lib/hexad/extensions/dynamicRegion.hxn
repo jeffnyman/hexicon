@@ -1,5 +1,4 @@
 #charset "us-ascii"
-#include <tads.h>
 import hexad;
 
 /*

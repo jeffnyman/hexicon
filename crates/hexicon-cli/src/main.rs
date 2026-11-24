@@ -106,7 +106,8 @@ commands:
                                make a TADS 3 game or library into a
                                Hexicon one, in a new folder: sources
                                become .hxn files with Hexicon's names for
-                               the built-in functions, a project file
+                               the system library's functions, classes,
+                               and headers, a project file
                                (.t3m) becomes hexicon.toml, and a library
                                (.tl) a .toml beside it
   preprocess [options] <source>

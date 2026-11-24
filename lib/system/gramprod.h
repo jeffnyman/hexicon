@@ -13,7 +13,7 @@
 /*
  *   The GrammarProd intrinsic class is a specialized type that's designed
  *   for creating parsers.  An object of this type is created automatically
- *   by the TADS 3 compiler for each 'grammar' statement.  This class
+ *   by the compiler for each 'grammar' statement.  This class
  *   encapsulates the prototype token list and mapping information defined in
  *   a 'grammar' statement, and provides a method to match its prototype to
  *   an input token string.
@@ -74,7 +74,7 @@ intrinsic class GrammarProd 'grammar-production/030002': Object
      *   'symtab' is an optional LookupTable with the global symbol table.
      *   This must be provided if any symbolic tokens are used in the rule
      *   list (property names, sub-production names, etc).  In most cases
-     *   this is simply the symbol table that t3GetGlobalSymbols() returns
+     *   this is simply the symbol table that globalSymbols() returns
      *   during preinit.  
      */
     addAlt(alt, matchObj, dict?, symtab?);

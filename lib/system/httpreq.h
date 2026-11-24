@@ -46,7 +46,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
     /*
      *   Get the query string.  This is the portion of the URL after the
      *   server address.  For example, if the client web browser navigated to
-     *   the URL "http://www.tads.org:1234/path/resource?a=1&b=2" would
+     *   the URL "http://www.example.com:1234/path/resource?a=1&b=2" would
      *   return "/path/resource?a=1&b=2".
      *   
      *   This is the raw query string, exactly as the client sent it.  Any
@@ -63,7 +63,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
      *   If there are any parameters, they're entered in the table under the
      *   parameter names as keys.  For example, for this query string:
      *   
-     *.     http://www.tads.org:1234/path/resource?a=one&b=two&c=three&d
+     *.     http://www.example.com:1234/path/resource?a=one&b=two&c=three&d
      *   
      *   we'd generate this table:
      *   
@@ -195,12 +195,12 @@ intrinsic class HTTPRequest 'http-request/030001': Object
      *   parameters, delimited by semicolons:
      *   
      *.   expires=Fri, 31-Dec-2010 23:59:59 GMT  - set expiration date
-     *.   domain=.tads.org                       - scope cookie to domain
+     *.   domain=.example.com                    - scope cookie to domain
      *.   path=/                                 - scope cookie within site
      *.   httponly                               - hide cookie from Javascript
      *.   secure                                 - only send via https://
      *   
-     *   (These are all defined by the HTTP protocol, not by TADS.  For
+     *   (These are all defined by the HTTP protocol, not by Hexicon.  For
      *   details, refer to any HTTP reference book or web site.)
      *   
      *   A cookie without an expiration date is a session cookie: it

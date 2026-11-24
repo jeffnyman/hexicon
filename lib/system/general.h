@@ -2,14 +2,15 @@
 #pragma once
 
 /* 
- *   This header defines the tads-gen intrinsic function set.  This function
+ *   This header defines the general function set ('tads-gen' to the
+ *   virtual machine).  This function
  *   set provides some miscellaneous functions, including data conversions,
  *   object iteration, regular expressions, and state persistence operations.
  */
 
 
 /*
- *   The tads-gen function set.  This set contains basic data manipulation
+ *   The general function set.  This set contains basic data manipulation
  *   and miscellaneous utility functions.
  */
 intrinsic 'tads-gen/030008'
@@ -39,7 +40,7 @@ intrinsic 'tads-gen/030008'
      *   from memory when the garbage collector runs, which happens
      *   intermittently.  If you want to ensure that any currently
      *   unreachable objects are removed from memory just before a
-     *   firstObj-nextObj loop, you can do so by calling t3RunGC().
+     *   firstObj-nextObj loop, you can do so by calling collectGarbage().
      */
     firstObj(cls?, flags?);
 
@@ -54,7 +55,7 @@ intrinsic 'tads-gen/030008'
     /*
      *   Random number generator (RNG) initialization.  This selects and
      *   initializes the random number generator algorithm used by rand().
-     *   TADS provides several different RNG algorithms; each RNG has
+     *   Hexicon provides several different RNG algorithms; each RNG has
      *   different properties, so some applications might have reasons to
      *   prefer a particular algorithm.  For general purposes, any of them
      *   should produce good results.
@@ -720,7 +721,7 @@ intrinsic 'tads-gen/030008'
  *   numbers using a simple linear formula.  This is the old standby of
  *   computer RNGs; it's the sort that comes standard with C compilers.
  *   These generators have been extensively studied and have reasonably good
- *   statistical properties and a number of known weaknesses.  The TADS LCG
+ *   statistical properties and a number of known weaknesses.  Hexicon's LCG
  *   uses the method described in Knuth, The Art of Computer Programming,
  *   volume 2, p170.
  *   

@@ -28,7 +28,7 @@
  *   
  *   The optional second argument is a LookupTable containing the global
  *   symbols for the compilation.  This can be the table returned from
- *   t3GetGlobalSymbols(), or it can be a custom table.  The compiler looks
+ *   globalSymbols(), or it can be a custom table.  The compiler looks
  *   up string keys in the table to resolve global symbol names; the
  *   corresponding values can be objects, properties, enum values, or
  *   function pointers.
@@ -45,7 +45,7 @@
  *   
  *   The optional fourth argument is a LookupTable giving the preprocessor
  *   macros to use for the compilation.  This is a table in the format
- *   returned by t3GetGlobalsSymbols(T3PreprocMacros).
+ *   returned by t3GetGlobalsSymbols(MacroTable).
  *   
  *   If the 'symtab' or 'macros' arguments are omitted or nil, the
  *   compilation is done without global symbols or macros, respectively.

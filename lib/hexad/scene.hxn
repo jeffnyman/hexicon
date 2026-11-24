@@ -124,7 +124,7 @@ sceneManager: InitObject, Event
             
     }
     
-    execBeforeMe = [adv3LibInit]
+    execBeforeMe = [hexadInit]
     
     /* Run the beforeAction method on every currently active Scene */
     notifyBefore()

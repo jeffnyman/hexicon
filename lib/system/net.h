@@ -2,9 +2,10 @@
 #pragma once
 
 /* 
- *   This header defines the tads-net intrinsic function set.
+ *   This header defines the network function set ('tads-net' to the
+ *   virtual machine).
  *   
- *   The tads-net function set provides network input/output.  In particular,
+ *   The network function set provides network input/output.  In particular,
  *   this implements an HTTP server that can be used to implement a
  *   browser-based user interface.  The network layer could also be used for
  *   other purposes, such as implementing a multi-user game server.
@@ -31,7 +32,7 @@
 
 
 /*
- *   tads-net - the TADS Network function set
+ *   the network function set
  */
 intrinsic 'tads-net/030001'
 {
@@ -123,7 +124,7 @@ intrinsic 'tads-net/030001'
 
     /*
      *   Get the host address that the user used to launch the game.  For
-     *   standard client/server TADS Web play, this is the network address
+     *   standard client/server Web play, this is the network address
      *   that you should specify as the listening address when setting up the
      *   HTTPServer object.
      *   
@@ -134,7 +135,7 @@ intrinsic 'tads-net/030001'
      *   connect to the external Web server in the first place.  The Web
      *   server passes this address to the interpreter as part of the launch
      *   information, and the interpreter makes the address available to the
-     *   TADS program here.
+     *   program here.
      *   
      *   If there's no launch address, this returns nil.  This means that the
      *   user launched the interpreter directly, from the local desktop or
@@ -154,7 +155,7 @@ intrinsic 'tads-net/030001'
      *   
      *   'id' is a user-defined identifier for the request.  This can be any
      *   value, but is typically an object that you create to keep track of
-     *   the request and process the reply.  TADS doesn't use this value
+     *   the request and process the reply.  Hexicon doesn't use this value
      *   itself, but simply hangs onto it while the request is being
      *   processed, and then stores it in the NetEvent object generated when
      *   the request completes.  This lets you relate the reply event back to
@@ -269,7 +270,7 @@ intrinsic 'tads-net/030001'
  *   UI Closed.  This type of event occurs when the user manually closes the
  *   Web UI, ONLY in a stand-alone local configuration.  This is the special
  *   configuration where the browser UI is integrated into the interpreter
- *   application, simulating the traditional TADS interpreter environment
+ *   application, simulating the traditional interpreter environment
  *   with the Web UI, and everything's running on a single machine.  When the
  *   user closes the Web UI in this environment, the game should usually just
  *   terminate, since the user has effectively dismissed the application.

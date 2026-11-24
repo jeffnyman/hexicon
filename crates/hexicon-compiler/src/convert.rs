@@ -1,15 +1,18 @@
 //! Converting TADS 3 source to Hexicon: what `hexicon convert` does to
 //! each file.
 //!
-//! A source file keeps its text, except that the names Hexicon gives
-//! the built-in functions ([`RENAMES`]) replace the TADS names, in code
-//! and in comments but never in the text of a string, and a file whose
-//! code uses one includes `<hexicon.h>`. In a file that includes adv3Lite's
-//! header (`advlite.h`), its macros for actions and their handlers
-//! become Hexicon's declarations ([`FORMS`]). A project file (`.t3m`) becomes
-//! a game's manifest and a library (`.tl`) a library's, each saying what
-//! the original said. The converted program compiles to the same image
-//! as the original: that is how the converter is checked.
+//! A source file keeps its text, except that the names Hexicon's
+//! system library gives the built-in functions, classes, and headers
+//! ([`RENAMES`], [`HEADERS`]) replace the TADS names, in code and in
+//! comments but never in the text of a string. In a file that includes
+//! adv3Lite's header (`advlite.h`), its macros for actions and their
+//! handlers become Hexicon's declarations ([`FORMS`]). A project file
+//! (`.t3m`) becomes a game's manifest and a library (`.tl`) a library's,
+//! each saying what the original said.
+//!
+//! The converted program is built on Hexicon's own system library, not
+//! TADS 3's, and plays as the original does: that is how the converter
+//! is checked.
 
 use std::collections::HashSet;
 use std::fmt::Write as _;
@@ -43,7 +46,77 @@ pub const RENAMES: &[(&str, &str)] = &[
     ("T3GetStackDesc", "StackTraceDesc"),
     ("T3MacroHasArgs", "MacroHasArgs"),
     ("T3MacroHasVarargs", "MacroHasVarargs"),
+    ("TadsObject", "ProgramObject"),
+    ("T3StackInfo", "StackInfo"),
+    ("FileTypeT3Save", "FileTypeSave"),
+    ("FileTypeT3Image", "FileTypeGame"),
+    ("TADS_IO_HEADER", "HEXICON_IO_HEADER"),
+    ("_tads_io_say", "_hexicon_io_say"),
+    ("TADS_INCLUDE_NET", "HEXICON_INCLUDE_NET"),
+    ("t3test_get_obj_id", "vmTestObjId"),
+    ("t3test_get_obj_gc_state", "vmTestObjGcState"),
+    ("t3test_get_charcode", "vmTestCharCode"),
 ];
+
+/// The system headers' TADS names, and the names Hexicon's system
+/// library gives them. `hexicon.h` brings in the others, as `tads.h`
+/// does.
+pub const HEADERS: &[(&str, &str)] = &[
+    ("tads.h", "hexicon.h"),
+    ("t3.h", "vm.h"),
+    ("tadsgen.h", "general.h"),
+    ("tadsio.h", "io.h"),
+    ("tadsiox.h", "ioext.h"),
+    ("tadsnet.h", "net.h"),
+    ("t3test.h", "vmtest.h"),
+];
+
+/// The edits that rename the system headers a file includes: in each
+/// `#include <tads.h>` or `#include "t3.h"`, the name Hexicon gives the
+/// header.
+fn header_edits(text: &[u8]) -> Vec<(usize, usize, Vec<u8>)> {
+    let mut edits = Vec::new();
+    let mut start = 0;
+    while start < text.len() {
+        let end = text[start..]
+            .iter()
+            .position(|&c| c == b'\n')
+            .map_or(text.len(), |at| start + at);
+        let line = &text[start..end];
+        let mut at = line.len() - line.trim_ascii_start().len();
+        if line.get(at) == Some(&b'#') {
+            at += 1;
+            while matches!(line.get(at), Some(b' ' | b'\t')) {
+                at += 1;
+            }
+            if line[at..].starts_with(b"include") {
+                at += b"include".len();
+                while matches!(line.get(at), Some(b' ' | b'\t')) {
+                    at += 1;
+                }
+                let close = match line.get(at) {
+                    Some(b'<') => Some(b'>'),
+                    Some(b'"') => Some(b'"'),
+                    _ => None,
+                };
+                if let Some(close) = close
+                    && let Some(len) = line[at + 1..].iter().position(|&c| c == close)
+                {
+                    let name = &line[at + 1..at + 1 + len];
+                    if let Some(&(_, new)) = HEADERS
+                        .iter()
+                        .find(|(old, _)| old.as_bytes().eq_ignore_ascii_case(name))
+                    {
+                        let from = start + at + 1;
+                        edits.push((from, from + len, new.as_bytes().to_vec()));
+                    }
+                }
+            }
+        }
+        start = end + 1;
+    }
+    edits
+}
 
 /// adv3Lite's macros that define actions, each with the objects the
 /// action takes and its class: `DefineTIAction(PutIn)` becomes
@@ -201,7 +274,19 @@ impl Scanner<'_> {
                         self.pos += 1;
                     }
                     let directive = &text[start..self.pos];
-                    if matches!(directive, b"include" | b"error" | b"charset" | b"line") {
+                    // `#include MACRO` names a macro, which is code; a
+                    // file's name in quotes or brackets is not.
+                    let mut next = self.pos;
+                    while matches!(text.get(next), Some(b' ' | b'\t')) {
+                        next += 1;
+                    }
+                    let names_file = matches!(text.get(next), Some(b'<' | b'"'));
+                    let is_text = match directive {
+                        b"include" => names_file,
+                        b"error" | b"charset" | b"line" => true,
+                        _ => false,
+                    };
+                    if is_text {
                         self.rest_of_line();
                     }
                 }
@@ -429,23 +514,41 @@ fn declaration_edits(text: &[u8], names: &[Name]) -> Vec<(usize, usize, Vec<u8>)
 }
 
 /// Convert a source file or a header: the names in `renames` replaced in
-/// its code and comments, and `#include <hexicon.h>` added if its code
-/// uses one of them; and in a file that includes adv3Lite's header, its
-/// macros for actions and handlers written as Hexicon's declarations.
+/// its code and comments, the system headers it includes given
+/// Hexicon's names ([`HEADERS`]), and in a file that includes adv3Lite's
+/// header, its macros for actions and handlers written as Hexicon's
+/// declarations.
 pub fn convert_source(text: &[u8], renames: &[(&str, &str)]) -> ConvertedSource {
     let names = scan(text);
     let mut edits: Vec<(usize, usize, Vec<u8>)> = Vec::new();
     let mut renamed = 0;
-    let mut in_code = false;
     for name in &names {
         let word = &text[name.start..name.end];
-        let Some(&(_, new)) = renames.iter().find(|(old, _)| old.as_bytes() == word) else {
+        let Some(&(old, new)) = renames.iter().find(|(old, _)| old.as_bytes() == word) else {
             continue;
         };
-        edits.push((name.start, name.end, new.as_bytes().to_vec()));
+        // `export T3StackInfo;` makes the name known to the virtual
+        // machine, which looks for it by that name: renamed, it is still
+        // exported by the old one.
+        let before = text[..name.start].trim_ascii_end();
+        let after = text[name.end..].trim_ascii_start();
+        let exported = name.in_code
+            && before.ends_with(b"export")
+            && !before[..before.len() - 6]
+                .last()
+                .is_some_and(|&c| is_name_char(c))
+            && after.starts_with(b";");
+        let replacement = if exported {
+            format!("{new} '{old}'")
+        } else {
+            new.to_owned()
+        };
+        edits.push((name.start, name.end, replacement.into_bytes()));
         renamed += 1;
-        in_code |= name.in_code;
     }
+    let headers = header_edits(text);
+    renamed += headers.len();
+    edits.extend(headers);
     let mut declarations = 0;
     if includes_advlite(text) {
         let forms = declaration_edits(text, &names);
@@ -464,65 +567,11 @@ pub fn convert_source(text: &[u8], renames: &[(&str, &str)]) -> ConvertedSource 
         last = end;
     }
     out.extend_from_slice(&text[last..]);
-    if in_code && !contains(&out, b"<hexicon.h>") {
-        out = with_include(&out);
-    }
     ConvertedSource {
         text: out,
         renamed,
         declarations,
     }
-}
-
-fn contains(text: &[u8], what: &[u8]) -> bool {
-    text.windows(what.len()).any(|w| w == what)
-}
-
-/// `text` with `#include <hexicon.h>` after its first `#include`, or
-/// else after a `#charset` on its first line, or else first.
-fn with_include(text: &[u8]) -> Vec<u8> {
-    let mut lines = Vec::new();
-    let mut start = 0;
-    for (i, &c) in text.iter().enumerate() {
-        if c == b'\n' {
-            lines.push((start, i + 1));
-            start = i + 1;
-        }
-    }
-    if start < text.len() {
-        lines.push((start, text.len()));
-    }
-    let directive = |&(s, e): &(usize, usize), word: &[u8]| {
-        let line = text[s..e].trim_ascii_start();
-        line.strip_prefix(b"#")
-            .is_some_and(|rest| rest.trim_ascii_start().starts_with(word))
-    };
-    let after = lines
-        .iter()
-        .find(|line| directive(line, b"include"))
-        .or_else(|| lines.first().filter(|line| directive(line, b"charset")));
-    let (at, newline): (usize, &[u8]) = match after {
-        Some(&(s, e)) => {
-            let crlf = text[s..e].ends_with(b"\r\n");
-            let ends = text[s..e].ends_with(b"\n");
-            match (ends, crlf) {
-                (true, true) => (e, b"\r\n"),
-                (true, false) => (e, b"\n"),
-                // The last line, with no newline after it.
-                _ => (e, b"\n"),
-            }
-        }
-        None => (0, b"\n"),
-    };
-    let mut out = Vec::with_capacity(text.len() + 24);
-    out.extend_from_slice(&text[..at]);
-    if at > 0 && !text[..at].ends_with(b"\n") {
-        out.extend_from_slice(newline);
-    }
-    out.extend_from_slice(b"#include <hexicon.h>");
-    out.extend_from_slice(newline);
-    out.extend_from_slice(&text[at..]);
-    out
 }
 
 /// A string written as TOML writes one.
@@ -666,7 +715,14 @@ fn source_entry(name: &str, is_local: &mut dyn FnMut(&str) -> bool) -> String {
         Some(_) => return name.to_owned(),
         None => (name, false),
     };
-    if is_local(&format!("{stem}.t")) {
+    // A source of the program's own, converted, or one of the system
+    // library's that Hexicon's has too (`reflect`): a Hexicon source,
+    // named without its extension.
+    let system_source = !stem.contains(['/', '\\'])
+        && crate::builtin::FILES
+            .iter()
+            .any(|(have, _)| have.eq_ignore_ascii_case(&format!("system/{stem}.hxn")));
+    if is_local(&format!("{stem}.t")) || system_source {
         stem.to_owned()
     } else if has_ext {
         name.to_owned()

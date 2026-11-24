@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /* 
- *   TADS 3 Library: Instructions for new players
+ *   Hexad: Instructions for new players
  *   
  *   This module defines the INSTRUCTIONS command, which provides the
  *   player with an overview of how to play IF games in general.  These

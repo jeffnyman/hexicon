@@ -96,7 +96,7 @@ intrinsic class ByteArray 'bytearray/030002': Object
      *   for 8-bit, 16-bit, and 32-bit integers, respectively.
      *   
      *   Second, choose the BYTE ORDER of the value, as represented in the
-     *   byte array: FmtLittleEndian or FmtBigEndian.  The standard T3
+     *   byte array: FmtLittleEndian or FmtBigEndian.  The virtual machine's standard
      *   portable data interchange format uses little-endian values; this is
      *   a format in which the least-significant byte of a value comes first,
      *   followed by the remaining bytes in ascending order of significance.
@@ -104,10 +104,10 @@ intrinsic class ByteArray 'bytearray/030002': Object
      *   obviously is irrelevant for 8-bit values.
      *   
      *   Third, choose the SIGNEDNESS of the value: FmtSigned or FmtUnsigned.
-     *   Note that FmtUnsigned cannot be used with FmtSize32, because T3
+     *   Note that FmtUnsigned cannot be used with FmtSize32, because the virtual machine
      *   itself doesn't have an unsigned 32-bit integer type.
      *   
-     *   For example, to read a 16-bit unsigned integer in the standard T3
+     *   For example, to read a 16-bit unsigned integer in the virtual machine's standard
      *   portable interchange format, you'd use
      *   
      *.    FmtUnsigned | FmtSize16 | FmtLittleEndian

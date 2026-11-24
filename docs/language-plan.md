@@ -19,7 +19,7 @@ The long-term direction (2026-11-23) is that Hexicon becomes its own thing, as i
 TADS 3 is retired in stages, each one bought by having something else take over its job of checking the toolchain.
 
 1. **Now: both.** The reference comparison is the backbone of testing, and Hexicon's language is checked by lowering to TADS 3.
-2. **Hexicon checks itself.** The converter's round trip is done. Hexad, the converted games, and Hexicon's own conformance programs have recorded transcripts that serve as Hexicon's own regression tests. Hexicon's language and library use no TADS names. TADS 3 is now a compatibility mode kept apart from the rest, in its own crate or module, so that nothing in Hexicon's own code carries its names or its quirks. Begun (2026-11-24): Hexicon ships its own system library and headers (`lib/system`, built into the compiler), so a game builds with nothing from TADS 3 installed. Their names, and many within them, are still TADS 3's, and are to be renamed. Hexad is built in too, and `hexicon new <folder>` starts a game on it that builds and plays with the `hexicon` program alone.
+2. **Hexicon checks itself.** The converter's round trip is done. Hexad, the converted games, and Hexicon's own conformance programs have recorded transcripts that serve as Hexicon's own regression tests. Hexicon's language and library use no TADS names. TADS 3 is now a compatibility mode kept apart from the rest, in its own crate or module, so that nothing in Hexicon's own code carries its names or its quirks. Begun (2026-11-24): Hexicon ships its own system library and headers (`lib/system`, built into the compiler), so a game builds with nothing from TADS 3 installed, and they and Hexad have Hexicon's own names (change 0). TADS 3 games build on an installed TADS 3. Hexad is built in too, and `hexicon new <folder>` starts a game on it that builds and plays with the `hexicon` program alone.
 3. **Hexicon's VM goes its own way.** When a feature needs a change that T3 images cannot have, such as a new image format or a different object model, TADS 3 support is either dropped or kept as a frozen loader for old images. That is decided then, knowing what it costs. The games in the playground are all TADS 3 games, and dropping TADS 3 means they no longer play.
 
 Stage 2 has to come before stage 3. Without the reference or tests of its own, nothing would tell us that the compiler or the VM is right.
@@ -154,9 +154,26 @@ Done (2026-11-23) for the functions and constants. `#include <hexicon.h>` gives 
 
 None of the new names is defined anywhere in adv3, adv3Lite, the system library, Airport, or Ditch Day. `say` was not used for `tadsSay`, because both libraries define a `say` function of their own.
 
-What was found:
+**Hexicon's own system library** (2026-11-24) has these names, and no others, and its own names for the rest:
 
-- **`hexicon.h` is part of the compiler**, with the rest of the system library (`lib/system`, built in since 2026-11-24). An `#include` that finds nothing on the include path looks among the compiler's own headers last, so a file of the same name on the include path comes first. Messages place it in `<hexicon>/system/hexicon.h`. Because it is built in, it works wherever the compiler does, in WebAssembly too.
+| TADS 3 | Hexicon |
+|---|---|
+| `tads.h` | `hexicon.h`, which brings in the rest as `tads.h` did |
+| `t3.h`, `tadsgen.h`, `tadsio.h`, `tadsiox.h`, `tadsnet.h`, `t3test.h` | `vm.h`, `general.h`, `io.h`, `ioext.h`, `net.h`, `vmtest.h` |
+| `TadsObject` | `ProgramObject` |
+| `T3StackInfo` | `StackInfo` |
+| `FileTypeT3Save`, `FileTypeT3Image` | `FileTypeSave`, `FileTypeGame` |
+| `TADS_IO_HEADER`, `_tads_io_say`, `TADS_INCLUDE_NET` | `HEXICON_IO_HEADER`, `_hexicon_io_say`, `HEXICON_INCLUDE_NET` |
+| `t3test_get_obj_id` and the rest | `vmTestObjId`, `vmTestObjGcState`, `vmTestCharCode` |
+| `__TADS3`, `__TADS_VERSION_MAJOR`, ... (predefined) | `__HEXICON`, `__HEXICON_VERSION_MAJOR`, `__HEXICON_VERSION_MINOR`, for a Hexicon source |
+
+Its sources are Hexicon's (`.hxn`), and it ships `reflect` as well as the five a game always has. What is still TADS 3's is what the virtual machine binds by: the function sets' and classes' identifiers (`'tads-gen/030008'`, `'tads-object/030005'`) and the names it looks up exports by (`StackInfo` is exported as `'T3StackInfo'`). Those change at stage 3.
+
+**Decided with it (2026-11-24): converted games move fully.** What is built in is Hexicon's alone. `hexicon convert` rewrites a game onto Hexicon's names, headers included, and it builds on the built-in system library with nothing installed. A TADS 3 game builds unconverted when pointed at a TADS 3 installation (`-FL`, `-FI`), as the reference checks do. The compiler takes either name for what it calls itself (`t3GetNamedArg` or `namedArg`, `TadsObject` or `ProgramObject`).
+
+What was found before that, when `hexicon.h` gave TADS 3's headers a second set of names:
+
+- **`hexicon.h` is part of the compiler**, with the rest of the system library (`lib/system`, built in since 2026-11-24). It is now the system header itself. An `#include` that finds nothing on the include path looks among the compiler's own headers last, so a file of the same name on the include path comes first. Messages place it in `<hexicon>/system/hexicon.h`. Because it is built in, it works wherever the compiler does, in WebAssembly too.
 - **A function set can be declared twice in one program, under different names.** The reference accepts it, and gives the image one entry for the set; the second declaration only adds names. Declaring the same name again in the same place is accepted too. So `hexicon.h` and `tads.h` can be included together, which Hexad needs while its sources still include `advlite.h`.
 - **`hexicon.h` includes the reference's `tadsgen.h`, `tadsio.h`, and `systype.h`**, whose names are already neutral, rather than copies of them. So `tadsSay` is still declared beside `print`, until Hexicon has its own copies of the system headers.
 - **An intrinsic class cannot be renamed this way.** The reference says "intrinsic class has been previously defined as \"TadsObject\"" when a second name is given to one. `TadsObject` keeps its name for now. Authors rarely write it, since `object` and `class` stand for it. `T3StackInfo` is a class in the system library's `_main.t`, not in a header, so renaming it waits for Hexicon's own system library.
@@ -278,7 +295,7 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
 ## Milestones
 
 1. **The dialect switch and the manifest.** `.hxn` files compile as `.t` files do, without the parity-only behavior, and `hexicon.toml` builds a project. Exit: Airport's sources, renamed and built from a manifest, give an image identical to the one built from `airport.t3m`. Done (2026-11-23). `tools/compile-tests/manifest-compare.sh` builds Airport as `.hxn` sources from a `hexicon.toml`, with adv3Lite and its English library described by manifests written from their `.tl` files. The image is identical to the one built from `airport.t3m`.
-2. **The converter.** Exit: adv3, adv3Lite, Airport, and Ditch Day each convert, compile, and give images identical to the originals'. Done (2026-11-23), with one qualification about preinitialization (below). `hexicon convert <folder> <new-folder>` converts a game or a library into a new folder:
+2. **The converter.** Exit: adv3, adv3Lite, Airport, and Ditch Day each convert, compile, and give images identical to the originals'. Done (2026-11-23), with one qualification about preinitialization (below). `hexicon convert <folder> <new-folder>` converts a game or a library into a new folder: Since 2026-11-24, a converted game builds on Hexicon's own system library, which no longer has TADS 3's names, so the round trip is checked by play: Airport, and Ditch Day through its whole walkthrough, on converted adv3Lite and adv3, play as the originals do on TADS 3's.
    - **Sources:** `.t` files become `.hxn` files and headers stay `.h`. Each has Hexicon's names for the built-in functions in its code and comments, but never in the text of a string, and gets `#include <hexicon.h>` where its code uses one. The scanner that finds names knows comments, the three kinds of quotes, regular expressions (`R'...'`), expressions embedded in strings, and the directives whose text is not code (`#include`, `#error`, `#charset`, `#line`).
    - **Names already in use:** a rename is not made if its new name is already used in the code being converted. The converter says so.
    - **Project and library files:** a `.t3m` becomes `hexicon.toml`, or `<name>.toml` if its folder has more than one. A `.tl` becomes `<name>.toml` beside it. A source the folder holds is named without its extension, and one from elsewhere (Ditch Day's `reflect`, from the system library) with its `.t`. `-FL` and `-FI` name where one computer keeps the system library, so they are left out with a note.

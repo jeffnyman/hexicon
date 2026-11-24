@@ -6,7 +6,7 @@
  *   subclasses thrown by File methods.  
  */
 
-#include <tads.h>
+#include <hexicon.h>
 #include <file.h>
 
 

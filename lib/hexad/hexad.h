@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /* 
- *   TADS 3 Library - main header
+ *   Hexad - main header
  *   
  *   This file provides definitions of macros, properties, and other
  *   identifiers used throughout the library and in game source.
@@ -10,8 +10,8 @@
  *   #include this header near the top of the source file.  
  */
 
-#ifndef ADV3LITE_H
-#define ADV3LITE_H
+#ifndef HEXAD_H
+#define HEXAD_H
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -20,9 +20,9 @@
  *   headers in the same order, which is important for intrinsic function
  *   set definitions.  
  */
-#include <tads.h>
+#include <hexicon.h>
 #include <tok.h>
-#include <t3.h>
+#include <vm.h>
 #include <vector.h>
 #include <strbuf.h>
 #include <file.h>

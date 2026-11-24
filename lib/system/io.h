@@ -2,9 +2,10 @@
 #pragma once
 
 /* 
- *   This header defines the tads-io intrinsic function set.  
+ *   This header defines the input/output function set ('tads-io' to the
+ *   virtual machine).  
  *   
- *   The TADS input/output function set provides access to the user
+ *   The input/output function set provides access to the user
  *   interface.  This lets you read input from the keyboard and display
  *   output on the monitor or terminal.  It also provides access to windowing
  *   features (via the "banner" functions) on systems that support multiple
@@ -15,7 +16,7 @@
 
 
 /*
- *   tads-io - the TADS Input/Output intrinsic function set 
+ *   the input/output function set 
  */
 intrinsic 'tads-io/030007'
 {
@@ -28,7 +29,7 @@ intrinsic 'tads-io/030007'
      *   using the default formatting; or nil, in which case nothing is
      *   displayed.  
      */
-    tadsSay(val, ...);
+    print(val, ...);
 
     /* 
      *   Set the output log file (which records the output transcript) or the
@@ -255,7 +256,7 @@ intrinsic 'tads-io/030007'
     
     /* 
      *   Flush text output and update the main display window.  This ensures
-     *   that any text displayed with tadsSay() is actually displayed, for
+     *   that any text displayed with print() is actually displayed, for
      *   the user to see (rather than being held in internal buffers).  
      */
     flushOutput();
@@ -351,7 +352,7 @@ intrinsic 'tads-io/030007'
      *   interpreted; for a BannerTypeTextGrid window, the text is written
      *   exactly as given, without any HTML interpretation.
      *   
-     *   The value list is handled the same way as the arguments to tadsSay()
+     *   The value list is handled the same way as the arguments to print()
      *   in terms of type conversions.  
      */
     bannerSay(handle, ...);
@@ -445,7 +446,7 @@ intrinsic 'tads-io/030007'
     logConsoleClose(handle);
 
     /* 
-     *   Write text to a log console.  This works the same as tadsSay(), but
+     *   Write text to a log console.  This works the same as print(), but
      *   writes the output to the given log console rather than to the main
      *   output window.  
      */
@@ -556,8 +557,8 @@ intrinsic 'tads-io/030007'
 #define FileTypeText    7                                      /* text file */
 #define FileTypeBin     8                               /* binary data file */
 #define FileTypeUnknown 11                             /* unknown file type */
-#define FileTypeT3Image 12               /* T3 executable image (game) file */
-#define FileTypeT3Save  15                           /* T3 saved state file */
+#define FileTypeGame 12               /* game file */
+#define FileTypeSave  15                           /* saved game file */
 
 /*
  *   constants for systemInfo information type codes 

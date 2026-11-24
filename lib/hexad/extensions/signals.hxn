@@ -143,11 +143,11 @@ DefSignal(feel, feel);
 
 
  /*
-  * MODIFICATIONS TO TadsObject for SIGNALS EXTENSION
+  * MODIFICATIONS TO ProgramObject for SIGNALS EXTENSION
   *
   * Add handling for emiting, handling and dispatching signals. 
   */
-modify TadsObject
+modify ProgramObject
     /* Emit a signal  [SIGNALS EXTENSION] */
     emit(signal, [args])
     {

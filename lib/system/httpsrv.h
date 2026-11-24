@@ -12,11 +12,11 @@
  *   lets the game run on handheld devices that might be too slow to run the
  *   game directly, allows running the game without any software
  *   installation, and makes the game more portable by depending only on a
- *   browser being available rather than requiring a TADS interpreter.
+ *   browser being available rather than requiring an interpreter.
  *   
  *   - Run a game in with a browser-based UI, so that it can take advantage
- *   of HTML DOM and Javascript.  Modern browsers are more powerful than HTML
- *   TADS, so it's possible to create a more elaborate and customized game UI
+ *   of HTML DOM and Javascript.  Modern browsers are more capable than a plain
+ *   interpreter's window, so it's possible to create a more elaborate and customized game UI
  *   by running in a browser.
  *   
  *   - Create a multi-user game, by running the game on a server and writing

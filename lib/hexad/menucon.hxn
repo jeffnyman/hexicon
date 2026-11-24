@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /*
- *   TADS 3 Library - Menu System, console edition
+ *   Hexad - Menu System, console edition
  *   
  *   This implements the menusys user interface for the traditional
  *   console-mode interpreters.  

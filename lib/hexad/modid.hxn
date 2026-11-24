@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /* 
- *   adv3Lite Library - module ID's
+ *   Hexad - module ID's
  *   
  *   This module defines a framework for "module ID's."  The module ID
  *   mechanism allows library modules to identify themselves.  The module
@@ -12,7 +12,6 @@
 
 /* include the library header */
 import hexad;
-#include <hexicon.h>
 
 /* we also require file access */
 #include <file.h>

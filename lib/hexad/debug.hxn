@@ -1,6 +1,5 @@
 #charset "us-ascii"
 import hexad;
-#include <hexicon.h>
 
 /*
  *   ************************************************************************
@@ -343,11 +342,11 @@ valToSym(val)
 
 
 /* 
- *   Provide TadsObject with an objToString() method so that the EVALUATE
+ *   Provide ProgramObject with an objToString() method so that the EVALUATE
  *   command can display some kind of name of the object via the toString()
  *   function
  */
-modify TadsObject
+modify ProgramObject
     objToString()
     {
         /* If this object is a class, return the name of the class */

@@ -3603,9 +3603,14 @@ fn options_with_inc() -> CompileOptions {
 
 #[test]
 fn hexicons_names_call_the_same_functions_as_the_tads_names() {
-    let hexicon = "#include <hexicon.h>\n\
+    // A function set is bound by its identifier, not by the names its
+    // functions are given: Hexicon's names make the same program.
+    let hexicon = "intrinsic 't3vm/010006' { collectGarbage(); setSay(val); vmVersion(); \
+        vmId(); vmBanner(); inPreinit(); debugTrace(mode, ...); \
+        globalSymbols(which?); newProperty(); stackTrace(level?, flags?); }\n\
+        intrinsic 'tads-io/030007' { print(val, ...); }\n\
         _main(args) { print('VM <<vmId()>>'); collectGarbage(); \
-        local p = newProperty(); print(stackTrace(1, StackTraceDesc)); }\n";
+        local p = newProperty(); print(stackTrace(1, 0x0002)); }\n";
     let tads = "intrinsic 't3vm/010006' { t3RunGC(); t3SetSay(val); t3GetVMVsn(); \
         t3GetVMID(); t3GetVMBanner(); t3GetVMPreinitMode(); t3DebugTrace(mode, ...); \
         t3GetGlobalSymbols(which?); t3AllocProp(); t3GetStackTrace(level?, flags?); }\n\
@@ -3666,7 +3671,7 @@ mod system_library {
             )
             .with(
                 "game/start.t",
-                "#include <tads.h>\nmain(args) { \"Hello, world.\"; }\n",
+                "#include <hexicon.h>\nmain(args) { \"Hello, world.\"; }\n",
             );
         let paths = crate::ProjectPaths {
             system_include: "nowhere/include".to_owned(),
@@ -3679,11 +3684,11 @@ mod system_library {
         assert_eq!(
             project.sources,
             [
-                "<hexicon>/system/_main.t",
-                "<hexicon>/system/file.t",
-                "<hexicon>/system/tok.t",
-                "<hexicon>/system/gramprod.t",
-                "<hexicon>/system/multmeth.t",
+                "<hexicon>/system/_main.hxn",
+                "<hexicon>/system/file.hxn",
+                "<hexicon>/system/tok.hxn",
+                "<hexicon>/system/gramprod.hxn",
+                "<hexicon>/system/multmeth.hxn",
                 &super::sys_path(&["game", "start.t"]),
             ]
         );
@@ -3770,7 +3775,7 @@ mod system_library {
                 .find(|(name, _)| name == "hexad"),
             Some(&(
                 "hexad".to_owned(),
-                Some("<hexicon>/hexad/advlite.h".to_owned())
+                Some("<hexicon>/hexad/hexad.h".to_owned())
             ))
         );
     }
@@ -3796,7 +3801,7 @@ mod converter {
             h() { \"\"\"t3RunGC \"quoted\" <<'t3RunGC' + t3GetVMVsn()>>\"\"\"; }\n";
         assert_eq!(
             converted(text),
-            "#include <tads.h>\n#include <hexicon.h>\n\
+            "#include <hexicon.h>\n\
             // collectGarbage() collects garbage\n\
             f() { collectGarbage(); print('t3RunGC'); \"t3RunGC <<vmId()>> t3RunGC\"; }\n\
             /* print */ g() { local t3RunGCx = 1; return R't3RunGC\'; }\n\
@@ -3809,27 +3814,28 @@ mod converter {
         let text = "#error don't t3RunGC\n#include \"t3RunGC.h\"\n#define GC t3RunGC()\n";
         assert_eq!(
             converted(text),
-            "#error don't t3RunGC\n#include \"t3RunGC.h\"\n#include <hexicon.h>\n#define GC collectGarbage()\n"
+            "#error don't t3RunGC\n#include \"t3RunGC.h\"\n#define GC collectGarbage()\n"
         );
     }
 
     #[test]
-    fn the_include_goes_where_it_can() {
-        // After a #charset on the first line, with the file's own line
-        // ends; or first; and not at all for a rename only in comments
-        // or where the file includes hexicon.h already.
+    fn system_headers_and_exports_get_hexicons_names() {
+        // The system headers, whichever way they are named; and a macro
+        // naming one is code.
         assert_eq!(
-            converted("#charset \"us-ascii\"\r\nf() { t3RunGC(); }\r\n"),
-            "#charset \"us-ascii\"\r\n#include <hexicon.h>\r\nf() { collectGarbage(); }\r\n"
+            converted(
+                "#include <tads.h>\r\n#include \"t3.h\"\r\n#include <TADSGEN.H>\r\n\
+                 #include <file.h>\r\n#include TADS_IO_HEADER\r\n"
+            ),
+            "#include <hexicon.h>\r\n#include \"vm.h\"\r\n#include <general.h>\r\n\
+             #include <file.h>\r\n#include HEXICON_IO_HEADER\r\n"
         );
+        // Nothing is added: the names come with the headers.
+        assert_eq!(converted("f() { t3RunGC(); }"), "f() { collectGarbage(); }");
+        // An export keeps the name the virtual machine knows it by.
         assert_eq!(
-            converted("f() { t3RunGC(); }"),
-            "#include <hexicon.h>\nf() { collectGarbage(); }"
-        );
-        assert_eq!(converted("// t3RunGC\n"), "// collectGarbage\n");
-        assert_eq!(
-            converted("#include <hexicon.h>\nf() { t3RunGC(); }\n"),
-            "#include <hexicon.h>\nf() { collectGarbage(); }\n"
+            converted("export T3StackInfo;\nexport TadsObject 'Obj';\n"),
+            "export StackInfo 'T3StackInfo';\nexport ProgramObject 'Obj';\n"
         );
     }
 
@@ -3859,7 +3865,7 @@ mod converter {
         let result = convert_project(t3m, "game", &mut local);
         assert_eq!(
             result.text,
-            "[game]\nname = \"game\"\nmodules = [\n    { library = \"system\" },\n    \"reflect.t\",\n    \
+            "[game]\nname = \"game\"\nmodules = [\n    { library = \"system\" },\n    \"reflect\",\n    \
              { library = \"adv3/adv3\", exclude = [\"footnote\"] },\n    \"main\",\n    \"sub dir/more\",\n]\n\
              image = \"game.t3\"\nresources = [\"GameInfo.txt\", \"pics\"]\n\n\
              [defines]\nLANGUAGE = \"en_us\"\nMENU = true\nOLD = false\n\n\
@@ -4366,4 +4372,40 @@ mod imports {
             ]
         );
     }
+}
+
+#[test]
+fn a_hexicon_source_is_told_it_is_one() {
+    let text = "#ifdef __HEXICON\n#error hexicon\n#endif\n\
+                #ifdef __TADS3\n#error tads\n#endif\n_main(args) { }\n";
+    let errors = |name: &str| -> Vec<String> {
+        messages_compiling(name, text)
+            .into_iter()
+            .filter(|m| m.contains("#error"))
+            .collect()
+    };
+    assert_eq!(
+        errors("main.hxn"),
+        ["main.hxn(2): Error: #error :  hexicon"]
+    );
+    assert_eq!(errors("main.t"), ["main.t(5): Error: #error :  tads"]);
+}
+
+#[test]
+fn the_first_folder_with_a_library_has_it_whatever_kind_it_is() {
+    // TADS 3's system library (a .tl) where the build is told it is,
+    // before the system.toml built into Hexicon.
+    let mut files = Files::default()
+        .with("syslib/system.tl", "name: TADS\nsource: _main\nnodef\n")
+        .with("syslib/_main.t", "")
+        .with("game/main.t", "")
+        .with("game/game.t3m", "-lib system\n-source main\n");
+    let project = read(&mut files, &["-f", "game/game.t3m"]).unwrap_or_else(|e| panic!("{e:?}"));
+    assert_eq!(
+        project.sources,
+        [
+            sys_path(&["syslib", "_main.t"]),
+            sys_path(&["game", "main.t"])
+        ]
+    );
 }

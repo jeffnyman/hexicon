@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /* 
- *   TADS 3 Library - scoring
+ *   Hexad - scoring
  *   
  *   This module defines objects related to keeping track of the player's
  *   score, which indicates the player's progress through the game.  
@@ -578,7 +578,7 @@ scoreNotifySettingsItem: object
     isOn = true
 
     /* our configuration file variable ID */
-    settingID = 'adv3.notify'
+    settingID = 'hexad.notify'
 
     /* show our description */
     settingDesc() 

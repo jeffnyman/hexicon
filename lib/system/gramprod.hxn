@@ -5,7 +5,7 @@
  *   class.  
  */
 
-#include <tads.h>
+#include <hexicon.h>
 #include <gramprod.h>
 
 

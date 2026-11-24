@@ -522,25 +522,29 @@ impl Reader<'_, '_> {
 
     /// Where a source or a library is: where its name says, if it is
     /// there, and otherwise along the source path.
+    /// The folders sources and libraries are looked for in, in order:
+    /// those `-Fs` names, the other library folders, the system
+    /// library's, and last those of the libraries built into the
+    /// compiler (the system library's folder, and the folder with each
+    /// library in it).
+    fn search_dirs(&self) -> Vec<String> {
+        self.user_source_paths
+            .iter()
+            .chain(&self.sys_source_paths)
+            .chain(std::iter::once(&self.sys_library))
+            .cloned()
+            .chain([
+                crate::builtin::SYSTEM.to_owned(),
+                crate::builtin::ROOT.to_owned(),
+            ])
+            .collect()
+    }
+
     fn find_source(&mut self, source: &str, search: &str) -> String {
         if is_absolute(search) || self.files.exists(source) {
             return source.to_owned();
         }
-        // Last, the libraries built into the compiler: the system
-        // library's folder, and the folder with each library in it.
-        let built_in = [
-            crate::builtin::SYSTEM.to_owned(),
-            crate::builtin::ROOT.to_owned(),
-        ];
-        let dirs: Vec<String> = self
-            .user_source_paths
-            .iter()
-            .chain(&self.sys_source_paths)
-            .chain(std::iter::once(&self.sys_library))
-            .chain(&built_in)
-            .cloned()
-            .collect();
-        for dir in dirs {
+        for dir in self.search_dirs() {
             let path = build_full_path(&dir, search);
             if self.files.exists(&path) {
                 return path;
@@ -781,18 +785,32 @@ impl Reader<'_, '_> {
         if is_manifest(path) {
             return self.find_source(path, name);
         }
-        let in_folder = self.find_source(
-            &build_full_path(path, MANIFEST),
-            &build_full_path(name, MANIFEST),
-        );
-        if self.files.exists(&in_folder) {
-            return in_folder;
+        // Each kind, where the name says and then in each folder in turn:
+        // the first folder with the library has it, whatever kind it is.
+        let kinds = |path: &str| {
+            [
+                build_full_path(path, MANIFEST),
+                format!("{path}.toml"),
+                def_ext(path, "tl"),
+            ]
+        };
+        for candidate in kinds(path) {
+            if self.files.exists(&candidate) {
+                return candidate;
+            }
         }
-        let beside = self.find_source(&format!("{path}.toml"), &format!("{name}.toml"));
-        if self.files.exists(&beside) {
-            return beside;
+        let fallback = def_ext(path, "tl");
+        if is_absolute(name) {
+            return fallback;
         }
-        self.find_source(&def_ext(path, "tl"), &def_ext(name, "tl"))
+        for dir in self.search_dirs() {
+            for candidate in kinds(&build_full_path(&dir, name)) {
+                if self.files.exists(&candidate) {
+                    return candidate;
+                }
+            }
+        }
+        fallback
     }
 
     /// A library a library is built on, `full`: a folder with a

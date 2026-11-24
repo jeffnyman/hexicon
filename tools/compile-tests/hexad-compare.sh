@@ -3,8 +3,10 @@
 # both from the same command script, and check that they differ only as
 # Hexad means them to: Airport, from its project file, and the exercises
 # of adv3Lite's manual (Learning TADS 3 with adv3Lite), each a game in
-# one file. Both are built by Hexicon, preinitialized, and played with
-# --norand, so that each plays the same on every run.
+# one file. On adv3Lite each is built as it is, on TADS 3's system
+# library; on Hexad, converted to Hexicon by `hexicon convert`, on
+# Hexicon's own. Both are built by Hexicon, preinitialized, and played
+# with --norand, so that each plays the same on every run.
 #
 # On Windows, run this from Git Bash.
 #
@@ -44,22 +46,27 @@ mkdir -p "$out"
 pass=0
 fail=0
 
-# Build the game in folder $1 from project file $2 on adv3Lite and on
-# Hexad, play both from the script for $3, and compare.
+# Build the game in folder $1 from project file $2 on adv3Lite, as it is,
+# and on Hexad, converted to Hexicon (`hexicon convert`) and importing
+# Hexad where it included adv3Lite's header; play both from the script
+# for $3, and compare.
 compare() {
   local d=$1 t3m=$2 name=$3
   sed -e '/^-o /d' "$d/$t3m" > "$d/lite.t3m"
-  sed -e '/^-o /d' -e 's/^-lib adv3Lite$/-lib hexad/' "$d/$t3m" > "$d/hexad.t3m"
   ( cd "$d" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" -Fs "$LITE" \
       -o lite.t3 -f lite.t3m ) 2>&1 < /dev/null | tr -d '\r' | grep -v $'^\t' > "$d/lite.msg"
-  ( cd "$d" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" -Fs "$HEXAD" \
-      -o hexad.t3 --unspecified hexad.skip -f hexad.t3m ) 2>&1 < /dev/null \
-    | tr -d '\r' | grep -v $'^\t' > "$d/hexad.msg"
-  if ! diff "$d/lite.msg" "$d/hexad.msg" > "$d/msg.diff"; then
-    fail=$((fail + 1)); echo "DIFF $name: the builds' messages"; return
-  fi
+  # The game on Hexad: converted, in a folder of its own, and built on
+  # Hexicon's own system library (no -FL or -FI).
+  mkdir -p "$d/src"
+  find "$d" -maxdepth 1 -type f -name '*.t' -exec cp {} "$d/src/" \;
+  cp "$d/lite.t3m" "$d/src/game.t3m"
+  "$hex" convert "$d/src" "$d/hexad" > /dev/null 2>&1
+  sed -i -e '/^image = /d' -e 's/"adv3Lite"/"hexad"/' "$d/hexad/hexicon.toml"
+  sed -i 's/^#include ["<]advlite\.h[">]/import hexad;/' "$d"/hexad/*.hxn
+  ( cd "$d/hexad" && "$hex" build -cs cp1252 -Fs "$HEXAD" -o ../hexad.t3 \
+      --unspecified ../hexad.skip ) 2>&1 < /dev/null | tr -d '\r' | grep -v $'^\t' > "$d/hexad.msg"
   if [ ! -f "$d/lite.t3" ] || [ ! -f "$d/hexad.t3" ]; then
-    fail=$((fail + 1)); echo "DIFF $name: an image is missing"; return
+    fail=$((fail + 1)); echo "DIFF $name: an image is missing; see $d/lite.msg and $d/hexad.msg"; return
   fi
   if [ ! -f "$expect/$name.txt" ]; then
     fail=$((fail + 1)); echo "DIFF $name: no command script, $expect/$name.txt"; return
@@ -94,63 +101,17 @@ cp -r "${AIRPORT_SRC:-$root/build/corpus/airport}"/. "$out/airport/"
 rm -f "$out"/airport/*.t3
 compare "$out/airport" airport.t3m airport
 
-# Airport again, in Hexicon: its sources as .hxn files that import
-# Hexad (`import hexad;`) where they included its header. That is the
-# same program, so the image must be the same as the one above.
-mkdir -p "$out/airport-hxn"
-for src in "$out"/airport/*.t; do
-  sed 's/^#include "advlite.h"/import hexad;/' "$src" \
-    > "$out/airport-hxn/$(basename "$src" .t).hxn"
-done
-# A manifest, which names each module by its source's name without the
-# extension, as the project file does.
-cat > "$out/airport-hxn/hexicon.toml" <<'TOML'
-[game]
-libraries = ["system", "hexad"]
-sources = ["start", "gatearea", "plane", "npcs"]
-
-[defines]
-LANGUAGE = "english"
-
-[build]
-preinit = true
-charset = "cp1252"
-TOML
-( cd "$out/airport-hxn" && "$hex" build -FL "$LIB" -FI "$INC" -Fs "$HEXAD" \
-    -o hexad.t3 ) > "$out/airport-hxn/hexad.msg" 2>&1 < /dev/null
-if [ "$(grep -l '^import hexad;' "$out"/airport-hxn/*.hxn | wc -l)" != 4 ]; then
-  fail=$((fail + 1)); echo "DIFF airport, importing Hexad: not every source imports it"
-elif python "$root/tools/image-diff.py" "$out/airport-hxn/hexad.t3" "$out/airport/hexad.t3" \
-    "$out/airport/hexad.skip" > "$out/airport-hxn/dif" 2>&1; then
-  pass=$((pass + 1)); echo "SAME airport, importing Hexad: the same image"
-else
-  fail=$((fail + 1)); echo "DIFF airport, importing Hexad: $(head -1 "$out/airport-hxn/dif")"
-fi
-
-# And so again with nothing but what is built into Hexicon: no -Fs, so
-# Hexad is the built-in one, and no -FL or -FI.
-( cd "$out/airport-hxn" && "$hex" build -o builtin.t3 ) > "$out/airport-hxn/builtin.msg" 2>&1 < /dev/null
-if python "$root/tools/image-diff.py" "$out/airport-hxn/builtin.t3" "$out/airport/hexad.t3" \
-    "$out/airport/hexad.skip" > "$out/airport-hxn/builtin.dif" 2>&1; then
+# Airport on the Hexad built into Hexicon (no -Fs): the same image as on
+# the one in lib.
+( cd "$out/airport/hexad" && "$hex" build -cs cp1252 -o builtin.t3 ) \
+  > "$out/airport/builtin.msg" 2>&1 < /dev/null
+if grep -qi "tads-runner\|_tads" "$out/airport/builtin.msg" "$out/airport/hexad.msg"; then
+  fail=$((fail + 1)); echo "DIFF airport on Hexad: a file of TADS 3's was read"
+elif python "$root/tools/image-diff.py" "$out/airport/hexad/builtin.t3" "$out/airport/hexad.t3" \
+    "$out/airport/hexad.skip" > "$out/airport/builtin.dif" 2>&1; then
   pass=$((pass + 1)); echo "SAME airport, on the Hexad built into Hexicon: the same image"
 else
-  fail=$((fail + 1)); echo "DIFF airport, on the Hexad built into Hexicon: $(head -1 "$out/airport-hxn/builtin.dif")"
-fi
-
-# Airport again, with Hexicon's own system library and headers, which
-# are built into it, in place of the reference's (no -FL or -FI): the
-# same files, so the same image.
-mkdir -p "$out/airport-own"
-cp "$out"/airport/*.t "$out/airport/hexad.t3m" "$out/airport-own/"
-( cd "$out/airport-own" && "$hex" build -cs cp1252 -Fs "$HEXAD" -o hexad.t3 -f hexad.t3m ) \
-  > "$out/airport-own/hexad.msg" 2>&1 < /dev/null
-if grep -qi "tads-runner\|_tads" "$out/airport-own/hexad.msg"; then
-  fail=$((fail + 1)); echo "DIFF airport, on Hexicon's system library: a reference file was read"
-elif python "$root/tools/image-diff.py" "$out/airport-own/hexad.t3" "$out/airport/hexad.t3" \
-    "$out/airport/hexad.skip" > "$out/airport-own/dif" 2>&1; then
-  pass=$((pass + 1)); echo "SAME airport, on Hexicon's system library: the same image"
-else
-  fail=$((fail + 1)); echo "DIFF airport, on Hexicon's system library: $(head -1 "$out/airport-own/dif")"
+  fail=$((fail + 1)); echo "DIFF airport, on the Hexad built into Hexicon: $(head -1 "$out/airport/builtin.dif")"
 fi
 
 # The exercises, each with a project file of its own.

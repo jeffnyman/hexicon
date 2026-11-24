@@ -20,7 +20,7 @@
  *   accept FileName objects as well as ordinary strings.
  *   
  *   It's easier to write portable code if you manipulate filenames using
- *   the FileName class rather than using ordinary strings.  TADS runs on
+ *   the FileName class rather than using ordinary strings.  Hexicon runs on
  *   several different operating systems with differing syntax rules for
  *   constructing file names and directory paths.  The FileName class
  *   handles the different rules that apply on each system.

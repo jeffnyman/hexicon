@@ -8,6 +8,6 @@
 
 /*
  *   Main reflection object property to format a stack frame object (a
- *   T3StackInfo object).  
+ *   StackInfo object).  
  */
 property formatStackFrame;

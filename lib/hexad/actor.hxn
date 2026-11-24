@@ -1,6 +1,5 @@
 #charset "us-ascii"
 import hexad;
-#include <hexicon.h>
 
 
 /*

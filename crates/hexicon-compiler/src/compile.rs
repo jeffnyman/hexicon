@@ -146,8 +146,11 @@ pub enum RuntimeValue {
 
 /// The macros the compiler defines before any source is read: what is
 /// compiling, and when. The date is `Nov 19 2026` and the time
-/// `09:24:12`, as strings. Then those the options define.
-fn predefined_macros(options: &CompileOptions) -> Vec<(String, String)> {
+/// `09:24:12`, as strings. A Hexicon source is told it is one
+/// (`__HEXICON`, and Hexicon's version); a TADS 3 source gets the macros
+/// the reference defines (`__TADS3` and the rest). Then those the
+/// options define.
+fn predefined_macros(options: &CompileOptions, dialect: Dialect) -> Vec<(String, String)> {
     let stamp = String::from_utf8_lossy(&options.timestamp);
     let part = |range: std::ops::Range<usize>| stamp.get(range).unwrap_or("").to_owned();
     let mut macros = vec![
@@ -160,14 +163,27 @@ fn predefined_macros(options: &CompileOptions) -> Vec<(String, String)> {
     if options.debug {
         macros.push(("__DEBUG".to_owned(), "1".to_owned()));
     }
-    macros.extend([
-        (format!("__TADS_SYS_{SYSTEM_NAME}"), "1".to_owned()),
-        ("__TADS_SYSTEM_NAME".to_owned(), format!("'{SYSTEM_NAME}'")),
-        ("__TADS_VERSION_MAJOR".to_owned(), "3".to_owned()),
-        ("__TADS_VERSION_MINOR".to_owned(), "1".to_owned()),
-        ("__TADS_MACRO_FORMAT_VERSION".to_owned(), "1".to_owned()),
-        ("__TADS3".to_owned(), "1".to_owned()),
-    ]);
+    match dialect {
+        Dialect::Hexicon => macros.extend([
+            ("__HEXICON".to_owned(), "1".to_owned()),
+            (
+                "__HEXICON_VERSION_MAJOR".to_owned(),
+                env!("CARGO_PKG_VERSION_MAJOR").to_owned(),
+            ),
+            (
+                "__HEXICON_VERSION_MINOR".to_owned(),
+                env!("CARGO_PKG_VERSION_MINOR").to_owned(),
+            ),
+        ]),
+        Dialect::Tads3 => macros.extend([
+            (format!("__TADS_SYS_{SYSTEM_NAME}"), "1".to_owned()),
+            ("__TADS_SYSTEM_NAME".to_owned(), format!("'{SYSTEM_NAME}'")),
+            ("__TADS_VERSION_MAJOR".to_owned(), "3".to_owned()),
+            ("__TADS_VERSION_MINOR".to_owned(), "1".to_owned()),
+            ("__TADS_MACRO_FORMAT_VERSION".to_owned(), "1".to_owned()),
+            ("__TADS3".to_owned(), "1".to_owned()),
+        ]),
+    }
     macros.extend(options.defines.iter().cloned());
     macros
 }
@@ -220,7 +236,13 @@ fn debug_macros(table: &MacroTable) -> (Vec<u8>, Vec<(usize, usize)>) {
 /// macro two modules define differently is in neither, unless a later
 /// module defines it again. `__LINE__` and `__FILE__` are in the table,
 /// as `0` and nothing, as they are when no source is being read.
-fn link_macro_table(options: &CompileOptions, modules: Vec<Vec<LinkMacro>>) -> MacroTable {
+/// The program's macros are Hexicon's if any of its sources is in
+/// Hexicon (`dialect`).
+fn link_macro_table(
+    options: &CompileOptions,
+    dialect: Dialect,
+    modules: Vec<Vec<LinkMacro>>,
+) -> MacroTable {
     struct Entry {
         mac: LinkMacro,
         pseudo: bool,
@@ -241,7 +263,7 @@ fn link_macro_table(options: &CompileOptions, modules: Vec<Vec<LinkMacro>>) -> M
     };
     add(&mut table, plain("__LINE__", "0"), true);
     add(&mut table, plain("__FILE__", ""), true);
-    for (name, expansion) in predefined_macros(options) {
+    for (name, expansion) in predefined_macros(options, dialect) {
         add(&mut table, plain(&name, &expansion), false);
     }
     let mut undefined = std::collections::HashSet::new();
@@ -300,7 +322,7 @@ fn start<'a>(
         pp.set_default_charset(charset);
     }
 
-    for (name, expansion) in predefined_macros(options) {
+    for (name, expansion) in predefined_macros(options, Dialect::of(source)) {
         pp.define(&name, &expansion);
     }
     for path in &options.include_paths {
@@ -526,7 +548,15 @@ pub fn compile_program(
         return compiled;
     }
 
-    let table = link_macro_table(options, module_macros);
+    let dialect = if sources
+        .iter()
+        .any(|source| Dialect::of(source) == Dialect::Hexicon)
+    {
+        Dialect::Hexicon
+    } else {
+        Dialect::Tads3
+    };
+    let table = link_macro_table(options, dialect, module_macros);
     let debug = options.debug.then(|| {
         let (macros, macros_unspecified) = debug_macros(&table);
         image::DebugRecords {

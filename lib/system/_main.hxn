@@ -2,17 +2,16 @@
 
 /* 
  *   This module defines a number of low-level functions and classes that
- *   most TADS 3 programs will need, whether based on the adv3 library or
- *   not.  This module includes the main program entrypoint, the basic
+ *   most programs will need, whatever library they are built on.  This module includes the main program entrypoint, the basic
  *   Exception classes, and the modular initialization framework.
  *   
  *   The compiler automatically links this module into every program by
- *   default, but you can override this by specifying the "-nodef" option
- *   to t3make.  If you remove this module, you'll have to provide your own
+ *   default, but you can override this by giving the "-nodef"
+ *   option to hexicon build.  If you remove this module, you'll have to provide your own
  *   implementations for many of the functions and classes defined here.  
  */
 
-#include "tads.h"
+#include "hexicon.h"
 #include "reflect.h"
 #include "strbuf.h"
 
@@ -36,7 +35,7 @@ extern function main;
  *   this function at startup instead of _main() when the user explicitly
  *   specifies a saved state file to restore when starting the program.
  *   (On a command-line interpreter, this would involve using a special
- *   option on the T3 interpreter command line; for a GUI shell, this
+ *   option on the interpreter's command line; for a GUI shell, this
  *   might simply involve double-clicking on the desktop icon for a saved
  *   state file.)
  *   
@@ -70,7 +69,7 @@ _mainCommon(args, restoreFile)
             initAfterLoad();
 
             /* if we're in preinit-only mode, we're done */
-            if (t3GetVMPreinitMode())
+            if (inPreinit())
                 return;
 
             /* catch any RESTART signals thrown out of the main entrypoint */
@@ -159,7 +158,7 @@ _mainCommon(args, restoreFile)
     catch (Exception exc)
     {
         /* write output to the main console */
-        t3SetSay(_default_display_fn);
+        setSay(_default_display_fn);
         
         /* display the unhandled exception */
         "\n<<exc.displayException()>>\n";
@@ -237,7 +236,7 @@ class RestartSignal: Exception
 initAfterLoad()
 {
     /* establish the default display function */
-    t3SetSay(_default_display_fn);
+    setSay(_default_display_fn);
 
     /* if we haven't run preinit, do so now */
     if (!mainGlobal.preinited_)
@@ -269,7 +268,7 @@ initAfterLoad()
          *   preinit - simply do an explicit garbage collection run before
          *   invoking preinit.  
          */
-        t3RunGC();
+        collectGarbage();
 
         /* run our internal preinit */
         _preinit();
@@ -279,7 +278,7 @@ initAfterLoad()
     }
 
     /* if we're not in preinit-only mode, run internal initialization */
-    if (!t3GetVMPreinitMode())
+    if (!inPreinit())
         _init();
 }
 
@@ -540,7 +539,7 @@ _preinit()
     local symtab;
 
     /* try getting the mainRestore() function from the global symbol table */
-    if ((symtab = t3GetGlobalSymbols()) != nil)
+    if ((symtab = globalSymbols()) != nil)
         mainGlobal.mainRestoreFunc = symtab['mainRestore'];
 
     /* execute all preinit objects */
@@ -691,7 +690,7 @@ class Exception: object
     errmsg_ = 'Unknown exception'
 
     /* 
-     *   Display a stack trace, given a list of T3StackInfo objects.  Note
+     *   Display a stack trace, given a list of StackInfo objects.  Note
      *   that, for efficiency, we do not by default cache a stack trace
      *   when an exception occurs; individual subclasses can obtain a
      *   stack trace if desired at construction and use the information to
@@ -783,7 +782,7 @@ class RuntimeError: Exception
          *   the first element of the result, since this will reflect
          *   RuntimeError.construct, which is obviously not interesting.  
          */
-        stack_ = t3GetStackTrace().sublist(2);
+        stack_ = stackTrace().sublist(2);
 
         /* 
          *   The next element of the stack trace is usually a native code
@@ -963,7 +962,7 @@ export StorageServerError 'StorageServerError';
  *   Default string display function.  Our main entrypoint code
  *   establishes this function as the default output function.  
  */
-_default_display_fn(str) { _tads_io_say(str); }
+_default_display_fn(str) { _hexicon_io_say(str); }
 
 /*
  *   Raw output capture.  This bypasses any filtering and directly captures
@@ -973,7 +972,7 @@ _outputCapture(func)
 {
     /* temporarily set the low-level string output to capture output */
     local buf = new StringBuffer();
-    local oldSay = t3SetSay({str: buf.append(str)});
+    local oldSay = setSay({str: buf.append(str)});
 
     /* make sure we restore the "say" function on the way out */
     try
@@ -987,7 +986,7 @@ _outputCapture(func)
     finally
     {
         /* restore the old "say" function */
-        t3SetSay(oldSay);
+        setSay(oldSay);
     }
 }
 
@@ -995,10 +994,10 @@ _outputCapture(func)
 /* ------------------------------------------------------------------------ */
 /*
  *   The stack information object.  The intrinsic function
- *   t3GetStackTrace() in the 't3vm' function set returns a list of these
+ *   stackTrace() in the 't3vm' function set returns a list of these
  *   objects; each object represents a level in the stack trace.  
  */
-class T3StackInfo: object
+class StackInfo: object
     /*
      *   Construct a stack level object.  The system invokes this
      *   constructor with information on the stack level.
@@ -1075,7 +1074,7 @@ class T3StackInfo: object
      *   the table has a string key (index) giving the name of the local
      *   variable, and each corresponding value is the local's current
      *   value.  The table is only included when the stack listing was
-     *   produced by a call to t3GetStackTrace() with the T3GetStackLocals
+     *   produced by a call to stackTrace() with the StackTraceLocals
      *   flag set; otherwise it's nil.  If the locals were requested, and
      *   the stack level has no local variables, this will be an empty
      *   lookup table.  
@@ -1120,8 +1119,9 @@ class T3StackInfo: object
     frameDesc_ = nil
 ;
 
-/* export T3StackInfo for use by the system */
-export T3StackInfo;
+/* export StackInfo for use by the system */
+/* exported by the name the virtual machine looks for */
+export StackInfo 'T3StackInfo';
 
 
 /* ------------------------------------------------------------------------ */

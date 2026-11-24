@@ -3383,7 +3383,7 @@ action Save: FileOpAction
 
     /* we're asking for a file to save, or type t3-save */
     fileDisposition = InFileSave
-    fileTypeID = FileTypeT3Save
+    fileTypeID = FileTypeSave
 
     /* cancel message */
     showCancelMsg() { DMsg(save cancelled, '<.parser>Canceled.<./parser> '); }
@@ -3494,7 +3494,7 @@ action Restore: SystemAction
 
         /* ask for a file */
         result = getInputFile(BMsg(get restore prompt, 'Restore game from file'), 
-                              InFileOpen, FileTypeT3Save, 0);
+                              InFileOpen, FileTypeSave, 0);
 
         /* check the inputFile response */
         switch(result[1])

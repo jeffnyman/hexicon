@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /* 
- *   TADS 3 Library - Status Line
+ *   Hexad - Status Line
  *   
  *   This module defines the framework for displaying the status line,
  *   which is the area conventionally displayed at the top of the screen
@@ -11,7 +11,6 @@
 
 /* include the library header */
 import hexad;
-#include <hexicon.h>
 
 
 /* ------------------------------------------------------------------------ */

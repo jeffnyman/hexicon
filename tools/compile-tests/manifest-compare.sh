@@ -1,9 +1,11 @@
 #!/bin/bash
 # Build Airport twice with Hexicon and compare the images: once as it is,
-# from airport.t3m and adv3Lite.tl, and once as a Hexicon project, with
-# its sources renamed to .hxn and both it and adv3Lite (with its English
-# library) described by hexicon.toml manifests. The images have to be
-# identical.
+# from airport.t3m and adv3Lite.tl, and once with it and adv3Lite (with
+# its English library) described by hexicon.toml manifests. The images
+# have to be identical: a manifest says what a project file says. The
+# sources stay TADS 3's (.t), named so in the manifest, since a Hexicon
+# source is a different program (it is told it is Hexicon's, __HEXICON),
+# and what is checked here is the manifest.
 #
 # On Windows, run this from Git Bash.
 #
@@ -30,11 +32,9 @@ src=${AIRPORT_SRC:-$root/build/corpus/airport}
 cp -r "$src"/. "$out/t3m/"
 rm -f "$out"/t3m/*.t3
 
-# The Hexicon project: the sources renamed, and manifests written from
-# the project file and the libraries.
-for f in "$src"/*.t; do
-  cp "$f" "$out/hxn/$(basename "${f%.t}").hxn"
-done
+# The project as manifests, written from the project file and the
+# libraries.
+cp "$src"/*.t "$out/hxn/"
 python - "$out" <<'EOF'
 import os, sys
 out = sys.argv[1]
@@ -76,7 +76,7 @@ library(os.path.join(lite, 'english', 'english.tl'), os.path.join(lite, 'english
 with open(os.path.join(out, 'hxn', 'hexicon.toml'), 'w', newline='\n') as f:
     f.write('''[game]
 name = "Airport"
-sources = ["start", "gatearea", "plane", "npcs"]
+sources = ["start.t", "gatearea.t", "plane.t", "npcs.t"]
 libraries = ["system", "adv3Lite"]
 image = "hex.t3"
 
@@ -95,14 +95,9 @@ EOF
 ( cd "$out/hxn" && "$hex" build -FL "$LIB" -FI "$INC" --unspecified hex.skip ) \
   > "$out/hxn.msg" 2>&1 < /dev/null
 tr -d '\r' < "$out/t3m.msg" | grep -v $'^\t' > "$out/t3m.txt"
-# The Hexicon sources are checked for properties given values that
-# nothing reads, which the TADS 3 ones are not; Airport has one, given
-# twice. Those warnings are shown, and left out of the comparison, as
-# is the line a Hexicon project's build ends with ("Built hex.t3."),
-# which a project file's does not.
-grep -h "nothing reads it" "$out/hxn.msg" | tr -d '\r' | sed 's/^/  /'
-tr -d '\r' < "$out/hxn.msg" | grep -v $'^\t' | grep -v "nothing reads it" \
-  | grep -v '^Built .*\.$' > "$out/hxn.txt"
+# A manifest's build ends with a line a project file's does not ("Built
+# hex.t3."), which is left out of the comparison.
+tr -d '\r' < "$out/hxn.msg" | grep -v $'^\t' | grep -v '^Built .*\.$' > "$out/hxn.txt"
 if ! diff "$out/hxn.txt" "$out/t3m.txt" > "$out/msgdif"; then
   echo "DIFF messages ($(grep -c '^[<>]' "$out/msgdif") lines)"
   exit 1

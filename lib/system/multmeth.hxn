@@ -1,8 +1,8 @@
 #charset "us-ascii"
 
 /*
- *   This module provides the run-time component of "multi-methods" in TADS
- *   3.  This works with the compiler to implement a multiple-dispatch
+ *   This module provides the run-time component of "multi-methods" in Hexicon.
+ *   This works with the compiler to implement a multiple-dispatch
  *   system.
  *   
  *   Multi-methods are essentially a combination of regular object methods
@@ -39,7 +39,7 @@
  *   externally to any classes it refers to, you can create a method that's
  *   polymorphic on class type - just like a regular method - but as a
  *   syntactically stand-alone function.  This feature isn't as important
- *   in TADS as in some other languages, since TADS lets you do essentially
+ *   in Hexicon as in some other languages, since Hexicon lets you do essentially
  *   the same thing with the "modify" syntax; but for some purposes the
  *   multi-method approach might be preferable aesthetically, since it's
  *   wholly external to the class rather than a sort of lexically separate
@@ -49,7 +49,7 @@
  *   information in the class objects.)  
  */
 
-#include <tads.h>
+#include <hexicon.h>
 
 
 /* ------------------------------------------------------------------------ */
@@ -523,7 +523,7 @@ _multiMethodBuildBindings()
      *   so we can look up our function names for diagnostic purposes 
      */
     local nameTab = new LookupTable(128, 256);
-    t3GetGlobalSymbols().forEachAssoc(function(key, val)
+    globalSymbols().forEachAssoc(function(key, val)
     {
         /* if it's a function, store a value-to-name association */
         if (dataType(val) == TypeFuncPtr)
@@ -549,7 +549,7 @@ _multiMethodBuildBindings()
          *   as a multi-method with a given name and a given number of
          *   parameters) has a single initial binding property.  
          */
-        local initProp = t3AllocProp();
+        local initProp = newProperty();
 
         /* 
          *   store the binding starter information for the function - to
@@ -674,7 +674,7 @@ _multiMethodBuildBindings()
                     else
                     {
                         /* it's not defined here, so create a new property */
-                        binding = t3AllocProp();
+                        binding = newProperty();
                     }
                 }
 

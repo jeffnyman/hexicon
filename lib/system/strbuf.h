@@ -32,7 +32,7 @@
  *   ('increment').
  *   
  *   Passing a StringBuffer to an internal function or method that takes a
- *   String argument, such as tadsSay(), will automatically convert the
+ *   String argument, such as print(), will automatically convert the
  *   object to a string.  To explicitly convert a StringBuffer to an ordinary
  *   String, use the toString() function.  You can also create an ordinary
  *   string from a section of the buffer using the substr() method.  

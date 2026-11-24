@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /* 
- *   adv3Lite Library - miscellaneous definitions
+ *   Hexad - miscellaneous definitions
  *   
  *   This module contains miscellaneous definitions that don't have a
  *   natural grouping with any larger modules, and which aren't complex
@@ -10,7 +10,6 @@
 
 /* include the library header */
 import hexad;
-#include <hexicon.h>
 
 
 /* ------------------------------------------------------------------------ */
@@ -450,7 +449,7 @@ overrides(obj, base, prop)
  *   This object is named so that other libraries and/or user code can
  *   create initialization order dependencies upon it.  
 // */
-adv3LibPreinit: PreinitObject
+hexadPreinit: PreinitObject
     execute()
     {
 
@@ -502,7 +501,7 @@ adv3LibPreinit: PreinitObject
  *   
  *   - sets up the library's default output function 
  */
-adv3LibInit: InitObject
+hexadInit: InitObject
     execute()
     {
         /* 
@@ -1906,7 +1905,7 @@ modify Object
     }
  ;
 
-modify TadsObject
+modify ProgramObject
     /* 
      *   Copy a method or property from the self object to obj. obj is the object to copy from. prop
      *   is a pointer to the property or method to copy. newProp is a pointer to the property or
@@ -1956,7 +1955,7 @@ modify TadsObject
 
 /* 
  *   The BaseObject class exists purely to allow code to delegate to/inherit method defined on the
- *   Object and TadsObject classes, which the compiler won't otherwise allow.
+ *   Object and ProgramObject classes, which the compiler won't otherwise allow.
  */
 class BaseObject: object
 ;
@@ -2614,8 +2613,8 @@ libObjectInitializer: PreinitObject
         _initedTab = new LookupTable(256, 1024);
 
         /* call classInit() on all classes */
-        for (local o = firstObj(TadsObject, ObjClasses) ; o != nil ;
-             o = nextObj(o, TadsObject, ObjClasses))
+        for (local o = firstObj(ProgramObject, ObjClasses) ; o != nil ;
+             o = nextObj(o, ProgramObject, ObjClasses))
         {
             /* if this class directly defines a classInit() method, call it */
             if (o.propDefined(&classInit, PropDefGetClass) == o)
@@ -2623,8 +2622,8 @@ libObjectInitializer: PreinitObject
         }
 
         /* call construct() or constructStatic() on all object instances */
-        for (local o = firstObj(TadsObject, ObjInstances) ; o != nil ;
-             o = nextObj(o, TadsObject, ObjInstances))
+        for (local o = firstObj(ProgramObject, ObjInstances) ; o != nil ;
+             o = nextObj(o, ProgramObject, ObjInstances))
         {
             /* 
              *   Only call static objects - these will all have
@@ -2762,7 +2761,7 @@ emumTabInitializer: PreinitObject
 
 /* 
  *   Service function primarily intended for use with the symcomm extension to facilitate the use of
- *   a string template, defined in advlite.h, allowing a string to vary by room. The arg parameter
+ *   a string template, defined in hexad.h, allowing a string to vary by room. The arg parameter
  *   should be supplied as a list of strings (symcomm expects a list of two, bur other uses could do
  *   something different).
  *

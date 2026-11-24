@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /*
- *   TADS 3 Library - Menu System
+ *   Hexad - Menu System
  *   
  *   This module is designed to make it easy to add on-screen menu trees to
  *   a game.  Note that we're not using the term "menu" in its modern GUI

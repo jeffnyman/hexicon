@@ -29,7 +29,7 @@ preinitRulesRunner: PreinitObject
      *   Make sure we've initialized both the library and all the rules before
      *   we try to run our rules.
      */
-    execBeforeMe = [adv3LibPreinit, rulePreinit]
+    execBeforeMe = [hexadPreinit, rulePreinit]
 ;
 
 /* A rule belonging to the preinitRules RuleBook. [SYSRULES EXTENSION] */
@@ -51,7 +51,7 @@ initRulesRunner: InitObject
     {
         initRules.follow();
     }
-    execBeforeMe = [adv3LibInit]
+    execBeforeMe = [hexadInit]
 ;
 
 

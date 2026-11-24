@@ -8,6 +8,6 @@
 
 [library]
 name = "System"
-sources = ["_main.t", "file.t", "tok.t", "gramprod.t", "multmeth.t"]
+sources = ["_main", "file", "tok", "gramprod", "multmeth"]
 # The library brings its own _main, so the build does not add another.
 system-main = false

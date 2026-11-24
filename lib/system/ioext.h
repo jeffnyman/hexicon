@@ -2,11 +2,12 @@
 #pragma once
 
 /* 
- *   This header defines the tads-io-ext function sets, which provides
+ *   This header defines the input/output extension function sets
+ *   ('tads-io-ext' to the virtual machine), which provide
  *   optional extensions to the standard input/output set.
  *   
  *   These functions are defined in a separate function set from the basic
- *   tads-io set, because the features defined here are available only on
+ *   input/output set, because the features defined here are available only on
  *   certain platforms.  Be aware that using this function set will limit
  *   your program to interpreters that support it, and will prevent your
  *   program from running on some systems.  
@@ -14,7 +15,7 @@
 
 
 /*
- *   The TADS input/output extensions function set.
+ *   The input/output extensions function set.
  */
 intrinsic 'tads-io-ext/030000'
 {
@@ -87,7 +88,7 @@ intrinsic 'tads-io-ext/030000'
      *   'id' is the ID of the command to enable/disable, or a list or vector
      *   of IDs to set.  If a list or vector is used, all of the commands
      *   listed are set to the same new status.  Command IDs are given by the
-     *   XxxCommand values defined in tadsio.h.
+     *   XxxCommand values defined in io.h.
      *   
      *   'stat' is the new status to send.  This is a combination of the
      *   MenuStatXxxEnable and MenuStatXxxDisable flags defined below.  For

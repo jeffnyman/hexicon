@@ -11,8 +11,8 @@
  *   of rules declarations.  
  */
 
-#include "tads.h"
-#include "t3.h"
+#include "hexicon.h"
+#include "vm.h"
 #include "dict.h"
 #include "tok.h"
 #include "vector.h"

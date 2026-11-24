@@ -1,21 +1,18 @@
 #!/bin/bash
 # Convert the libraries and the games to Hexicon with `hexicon convert`,
-# and check the round trip: each game built from its converted sources
-# and converted libraries has to give the same image as the original
-# when the program is not run before the image is written (-nopre), and
-# has to play the same when it is. Both are built by Hexicon.
+# and check the round trip: each game, built from its converted sources
+# and converted libraries on Hexicon's own system library (the one built
+# in), has to play the same as the original built on TADS 3's. Both are
+# built by Hexicon, and preinitialized.
 #
 # On Windows, run this from Git Bash.
 #
 # usage: convert-compare.sh
 #
-# The games are Airport, on adv3Lite, and Return to Ditch Day, on adv3.
-# With preinitialization the images differ in how the objects the
-# program makes then are numbered, because the converted program has
-# more names in its tables of symbols and macros (those hexicon.h
-# declares), and adv3Lite and Ditch Day's reflection keep those tables.
-# So the preinitialized builds are compared by playing them: Ditch Day
-# through its walkthrough, and Airport through a short script.
+# The games are Airport, on adv3Lite, and Return to Ditch Day, on adv3:
+# Ditch Day through its walkthrough, and Airport through a short script.
+# The images are not compared: the two system libraries are not the
+# same, and nor are the names the programs use.
 #
 # Environment:
 #   HEXICON      the hexicon executable (default: target/release/hexicon)
@@ -87,31 +84,16 @@ for game in airport ditch3; do
   # below.
   sed -i 's/^warnings-as-errors = true$/warnings-as-errors = false/' "$conv/hexicon.toml"
 
-  # Without preinitialization: the same image. A file the program writes
-  # when it is preinitialized, and bundles, is made empty in both.
-  sed -i 's/^-pre$/-nopre/' "$orig/$game.t3m"
-  sed -i 's/^preinit = true$/preinit = false/' "$conv/hexicon.toml"
-  if grep -qi '^gameinfo.txt$' "$orig/$game.t3m"; then
-    : > "$orig/GameInfo.txt"
-    : > "$conv/GameInfo.txt"
-  fi
-  ( cd "$orig" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" "${orig_libs[@]}" \
-      -o nopre.t3 --unspecified nopre.skip -f "$game.t3m" ) > "$out/$game-orig.nopre.msg" 2>&1 < /dev/null
-  ( cd "$conv" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" "${conv_libs[@]}" \
-      -o nopre.t3 ) > "$out/$game.nopre.msg" 2>&1 < /dev/null
-  grep -h "nothing reads it" "$out/$game.nopre.msg" | sed "s/^/  $game: /"
-  python "$root/tools/image-diff.py" "$conv/nopre.t3" "$orig/nopre.t3" "$orig/nopre.skip" \
-    > "$out/$game.nopre.dif" 2>&1
-  check $? "$game image without preinitialization"
-
-  # With it: the same play.
-  rm -f "$orig/GameInfo.txt" "$conv/GameInfo.txt"
-  sed -i 's/^-nopre$/-pre/' "$orig/$game.t3m"
-  sed -i 's/^preinit = false$/preinit = true/' "$conv/hexicon.toml"
   ( cd "$orig" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" "${orig_libs[@]}" \
       -o pre.t3 -f "$game.t3m" ) > "$out/$game-orig.pre.msg" 2>&1 < /dev/null
-  ( cd "$conv" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" "${conv_libs[@]}" \
-      -o pre.t3 ) > "$out/$game.pre.msg" 2>&1 < /dev/null
+  # The converted game: no -FL or -FI, so on Hexicon's system library.
+  ( cd "$conv" && "$hex" build -cs cp1252 "${conv_libs[@]}" -o pre.t3 ) \
+    > "$out/$game.pre.msg" 2>&1 < /dev/null
+  grep -h "nothing reads it" "$out/$game.pre.msg" | sed "s/^/  $game: /"
+  if [ ! -f "$conv/pre.t3" ]; then
+    fail=$((fail + 1)); echo "DIFF $game: the converted game did not build; see $out/$game.pre.msg"
+    continue
+  fi
   if [ ! -f "$script" ]; then
     echo "SKIP $game play (no script at $script)"
     continue
