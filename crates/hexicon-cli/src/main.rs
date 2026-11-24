@@ -51,33 +51,28 @@ commands:
                                libraries, as its manifest (hexicon.toml)
                                says; with no options, the manifest in
                                the current folder. The options say the
-                               same as a manifest can, and build TADS 3
-                               projects (.t3m) too. A .hxn source is
-                               Hexicon, any other TADS 3. A library is a
-                               folder with a hexicon.toml, or a .tl file:
-      -f <project>             read more options and modules from a
-                               manifest, a folder with one, or a project
-                               file (default: hexicon.toml, or else
-                               makefile.t3m, if nothing else is given);
+                               same as a manifest can. A source named
+                               without an extension is a .hxn file. A
+                               library is a folder with a hexicon.toml,
+                               or a .toml manifest of its name:
+      -f <manifest>            read more options and modules from a
+                               manifest, or a folder with one (default:
+                               hexicon.toml, if nothing else is given);
                                a .toml file among the modules is the same
       -source <file>           a source file, whatever its name
       -lib <file>              a library, whatever its name; -x <name>
                                after it leaves out one of its sources
       -o <game>                where to write the game (default: the
                                manifest's image, or beside the first
-                               source, as a .hxg file, or a .t3 file
-                               for a TADS 3 project)
+                               source, as a .hxg file)
       -I <dir>                 a folder to look for included files in
       -D <name>[=<text>]       define a macro (as nothing, without a text)
       -U <name>                undefine a macro
       -cs <name>               the character set of source files that do
                                not say what they are in (default: UTF-8)
-      -FL <dir>, -FI <dir>     where the system library and its headers
-                               are (default: lib and include beside
-                               hexicon); without them there, Hexicon's
-                               own, which are built in, are used
       -Fs <dir>                a folder to look for sources and libraries
-                               in
+                               in, before those of HEXICON_LIB and the
+                               libraries built in
       -nodef                   leave out the system library's _main
       -nopre, -pre             whether to run the program before the
                                image is written (default: -pre, unless -d)
@@ -93,10 +88,6 @@ commands:
                                <file>=<name>, with -norecurse and
                                -recurse for whether a folder's folders
                                go too
-      -a, -al, -q, -nobanner, -Fy <dir>, -Fo <dir>, -FC
-                               taken, and of no effect: Hexicon writes no
-                               symbol or object files, and builds
-                               everything every time
       --unspecified <file>     list the parts of the image that mean
                                nothing, such as the time it was compiled,
                                each as an offset and a length; a comparison

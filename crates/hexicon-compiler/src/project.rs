@@ -1,14 +1,9 @@
-//! What to build: the options and the source files of a program, as the
-//! reference's `t3make` takes them, from its command line and from a
-//! project file.
-//!
-//! A project file (`.t3m`) is more of the command line, a word or a
-//! quoted phrase at a time, with `#` starting a comment line; what it
-//! names is relative to the folder it is in. A library (`.tl`) is a
-//! list of `source:` and `library:` lines, each relative to the
-//! library's own folder, with `$(NAME)` for the value a `-D` option
-//! gave a macro. Unless told otherwise (`-nodef`, or `nodef` in a
-//! library), the build starts with the system library's `_main`.
+//! What to build: the options and the source files of a program, from
+//! the command line and from a manifest (`hexicon.toml`, read by
+//! [`crate::manifest`] as more of the command line). A library is a
+//! folder with a manifest, or a `.toml` manifest of its name. Unless told
+//! otherwise (`-nodef`, or `system-main = false` in a library), the build
+//! starts with the system library's `_main`.
 //!
 //! Files are found and read through [`SourceFiles`], like everything
 //! else the compiler reads.
@@ -20,14 +15,10 @@ use crate::pp::SourceFiles;
 /// The separator of the folders in a path, as paths are made here.
 const SEP: char = std::path::MAIN_SEPARATOR;
 
-/// Where the reference looks for what it does not find elsewhere.
+/// Where libraries are looked for, besides the folders `-Fs` names and
+/// the libraries built into the compiler.
 #[derive(Debug, Clone, Default)]
 pub struct ProjectPaths {
-    /// The system's header files (`-FI` changes it).
-    pub system_include: String,
-    /// The system library: `_main.t`, `system.tl`, and the libraries
-    /// built on it (`-FL` changes it).
-    pub system_library: String,
     /// More folders to look for libraries and sources in, after any
     /// `-Fs` names and before the system library.
     pub user_libraries: Vec<String>,
@@ -60,9 +51,8 @@ pub struct Project {
     /// What was said about the project that does not stop the build,
     /// in the words the reference uses: problems with libraries.
     pub messages: Vec<String>,
-    /// It is a Hexicon project, read from a manifest (`hexicon.toml`),
-    /// and not a TADS 3 project file or a command line, whose builds
-    /// look as the reference's do.
+    /// It was read from a manifest (`hexicon.toml`), and not from the
+    /// command line alone.
     pub manifest: bool,
 }
 
@@ -244,15 +234,6 @@ fn build_full_path(dir: &str, file: &str) -> String {
     }
 }
 
-/// A path with an extension added if its file has none.
-fn def_ext(path: &str, ext: &str) -> String {
-    if root_name(path).contains('.') {
-        path.to_owned()
-    } else {
-        format!("{path}.{ext}")
-    }
-}
-
 /// A path without its file's extension.
 fn rem_ext(path: &str) -> &str {
     let root = root_name(path);
@@ -304,8 +285,6 @@ struct Reader<'f, 'a> {
     user_source_paths: Vec<String>,
     sys_source_paths: Vec<String>,
     /// The system library and its headers.
-    sys_library: String,
-    sys_include: String,
     /// The folders for `#include`, in order, but for the system's.
     include_paths: Vec<String>,
     /// The macros, as `-D` and `-U` gave them, in order.
@@ -338,8 +317,8 @@ struct Reader<'f, 'a> {
     manifest: bool,
 }
 
-/// Read what to build from the command line of `hexicon build`, which
-/// takes what `t3make` takes, and from the project file it names.
+/// Read what to build from the command line of `hexicon build`, and
+/// from the manifest it names.
 pub fn read_project(
     files: &mut dyn SourceFiles,
     args: &[String],
@@ -351,8 +330,6 @@ pub fn read_project(
         files: &mut files,
         user_source_paths: Vec::new(),
         sys_source_paths: paths.user_libraries.clone(),
-        sys_library: paths.system_library.clone(),
-        sys_include: paths.system_include.clone(),
         include_paths: Vec::new(),
         defs: Vec::new(),
         charset: None,
@@ -375,14 +352,10 @@ pub fn read_project(
         manifest: false,
     };
     reader.parse(args)?;
-    // With nothing on the command line, a manifest or a project file of
-    // the usual name will do.
+    // With nothing on the command line, the manifest in the folder.
     if reader.modules.is_empty() && reader.opt_file.is_none() {
-        const DEFAULT_PROJECT: &str = "makefile.t3m";
         if reader.files.exists(MANIFEST) {
             reader.opt_file = Some(MANIFEST.to_owned());
-        } else if reader.files.exists(DEFAULT_PROJECT) {
-            reader.opt_file = Some(DEFAULT_PROJECT.to_owned());
         } else {
             return Err(ProjectError::Usage(String::new()));
         }
@@ -392,76 +365,31 @@ pub fn read_project(
         let in_folder = build_full_path(&opt_file, MANIFEST);
         let opt_file = if reader.files.exists(&in_folder) {
             in_folder
-        } else if reader.files.exists(&opt_file) || is_manifest(&opt_file) {
-            opt_file
         } else {
-            def_ext(&opt_file, "t3m")
+            opt_file
         };
+        if !is_manifest(&opt_file) {
+            return Err(ProjectError::Failed(vec![format!(
+                "error: \"{opt_file}\" is not a manifest: a game is built from a \
+                 hexicon.toml, or a folder with one"
+            )]));
+        }
         let Some(text) = reader.files.read(&opt_file) else {
             return Err(ProjectError::Failed(vec![format!(
-                "error: unable to read option file \"{opt_file}\""
+                "error: unable to read manifest \"{opt_file}\""
             )]));
         };
-        let args = if is_manifest(&opt_file) {
-            manifest::game_args(&text).map_err(|problem| {
-                ProjectError::Failed(vec![format!("error: {opt_file}: {problem}")])
-            })?
-        } else {
-            parse_opt_file(&text)
-        };
+        let args = manifest::game_args(&text).map_err(|problem| {
+            ProjectError::Failed(vec![format!("error: {opt_file}: {problem}")])
+        })?;
         reader.opt_file_path = Some(path_name(&opt_file).to_owned());
-        reader.manifest = is_manifest(&opt_file);
+        reader.manifest = true;
         reader.parse(&args)?;
     }
     if reader.lib_err {
         return Err(ProjectError::Failed(reader.messages));
     }
     reader.finish()
-}
-
-/// The arguments in a project file: words, or phrases in quotes with a
-/// quote in them stuttered (`""`). A line that starts with `#` is a
-/// comment, and everything from a `[Config:...]` line on is the
-/// development system's, not the compiler's.
-pub(crate) fn parse_opt_file(text: &[u8]) -> Vec<String> {
-    let text = String::from_utf8_lossy(text);
-    let mut args = Vec::new();
-    let mut in_config = false;
-    for line in text.lines() {
-        let line = line.trim_end_matches(['\r', '\n']);
-        let trimmed = line.trim_start();
-        if trimmed.len() > 8 && trimmed[..8].eq_ignore_ascii_case("[config:") {
-            in_config = true;
-            continue;
-        }
-        if in_config || trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        let mut chars = line.chars().peekable();
-        loop {
-            while chars.next_if(|c| c.is_whitespace()).is_some() {}
-            let Some(&first) = chars.peek() else {
-                break;
-            };
-            let mut arg = String::new();
-            if first == '"' {
-                chars.next();
-                while let Some(c) = chars.next() {
-                    // A quote stuttered is a quote; one alone ends it.
-                    if c == '"' && chars.next_if_eq(&'"').is_none() {
-                        break;
-                    }
-                    arg.push(c);
-                }
-            } else {
-                while let Some(c) = chars.next_if(|c| !c.is_whitespace()) {
-                    arg.push(c);
-                }
-            }
-            args.push(arg);
-        }
-    }
-    args
 }
 
 impl Reader<'_, '_> {
@@ -531,7 +459,6 @@ impl Reader<'_, '_> {
         self.user_source_paths
             .iter()
             .chain(&self.sys_source_paths)
-            .chain(std::iter::once(&self.sys_library))
             .cloned()
             .chain([
                 crate::builtin::SYSTEM.to_owned(),
@@ -563,7 +490,7 @@ impl Reader<'_, '_> {
     ) {
         self.modules.push(Module {
             orig_name: orig_name.to_owned(),
-            source: def_ext(name, "t"),
+            source: manifest::source_name(name),
             search,
             origin,
             url,
@@ -572,7 +499,7 @@ impl Reader<'_, '_> {
     }
 
     fn maybe_add_include_path(&mut self, path: &str) {
-        if !self.include_paths.iter().any(|have| have == path) && path != self.sys_include {
+        if !self.include_paths.iter().any(|have| have == path) {
             self.include_paths.push(path.to_owned());
         }
     }
@@ -624,8 +551,6 @@ impl Reader<'_, '_> {
                     b's' => self.charset = Some(opt_arg(&mut at, 3).ok_or_else(|| missing(&arg))?),
                     _ => return Err(unsupported(&arg)),
                 },
-                // Hexicon builds everything every time.
-                b'a' if matches!(sub, 0 | b'l') => {}
                 b'v' => self.verbose = true,
                 b'd' => self.debug = true,
                 b'I' => {
@@ -637,37 +562,17 @@ impl Reader<'_, '_> {
                     let path = opt_arg(&mut at, 2).ok_or_else(|| missing(&arg))?;
                     self.image = Some(self.relative(&path));
                 }
-                b'F' => {
-                    if sub == b'C' {
-                        // Folders for the symbol and object files,
-                        // which Hexicon does not write.
-                        at += 1;
-                        continue;
-                    }
+                b'F' if sub == b's' => {
                     let path = opt_arg(&mut at, 3).ok_or_else(|| missing(&arg))?;
                     let path = self.relative(&path);
-                    match sub {
-                        b'L' => self.sys_library = path,
-                        b'I' => self.sys_include = path,
-                        b's' => self.user_source_paths.push(path),
-                        b'y' | b'o' => {}
-                        b'a' => return Err(unsupported(&arg)),
-                        _ => return Err(bad(&arg)),
-                    }
+                    self.user_source_paths.push(path);
                 }
                 b'n' => match arg.as_str() {
                     "-nopre" => self.preinit = Some(false),
-                    "-nobanner" => {}
                     "-nodef" => self.nodef = true,
                     _ => return Err(bad(&arg)),
                 },
                 b'p' if arg == "-pre" => self.preinit = Some(true),
-                b'q' if arg == "-q" => {}
-                b'e' if matches!(arg.as_str(), "-errnum" | "-errnum+" | "-errnum-") => {}
-                b's' if arg == "-statprefix" => {
-                    opt_arg(&mut at, 11).ok_or_else(|| missing(&arg))?;
-                }
-                b's' if arg == "-statpct" => {}
                 b'w' => match sub {
                     b'0' => self.warnings = false,
                     b'1' => self.warnings = true,
@@ -676,12 +581,10 @@ impl Reader<'_, '_> {
                         b'-' => self.warnings_as_errors = false,
                         _ => return Err(bad(&arg)),
                     },
-                    b'2' | b'+' | b'-' => return Err(unsupported(&arg)),
                     _ => return Err(bad(&arg)),
                 },
                 b'?' | b'h' => return Err(ProjectError::Usage(String::new())),
                 b'G' if arg == "-Gstg" => self.source_text_group = true,
-                b'P' | b'O' | b'G' | b't' | b'q' => return Err(unsupported(&arg)),
                 _ => return Err(bad(&arg)),
             }
             at += 1;
@@ -723,33 +626,18 @@ impl Reader<'_, '_> {
                 at += 1;
                 continue;
             }
-            if !is_source && !is_lib {
-                is_lib = name.len() > 3 && name[name.len() - 3..].eq_ignore_ascii_case(".tl");
-            }
             let path = self.relative(&name);
             if !is_lib {
                 // The first source names the image, if nothing else
                 // has.
                 if self.image.is_none() {
-                    // A Hexicon game is a .hxg file; a TADS 3 one .t3.
-                    let ext = if self.manifest { "hxg" } else { "t3" };
-                    self.image = Some(format!("{}.{ext}", rem_ext(&path)));
+                    self.image = Some(format!("{}.hxg", rem_ext(&path)));
                 }
-                if self.manifest {
-                    // Named, as a library's sources are, without the
-                    // extension.
-                    let file = manifest::source_name(&path);
-                    let search = manifest::source_name(&name);
-                    self.add_module(&file, rem_ext(&name), search, Origin::Normal, String::new());
-                } else {
-                    self.add_module(
-                        &path,
-                        &name,
-                        def_ext(&name, "t"),
-                        Origin::Normal,
-                        String::new(),
-                    );
-                }
+                // Named, as a library's sources are, without the
+                // extension.
+                let file = manifest::source_name(&path);
+                let search = manifest::source_name(&name);
+                self.add_module(&file, rem_ext(&name), search, Origin::Normal, String::new());
             } else {
                 let found = self.find_library(&path, &name);
                 let first_lib_module = self.modules.len();
@@ -778,28 +666,22 @@ impl Reader<'_, '_> {
     }
 
     /// Where the library a project names is: a manifest, if `path` is
-    /// one, is a folder with one, or has one of its name with `.toml`
-    /// after it; and otherwise a `.tl` file. Each is looked for where
-    /// its name says, and then along the source path.
+    /// one, or a folder with one, or a manifest of its name with `.toml`
+    /// after it. Each is looked for where its name says, and then along
+    /// the source path.
     fn find_library(&mut self, path: &str, name: &str) -> String {
         if is_manifest(path) {
             return self.find_source(path, name);
         }
-        // Each kind, where the name says and then in each folder in turn:
-        // the first folder with the library has it, whatever kind it is.
-        let kinds = |path: &str| {
-            [
-                build_full_path(path, MANIFEST),
-                format!("{path}.toml"),
-                def_ext(path, "tl"),
-            ]
-        };
+        // Either kind, where the name says and then in each folder in
+        // turn: the first folder with the library has it.
+        let kinds = |path: &str| [build_full_path(path, MANIFEST), format!("{path}.toml")];
         for candidate in kinds(path) {
             if self.files.exists(&candidate) {
                 return candidate;
             }
         }
-        let fallback = def_ext(path, "tl");
+        let fallback = build_full_path(path, MANIFEST);
         if is_absolute(name) {
             return fallback;
         }
@@ -813,21 +695,17 @@ impl Reader<'_, '_> {
         fallback
     }
 
-    /// A library a library is built on, `full`: a folder with a
-    /// manifest, a manifest of its name, or a `.tl` file.
+    /// A library a library is built on, `full`: a manifest, a folder
+    /// with one, or a manifest of its name.
     fn sub_library(&mut self, full: String) -> String {
         if is_manifest(&full) {
             return full;
         }
-        let in_folder = build_full_path(&full, MANIFEST);
-        if self.files.exists(&in_folder) {
-            return in_folder;
-        }
         let beside = format!("{full}.toml");
-        if self.files.exists(&beside) {
+        if !self.files.exists(&build_full_path(&full, MANIFEST)) && self.files.exists(&beside) {
             return beside;
         }
-        full
+        build_full_path(&full, MANIFEST)
     }
 
     /// `text` with each `$(NAME)` replaced by the value of the macro and
@@ -879,8 +757,11 @@ impl Reader<'_, '_> {
         }
     }
 
-    /// Read a library's manifest, as [`Self::process_lib`] reads a `.tl`.
-    fn process_manifest_lib(&mut self, full_name: &str, lib_url: &str) -> bool {
+    /// Read a library's manifest, adding its sources to the modules, and
+    /// its libraries' in their places. What comes back is whether it
+    /// said that the build does not start with the system library's
+    /// `_main`.
+    fn process_lib(&mut self, full_name: &str, lib_url: &str) -> bool {
         let lib_path = path_name(full_name).to_owned();
         self.maybe_add_include_path(&lib_path);
         let Some(text) = self.files.read(full_name) else {
@@ -918,8 +799,7 @@ impl Reader<'_, '_> {
         let mut nodef = lib.no_system_main;
         for module in &lib.modules {
             match module {
-                // A source is named, as in a `.tl`, without its
-                // extension.
+                // A source is named without its extension.
                 manifest::ModuleRef::Source(source) => {
                     let (value, full) = place(self, source);
                     let name = rem_ext(&value).to_owned();
@@ -955,114 +835,18 @@ impl Reader<'_, '_> {
         nodef
     }
 
-    /// Read a library, adding its sources to the modules, and its
-    /// libraries' in their places. What comes back is whether it said
-    /// `nodef`.
-    fn process_lib(&mut self, lib_name: &str, lib_url: &str) -> bool {
-        if is_manifest(lib_name) {
-            return self.process_manifest_lib(lib_name, lib_url);
-        }
-        let full_name = def_ext(lib_name, "tl");
-        let lib_path = path_name(lib_name).to_owned();
-        self.maybe_add_include_path(&lib_path);
-        // A `.tl` names no header: it can be imported by name, to be
-        // told so.
-        self.imports
-            .push((rem_ext(file_name_of(&full_name)).to_owned(), None));
-        let mut nodef = false;
-        let Some(text) = self.files.read(&full_name) else {
-            self.messages
-                .push(format!("unable to open library file \"{full_name}\""));
-            self.lib_err = true;
-            return nodef;
-        };
-        let text = String::from_utf8_lossy(&text).into_owned();
-        let say = |reader: &mut Self, line: usize, message: String| {
-            reader
-                .messages
-                .push(format!("{full_name} ({line}): {message}"));
-        };
-        for (index, line) in text.lines().enumerate() {
-            let linenum = index + 1;
-            let line = line.trim_end_matches(['\r', '\n']);
-            if line.len() >= 1023 {
-                say(self, linenum, "line is too long".to_owned());
-                self.lib_err = true;
-                continue;
-            }
-            let (expanded, problems) = self.expand_names(line);
-            for problem in problems {
-                say(self, linenum, problem);
-            }
-            let content = expanded.trim_start();
-            if content.is_empty() || content.starts_with('#') {
-                continue;
-            }
-            let name_end = content
-                .find(|c: char| c == ':' || c.is_whitespace())
-                .unwrap_or(content.len());
-            let var_name = &content[..name_end];
-            let after_name = content[name_end..].trim_start();
-            let Some(value) = after_name.strip_prefix(':') else {
-                if var_name.eq_ignore_ascii_case("nodef") {
-                    nodef = true;
-                } else {
-                    say(self, linenum, "missing colon".to_owned());
-                    self.lib_err = true;
-                }
-                continue;
-            };
-            let value = value.trim_start();
-            let full = build_full_path(&lib_path, &cvt_url_dir(value));
-            match var_name.to_ascii_lowercase().as_str() {
-                "name" => {}
-                "source" => {
-                    let url = format!("{lib_url}{value}");
-                    let search = def_ext(&full, "t");
-                    self.add_module(&full, value, search, Origin::Lib(full_name.clone()), url);
-                }
-                "library" => {
-                    let url = format!("{lib_url}{value}/");
-                    let target = self.sub_library(full);
-                    nodef |= self.process_lib(&target, &url);
-                }
-                "resource" => {
-                    // Named as the library writes it, and with what is
-                    // in its folders if it is a folder.
-                    self.resources.push(ResourceSpec {
-                        file: full.clone(),
-                        alias: Some(value.to_owned()),
-                        recurse: true,
-                    });
-                }
-                "needmacro" => {
-                    let mut words = value.splitn(2, char::is_whitespace);
-                    let macro_name = words.next().unwrap_or("");
-                    let warning = words.next().unwrap_or("").trim_start();
-                    self.need_macro(&format!("{full_name} ({linenum})"), macro_name, warning);
-                }
-                _ => say(self, linenum, format!("unknown definition \"{var_name}\"")),
-            }
-        }
-        nodef
-    }
-
     fn finish(mut self) -> Result<Project, ProjectError> {
         // The system library's `_main` comes first, unless something
         // said not to.
         if !self.nodef {
-            // The system library's, or the one built in if it has none.
-            let mut library = self.sys_library.clone();
-            if !self.files.exists(&build_full_path(&library, "_main.t")) {
-                library = crate::builtin::SYSTEM.to_owned();
-            }
-            let name = build_full_path(&library, "_main");
+            // The one built in.
+            let name = build_full_path(crate::builtin::SYSTEM, "_main.hxn");
             self.modules.insert(
                 0,
                 Module {
                     orig_name: "_main".to_owned(),
-                    source: def_ext(&name, "t"),
-                    search: "_main.t".to_owned(),
+                    source: name,
+                    search: "_main.hxn".to_owned(),
                     origin: Origin::SysLib,
                     url: String::new(),
                     excluded: false,
@@ -1096,7 +880,7 @@ impl Reader<'_, '_> {
             };
             problems.push(match &earlier.origin {
                 Origin::Normal => {
-                    format!("error: module {new_name} the has same name as an existing module")
+                    format!("error: module {new_name} has the same name as an existing module")
                 }
                 origin => format!(
                     "error: module {new_name} has the same name as an existing module from \
@@ -1135,10 +919,7 @@ impl Reader<'_, '_> {
                 None => undefines.push(name.clone()),
             }
         }
-        let mut include_paths = self.include_paths;
-        if !self.sys_include.is_empty() {
-            include_paths.push(self.sys_include);
-        }
+        let include_paths = self.include_paths;
         // The headers built into the compiler need no place here: the
         // preprocessor looks there for any it does not find.
         Ok(Project {

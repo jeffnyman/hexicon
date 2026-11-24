@@ -2,7 +2,7 @@
 //!
 //! ```text
 //! hexicon-fuzz images <out-dir> <cases> <seed> <image>...
-//! hexicon-fuzz saves  <out-dir> <cases> <seed> <probe.t3>
+//! hexicon-fuzz saves  <out-dir> <cases> <seed> <probe.hxg>
 //! ```
 //!
 //! Each case is a copy of one of the files given with a few mutations:
@@ -15,10 +15,10 @@
 //!
 //! An image is parsed, loaded, and run with no input. A saved game is
 //! restored into the probe program, which then walks what it finds; the
-//! probe is built from `probe.t`, beside this crate:
+//! probe is built from `probe.hxn`, beside this crate:
 //!
 //! ```text
-//! hexicon build -nopre -FL <lib> -FI <include> -o probe.t3 crates/hexicon-fuzz/probe.t
+//! hexicon build -nopre -o probe.hxg crates/hexicon-fuzz/probe.hxn
 //! ```
 //!
 //! Damaged input should give an error, never a panic, a crash, or an
@@ -230,7 +230,7 @@ fn try_save(probe: &Image, data: &[u8]) -> String {
         return "the probe does not load".to_owned();
     };
     stage("restore");
-    let result = vm.run(&["probe.t3".to_owned(), "restore".to_owned()]);
+    let result = vm.run(&["probe.hxg".to_owned(), "restore".to_owned()]);
     vm.flush_output();
     let output = host.output();
     match result {
@@ -253,7 +253,7 @@ fn try_save(probe: &Image, data: &[u8]) -> String {
 fn probe_save(probe: &Image) -> Result<Vec<u8>, String> {
     let host = BufferHost::new();
     let mut vm = Vm::new(probe, Box::new(host.clone())).map_err(|e| e.to_string())?;
-    vm.run(&["probe.t3".to_owned(), "save".to_owned()])
+    vm.run(&["probe.hxg".to_owned(), "save".to_owned()])
         .map_err(|e| e.to_string())?;
     host.file("fuzz.sav")
         .ok_or_else(|| "the probe saved nothing".to_owned())

@@ -1,9 +1,8 @@
 //! Writing the program back out as an image, after it has run to set
 //! itself up: preinitialization.
 //!
-//! The reference compiler runs a program once before it writes the
-//! final image (`t3make -pre`, or `t3pre` on an image), and the image it
-//! writes is the program as that run left it: every object the program
+//! A build runs a program once before it writes the final image
+//! (preinitialization), and the image it writes is the program as that run left it: every object the program
 //! can still reach, in the image's own format, with the strings and
 //! lists among them made constants. The code and the constants the image
 //! had are kept, but for the code that only ran before the program

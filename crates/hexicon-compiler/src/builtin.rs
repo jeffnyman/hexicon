@@ -10,7 +10,7 @@
 //! A build looks for libraries and headers where it is told to, and then
 //! here, in the folder that messages and the image call [`ROOT`]. So a
 //! game builds with nothing else installed, and a build told to use other
-//! files (`-FL`, `-FI`, `-Fs`, a manifest's `library-paths`) uses those.
+//! files (`-Fs`, `HEXICON_LIB`, a manifest's `library-paths`) uses those.
 
 use crate::pp::SourceFiles;
 

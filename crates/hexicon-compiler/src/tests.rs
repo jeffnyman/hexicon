@@ -2925,8 +2925,6 @@ fn sys_path(parts: &[&str]) -> String {
 
 fn project_paths() -> crate::ProjectPaths {
     crate::ProjectPaths {
-        system_include: "inc".to_owned(),
-        system_library: "syslib".to_owned(),
         user_libraries: Vec::new(),
     }
 }
@@ -2937,79 +2935,20 @@ fn read(files: &mut Files, args: &[&str]) -> Result<crate::Project, crate::Proje
 }
 
 #[test]
-fn a_project_file_names_the_sources_and_the_libraries() {
-    let mut files = Files::default()
-        .with("game/game.t3m", "# The game.\n-D LANG=english\n-lib mylib/mylib\n  -x two\n-source start\n-source \"more stuff\"\n[Config:devsys]\nnot = an option\n")
-        .with("game/mylib/mylib.tl", "name: My Library\nsource: one\nsource: two\nlibrary: $(LANG)/$(LANG)\n")
-        .with("game/mylib/english/english.tl", "source: words\nnodef\n")
-        .with("game/start.t", "")
-        .with("game/more stuff.t", "");
-    let project = read(&mut files, &["-f", "game/game"]).expect("a project");
-    // The library's sources come in its place, its own library's in
-    // theirs; `-x` left one out, and `nodef` in the library left out
-    // the system library's `_main`.
-    let mylib = sys_path(&["game", "mylib"]);
-    assert_eq!(
-        project.sources,
-        [
-            format!("{mylib}{}one.t", std::path::MAIN_SEPARATOR),
-            sys_path(&["game", "mylib", "english", "words.t"]),
-            sys_path(&["game", "start.t"]),
-            sys_path(&["game", "more stuff.t"]),
-        ]
-    );
-    // Each module's name and its place in the build, which counts the
-    // one left out.
-    assert_eq!(
-        project.options.module_names,
-        [
-            ("one".to_owned(), 1),
-            ("words".to_owned(), 3),
-            ("start".to_owned(), 4),
-            ("more stuff".to_owned(), 5)
-        ]
-    );
-    // The image is named for the first source; the libraries' folders
-    // are searched for included files before the system's.
-    assert_eq!(project.image, Some(sys_path(&["game", "start.t3"])));
-    assert_eq!(
-        project.options.include_paths,
-        [
-            mylib.clone(),
-            sys_path(&["game", "mylib", "english"]),
-            "inc".to_owned()
-        ]
-    );
-    assert_eq!(
-        project.options.defines,
-        [("LANG".to_owned(), "english".to_owned())]
-    );
-    assert!(project.messages.is_empty(), "{:?}", project.messages);
-}
-
-#[test]
-fn the_system_library_comes_first_unless_told_otherwise() {
-    let mut files = Files::default()
-        .with("main.t", "")
-        .with("syslib/_main.t", "")
-        .with("syslib/system.tl", "source: tok\nnodef\n")
-        .with("syslib/tok.t", "");
-    let project = read(&mut files, &["main.t"]).expect("a project");
-    assert_eq!(
-        project.sources,
-        [sys_path(&["syslib", "_main.t"]), "main.t".to_owned()]
-    );
+fn the_system_librarys_main_comes_first_unless_told_otherwise() {
+    let mut files = Files::default().with("main.hxn", "");
+    let main = format!("{}/_main.hxn", crate::builtin::SYSTEM);
+    let project = read(&mut files, &["main.hxn"]).expect("a project");
+    assert_eq!(project.sources, [main.clone(), "main.hxn".to_owned()]);
     assert!(project.preinit);
-    // A library is looked for in the system library; this one says
-    // its own `_main` is left out.
-    let project = read(&mut files, &["-nopre", "system.tl", "main"]).expect("a project");
-    assert_eq!(
-        project.sources,
-        [sys_path(&["syslib", "tok.t"]), "main.t".to_owned()]
-    );
+    assert_eq!(project.image, Some("main.hxg".to_owned()));
+    // A source named without its extension is a .hxn file.
+    let project = read(&mut files, &["-nopre", "main"]).expect("a project");
+    assert_eq!(project.sources, [main, "main.hxn".to_owned()]);
     assert!(!project.preinit);
     // `-D` without a value defines the macro as nothing.
     let project = read(&mut files, &["-nodef", "-D", "X", "-DY=2", "main"]).expect("a project");
+    assert_eq!(project.sources, ["main.hxn".to_owned()]);
     assert_eq!(
         project.options.defines,
         [
@@ -3017,42 +2956,25 @@ fn the_system_library_comes_first_unless_told_otherwise() {
             ("Y".to_owned(), "2".to_owned())
         ]
     );
-}
-
-#[test]
-fn what_is_wrong_with_a_library_is_said_as_the_reference_says_it() {
-    let mut files = Files::default().with("main.t", "").with(
-        "lib.tl",
-        "source: one\nwhat: x\nsource: t$(NOPE)wo\nsource: $x\nbadline\n",
-    );
-    let lib = "lib.tl";
-    match read(&mut files, &["-nodef", "lib.tl", "main.t"]) {
-        Err(crate::ProjectError::Failed(lines)) => assert_eq!(
-            lines,
-            [
-                format!("{lib} (2): unknown definition \"what\""),
-                format!("{lib} (3): undefined symbol \"NOPE\""),
-                format!(
-                    "{lib} (4): invalid '$' sequence - use '$$' for a literal dollar sign \
-                     character"
-                ),
-                format!("{lib} (5): missing colon"),
-            ]
-        ),
-        other => panic!("{other:?}"),
-    }
-    match read(&mut files, &["-nodef", "nothere.tl", "main.t"]) {
+    // A project file of TADS 3's is not a manifest.
+    let mut files = Files::default().with("game.t3m", "-source main\n");
+    match read(&mut files, &["-f", "game.t3m"]) {
         Err(crate::ProjectError::Failed(lines)) => {
-            assert_eq!(lines, ["unable to open library file \"nothere.tl\""]);
+            assert!(lines[0].contains("is not a manifest"), "{lines:?}");
         }
         other => panic!("{other:?}"),
     }
-    // Two modules with one name would have one object file.
-    let mut files = Files::default().with("a/main.t", "").with("b/main.t", "");
+}
+
+#[test]
+fn two_modules_cannot_have_one_name() {
+    let mut files = Files::default()
+        .with("a/main.hxn", "")
+        .with("b/main.hxn", "");
     match read(&mut files, &["-nodef", "a/main", "b/main"]) {
         Err(crate::ProjectError::Failed(lines)) => assert_eq!(
             lines,
-            ["error: module \"b/main.t\" the has same name as an existing module"]
+            ["error: module \"b/main.hxn\" has the same name as an existing module"]
         ),
         other => panic!("{other:?}"),
     }
@@ -3152,21 +3074,25 @@ fn the_program_s_macros_for_preinitialization() {
 }
 
 #[test]
-fn resources_come_from_libraries_and_after_res() {
+fn resources_come_from_libraries_and_the_game() {
     let mut files = Files::default()
-        .with("game/game.t3m", "-lib art/art\n-source start\n-res\nfront.png\n-norecurse\nmusic\nlogo.png=images/logo.png\n")
-        .with("game/art/art.tl", "source: art\nresource: pics\n")
+        .with(
+            "game/hexicon.toml",
+            "[game]\nlibraries = [\"art\"]\nsources = [\"start\"]\n\
+             resources = [\"front.png\", \"-norecurse\", \"music\", \"logo.png=images/logo.png\"]\n",
+        )
+        .with("game/art/hexicon.toml", "[library]\nsources = [\"art\"]\nresources = [\"pics\"]\n")
         .with("game/art/art.hxn", "")
         .with("game/start.hxn", "");
-    let project = read(&mut files, &["-nodef", "-f", "game/game.t3m"]).expect("a project");
+    let project = read(&mut files, &["-nodef", "-f", "game"]).expect("a project");
     let spec = |file: String, alias: Option<&str>, recurse: bool| crate::ResourceSpec {
         file,
         alias: alias.map(str::to_owned),
         recurse,
     };
     // A library's are named as it writes them, and include what is in
-    // their folders' folders; those after `-res` are relative to the
-    // project file, and `-norecurse` holds for what comes after it.
+    // their folders' folders; the game's are relative to its manifest,
+    // and `-norecurse` holds for what comes after it.
     assert_eq!(
         project.resources,
         [
@@ -3497,37 +3423,40 @@ fn a_manifest_names_the_sources_and_the_libraries() {
     let mut files = Files::default()
         .with(
             "game/hexicon.toml",
-            "[game]\nname = \"The Game\"\nsources = [\"start\", \"old.t\"]\n\
+            "[game]\nname = \"The Game\"\nsources = [\"start\", \"old.hxn\"]\n\
              libraries = [{ name = \"mylib\", exclude = [\"two\"] }, \"oldlib\"]\n\
-             image = \"out/game.t3\"\n\n\
+             image = \"out/game.hxg\"\n\n\
              [defines]\nLANG = \"english\"\nLEVEL = 3\nFLAG = true\n\n\
              [build]\npreinit = false\nwarnings-as-errors = true\ninclude-paths = [\"inc\"]\n",
         )
         .with(
             "game/mylib/hexicon.toml",
-            "[library]\nname = \"My Library\"\nsources = [\"one\", \"two\", \"three.t\"]\n\
+            "[library]\nname = \"My Library\"\nsources = [\"one\", \"two\", \"three.hxn\"]\n\
              libraries = [\"$(LANG)/$(LANG)\"]\n\n[needs]\nLANG = \"the language\"\nVOICE = \"who speaks\"\n",
         )
-        .with("game/mylib/english/english.tl", "source: words\nnodef\n")
-        .with("game/oldlib.tl", "source: legacy\n")
+        .with(
+            "game/mylib/english/english.toml",
+            "[library]\nsources = [\"words\"]\nsystem-main = false\n",
+        )
+        .with("game/oldlib.toml", "[library]\nsources = [\"legacy\"]\n")
         .with("game/start.hxn", "")
-        .with("game/old.t", "");
+        .with("game/old.hxn", "");
     let project = read(&mut files, &["-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
     let lib = |file: &str| sys_path(&["game", "mylib", file]);
-    // A source with no extension is Hexicon's; the library's English
-    // is a .tl in a folder without a manifest.
+    // A source with no extension is a .hxn file; the library's English
+    // is a manifest of its name, in a folder without one.
     assert_eq!(
         project.sources,
         [
             lib("one.hxn"),
-            lib("three.t"),
-            sys_path(&["game", "mylib", "english", "words.t"]),
-            sys_path(&["game", "legacy.t"]),
+            lib("three.hxn"),
+            sys_path(&["game", "mylib", "english", "words.hxn"]),
+            sys_path(&["game", "legacy.hxn"]),
             sys_path(&["game", "start.hxn"]),
-            sys_path(&["game", "old.t"]),
+            sys_path(&["game", "old.hxn"]),
         ]
     );
-    // Modules are named without their extensions, as in a .tl.
+    // Modules are named without their extensions.
     let names: Vec<&str> = project
         .options
         .module_names
@@ -3535,7 +3464,7 @@ fn a_manifest_names_the_sources_and_the_libraries() {
         .map(|(name, _)| name.as_str())
         .collect();
     assert_eq!(names, ["one", "three", "words", "legacy", "start", "old"]);
-    assert_eq!(project.image, Some(sys_path(&["game", "out", "game.t3"])));
+    assert_eq!(project.image, Some(sys_path(&["game", "out", "game.hxg"])));
     assert!(!project.preinit && project.warnings_as_errors);
     assert_eq!(
         project.options.defines,
@@ -3653,8 +3582,6 @@ mod system_library {
                 "#include <hexicon.h>\nmain(args) { \"Hello, world.\"; }\n",
             );
         let paths = crate::ProjectPaths {
-            system_include: "nowhere/include".to_owned(),
-            system_library: "nowhere/lib".to_owned(),
             user_libraries: Vec::new(),
         };
         let args = ["-f".to_owned(), "game".to_owned()];
@@ -3729,8 +3656,6 @@ mod system_library {
             )
             .with("game/start.hxn", "import hexad;\n");
         let paths = crate::ProjectPaths {
-            system_include: "nowhere/include".to_owned(),
-            system_library: "nowhere/lib".to_owned(),
             user_libraries: Vec::new(),
         };
         let args = ["-f".to_owned(), "game".to_owned()];
@@ -3769,8 +3694,8 @@ fn a_manifest_can_give_its_modules_in_order_and_a_library_can_be_a_toml_file() {
             "hexicon.toml",
             "[game]\nmodules = [{ library = \"sys\" }, \"early\", { library = \"lib/main\", exclude = [\"two\"] }, \"late\"]\n",
         )
-        .with("sys.tl", "source: base\nnodef\n")
-        .with("lib/main.toml", "[library]\nmodules = [{ library = \"sub\" }, \"one.t\", \"two\"]\n")
+        .with("sys.toml", "[library]\nsources = [\"base\"]\nsystem-main = false\n")
+        .with("lib/main.toml", "[library]\nmodules = [{ library = \"sub\" }, \"one\", \"two\"]\n")
         .with("lib/sub.toml", "[library]\nsources = [\"leaf\"]\n");
     let project = read(&mut files, &[]).unwrap_or_else(|e| panic!("{e:?}"));
     let names: Vec<&str> = project
@@ -3783,10 +3708,10 @@ fn a_manifest_can_give_its_modules_in_order_and_a_library_can_be_a_toml_file() {
     assert_eq!(
         project.sources,
         [
-            "base.t".to_owned(),
+            "base.hxn".to_owned(),
             "early.hxn".to_owned(),
             sys_path(&["lib", "leaf.hxn"]),
-            sys_path(&["lib", "one.t"]),
+            sys_path(&["lib", "one.hxn"]),
             "late.hxn".to_owned(),
         ]
     );
@@ -4158,7 +4083,7 @@ mod imports {
                 "game/mylib/hexicon.toml",
                 "[library]\nheader = \"my.h\"\nsources = [\"one\"]\n",
             )
-            .with("game/old.tl", "source: legacy\n")
+            .with("game/old.toml", "[library]\nsources = [\"legacy\"]\n")
             .with("game/start.hxn", "");
         let project = read(&mut files, &["-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(
@@ -4192,20 +4117,27 @@ fn a_hexicon_source_is_told_it_is_one() {
 }
 
 #[test]
-fn the_first_folder_with_a_library_has_it_whatever_kind_it_is() {
-    // TADS 3's system library (a .tl) where the build is told it is,
-    // before the system.toml built into Hexicon.
+fn a_library_on_the_search_path_comes_before_the_one_built_in() {
+    // A system library of the game's own, in a folder -Fs names, before
+    // the one built into Hexicon.
     let mut files = Files::default()
-        .with("syslib/system.tl", "name: TADS\nsource: _main\nnodef\n")
-        .with("syslib/_main.t", "")
-        .with("game/main.t", "")
-        .with("game/game.t3m", "-lib system\n-source main\n");
-    let project = read(&mut files, &["-f", "game/game.t3m"]).unwrap_or_else(|e| panic!("{e:?}"));
+        .with(
+            "syslib/system.toml",
+            "[library]\nsources = [\"_main\"]\nsystem-main = false\n",
+        )
+        .with("syslib/_main.hxn", "")
+        .with(
+            "game/hexicon.toml",
+            "[game]\nlibraries = [\"system\"]\nsources = [\"main\"]\n",
+        )
+        .with("game/main.hxn", "");
+    let project =
+        read(&mut files, &["-Fs", "syslib", "-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
     assert_eq!(
         project.sources,
         [
-            sys_path(&["syslib", "_main.t"]),
-            sys_path(&["game", "main.t"])
+            sys_path(&["syslib", "_main.hxn"]),
+            sys_path(&["game", "main.hxn"])
         ]
     );
 }

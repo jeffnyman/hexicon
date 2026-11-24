@@ -1,6 +1,5 @@
-//! Bundling resources into an image, as the reference's `t3make` does
-//! after it has written the image: pictures, sounds, and other files the
-//! program asks for by name.
+//! Bundling resources into an image after it has been written:
+//! pictures, sounds, and other files the program asks for by name.
 
 use hexicon_compiler::{DirEntry, Resource, ResourceSpec, expand_resources};
 

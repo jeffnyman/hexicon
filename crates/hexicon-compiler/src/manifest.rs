@@ -1,8 +1,8 @@
 //! Hexicon's manifest, `hexicon.toml`: what a game is built from, or
 //! what a library is made of.
 //!
-//! A game's manifest says what a `.t3m` project file says, and is read
-//! by turning it into the same options; a library's says what a `.tl`
+//! A game's manifest is read by turning it into the options the command
+//! line takes ([`crate::project`]); a library's says what the library
 //! library says. A name the manifest does not know is an error, so that
 //! a misspelling is not silently ignored.
 //!
@@ -20,7 +20,7 @@ use toml::{Table, Value};
 /// The name a manifest has.
 pub const MANIFEST: &str = "hexicon.toml";
 
-/// Whether `path` names a manifest rather than a `.t3m` or `.tl` file.
+/// Whether `path` names a manifest.
 pub(crate) fn is_manifest(path: &str) -> bool {
     path.len() >= 5 && path[path.len() - 5..].eq_ignore_ascii_case(".toml")
 }
@@ -43,7 +43,7 @@ pub(crate) enum ModuleRef {
     /// A source file.
     Source(String),
     /// A library: a folder with a manifest, a `.toml` manifest, or a
-    /// `.tl` library, named without its extension.
+    /// manifest of its name with `.toml` after it.
     Library {
         /// Its name.
         name: String,
@@ -63,7 +63,7 @@ pub(crate) struct Library {
     /// Macros a game has to define, and why.
     pub needs: Vec<(String, String)>,
     /// The build does not start with the system library's `_main`
-    /// (`nodef` in a `.tl`).
+    /// (`system-main = false` in its manifest).
     pub no_system_main: bool,
     /// The header a Hexicon source gets by importing the library
     /// (`import hexad;`), relative to the library's folder.
@@ -214,8 +214,8 @@ fn check_sections(top: &Table, known: &[&str]) -> Result<(), String> {
     Ok(())
 }
 
-/// The options a game's manifest stands for, as `t3make` would take
-/// them from a project file.
+/// The options a game's manifest stands for, as the command line takes
+/// them.
 pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
     let top = parse(text)?;
     if top.contains_key("library") {
@@ -362,8 +362,8 @@ pub(crate) fn library(text: &[u8]) -> Result<Library, String> {
             needs.push((key.clone(), why));
         }
     }
-    // A library's own sources come before the libraries it names, as in
-    // a `.tl`, unless a list of modules gives the order.
+    // A library's own sources come before the libraries it names, unless
+    // a list of modules gives the order.
     let modules = module_refs(&lib, false)?;
     if modules
         .iter()

@@ -4,7 +4,7 @@
  *   "restore", it restores a saved game and walks what it finds.
  */
 
-#include <tads.h>
+#include <hexicon.h>
 #include <bignum.h>
 #include <strbuf.h>
 #include <bytearr.h>
