@@ -1,0 +1,45 @@
+image: 272a375a5a8331266f70c29976f588424ad25f2f33327c14600f342e2b26f0a6
+--- messages
+warning: "nosuchprop" is not defined anywhere
+  --> static1.hxn:53
+   |
+53 |     p6 = static nosuchprop
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "nosuchprop" is spelled
+
+warning: "length" is not defined anywhere
+  --> static1.hxn:73
+   |
+73 |     print(B.q1.length()); print(b2.q1); print(a.p6 == nil ? 'nil' : 'x');
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "length" is spelled
+
+warning: "m" is given a value here, but nothing reads it
+  --> static1.hxn:55
+   |
+55 |     m() { return p1; }
+   |
+   = did you mean "n"?
+
+warning: "q3" is given a value here, but nothing reads it
+  --> static1.hxn:61
+   |
+61 |     q3 = static {: counter.next() }
+   |
+   = did you mean "p3"?
+
+warning: "q6" is given a value here, but nothing reads it
+  --> static1.hxn:64
+   |
+64 |     q6 = static (targetprop)
+   |
+   = did you mean "p6"?
+
+warning: "q7" is given a value here, but nothing reads it
+  --> static1.hxn:65
+   |
+65 |     q7 = static
+   |
+   = did you mean "p7"?
+--- output
+init q2113458nil

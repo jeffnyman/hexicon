@@ -1,0 +1,17 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+  --> e_param3.hxn:5
+
+error: expected ']' at end of subscript, but found "<End Of File>"
+  --> e_param3.hxn:5
+
+error: index value out of range in constant list index expression
+  --> e_param3.hxn:5
+
+error: expected ',' or ';' after local variable, but found "<End Of File>"
+  --> e_param3.hxn:5
+
+error: unexpected end of file in code block - '}' missing
+  --> e_param3.hxn:5
+--- output

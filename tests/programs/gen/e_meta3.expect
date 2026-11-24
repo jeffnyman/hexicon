@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: "A" is already the name of something else, so it cannot also name an object
+  --> e_meta3.hxn:3
+  |
+3 | A: object;
+  |
+
+error: "A" is already the name of something else, so it cannot also name a function
+  --> e_meta3.hxn:4
+  |
+4 | A() { }
+  |
+--- output

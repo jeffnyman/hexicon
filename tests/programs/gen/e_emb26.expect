@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "else"
+  --> e_emb26.hxn:1
+  |
+1 | _main(args) { 'a<<if args>>b<<else'; 'c<<end>>'; }
+  |
+--- output

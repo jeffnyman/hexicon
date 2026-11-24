@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: wrong number of arguments to function "f": 1 required, 0 actual
+  --> e_argc.hxn:1
+  |
+1 | f(a) { return a; } _main(args) { return f() + f(1, 2); }
+  |
+
+error: wrong number of arguments to function "f": 1 required, 2 actual
+  --> e_argc.hxn:1
+  |
+1 | f(a) { return a; } _main(args) { return f() + f(1, 2); }
+  |
+--- output

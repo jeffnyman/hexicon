@@ -1,0 +1,249 @@
+image: none
+--- messages
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:3
+  |
+3 |     p2 = {x: x }
+  |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:3
+  |
+3 |     p2 = {x: x }
+  |
+
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:4
+  |
+4 |     p3 = {: p1 }
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:4
+  |
+4 |     p3 = {: p1 }
+  |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:4
+  |
+4 |     p3 = {: p1 }
+  |
+
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:6
+  |
+6 |     p5 = {: targetprop }
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:6
+  |
+6 |     p5 = {: targetprop }
+  |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:6
+  |
+6 |     p5 = {: targetprop }
+  |
+
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:7
+  |
+7 |     p6 = {: {: self } }
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:7
+  |
+7 |     p6 = {: {: self } }
+  |
+
+error: expected ';', but found ":"
+  --> anon11.hxn:7
+  |
+7 |     p6 = {: {: self } }
+  |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:7
+  |
+7 |     p6 = {: {: self } }
+  |
+
+error: expected property name in object definition, but found "}"
+  --> anon11.hxn:7
+  |
+7 |     p6 = {: {: self } }
+  |
+
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:11
+   |
+11 |     p10 = {: "hello" }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:11
+   |
+11 |     p10 = {: "hello" }
+   |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:11
+   |
+11 |     p10 = {: "hello" }
+   |
+
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:15
+   |
+15 |     p13 = {: self }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:15
+   |
+15 |     p13 = {: self }
+   |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:15
+   |
+15 |     p13 = {: self }
+   |
+
+error: expected ';' or expression after "return", but found "{"
+  --> anon11.hxn:16
+   |
+16 |     m2() { return {: targetprop }; }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:16
+   |
+16 |     m2() { return {: targetprop }; }
+   |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:16
+   |
+16 |     m2() { return {: targetprop }; }
+   |
+
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:17
+   |
+17 |     p14 = {: self }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:17
+   |
+17 |     p14 = {: self }
+   |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:17
+   |
+17 |     p14 = {: self }
+   |
+
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:18
+   |
+18 |     p15 = {: {: 1 } }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:18
+   |
+18 |     p15 = {: {: 1 } }
+   |
+
+error: expected ';', but found ":"
+  --> anon11.hxn:18
+   |
+18 |     p15 = {: {: 1 } }
+   |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:18
+   |
+18 |     p15 = {: {: 1 } }
+   |
+
+error: expected property name in object definition, but found "}"
+  --> anon11.hxn:18
+   |
+18 |     p15 = {: {: 1 } }
+   |
+
+error: expected ';' or expression after "return", but found "{"
+  --> anon11.hxn:20
+   |
+20 | f() { return {: 1 }; }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:20
+   |
+20 | f() { return {: 1 }; }
+   |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:20
+   |
+20 | f() { return {: 1 }; }
+   |
+
+error: '=' is not allowed with a method definition
+  --> anon11.hxn:22
+   |
+22 |     p1 = {: self }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:22
+   |
+22 |     p1 = {: self }
+   |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:22
+   |
+22 |     p1 = {: self }
+   |
+
+error: expected ';' or expression after "return", but found "{"
+  --> anon11.hxn:25
+   |
+25 |     m() { return {: {: definingobj } }; }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon11.hxn:25
+   |
+25 |     m() { return {: {: definingobj } }; }
+   |
+
+error: expected ';', but found ":"
+  --> anon11.hxn:25
+   |
+25 |     m() { return {: {: definingobj } }; }
+   |
+
+error: expected ';', but found "}"
+  --> anon11.hxn:25
+   |
+25 |     m() { return {: {: definingobj } }; }
+   |
+
+error: "}" cannot start anything here
+  --> anon11.hxn:25
+   |
+25 |     m() { return {: {: definingobj } }; }
+   |
+   = what is expected is a function, an object, or a class
+--- output

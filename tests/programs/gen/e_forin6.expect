@@ -1,0 +1,11 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+  --> e_forin6.hxn:5
+
+error: expected ',' or ';' in "for" initializer, but found "<End Of File>"
+  --> e_forin6.hxn:5
+
+fatal error: too many errors (try fixing the first couple of errors and recompiling)
+  --> e_forin6.hxn:5
+--- output

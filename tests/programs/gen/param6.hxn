@@ -1,0 +1,64 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+// Optional parameters with nothing else, enough of them that their
+// locals pass the instructions with a local's number built in.
+f(a?, b?, c?, d?, e?, g?, h?, i?) { return i; }
+class A: object
+    construct(a = 1, b: = 2) { x = a + b; }
+    x = nil
+;
+// A try of the function's own after one the compiler makes.
+g(a: = f())
+{
+    try { return a; } catch (A e) { return e; } finally { f(); }
+}
+_main(args)
+{
+    f(1, 2, 3, 4, 5, 6, 7, 8);
+    new A(); new A(1); new A(b: 3);
+    g();
+    "<<f(1)>> and <<g(a: 1)>>";
+}

@@ -1,0 +1,11 @@
+property alpha, beta;
+property gamma;
+export alpha 'Alpha.name';
+export beta;
+export thing 'TheThing';
+export f 'func';
+export neverMentioned 'never';
+export alpha 'Alpha.name';
+thing: object alpha = 1 gamma = 2;
+f() { }
+_main(args) { return thing.beta; }

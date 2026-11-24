@@ -1,0 +1,18 @@
+_main(args)
+{
+    local a = 1, b = 2, c = 3, d;
+    local f = {x: {y: {z: x + y + z + a}}};
+    local g = function(p, q) {
+        local r = p + b;
+        return {: r + q + c };
+    };
+    b += 2;
+    c++;
+    --c;
+    a = a * 2;
+    b -= 1;
+    c <<= 1;
+    local h = {: d = 5 };
+    h();
+    return f(1)(2)(3) + g(1, 2)() + a + b + c + d;
+}

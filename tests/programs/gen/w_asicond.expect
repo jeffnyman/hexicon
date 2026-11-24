@@ -1,0 +1,8 @@
+image: 3efd338b6eed3e385546c5d90c2f10afde3f4ddba9b28979482f630a3ca15727
+--- messages
+warning: assignment in condition (possible use of '=' where '==' was intended)
+  --> w_asicond.hxn:1
+  |
+1 | _main(args) { if (args = 1) return 1; while (args = 2) { } do { } while (args = 3); for (; args = 4; ) { } return 2; }
+  |
+--- output

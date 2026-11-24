@@ -1,0 +1,3 @@
+#include <hexicon.h>
+g(x) { return x +; }
+h(x) { return undefinedThing(x); }

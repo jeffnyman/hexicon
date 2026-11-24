@@ -1,0 +1,10 @@
+intrinsic class ProgramObject 'hexicon-object/030005'
+{
+    createInstance(...);
+    static createClone();
+}
+intrinsic class Lookup 'lookuptable/030003' { isKeyPresent(key); }
+intrinsic class Dict 'dictionary2/030001' { addWord(obj, str, prop); }
+intrinsic class Old 'list/030001' { ba1(); ab1(); }
+class C: object ab1 = 1 isKeyPresent = 2;
+_main(args) { return new Lookup(8, 16).isKeyPresent(1) + C.createInstance() + args.ba1(); }

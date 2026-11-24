@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: invalid "break" - not in a for/while/do/switch
+  --> e_break.hxn:1
+  |
+1 | _main(args) { break; }
+  |
+--- output

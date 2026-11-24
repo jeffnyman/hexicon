@@ -1,0 +1,160 @@
+image: none
+--- messages
+error: empty template definition
+  --> e_template1.hxn:47
+   |
+47 | object template 'a b';
+   |
+
+error: property name required in object template string - found 'a b'
+  --> e_template1.hxn:47
+   |
+47 | object template 'a b';
+   |
+
+error: empty template definition
+  --> e_template1.hxn:48
+   |
+48 | object template 'if';
+   |
+
+error: property name required in object template string - found 'if'
+  --> e_template1.hxn:48
+   |
+48 | object template 'if';
+   |
+
+error: empty template definition
+  --> e_template1.hxn:49
+   |
+49 | object template [5];
+   |
+
+error: property name required after "[" in object template - found "5"
+  --> e_template1.hxn:49
+   |
+49 | object template [5];
+   |
+
+error: empty template definition
+  --> e_template1.hxn:50
+   |
+50 | object template [a;
+   |
+
+error: expected ']' after object template property name - found ";"
+  --> e_template1.hxn:50
+   |
+50 | object template [a;
+   |
+
+error: unexpected token "object" in object template
+  --> e_template1.hxn:51
+   |
+51 | object template @;
+   |
+
+error: property name required after "@" in object template - found ";"
+  --> e_template1.hxn:51
+   |
+51 | object template @;
+   |
+
+error: unexpected token "object" in object template
+  --> e_template1.hxn:52
+   |
+52 | object template @5 'x';
+   |
+
+error: empty template definition
+  --> e_template1.hxn:52
+   |
+52 | object template @5 'x';
+   |
+
+error: property name required after "@" in object template - found "5"
+  --> e_template1.hxn:52
+   |
+52 | object template @5 'x';
+   |
+
+error: property "a" duplicated in object template
+  --> e_template1.hxn:53
+   |
+53 | object template 'a' 'a';
+   |
+
+error: property "a" duplicated in object template
+  --> e_template1.hxn:55
+   |
+55 | object template 'a' | "a" 'a';
+   |
+
+error: unexpected token "foo" in object template
+  --> e_template1.hxn:56
+   |
+56 | object template foo;
+   |
+
+error: unexpected token "f" in object template
+  --> e_template1.hxn:57
+   |
+57 | f() { }
+   |
+
+error: unexpected token ")" in object template
+  --> e_template1.hxn:57
+   |
+57 | f() { }
+   |
+
+error: unexpected token "}" in object template
+  --> e_template1.hxn:57
+   |
+57 | f() { }
+   |
+
+error: empty template definition
+  --> e_template1.hxn:57
+   |
+57 | f() { }
+   |
+
+error: "}" cannot start anything here
+  --> e_template1.hxn:57
+   |
+57 | f() { }
+   |
+   = what is expected is a function, an object, or a class
+
+error: "template" is already the name of something else, so it cannot also name an object
+  --> e_template1.hxn:59
+   |
+59 | f template 'a';
+   |
+
+error: expected '<<' at start of string template, but found ''a''
+  --> e_template1.hxn:62
+   |
+62 | string template 'a';
+   |
+
+error: expected '>>' at end of string template, but found ';'
+  --> e_template1.hxn:62
+   |
+62 | string template 'a';
+   |
+
+error: unexpected token "{" in object template
+  --> e_template1.hxn:63
+   |
+63 | object template 'a' { }
+   |
+
+error: "{" cannot start anything here
+  --> e_template1.hxn:63
+   |
+63 | object template 'a' { }
+   |
+   = what is expected is a function, an object, or a class
+--- output

@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "undefinedFunc" is not defined anywhere
+  --> e_undefcall.hxn:1
+  |
+1 | _main(args) { return undefinedFunc(1); }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

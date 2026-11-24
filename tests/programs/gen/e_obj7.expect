@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected ';', but found "}"
+  --> e_obj7.hxn:3
+  |
+3 |     m() { return 1 }
+  |
+
+error: '=' is not allowed with a method definition
+  --> e_obj7.hxn:4
+  |
+4 |     n = { return 2; }
+  |
+--- output

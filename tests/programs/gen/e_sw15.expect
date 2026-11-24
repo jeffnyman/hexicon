@@ -1,0 +1,11 @@
+image: none
+--- messages
+error: expected start of statement, but found "}"
+  --> e_sw15.hxn:1
+  |
+1 | _main(args) { switch (args) { case 1: } }
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_sw15.hxn:2
+--- output

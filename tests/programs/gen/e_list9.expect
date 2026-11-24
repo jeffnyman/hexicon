@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: binary '*' operator requires numeric value in constant expression
+  --> e_list9.hxn:1
+  |
+1 | _main(args) { return [1, 2] * 2 + 1 + [2]; }
+  |
+--- output

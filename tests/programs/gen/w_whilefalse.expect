@@ -1,0 +1,8 @@
+image: 0ab15f25dcb97e6af9951a502680bf76783bbf55bfd9cc24cda14b33a471fff6
+--- messages
+warning: "while" condition is always false - loop body is unreachable
+  --> w_whilefalse.hxn:1
+  |
+1 | _main(args) { while (nil) { args = 1; } while (0) ; return 3; }
+  |
+--- output

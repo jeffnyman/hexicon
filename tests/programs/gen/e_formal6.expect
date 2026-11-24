@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: variable-argument list parameter must be the last parameter
+  --> e_formal6.hxn:1
+  |
+1 | f([a], b) { } _main(args) { }
+  |
+
+error: expected a symbol in formal parameter list, but found ","
+  --> e_formal6.hxn:1
+  |
+1 | f([a], b) { } _main(args) { }
+  |
+--- output

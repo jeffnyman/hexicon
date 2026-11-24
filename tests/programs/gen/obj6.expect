@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: "c" is already the name of something else, so it cannot also name a property
+  --> obj6.hxn:3
+  |
+3 | c: A, B c = 3;
+  |
+--- output

@@ -1,0 +1,25 @@
+f(x)
+{
+    switch (x)
+    {
+    case 0: case 1: case 126: case 127: case 128: case -1: case 65536: case 2147483647:
+        return 1;
+    case 'a': case 'a': case '': case 'a string that is too long to be shared with another like it':
+        return 2;
+    case nil: case true:
+        return 3;
+    case []: case [1]: case [1, 'a', [nil, true]]:
+        return 4;
+    case f: case _main:
+        return 5;
+    case 1: case 2 * 3 + 1: case 'a' + 'b': case [1] + 2: case 1 == 1: case [1] == [1]:
+        return 6;
+    case (1, 2):
+    here:
+    case 9:
+    default:
+    there:
+        return 7;
+    }
+}
+_main(args) { return f(args); }

@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: misplaced "catch" clause - must be associated with "try"
+  --> e_try9.hxn:1
+  |
+1 | _main(args) { try { } catch (A e) { } finally { } catch (A e) { } }
+  |
+--- output

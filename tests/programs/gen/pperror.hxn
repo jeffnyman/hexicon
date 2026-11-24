@@ -1,0 +1,2 @@
+#error stop here
+_main(args) { return 1; }

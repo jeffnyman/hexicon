@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: this object has no ';' at its end
+  --> e_obj3.hxn:2
+  |
+2 | j: object y = 2;
+  |
+  = each object ends with ';'
+--- output

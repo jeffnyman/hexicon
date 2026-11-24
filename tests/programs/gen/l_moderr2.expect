@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: objects of this type cannot be modified or replaced
+  --> b.hxn:2
+  |
+2 | modify gDict x = 1;
+  |
+
+error: function "f" has an incompatible previous declaration
+  --> b.hxn:3
+  |
+3 | replace f(a, b) { return 2; }
+  |
+--- output

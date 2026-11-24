@@ -1,0 +1,3 @@
+f() { }
+a: object;
+_main(args) { new f; new f(); new 1; new args; new args(1); new (a); new nosuch; new nosuch(1); new a()(); new [1]; }

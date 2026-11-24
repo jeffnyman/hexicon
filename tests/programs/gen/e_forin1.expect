@@ -1,0 +1,26 @@
+image: none
+--- messages
+error: Container.createIterator is not defined - foreach..in is not valid
+  --> e_forin1.hxn:1
+  |
+1 | _main(args) { foreach (local x in args) ; for (local i in args) ; }
+  |
+
+error: Container.createIterator is not defined - for..in is not valid
+  --> e_forin1.hxn:1
+  |
+1 | _main(args) { foreach (local x in args) ; for (local i in args) ; }
+  |
+
+warning: "x" is given a value that is never used
+  --> e_forin1.hxn:1
+  |
+1 | _main(args) { foreach (local x in args) ; for (local i in args) ; }
+  |
+
+warning: "i" is given a value that is never used
+  --> e_forin1.hxn:1
+  |
+1 | _main(args) { foreach (local x in args) ; for (local i in args) ; }
+  |
+--- output

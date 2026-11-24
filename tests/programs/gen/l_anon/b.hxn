@@ -1,0 +1,8 @@
+#include <hexicon.h>
+object template 'name';
+Room 'cellar';
++ property location;
+shed: Room 'shed';
++ Room 'inside shed';
+++ Room 'deeper' ;
+f() { return [new Room(), object: Room { desc = 'inline2' }, shed]; }

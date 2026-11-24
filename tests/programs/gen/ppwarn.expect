@@ -1,0 +1,8 @@
+image: a0c18b43a494277295b3c0db3254aeac7f97b9cb7e5ff372f9fe7c16a1af931e
+--- messages
+warning: redefinition of macro "A"
+  --> ppwarn.hxn:2
+  |
+2 | #define A 2
+  |
+--- output

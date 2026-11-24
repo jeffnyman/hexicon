@@ -1,0 +1,34 @@
+image: none
+--- messages
+error: optional parameters require support function "getArg", which is undefined
+error: named parameters require support function "t3GetNamedArg", which is undefined
+  --> e_param2.hxn:6
+  |
+6 |     return x;
+  |
+
+error: optional parameters require support function "getArg", which is undefined
+  --> e_param2.hxn:10
+   |
+10 |   m(a?) { }
+   |
+
+warning: "nosuch1" is not defined anywhere
+  --> e_param2.hxn:11
+   |
+11 |   p = (nosuch1 + 1)
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "nosuch1" is spelled
+
+error: named parameters require support function "t3GetNamedArg", which is undefined
+  --> e_param2.hxn:13
+   |
+13 |      print(1);
+   |
+
+error: optional parameters require support function "getArg", which is undefined
+  --> e_param2.hxn:15
+   |
+15 |   q(b?) { }
+   |
+--- output

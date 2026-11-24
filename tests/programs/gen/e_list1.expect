@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ']' or a list element, but found ";"
+  --> e_list1.hxn:1
+  |
+1 | _main(args) { return [1, 2; }
+  |
+--- output

@@ -1,0 +1,1 @@
+_main(args) { try { args = 1; } finally { in: args = 2; } goto in; }

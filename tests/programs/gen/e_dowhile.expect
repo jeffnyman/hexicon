@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: expected "while" in "do" statement, but found "until"
+  --> e_dowhile.hxn:1
+  |
+1 | _main(args) { do { } until (args); }
+  |
+
+error: missing '(' after "while" - found "until"
+  --> e_dowhile.hxn:1
+  |
+1 | _main(args) { do { } until (args); }
+  |
+
+error: missing ')' after "while" expression - found ";"
+  --> e_dowhile.hxn:1
+  |
+1 | _main(args) { do { } until (args); }
+  |
+--- output

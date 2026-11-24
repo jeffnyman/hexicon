@@ -1,0 +1,15 @@
+image: none
+--- messages
+error: cannot apply operator 'new' to this expression
+  --> e_new1.hxn:3
+  |
+3 | _main(args) { new f; new f(); new 1; new args; new args(1); new (a); new nosuch; new nosuch(1); new a()(); new [1]; }
+  |
+
+error: "nosuch" is not defined anywhere
+  --> e_new1.hxn:3
+  |
+3 | _main(args) { new f; new f(); new 1; new args; new args(1); new (a); new nosuch; new nosuch(1); new a()(); new [1]; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

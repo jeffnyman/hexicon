@@ -1,0 +1,8 @@
+class Thing: object;
+extern function e1(Thing a);
+extern function e2(a) multimethod;
+extern function e3(Thing a, ...);
+e1(Thing a) { return 1; }
+e2(a) multimethod { return 2; }
+_main(args) { return [e1(1), e2(2), e3(3)]; }
+

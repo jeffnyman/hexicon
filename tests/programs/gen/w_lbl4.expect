@@ -1,0 +1,32 @@
+image: af9fcaf80bdc7543545053766ecf95d7296991e2c962d409dd762635c966c314
+--- messages
+warning: code has "return" with value but also falls off end
+  --> w_lbl4.hxn:1
+  |
+1 | _main(args) { if (nil) goto a; a: if (true) return 1; else goto b; b: ; }
+  |
+
+warning: "if" condition is always false
+  --> w_lbl4.hxn:1
+  |
+1 | _main(args) { if (nil) goto a; a: if (true) return 1; else goto b; b: ; }
+  |
+
+warning: "if" condition is always true - "else" part is unreachable
+  --> w_lbl4.hxn:1
+  |
+1 | _main(args) { if (nil) goto a; a: if (true) return 1; else goto b; b: ; }
+  |
+
+warning: label "a" is not referenced
+  --> w_lbl4.hxn:1
+  |
+1 | _main(args) { if (nil) goto a; a: if (true) return 1; else goto b; b: ; }
+  |
+
+warning: label "b" is not referenced
+  --> w_lbl4.hxn:1
+  |
+1 | _main(args) { if (nil) goto a; a: if (true) return 1; else goto b; b: ; }
+  |
+--- output

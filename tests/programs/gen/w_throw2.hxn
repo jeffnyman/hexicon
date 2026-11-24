@@ -1,0 +1,1 @@
+_main(args) { if (args) throw args; else return 1; }

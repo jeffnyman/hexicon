@@ -1,0 +1,1730 @@
+image: 3e53386671862f740f97e84237ac1b34346939a303b480fbefea33ad8d7f68e5
+--- messages
+warning: "v91" is given a value that is never used
+  --> manylocals.hxn:94
+   |
+94 |     local v91 = 91;
+   |
+
+warning: "v82" is given a value that is never used
+  --> manylocals.hxn:85
+   |
+85 |     local v82 = 82;
+   |
+
+warning: "v73" is given a value that is never used
+  --> manylocals.hxn:76
+   |
+76 |     local v73 = 73;
+   |
+
+warning: "v64" is given a value that is never used
+  --> manylocals.hxn:67
+   |
+67 |     local v64 = 64;
+   |
+
+warning: "v55" is given a value that is never used
+  --> manylocals.hxn:58
+   |
+58 |     local v55 = 55;
+   |
+
+warning: "v46" is given a value that is never used
+  --> manylocals.hxn:49
+   |
+49 |     local v46 = 46;
+   |
+
+warning: "v37" is given a value that is never used
+  --> manylocals.hxn:40
+   |
+40 |     local v37 = 37;
+   |
+
+warning: "v28" is given a value that is never used
+  --> manylocals.hxn:31
+   |
+31 |     local v28 = 28;
+   |
+
+warning: "v19" is given a value that is never used
+  --> manylocals.hxn:22
+   |
+22 |     local v19 = 19;
+   |
+
+warning: "v92" is given a value that is never used
+  --> manylocals.hxn:95
+   |
+95 |     local v92 = 92;
+   |
+
+warning: "v83" is given a value that is never used
+  --> manylocals.hxn:86
+   |
+86 |     local v83 = 83;
+   |
+
+warning: "v74" is given a value that is never used
+  --> manylocals.hxn:77
+   |
+77 |     local v74 = 74;
+   |
+
+warning: "v65" is given a value that is never used
+  --> manylocals.hxn:68
+   |
+68 |     local v65 = 65;
+   |
+
+warning: "v56" is given a value that is never used
+  --> manylocals.hxn:59
+   |
+59 |     local v56 = 56;
+   |
+
+warning: "v47" is given a value that is never used
+  --> manylocals.hxn:50
+   |
+50 |     local v47 = 47;
+   |
+
+warning: "v38" is given a value that is never used
+  --> manylocals.hxn:41
+   |
+41 |     local v38 = 38;
+   |
+
+warning: "v29" is given a value that is never used
+  --> manylocals.hxn:32
+   |
+32 |     local v29 = 29;
+   |
+
+warning: "v93" is given a value that is never used
+  --> manylocals.hxn:96
+   |
+96 |     local v93 = 93;
+   |
+
+warning: "v84" is given a value that is never used
+  --> manylocals.hxn:87
+   |
+87 |     local v84 = 84;
+   |
+
+warning: "v75" is given a value that is never used
+  --> manylocals.hxn:78
+   |
+78 |     local v75 = 75;
+   |
+
+warning: "v66" is given a value that is never used
+  --> manylocals.hxn:69
+   |
+69 |     local v66 = 66;
+   |
+
+warning: "v57" is given a value that is never used
+  --> manylocals.hxn:60
+   |
+60 |     local v57 = 57;
+   |
+
+warning: "v48" is given a value that is never used
+  --> manylocals.hxn:51
+   |
+51 |     local v48 = 48;
+   |
+
+warning: "v39" is given a value that is never used
+  --> manylocals.hxn:42
+   |
+42 |     local v39 = 39;
+   |
+
+warning: "v94" is given a value that is never used
+  --> manylocals.hxn:97
+   |
+97 |     local v94 = 94;
+   |
+
+warning: "v85" is given a value that is never used
+  --> manylocals.hxn:88
+   |
+88 |     local v85 = 85;
+   |
+
+warning: "v76" is given a value that is never used
+  --> manylocals.hxn:79
+   |
+79 |     local v76 = 76;
+   |
+
+warning: "v67" is given a value that is never used
+  --> manylocals.hxn:70
+   |
+70 |     local v67 = 67;
+   |
+
+warning: "v58" is given a value that is never used
+  --> manylocals.hxn:61
+   |
+61 |     local v58 = 58;
+   |
+
+warning: "v49" is given a value that is never used
+  --> manylocals.hxn:52
+   |
+52 |     local v49 = 49;
+   |
+
+warning: "v95" is given a value that is never used
+  --> manylocals.hxn:98
+   |
+98 |     local v95 = 95;
+   |
+
+warning: "v86" is given a value that is never used
+  --> manylocals.hxn:89
+   |
+89 |     local v86 = 86;
+   |
+
+warning: "v77" is given a value that is never used
+  --> manylocals.hxn:80
+   |
+80 |     local v77 = 77;
+   |
+
+warning: "v68" is given a value that is never used
+  --> manylocals.hxn:71
+   |
+71 |     local v68 = 68;
+   |
+
+warning: "v59" is given a value that is never used
+  --> manylocals.hxn:62
+   |
+62 |     local v59 = 59;
+   |
+
+warning: "v96" is given a value that is never used
+  --> manylocals.hxn:99
+   |
+99 |     local v96 = 96;
+   |
+
+warning: "v87" is given a value that is never used
+  --> manylocals.hxn:90
+   |
+90 |     local v87 = 87;
+   |
+
+warning: "v78" is given a value that is never used
+  --> manylocals.hxn:81
+   |
+81 |     local v78 = 78;
+   |
+
+warning: "v69" is given a value that is never used
+  --> manylocals.hxn:72
+   |
+72 |     local v69 = 69;
+   |
+
+warning: "v97" is given a value that is never used
+  --> manylocals.hxn:100
+    |
+100 |     local v97 = 97;
+    |
+
+warning: "v88" is given a value that is never used
+  --> manylocals.hxn:91
+   |
+91 |     local v88 = 88;
+   |
+
+warning: "v79" is given a value that is never used
+  --> manylocals.hxn:82
+   |
+82 |     local v79 = 79;
+   |
+
+warning: "v100" is given a value that is never used
+  --> manylocals.hxn:103
+    |
+103 |     local v100 = 100;
+    |
+
+warning: "v98" is given a value that is never used
+  --> manylocals.hxn:101
+    |
+101 |     local v98 = 98;
+    |
+
+warning: "v89" is given a value that is never used
+  --> manylocals.hxn:92
+   |
+92 |     local v89 = 89;
+   |
+
+warning: "v1" is given a value that is never used
+  --> manylocals.hxn:4
+  |
+4 |     local v1 = 1;
+  |
+
+warning: "v200" is given a value that is never used
+  --> manylocals.hxn:203
+    |
+203 |     local v200 = 200;
+    |
+
+warning: "v110" is given a value that is never used
+  --> manylocals.hxn:113
+    |
+113 |     local v110 = 110;
+    |
+
+warning: "v101" is given a value that is never used
+  --> manylocals.hxn:104
+    |
+104 |     local v101 = 101;
+    |
+
+warning: "v99" is given a value that is never used
+  --> manylocals.hxn:102
+    |
+102 |     local v99 = 99;
+    |
+
+warning: "v210" is given a value that is never used
+  --> manylocals.hxn:213
+    |
+213 |     local v210 = 210;
+    |
+
+warning: "v201" is given a value that is never used
+  --> manylocals.hxn:204
+    |
+204 |     local v201 = 201;
+    |
+
+warning: "v120" is given a value that is never used
+  --> manylocals.hxn:123
+    |
+123 |     local v120 = 120;
+    |
+
+warning: "v111" is given a value that is never used
+  --> manylocals.hxn:114
+    |
+114 |     local v111 = 111;
+    |
+
+warning: "v102" is given a value that is never used
+  --> manylocals.hxn:105
+    |
+105 |     local v102 = 102;
+    |
+
+warning: "v220" is given a value that is never used
+  --> manylocals.hxn:223
+    |
+223 |     local v220 = 220;
+    |
+
+warning: "v211" is given a value that is never used
+  --> manylocals.hxn:214
+    |
+214 |     local v211 = 211;
+    |
+
+warning: "v202" is given a value that is never used
+  --> manylocals.hxn:205
+    |
+205 |     local v202 = 202;
+    |
+
+warning: "v130" is given a value that is never used
+  --> manylocals.hxn:133
+    |
+133 |     local v130 = 130;
+    |
+
+warning: "v121" is given a value that is never used
+  --> manylocals.hxn:124
+    |
+124 |     local v121 = 121;
+    |
+
+warning: "v112" is given a value that is never used
+  --> manylocals.hxn:115
+    |
+115 |     local v112 = 112;
+    |
+
+warning: "v103" is given a value that is never used
+  --> manylocals.hxn:106
+    |
+106 |     local v103 = 103;
+    |
+
+warning: "v4" is given a value that is never used
+  --> manylocals.hxn:7
+  |
+7 |     local v4 = 4;
+  |
+
+warning: "v230" is given a value that is never used
+  --> manylocals.hxn:233
+    |
+233 |     local v230 = 230;
+    |
+
+warning: "v221" is given a value that is never used
+  --> manylocals.hxn:224
+    |
+224 |     local v221 = 221;
+    |
+
+warning: "v212" is given a value that is never used
+  --> manylocals.hxn:215
+    |
+215 |     local v212 = 212;
+    |
+
+warning: "v203" is given a value that is never used
+  --> manylocals.hxn:206
+    |
+206 |     local v203 = 203;
+    |
+
+warning: "v140" is given a value that is never used
+  --> manylocals.hxn:143
+    |
+143 |     local v140 = 140;
+    |
+
+warning: "v131" is given a value that is never used
+  --> manylocals.hxn:134
+    |
+134 |     local v131 = 131;
+    |
+
+warning: "v122" is given a value that is never used
+  --> manylocals.hxn:125
+    |
+125 |     local v122 = 122;
+    |
+
+warning: "v113" is given a value that is never used
+  --> manylocals.hxn:116
+    |
+116 |     local v113 = 113;
+    |
+
+warning: "v104" is given a value that is never used
+  --> manylocals.hxn:107
+    |
+107 |     local v104 = 104;
+    |
+
+warning: "v240" is given a value that is never used
+  --> manylocals.hxn:243
+    |
+243 |     local v240 = 240;
+    |
+
+warning: "v231" is given a value that is never used
+  --> manylocals.hxn:234
+    |
+234 |     local v231 = 231;
+    |
+
+warning: "v222" is given a value that is never used
+  --> manylocals.hxn:225
+    |
+225 |     local v222 = 222;
+    |
+
+warning: "v213" is given a value that is never used
+  --> manylocals.hxn:216
+    |
+216 |     local v213 = 213;
+    |
+
+warning: "v204" is given a value that is never used
+  --> manylocals.hxn:207
+    |
+207 |     local v204 = 204;
+    |
+
+warning: "v150" is given a value that is never used
+  --> manylocals.hxn:153
+    |
+153 |     local v150 = 150;
+    |
+
+warning: "v141" is given a value that is never used
+  --> manylocals.hxn:144
+    |
+144 |     local v141 = 141;
+    |
+
+warning: "v132" is given a value that is never used
+  --> manylocals.hxn:135
+    |
+135 |     local v132 = 132;
+    |
+
+warning: "v123" is given a value that is never used
+  --> manylocals.hxn:126
+    |
+126 |     local v123 = 123;
+    |
+
+warning: "v114" is given a value that is never used
+  --> manylocals.hxn:117
+    |
+117 |     local v114 = 114;
+    |
+
+warning: "v105" is given a value that is never used
+  --> manylocals.hxn:108
+    |
+108 |     local v105 = 105;
+    |
+
+warning: "v250" is given a value that is never used
+  --> manylocals.hxn:253
+    |
+253 |     local v250 = 250;
+    |
+
+warning: "v241" is given a value that is never used
+  --> manylocals.hxn:244
+    |
+244 |     local v241 = 241;
+    |
+
+warning: "v232" is given a value that is never used
+  --> manylocals.hxn:235
+    |
+235 |     local v232 = 232;
+    |
+
+warning: "v223" is given a value that is never used
+  --> manylocals.hxn:226
+    |
+226 |     local v223 = 223;
+    |
+
+warning: "v214" is given a value that is never used
+  --> manylocals.hxn:217
+    |
+217 |     local v214 = 214;
+    |
+
+warning: "v205" is given a value that is never used
+  --> manylocals.hxn:208
+    |
+208 |     local v205 = 205;
+    |
+
+warning: "v160" is given a value that is never used
+  --> manylocals.hxn:163
+    |
+163 |     local v160 = 160;
+    |
+
+warning: "v151" is given a value that is never used
+  --> manylocals.hxn:154
+    |
+154 |     local v151 = 151;
+    |
+
+warning: "v142" is given a value that is never used
+  --> manylocals.hxn:145
+    |
+145 |     local v142 = 142;
+    |
+
+warning: "v133" is given a value that is never used
+  --> manylocals.hxn:136
+    |
+136 |     local v133 = 133;
+    |
+
+warning: "v124" is given a value that is never used
+  --> manylocals.hxn:127
+    |
+127 |     local v124 = 124;
+    |
+
+warning: "v115" is given a value that is never used
+  --> manylocals.hxn:118
+    |
+118 |     local v115 = 115;
+    |
+
+warning: "v106" is given a value that is never used
+  --> manylocals.hxn:109
+    |
+109 |     local v106 = 106;
+    |
+
+warning: "v260" is given a value that is never used
+  --> manylocals.hxn:263
+    |
+263 |     local v260 = 260;
+    |
+
+warning: "v251" is given a value that is never used
+  --> manylocals.hxn:254
+    |
+254 |     local v251 = 251;
+    |
+
+warning: "v242" is given a value that is never used
+  --> manylocals.hxn:245
+    |
+245 |     local v242 = 242;
+    |
+
+warning: "v233" is given a value that is never used
+  --> manylocals.hxn:236
+    |
+236 |     local v233 = 233;
+    |
+
+warning: "v224" is given a value that is never used
+  --> manylocals.hxn:227
+    |
+227 |     local v224 = 224;
+    |
+
+warning: "v215" is given a value that is never used
+  --> manylocals.hxn:218
+    |
+218 |     local v215 = 215;
+    |
+
+warning: "v206" is given a value that is never used
+  --> manylocals.hxn:209
+    |
+209 |     local v206 = 206;
+    |
+
+warning: "v170" is given a value that is never used
+  --> manylocals.hxn:173
+    |
+173 |     local v170 = 170;
+    |
+
+warning: "v161" is given a value that is never used
+  --> manylocals.hxn:164
+    |
+164 |     local v161 = 161;
+    |
+
+warning: "v152" is given a value that is never used
+  --> manylocals.hxn:155
+    |
+155 |     local v152 = 152;
+    |
+
+warning: "v143" is given a value that is never used
+  --> manylocals.hxn:146
+    |
+146 |     local v143 = 143;
+    |
+
+warning: "v134" is given a value that is never used
+  --> manylocals.hxn:137
+    |
+137 |     local v134 = 134;
+    |
+
+warning: "v125" is given a value that is never used
+  --> manylocals.hxn:128
+    |
+128 |     local v125 = 125;
+    |
+
+warning: "v116" is given a value that is never used
+  --> manylocals.hxn:119
+    |
+119 |     local v116 = 116;
+    |
+
+warning: "v107" is given a value that is never used
+  --> manylocals.hxn:110
+    |
+110 |     local v107 = 107;
+    |
+
+warning: "v8" is given a value that is never used
+  --> manylocals.hxn:11
+   |
+11 |     local v8 = 8;
+   |
+
+warning: "v261" is given a value that is never used
+  --> manylocals.hxn:264
+    |
+264 |     local v261 = 261;
+    |
+
+warning: "v252" is given a value that is never used
+  --> manylocals.hxn:255
+    |
+255 |     local v252 = 252;
+    |
+
+warning: "v243" is given a value that is never used
+  --> manylocals.hxn:246
+    |
+246 |     local v243 = 243;
+    |
+
+warning: "v234" is given a value that is never used
+  --> manylocals.hxn:237
+    |
+237 |     local v234 = 234;
+    |
+
+warning: "v225" is given a value that is never used
+  --> manylocals.hxn:228
+    |
+228 |     local v225 = 225;
+    |
+
+warning: "v216" is given a value that is never used
+  --> manylocals.hxn:219
+    |
+219 |     local v216 = 216;
+    |
+
+warning: "v207" is given a value that is never used
+  --> manylocals.hxn:210
+    |
+210 |     local v207 = 207;
+    |
+
+warning: "v180" is given a value that is never used
+  --> manylocals.hxn:183
+    |
+183 |     local v180 = 180;
+    |
+
+warning: "v171" is given a value that is never used
+  --> manylocals.hxn:174
+    |
+174 |     local v171 = 171;
+    |
+
+warning: "v162" is given a value that is never used
+  --> manylocals.hxn:165
+    |
+165 |     local v162 = 162;
+    |
+
+warning: "v153" is given a value that is never used
+  --> manylocals.hxn:156
+    |
+156 |     local v153 = 153;
+    |
+
+warning: "v144" is given a value that is never used
+  --> manylocals.hxn:147
+    |
+147 |     local v144 = 144;
+    |
+
+warning: "v135" is given a value that is never used
+  --> manylocals.hxn:138
+    |
+138 |     local v135 = 135;
+    |
+
+warning: "v126" is given a value that is never used
+  --> manylocals.hxn:129
+    |
+129 |     local v126 = 126;
+    |
+
+warning: "v117" is given a value that is never used
+  --> manylocals.hxn:120
+    |
+120 |     local v117 = 117;
+    |
+
+warning: "v108" is given a value that is never used
+  --> manylocals.hxn:111
+    |
+111 |     local v108 = 108;
+    |
+
+warning: "v9" is given a value that is never used
+  --> manylocals.hxn:12
+   |
+12 |     local v9 = 9;
+   |
+
+warning: "v271" is given a value that is never used
+  --> manylocals.hxn:274
+    |
+274 |     local v271 = 271;
+    |
+
+warning: "v262" is given a value that is never used
+  --> manylocals.hxn:265
+    |
+265 |     local v262 = 262;
+    |
+
+warning: "v253" is given a value that is never used
+  --> manylocals.hxn:256
+    |
+256 |     local v253 = 253;
+    |
+
+warning: "v244" is given a value that is never used
+  --> manylocals.hxn:247
+    |
+247 |     local v244 = 244;
+    |
+
+warning: "v235" is given a value that is never used
+  --> manylocals.hxn:238
+    |
+238 |     local v235 = 235;
+    |
+
+warning: "v226" is given a value that is never used
+  --> manylocals.hxn:229
+    |
+229 |     local v226 = 226;
+    |
+
+warning: "v217" is given a value that is never used
+  --> manylocals.hxn:220
+    |
+220 |     local v217 = 217;
+    |
+
+warning: "v208" is given a value that is never used
+  --> manylocals.hxn:211
+    |
+211 |     local v208 = 208;
+    |
+
+warning: "v190" is given a value that is never used
+  --> manylocals.hxn:193
+    |
+193 |     local v190 = 190;
+    |
+
+warning: "v181" is given a value that is never used
+  --> manylocals.hxn:184
+    |
+184 |     local v181 = 181;
+    |
+
+warning: "v172" is given a value that is never used
+  --> manylocals.hxn:175
+    |
+175 |     local v172 = 172;
+    |
+
+warning: "v163" is given a value that is never used
+  --> manylocals.hxn:166
+    |
+166 |     local v163 = 163;
+    |
+
+warning: "v154" is given a value that is never used
+  --> manylocals.hxn:157
+    |
+157 |     local v154 = 154;
+    |
+
+warning: "v145" is given a value that is never used
+  --> manylocals.hxn:148
+    |
+148 |     local v145 = 145;
+    |
+
+warning: "v136" is given a value that is never used
+  --> manylocals.hxn:139
+    |
+139 |     local v136 = 136;
+    |
+
+warning: "v127" is given a value that is never used
+  --> manylocals.hxn:130
+    |
+130 |     local v127 = 127;
+    |
+
+warning: "v118" is given a value that is never used
+  --> manylocals.hxn:121
+    |
+121 |     local v118 = 118;
+    |
+
+warning: "v109" is given a value that is never used
+  --> manylocals.hxn:112
+    |
+112 |     local v109 = 109;
+    |
+
+warning: "v281" is given a value that is never used
+  --> manylocals.hxn:284
+    |
+284 |     local v281 = 281;
+    |
+
+warning: "v272" is given a value that is never used
+  --> manylocals.hxn:275
+    |
+275 |     local v272 = 272;
+    |
+
+warning: "v263" is given a value that is never used
+  --> manylocals.hxn:266
+    |
+266 |     local v263 = 263;
+    |
+
+warning: "v254" is given a value that is never used
+  --> manylocals.hxn:257
+    |
+257 |     local v254 = 254;
+    |
+
+warning: "v245" is given a value that is never used
+  --> manylocals.hxn:248
+    |
+248 |     local v245 = 245;
+    |
+
+warning: "v236" is given a value that is never used
+  --> manylocals.hxn:239
+    |
+239 |     local v236 = 236;
+    |
+
+warning: "v227" is given a value that is never used
+  --> manylocals.hxn:230
+    |
+230 |     local v227 = 227;
+    |
+
+warning: "v218" is given a value that is never used
+  --> manylocals.hxn:221
+    |
+221 |     local v218 = 218;
+    |
+
+warning: "v209" is given a value that is never used
+  --> manylocals.hxn:212
+    |
+212 |     local v209 = 209;
+    |
+
+warning: "v191" is given a value that is never used
+  --> manylocals.hxn:194
+    |
+194 |     local v191 = 191;
+    |
+
+warning: "v182" is given a value that is never used
+  --> manylocals.hxn:185
+    |
+185 |     local v182 = 182;
+    |
+
+warning: "v173" is given a value that is never used
+  --> manylocals.hxn:176
+    |
+176 |     local v173 = 173;
+    |
+
+warning: "v164" is given a value that is never used
+  --> manylocals.hxn:167
+    |
+167 |     local v164 = 164;
+    |
+
+warning: "v155" is given a value that is never used
+  --> manylocals.hxn:158
+    |
+158 |     local v155 = 155;
+    |
+
+warning: "v146" is given a value that is never used
+  --> manylocals.hxn:149
+    |
+149 |     local v146 = 146;
+    |
+
+warning: "v137" is given a value that is never used
+  --> manylocals.hxn:140
+    |
+140 |     local v137 = 137;
+    |
+
+warning: "v128" is given a value that is never used
+  --> manylocals.hxn:131
+    |
+131 |     local v128 = 128;
+    |
+
+warning: "v119" is given a value that is never used
+  --> manylocals.hxn:122
+    |
+122 |     local v119 = 119;
+    |
+
+warning: "v291" is given a value that is never used
+  --> manylocals.hxn:294
+    |
+294 |     local v291 = 291;
+    |
+
+warning: "v282" is given a value that is never used
+  --> manylocals.hxn:285
+    |
+285 |     local v282 = 282;
+    |
+
+warning: "v273" is given a value that is never used
+  --> manylocals.hxn:276
+    |
+276 |     local v273 = 273;
+    |
+
+warning: "v264" is given a value that is never used
+  --> manylocals.hxn:267
+    |
+267 |     local v264 = 264;
+    |
+
+warning: "v246" is given a value that is never used
+  --> manylocals.hxn:249
+    |
+249 |     local v246 = 246;
+    |
+
+warning: "v237" is given a value that is never used
+  --> manylocals.hxn:240
+    |
+240 |     local v237 = 237;
+    |
+
+warning: "v228" is given a value that is never used
+  --> manylocals.hxn:231
+    |
+231 |     local v228 = 228;
+    |
+
+warning: "v219" is given a value that is never used
+  --> manylocals.hxn:222
+    |
+222 |     local v219 = 219;
+    |
+
+warning: "v192" is given a value that is never used
+  --> manylocals.hxn:195
+    |
+195 |     local v192 = 192;
+    |
+
+warning: "v183" is given a value that is never used
+  --> manylocals.hxn:186
+    |
+186 |     local v183 = 183;
+    |
+
+warning: "v174" is given a value that is never used
+  --> manylocals.hxn:177
+    |
+177 |     local v174 = 174;
+    |
+
+warning: "v165" is given a value that is never used
+  --> manylocals.hxn:168
+    |
+168 |     local v165 = 165;
+    |
+
+warning: "v156" is given a value that is never used
+  --> manylocals.hxn:159
+    |
+159 |     local v156 = 156;
+    |
+
+warning: "v147" is given a value that is never used
+  --> manylocals.hxn:150
+    |
+150 |     local v147 = 147;
+    |
+
+warning: "v138" is given a value that is never used
+  --> manylocals.hxn:141
+    |
+141 |     local v138 = 138;
+    |
+
+warning: "v129" is given a value that is never used
+  --> manylocals.hxn:132
+    |
+132 |     local v129 = 129;
+    |
+
+warning: "v292" is given a value that is never used
+  --> manylocals.hxn:295
+    |
+295 |     local v292 = 292;
+    |
+
+warning: "v283" is given a value that is never used
+  --> manylocals.hxn:286
+    |
+286 |     local v283 = 283;
+    |
+
+warning: "v274" is given a value that is never used
+  --> manylocals.hxn:277
+    |
+277 |     local v274 = 274;
+    |
+
+warning: "v265" is given a value that is never used
+  --> manylocals.hxn:268
+    |
+268 |     local v265 = 265;
+    |
+
+warning: "v247" is given a value that is never used
+  --> manylocals.hxn:250
+    |
+250 |     local v247 = 247;
+    |
+
+warning: "v238" is given a value that is never used
+  --> manylocals.hxn:241
+    |
+241 |     local v238 = 238;
+    |
+
+warning: "v229" is given a value that is never used
+  --> manylocals.hxn:232
+    |
+232 |     local v229 = 229;
+    |
+
+warning: "v193" is given a value that is never used
+  --> manylocals.hxn:196
+    |
+196 |     local v193 = 193;
+    |
+
+warning: "v184" is given a value that is never used
+  --> manylocals.hxn:187
+    |
+187 |     local v184 = 184;
+    |
+
+warning: "v175" is given a value that is never used
+  --> manylocals.hxn:178
+    |
+178 |     local v175 = 175;
+    |
+
+warning: "v166" is given a value that is never used
+  --> manylocals.hxn:169
+    |
+169 |     local v166 = 166;
+    |
+
+warning: "v157" is given a value that is never used
+  --> manylocals.hxn:160
+    |
+160 |     local v157 = 157;
+    |
+
+warning: "v148" is given a value that is never used
+  --> manylocals.hxn:151
+    |
+151 |     local v148 = 148;
+    |
+
+warning: "v139" is given a value that is never used
+  --> manylocals.hxn:142
+    |
+142 |     local v139 = 139;
+    |
+
+warning: "v293" is given a value that is never used
+  --> manylocals.hxn:296
+    |
+296 |     local v293 = 293;
+    |
+
+warning: "v284" is given a value that is never used
+  --> manylocals.hxn:287
+    |
+287 |     local v284 = 284;
+    |
+
+warning: "v275" is given a value that is never used
+  --> manylocals.hxn:278
+    |
+278 |     local v275 = 275;
+    |
+
+warning: "v266" is given a value that is never used
+  --> manylocals.hxn:269
+    |
+269 |     local v266 = 266;
+    |
+
+warning: "v257" is given a value that is never used
+  --> manylocals.hxn:260
+    |
+260 |     local v257 = 257;
+    |
+
+warning: "v248" is given a value that is never used
+  --> manylocals.hxn:251
+    |
+251 |     local v248 = 248;
+    |
+
+warning: "v239" is given a value that is never used
+  --> manylocals.hxn:242
+    |
+242 |     local v239 = 239;
+    |
+
+warning: "v194" is given a value that is never used
+  --> manylocals.hxn:197
+    |
+197 |     local v194 = 194;
+    |
+
+warning: "v185" is given a value that is never used
+  --> manylocals.hxn:188
+    |
+188 |     local v185 = 185;
+    |
+
+warning: "v176" is given a value that is never used
+  --> manylocals.hxn:179
+    |
+179 |     local v176 = 176;
+    |
+
+warning: "v167" is given a value that is never used
+  --> manylocals.hxn:170
+    |
+170 |     local v167 = 167;
+    |
+
+warning: "v158" is given a value that is never used
+  --> manylocals.hxn:161
+    |
+161 |     local v158 = 158;
+    |
+
+warning: "v149" is given a value that is never used
+  --> manylocals.hxn:152
+    |
+152 |     local v149 = 149;
+    |
+
+warning: "v294" is given a value that is never used
+  --> manylocals.hxn:297
+    |
+297 |     local v294 = 294;
+    |
+
+warning: "v285" is given a value that is never used
+  --> manylocals.hxn:288
+    |
+288 |     local v285 = 285;
+    |
+
+warning: "v276" is given a value that is never used
+  --> manylocals.hxn:279
+    |
+279 |     local v276 = 276;
+    |
+
+warning: "v267" is given a value that is never used
+  --> manylocals.hxn:270
+    |
+270 |     local v267 = 267;
+    |
+
+warning: "v258" is given a value that is never used
+  --> manylocals.hxn:261
+    |
+261 |     local v258 = 258;
+    |
+
+warning: "v249" is given a value that is never used
+  --> manylocals.hxn:252
+    |
+252 |     local v249 = 249;
+    |
+
+warning: "v195" is given a value that is never used
+  --> manylocals.hxn:198
+    |
+198 |     local v195 = 195;
+    |
+
+warning: "v186" is given a value that is never used
+  --> manylocals.hxn:189
+    |
+189 |     local v186 = 186;
+    |
+
+warning: "v177" is given a value that is never used
+  --> manylocals.hxn:180
+    |
+180 |     local v177 = 177;
+    |
+
+warning: "v168" is given a value that is never used
+  --> manylocals.hxn:171
+    |
+171 |     local v168 = 168;
+    |
+
+warning: "v159" is given a value that is never used
+  --> manylocals.hxn:162
+    |
+162 |     local v159 = 159;
+    |
+
+warning: "v295" is given a value that is never used
+  --> manylocals.hxn:298
+    |
+298 |     local v295 = 295;
+    |
+
+warning: "v286" is given a value that is never used
+  --> manylocals.hxn:289
+    |
+289 |     local v286 = 286;
+    |
+
+warning: "v277" is given a value that is never used
+  --> manylocals.hxn:280
+    |
+280 |     local v277 = 277;
+    |
+
+warning: "v268" is given a value that is never used
+  --> manylocals.hxn:271
+    |
+271 |     local v268 = 268;
+    |
+
+warning: "v259" is given a value that is never used
+  --> manylocals.hxn:262
+    |
+262 |     local v259 = 259;
+    |
+
+warning: "v196" is given a value that is never used
+  --> manylocals.hxn:199
+    |
+199 |     local v196 = 196;
+    |
+
+warning: "v187" is given a value that is never used
+  --> manylocals.hxn:190
+    |
+190 |     local v187 = 187;
+    |
+
+warning: "v178" is given a value that is never used
+  --> manylocals.hxn:181
+    |
+181 |     local v178 = 178;
+    |
+
+warning: "v169" is given a value that is never used
+  --> manylocals.hxn:172
+    |
+172 |     local v169 = 169;
+    |
+
+warning: "v296" is given a value that is never used
+  --> manylocals.hxn:299
+    |
+299 |     local v296 = 296;
+    |
+
+warning: "v287" is given a value that is never used
+  --> manylocals.hxn:290
+    |
+290 |     local v287 = 287;
+    |
+
+warning: "v278" is given a value that is never used
+  --> manylocals.hxn:281
+    |
+281 |     local v278 = 278;
+    |
+
+warning: "v269" is given a value that is never used
+  --> manylocals.hxn:272
+    |
+272 |     local v269 = 269;
+    |
+
+warning: "v197" is given a value that is never used
+  --> manylocals.hxn:200
+    |
+200 |     local v197 = 197;
+    |
+
+warning: "v188" is given a value that is never used
+  --> manylocals.hxn:191
+    |
+191 |     local v188 = 188;
+    |
+
+warning: "v179" is given a value that is never used
+  --> manylocals.hxn:182
+    |
+182 |     local v179 = 179;
+    |
+
+warning: "v10" is given a value that is never used
+  --> manylocals.hxn:13
+   |
+13 |     local v10 = 10;
+   |
+
+warning: "v297" is given a value that is never used
+  --> manylocals.hxn:300
+    |
+300 |     local v297 = 297;
+    |
+
+warning: "v288" is given a value that is never used
+  --> manylocals.hxn:291
+    |
+291 |     local v288 = 288;
+    |
+
+warning: "v279" is given a value that is never used
+  --> manylocals.hxn:282
+    |
+282 |     local v279 = 279;
+    |
+
+warning: "v198" is given a value that is never used
+  --> manylocals.hxn:201
+    |
+201 |     local v198 = 198;
+    |
+
+warning: "v189" is given a value that is never used
+  --> manylocals.hxn:192
+    |
+192 |     local v189 = 189;
+    |
+
+warning: "v20" is given a value that is never used
+  --> manylocals.hxn:23
+   |
+23 |     local v20 = 20;
+   |
+
+warning: "v11" is given a value that is never used
+  --> manylocals.hxn:14
+   |
+14 |     local v11 = 11;
+   |
+
+warning: "v298" is given a value that is never used
+  --> manylocals.hxn:301
+    |
+301 |     local v298 = 298;
+    |
+
+warning: "v289" is given a value that is never used
+  --> manylocals.hxn:292
+    |
+292 |     local v289 = 289;
+    |
+
+warning: "v199" is given a value that is never used
+  --> manylocals.hxn:202
+    |
+202 |     local v199 = 199;
+    |
+
+warning: "v30" is given a value that is never used
+  --> manylocals.hxn:33
+   |
+33 |     local v30 = 30;
+   |
+
+warning: "v21" is given a value that is never used
+  --> manylocals.hxn:24
+   |
+24 |     local v21 = 21;
+   |
+
+warning: "v12" is given a value that is never used
+  --> manylocals.hxn:15
+   |
+15 |     local v12 = 12;
+   |
+
+warning: "v40" is given a value that is never used
+  --> manylocals.hxn:43
+   |
+43 |     local v40 = 40;
+   |
+
+warning: "v31" is given a value that is never used
+  --> manylocals.hxn:34
+   |
+34 |     local v31 = 31;
+   |
+
+warning: "v22" is given a value that is never used
+  --> manylocals.hxn:25
+   |
+25 |     local v22 = 22;
+   |
+
+warning: "v13" is given a value that is never used
+  --> manylocals.hxn:16
+   |
+16 |     local v13 = 13;
+   |
+
+warning: "v50" is given a value that is never used
+  --> manylocals.hxn:53
+   |
+53 |     local v50 = 50;
+   |
+
+warning: "v41" is given a value that is never used
+  --> manylocals.hxn:44
+   |
+44 |     local v41 = 41;
+   |
+
+warning: "v32" is given a value that is never used
+  --> manylocals.hxn:35
+   |
+35 |     local v32 = 32;
+   |
+
+warning: "v23" is given a value that is never used
+  --> manylocals.hxn:26
+   |
+26 |     local v23 = 23;
+   |
+
+warning: "v14" is given a value that is never used
+  --> manylocals.hxn:17
+   |
+17 |     local v14 = 14;
+   |
+
+warning: "v60" is given a value that is never used
+  --> manylocals.hxn:63
+   |
+63 |     local v60 = 60;
+   |
+
+warning: "v51" is given a value that is never used
+  --> manylocals.hxn:54
+   |
+54 |     local v51 = 51;
+   |
+
+warning: "v42" is given a value that is never used
+  --> manylocals.hxn:45
+   |
+45 |     local v42 = 42;
+   |
+
+warning: "v33" is given a value that is never used
+  --> manylocals.hxn:36
+   |
+36 |     local v33 = 33;
+   |
+
+warning: "v24" is given a value that is never used
+  --> manylocals.hxn:27
+   |
+27 |     local v24 = 24;
+   |
+
+warning: "v15" is given a value that is never used
+  --> manylocals.hxn:18
+   |
+18 |     local v15 = 15;
+   |
+
+warning: "v70" is given a value that is never used
+  --> manylocals.hxn:73
+   |
+73 |     local v70 = 70;
+   |
+
+warning: "v61" is given a value that is never used
+  --> manylocals.hxn:64
+   |
+64 |     local v61 = 61;
+   |
+
+warning: "v52" is given a value that is never used
+  --> manylocals.hxn:55
+   |
+55 |     local v52 = 52;
+   |
+
+warning: "v43" is given a value that is never used
+  --> manylocals.hxn:46
+   |
+46 |     local v43 = 43;
+   |
+
+warning: "v34" is given a value that is never used
+  --> manylocals.hxn:37
+   |
+37 |     local v34 = 34;
+   |
+
+warning: "v25" is given a value that is never used
+  --> manylocals.hxn:28
+   |
+28 |     local v25 = 25;
+   |
+
+warning: "v16" is given a value that is never used
+  --> manylocals.hxn:19
+   |
+19 |     local v16 = 16;
+   |
+
+warning: "v80" is given a value that is never used
+  --> manylocals.hxn:83
+   |
+83 |     local v80 = 80;
+   |
+
+warning: "v71" is given a value that is never used
+  --> manylocals.hxn:74
+   |
+74 |     local v71 = 71;
+   |
+
+warning: "v62" is given a value that is never used
+  --> manylocals.hxn:65
+   |
+65 |     local v62 = 62;
+   |
+
+warning: "v53" is given a value that is never used
+  --> manylocals.hxn:56
+   |
+56 |     local v53 = 53;
+   |
+
+warning: "v44" is given a value that is never used
+  --> manylocals.hxn:47
+   |
+47 |     local v44 = 44;
+   |
+
+warning: "v35" is given a value that is never used
+  --> manylocals.hxn:38
+   |
+38 |     local v35 = 35;
+   |
+
+warning: "v26" is given a value that is never used
+  --> manylocals.hxn:29
+   |
+29 |     local v26 = 26;
+   |
+
+warning: "v17" is given a value that is never used
+  --> manylocals.hxn:20
+   |
+20 |     local v17 = 17;
+   |
+
+warning: "v90" is given a value that is never used
+  --> manylocals.hxn:93
+   |
+93 |     local v90 = 90;
+   |
+
+warning: "v81" is given a value that is never used
+  --> manylocals.hxn:84
+   |
+84 |     local v81 = 81;
+   |
+
+warning: "v72" is given a value that is never used
+  --> manylocals.hxn:75
+   |
+75 |     local v72 = 72;
+   |
+
+warning: "v63" is given a value that is never used
+  --> manylocals.hxn:66
+   |
+66 |     local v63 = 63;
+   |
+
+warning: "v54" is given a value that is never used
+  --> manylocals.hxn:57
+   |
+57 |     local v54 = 54;
+   |
+
+warning: "v45" is given a value that is never used
+  --> manylocals.hxn:48
+   |
+48 |     local v45 = 45;
+   |
+
+warning: "v36" is given a value that is never used
+  --> manylocals.hxn:39
+   |
+39 |     local v36 = 36;
+   |
+
+warning: "v27" is given a value that is never used
+  --> manylocals.hxn:30
+   |
+30 |     local v27 = 27;
+   |
+
+warning: "v18" is given a value that is never used
+  --> manylocals.hxn:21
+   |
+21 |     local v18 = 18;
+   |
+--- output

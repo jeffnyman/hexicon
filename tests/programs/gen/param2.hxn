@@ -1,0 +1,56 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+f(a, n:) { return a + n; }
+g(n:?) { return n; }
+h(n: = 4) { return n; }
+k(n: = print('x')) { return n; }
+m(x:, y:, abc:, zz:?) { return x; }
+_main(args)
+{
+    f(1, n: 2); f(n: 2, 5); g(); g(n: 3); h(); h(n: 1); k(n: 6); k();
+    m(x: 1, y: 2, abc: 3);
+    m(abc: 3, y: 2, x: 1, zz: 0);
+}

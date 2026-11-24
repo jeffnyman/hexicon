@@ -1,0 +1,13 @@
+class A: object who() { return 1; };
+f() { return delegated A.who(); }
+g() { return delegated A; }
+c: object
+    m6() { return delegated undefinedThing.who(); }
+    m7() { return delegated A.undefinedProp(1, 2); }
+    m8 = (delegated A.who())
+    m9 = static (delegated A.who())
+    m10() { delegated A; delegated A.who; return ({: delegated A.x }); }
+    operator +(x) { return argcount; }
+;
+_main(args) { return delegated A.who() + argcount + f.(&operator +) + g.(&operator []=)(1); }
+

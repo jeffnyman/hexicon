@@ -1,0 +1,37 @@
+image: 2187907c0477aa7eb5161fc2550628fc29ecad949b1107ba7014fcb262c5e6f1
+--- messages
+warning: "foo" is not defined anywhere
+  --> dict8.hxn:5
+  |
+5 |     m() { local y = gDict.foo; inherited gDict.foo(); return delegated gDict.foo(); }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "foo" is spelled
+
+warning: "y" is given a value that is never used
+  --> dict8.hxn:5
+  |
+5 |     m() { local y = gDict.foo; inherited gDict.foo(); return delegated gDict.foo(); }
+  |
+
+warning: "m" is given a value here, but nothing reads it
+  --> dict8.hxn:5
+  |
+5 |     m() { local y = gDict.foo; inherited gDict.foo(); return delegated gDict.foo(); }
+  |
+  = did you mean "p"?
+
+warning: "q" is given a value here, but nothing reads it
+  --> dict8.hxn:7
+  |
+7 |     q = [gDict]
+  |
+  = did you mean "p"?
+
+warning: "r" is given a value here, but nothing reads it
+  --> dict8.hxn:8
+  |
+8 |     r = static gDict
+  |
+  = did you mean "p"?
+--- output
+Unhandled exception: property cannot be set for object

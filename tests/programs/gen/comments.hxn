@@ -1,0 +1,4 @@
+/* a comment */ _main(args) // another
+{
+    /* inside */ return 1; // end
+}

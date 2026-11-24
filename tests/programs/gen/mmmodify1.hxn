@@ -1,0 +1,11 @@
+#include <hexicon.h>
+class A: object;
+class B: A;
+kf(A a1, A a2) { return 1; }
+kf(A a1, B b1) { return inherited(a1, b1); }
+modify kf(A a1, B b1) { return replaced(a1, b1) + inherited(a1, b1); }
+_multiMethodRegister(base, func, params) { }
+_multiMethodBuildBindings() { }
+_multiMethodCall(base, args) { return nil; }
+_multiMethodCallInherited(from, [args]) { return nil; }
+_main(args) { return kf(B, B); }

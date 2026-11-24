@@ -1,0 +1,64 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+class Thing: object name = 'thing';
+class Thing2: object;
+object template 'name';
+a: Thing
+  inner: Thing { name = 'inner' deep: Thing { name = 'deep' m() { return lexicalParent; } } }
+  other: object { }
+  tpl: Thing 'tname' { x = 1 }
+  tpl2: Thing { 'tname2' x = 2 }
+  fn = ({: self })
+  list = [1, 2]
+  two: Thing, Thing2 { f() { return ({: lexicalParent.name }); } }
+  lexicalParent = 77
+;
+modify a n2: Thing { } replace inner: Thing { name = 'replaced' };
+modify Object helper: object { v = 1 };
+class C: object sub: Thing { };
+b: Thing { nested: Thing { } }
+transient t: Thing sub: Thing { };
+_main(args) { print(a.inner.name); print(a.tpl.lexicalParent.name); print(a.two.f()()); print(b.helper.v); }

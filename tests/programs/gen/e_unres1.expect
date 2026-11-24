@@ -1,0 +1,10 @@
+image: none
+--- messages
+warning: "if" condition is always true - "else" part is unreachable
+  --> e_unres1.hxn:1
+  |
+1 | _main(args) { if (true) args = 1; else { a: args = 2; } goto a; }
+  |
+
+internal error: 1 unresolved branches
+--- output

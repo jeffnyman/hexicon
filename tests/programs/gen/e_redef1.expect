@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: function "f" is already defined
+  --> e_redef1.hxn:1
+  |
+1 | f() { } f() { } _main(args) { }
+  |
+--- output

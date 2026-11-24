@@ -1,0 +1,26 @@
+_main(args)
+{
+    local a = 1;
+    local f = function(x) {
+        local b = x;
+        return function(y) {
+            local c = y;
+            return function(z) {
+                a += 1;
+                b += a;
+                c = b + z;
+                return {: a + b + c + x + y + z };
+            };
+        };
+    };
+    local g = {x: {y: a + y}};
+    local h = {a: {b: a + b}};
+    local a2 = 5;
+    {
+        local a2 = 6;
+        local i = {: a2 };
+        i();
+    }
+    local j = {: a2 };
+    return f(1)(2)(3)() + g(1)(2) + h(1)(2) + j();
+}

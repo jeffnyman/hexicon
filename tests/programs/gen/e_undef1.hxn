@@ -1,0 +1,1 @@
+_main(args) { nosuch; nosuch; nosuch(); nosuch = 1; other; return nosuch + other; }

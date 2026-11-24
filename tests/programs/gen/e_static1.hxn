@@ -1,0 +1,57 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+_main(args) { }
+a: object p = static ;
+b: object p = static static 1;
+g: object p = static f()
+ q = static ("x", 1) r = static nosuch(1);
+h: object p = static function() { return 1; } q = static method() { return self; };
+i: object p = static 1 + nosuch p2 = static [nosuch2] ;
+j: object construct = static 1 x = static inherited();
+l: object m() { return u1.q; } q = 1;
+n(x) { return x.u1; }
+c: object static p = 1;
+d: object p(x) = static 1;

@@ -1,0 +1,27 @@
+f(a, b)
+{
+    while (a)
+    {
+        if (b) { a--; continue; }
+        else { b++; break; }
+    }
+    if (a) return true; else return nil;
+}
+g(a, b)
+{
+    if (a) return true;
+    if (b) return nil;
+    return a == b;
+}
+h(a, b) { return a ? true : nil; }
+i(a, b) { return a && b; }
+j(a, b) { return a || b; }
+k(a, b) { return !a; }
+l(a, b) { if (a) { return; } else { return; } }
+m(a, b) { if (a) return f(a, b); return g(a, b); }
+n(a, b) { return a ? f(a, b) : g(a, b); }
+o(a) { return a; a = 1; }
+p(a) { for (;;) { } }
+q(a) { while (true) { a++; } }
+r(a) { do { a++; } while (true); }
+_main(args) { return 1; }

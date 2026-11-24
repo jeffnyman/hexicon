@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected an operand, but found ";"
+  --> a.hxn:2
+  |
+2 | f(x) { return x +; }
+  |
+--- output

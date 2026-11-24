@@ -1,0 +1,15 @@
+class Thing: object;
+f() { }
+_main(args)
+{
+    local a = object Thing { };
+    local b = object: { };
+    local c = object: Thing;
+    local d = object { x = 1 x = 2 y };
+    local e = object { replace z = 1 };
+    local g = defined(1), h = defined(), i = defined(a, b);
+    local j = __objref(1), k = __objref(a, b, c), l = __objref(a, maybe);
+    local m = __objref(f, error), n = __objref(zip, error);
+    return [a, b, c, d, e, g, h, i, j, k, l, m, n];
+}
+

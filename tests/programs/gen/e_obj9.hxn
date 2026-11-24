@@ -1,0 +1,2 @@
+a: object x = 1;
+_main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }

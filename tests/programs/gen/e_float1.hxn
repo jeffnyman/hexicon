@@ -1,0 +1,26 @@
+_main(args)
+{
+    local a = 1.5 | 2;
+    local b = 1 & 2.5;
+    local c = 1.5 << 1;
+    local d = 2 >> 1.0;
+    local e = 1.5 ^ 2.5;
+    local f = ~1.5;
+    local g = 1.5 / 0;
+    local h = 1.5 / 0.0;
+    local i = 1 % 0.0;
+    local j = 1.5 < 'a';
+    local k = nil + 1.5;
+    local l = 1.5 - 'a';
+    local m = 1.5[1];
+    local n = [1, 2][1.5];
+    local o = -'a' + +'b' + -R'x' + +R'y';
+    local p = R'a' + 'b';
+    local q = R'a' < R'b';
+    local r = R'a'[1];
+    local s = 1.5 * nil;
+    local t = 4294967296 | 1;
+    local u = 2147483648 >>> 1;
+    return [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u];
+}
+

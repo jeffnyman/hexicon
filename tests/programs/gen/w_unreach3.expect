@@ -1,0 +1,8 @@
+image: 724cbe1352e543ce5672b4b13f066cbab0811974e6c11f8ea4753e5e383f90ae
+--- messages
+warning: unreachable statement
+  --> w_unreach3.hxn:1
+  |
+1 | _main(args) { for (;;) { break; args = 1; } }
+  |
+--- output

@@ -1,0 +1,80 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+class A: object;
+class B: object;
+A template 'a';
+B template 'b';
+AB: A, B 'x';
+BA: B, A 'x';
+class A2: A;
+A2 template 'a2';
+X: A, A2 'x';
+Y: A2, A 'x';
+Z: B, A2 'z';
+class C: A;
+C template inherited "c";
+C template [d] inherited @e;
+C 'x' "y";
+C [1] 'x' @nil;
+C [1] @nil;
+object template +f;
+C template inherited -g;
+C +1 -2;
+C -2;
+C 'x' -2;
+object template 'h' | "i" | [j]? @k;
+object 'x' @nil;
+object @nil;
+object [1] @nil;
+object template 'l' ->m +n -o *p /q %r &s !t ~u ,v [w] "y";
+object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+object template 'aa' 'bb'? 'cc';
+object 'x' 'y';
+object 'x' 'y' 'z';
+Later 'x';
+class Later: A;
+transient object template 'tt' 'uu' 'vv' 'ww';
+_main(args) { return AB.a + BA.b; }

@@ -1,0 +1,23 @@
+image: 9137205649d5b1b4a862909f6596ef2c31b7a3fa4c4a796170c101df22c85982
+--- messages
+warning: "x" is given a value here, but nothing reads it
+  --> a.hxn:3
+  |
+3 | transient a: object x = 1;
+  |
+  = did you mean "z"?
+
+warning: "y" is given a value here, but nothing reads it
+  --> b.hxn:1
+  |
+1 | modify a { y = 2 }
+  |
+  = did you mean "z"?
+
+warning: "w" is given a value here, but nothing reads it
+  --> c.hxn:2
+  |
+2 | modify a w = 4;
+  |
+  = did you mean "z"?
+--- output

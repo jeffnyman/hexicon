@@ -1,0 +1,5 @@
+image: none
+--- messages
+error: library support function "_multiMethodCall" is missing or invalid - check that the system library is included in the build
+error: library support function "_multiMethodBuildBindings" is missing or invalid - check that the system library is included in the build
+--- output

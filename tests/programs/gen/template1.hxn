@@ -1,0 +1,79 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+object template 'name' "desc"?;
+object template 'name' @location "desc"?;
+object template [items];
+class Thing: object
+    name = 'thing' location = nil desc = "nothing special" items = []
+    show() { print(name); print(':'); desc; print(location == nil ? '-' : location.name); }
+;
+Thing template 'name' 'vocab' @location? "desc"?;
+Thing template +weight 'name' | "desc";
+Thing template ->dest 'name';
+class Room: Thing dest = nil;
+Room template 'name' "desc" ->dest?;
+Room template [exits] inherited;
+hall: Room 'Hall' "A long hall." ->kitchen;
+kitchen: Room [1, 2, 3] 'Kitchen' "A kitchen. <<name>> it is." exits2 = 1;
+lamp: Thing 'lamp' 'brass lamp' @hall "It is <<weight>> heavy." weight = 3;
+Thing 'coin' 'gold coin' @kitchen;
+Thing +5 "a five";
+Thing +6 'six';
+box: Thing { 'box' 'wooden box' weight = 9 }
+bag: Thing 'bag' 'cloth bag' { weight = 1 };
+object 'plain' "A plain object.";
+object [1, 2];
+door: Thing ->hall 'door';
+r3: Room [4, 5] 'Cellar' 'cellar vocab' @hall "Dark.";
+fn: Thing 'fn' 'a function' @({: self }) "Says <<{: name }()>>.";
+transient Thing 'gone' 'not saved';
+say(val) { print(val); }
+_main(args)
+{
+    setSay(say);
+    hall.show(); kitchen.show(); lamp.show(); box.show(); bag.show(); door.show(); r3.show();
+    print(hall.dest.name); print(lamp.vocab); print(r3.vocab);
+}

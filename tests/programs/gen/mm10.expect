@@ -1,0 +1,9 @@
+image: b3e50b3af7ce0c004ebae6355f082176d81fd36bff0fdb16ec7d54eddf897e64
+--- messages
+warning: "y" is given a value here, but nothing reads it
+  --> mm10.hxn:47
+   |
+47 | o: object x = static [1, 2] y = static (x + [3]);
+   |
+   = did you mean "x"?
+--- output

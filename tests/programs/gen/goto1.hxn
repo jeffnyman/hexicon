@@ -1,0 +1,35 @@
+f(x)
+{
+    goto a;
+    {
+    a:
+        x = 1;
+        {
+            goto b;
+        }
+    }
+b:
+    if (x) goto c; else goto a;
+c:
+d:
+e:
+    goto d;
+    goto e;
+}
+g(x)
+{
+    while (x)
+    {
+    top:
+        x--;
+        if (x == 5) goto top;
+        if (x == 6) goto out;
+        if (x == 7) break;
+        if (x == 8) continue;
+    }
+out:
+    do { goto top; } while (x);
+last: ;
+    goto last;
+}
+_main(args) { return f(1) + g(2); }

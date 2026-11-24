@@ -1,0 +1,15 @@
+image: 9d1c8495ff78198f3fe7994ec92e0ecb224bb197dd6581ec46a6f790af441a3f
+--- messages
+warning: "y" is given a value that is never used
+  --> e_emb6.hxn:1
+  |
+1 | _main(args) { local y = ("<<args>>b", 1); local z = args ? "a<<1>>" : "b"; }
+  |
+
+warning: "z" is given a value that is never used
+  --> e_emb6.hxn:1
+  |
+1 | _main(args) { local y = ("<<args>>b", 1); local z = args ? "a<<1>>" : "b"; }
+  |
+--- output
+Unhandled exception: default output function is not defined

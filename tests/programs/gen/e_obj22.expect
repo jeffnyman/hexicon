@@ -1,0 +1,32 @@
+image: none
+--- messages
+error: expected property name or parenthesized expression after '.', found ";"
+  --> e_obj22.hxn:1
+  |
+1 | a: object m() { local q; return self.; }
+  |
+
+error: expected ';', but found "}"
+  --> e_obj22.hxn:1
+  |
+1 | a: object m() { local q; return self.; }
+  |
+
+error: expected ')' but found ";"
+  --> e_obj22.hxn:2
+  |
+2 |  n = self.(1 ;
+  |
+
+error: expected property name or parenthesized expression after '.', found ";"
+  --> e_obj22.hxn:4
+  |
+4 | _main(args) { return a.; }
+  |
+
+error: expected ';', but found "}"
+  --> e_obj22.hxn:4
+  |
+4 | _main(args) { return a.; }
+  |
+--- output

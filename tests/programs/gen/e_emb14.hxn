@@ -1,0 +1,1 @@
+_main(args) { "<<first time>>a<<only>>"; local s = 'x<<one of>>a<<or>>b<<cycling>>'; }

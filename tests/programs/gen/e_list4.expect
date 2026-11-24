@@ -1,0 +1,32 @@
+image: none
+--- messages
+error: expected ',' separating list elements, but found ")"
+  --> e_list4.hxn:1
+  |
+1 | _main(args) { return [1, 2)]; }
+  |
+
+error: found extraneous ')' in list; ignored
+  --> e_list4.hxn:1
+  |
+1 | _main(args) { return [1, 2)]; }
+  |
+
+error: unexpected ']' found - ignored
+  --> e_list4.hxn:1
+  |
+1 | _main(args) { return [1, 2)]; }
+  |
+
+error: expected an operand, but found ";"
+  --> e_list4.hxn:1
+  |
+1 | _main(args) { return [1, 2)]; }
+  |
+
+error: expected ']' or a list element, but found ";"
+  --> e_list4.hxn:1
+  |
+1 | _main(args) { return [1, 2)]; }
+  |
+--- output

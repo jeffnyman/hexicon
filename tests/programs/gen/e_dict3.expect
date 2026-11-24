@@ -1,0 +1,39 @@
+image: none
+--- messages
+warning: "foo" is not defined anywhere
+  --> e_dict3.hxn:5
+  |
+5 |     m() { local y = gDict.foo; inherited gDict.foo(); return delegated gDict.foo(); }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "foo" is spelled
+
+error: invalid 'new' - cannot create an instance of this type
+  --> e_dict3.hxn:10
+   |
+10 | _main(args) { local x = new gDict; local z = new gDict(1); x = &gDict; gDict = 5; return gDict + 1; }
+   |
+
+error: cannot assign to "gDict"
+  --> e_dict3.hxn:10
+   |
+10 | _main(args) { local x = new gDict; local z = new gDict(1); x = &gDict; gDict = 5; return gDict + 1; }
+   |
+
+warning: "y" is given a value that is never used
+  --> e_dict3.hxn:5
+  |
+5 |     m() { local y = gDict.foo; inherited gDict.foo(); return delegated gDict.foo(); }
+  |
+
+warning: "x" is given a value that is never used
+  --> e_dict3.hxn:10
+   |
+10 | _main(args) { local x = new gDict; local z = new gDict(1); x = &gDict; gDict = 5; return gDict + 1; }
+   |
+
+warning: "z" is given a value that is never used
+  --> e_dict3.hxn:10
+   |
+10 | _main(args) { local x = new gDict; local z = new gDict(1); x = &gDict; gDict = 5; return gDict + 1; }
+   |
+--- output

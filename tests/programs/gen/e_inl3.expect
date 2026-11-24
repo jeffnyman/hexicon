@@ -1,0 +1,29 @@
+image: e95ce910e7657f4d50be076ff2c4337fe70c1bcc213e13a0aef618dcadd7629b
+--- messages
+warning: "Nope" is not defined anywhere
+  --> e_inl3.hxn:8
+  |
+8 |     local e = __objref(Nope, warn), g = __objref(f, warn);
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+
+warning: symbol "f" is not an object - illegal on left of '.'
+  --> e_inl3.hxn:8
+  |
+8 |     local e = __objref(Nope, warn), g = __objref(f, warn);
+  |
+
+warning: "undefinedThing" is not defined anywhere
+  --> e_inl3.hxn:10
+   |
+10 |     return [c, d, e, g, defined(a), __objref(a)];
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "undefinedThing" is spelled
+
+warning: "undefinedOther" is not defined anywhere
+  --> e_inl3.hxn:7
+  |
+7 |     local d = object { m() { return undefinedOther; } };
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "undefinedOther" is spelled
+--- output

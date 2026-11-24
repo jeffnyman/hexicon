@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: incompatible constant types for two-operand '+' operator
+  --> obj10.hxn:25
+   |
+25 | ;
+   |
+--- output

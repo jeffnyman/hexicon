@@ -1,0 +1,122 @@
+image: none
+--- messages
+error: unexpected -> found in list (after 2nd element)
+  --> e_lookup1.hxn:3
+  |
+3 |     local a = [1, 2 -> 3];
+  |
+
+error: missing -> in 2nd element in LookupTable list
+  --> e_lookup1.hxn:4
+  |
+4 |     local b = [1 -> 2, 3];
+  |
+
+error: missing -> in 2nd element in LookupTable list
+  --> e_lookup1.hxn:5
+  |
+5 |     local c = [1 -> 2, 3, 4 -> 5];
+  |
+
+error: misplaced -> in LookupTable list after 1st element - expected comma
+  --> e_lookup1.hxn:6
+  |
+6 |     local d = [1 -> 2 -> 3];
+  |
+
+error: LookupTable list must end after default *-> value, but found ","
+  --> e_lookup1.hxn:7
+  |
+7 |     local e = [1 -> 2, * -> 3, 4 -> 5];
+  |
+
+error: unexpected -> found in list (after 1st element)
+  --> e_lookup1.hxn:8
+  |
+8 |     local f = [1, * -> 2];
+  |
+
+error: LookupTable list must end after default *-> value, but found ","
+  --> e_lookup1.hxn:9
+  |
+9 |     local g = [* -> 1, 2];
+  |
+
+error: missing -> in 2nd element in LookupTable list
+  --> e_lookup1.hxn:9
+  |
+9 |     local g = [* -> 1, 2];
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found "->"
+  --> e_lookup1.hxn:11
+   |
+11 |     local i = [-> 1];
+   |
+
+error: extra list element expected after comma, but found end of list
+  --> e_lookup1.hxn:12
+   |
+12 |     local j = [1 -> 2,];
+   |
+
+error: expected ',' or ';' after local variable, but found "]"
+  --> e_lookup1.hxn:12
+   |
+12 |     local j = [1 -> 2,];
+   |
+
+error: unexpected ']' found - ignored
+  --> e_lookup1.hxn:12
+   |
+12 |     local j = [1 -> 2,];
+   |
+
+error: expected an operand, but found ";"
+  --> e_lookup1.hxn:12
+   |
+12 |     local j = [1 -> 2,];
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "*"
+  --> e_lookup1.hxn:13
+   |
+13 |     local k = [* 2];
+   |
+
+error: misplaced -> in LookupTable list after 2nd element - expected comma
+  --> e_lookup1.hxn:14
+   |
+14 |     local l = [1 -> 2, 3 -> 4 -> 5, 6];
+   |
+
+error: missing -> in 4th element in LookupTable list
+  --> e_lookup1.hxn:14
+   |
+14 |     local l = [1 -> 2, 3 -> 4 -> 5, 6];
+   |
+
+error: expected ',' separating list elements, but found "3"
+  --> e_lookup1.hxn:15
+   |
+15 |     local m = [1 -> 2 3 -> 4];
+   |
+
+error: LookupTable list must end after default *-> value, but found "->"
+  --> e_lookup1.hxn:16
+   |
+16 |     local n = [* -> 1 -> 2];
+   |
+
+error: LookupTable list must end after default *-> value, but found ";"
+  --> e_lookup1.hxn:17
+   |
+17 |     local o = [1 -> 2, * -> 3;
+   |
+
+error: expected ']' or a list element, but found ";"
+  --> e_lookup1.hxn:17
+   |
+17 |     local o = [1 -> 2, * -> 3;
+   |
+--- output

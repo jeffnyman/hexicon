@@ -1,0 +1,100 @@
+// A program to run: enumerations, and properties whose values are
+// worked out once, before the program starts.
+#include <systype.h>
+#include <general.h>
+#include <io.h>
+#include <vm.h>
+
+say(val) { print(val); }
+
+// Results go three to a line, so that the output fits on one screen.
+out: object count = 0;
+line(val) { print(val); print(++out.count % 3 == 0 ? '\n' : ' | '); }
+
+enum red, green, blue;
+enum north, south;
+
+// A value of an enumeration can be used before the statement that
+// declares it.
+later() { return afterward; }
+enum afterward;
+
+colorName(color)
+{
+    switch (color)
+    {
+    case red:
+        return 'red';
+    case green:
+        return 'green';
+    case blue:
+        return 'blue';
+    default:
+        return 'no color';
+    }
+}
+
+// Counts how often it is asked, to show what is worked out when.
+counter: object
+    n = 0
+    next() { return ++n; }
+;
+
+class Light: object
+    color = red
+    // Worked out once for the class, before the program starts.
+    serial = static counter.next()
+    palette = static [red, green, blue]
+    // Worked out each time it is asked for.
+    reading = (counter.next())
+    // A constant after `static` is a constant like any other.
+    limit = static 3 * 4
+    // The value is worked out as the object it is defined in.
+    owner = static self
+;
+
+lamp: Light
+    color = green
+    serial = static counter.next() * 100
+;
+
+_main(args)
+{
+    local c = green;
+    line(colorName(c));
+    line(colorName(lamp.color));
+    line(colorName(north));
+    line(c == green ? 'same' : 'different');
+    line(c == red ? 'same' : 'different');
+    line(c != blue ? 'not blue' : 'blue');
+    line(dataType(c) == TypeEnum ? 'an enum' : 'something else');
+    line(dataType(later()) == TypeEnum ? 'an enum' : 'something else');
+    line(later() == afterward ? 'same' : 'different');
+
+    // Values of an enumeration in lists.
+    local all = [red, green, blue];
+    line(all.indexOf(blue));
+    line(all.indexOf(north) == nil ? 'not there' : 'there');
+    line((all - green).length());
+    line(c is in (red, green) ? 'warm' : 'cold');
+
+    // The reference, comparing two constants while it compiles, never
+    // finds a value of an enumeration equal to anything, itself
+    // included. Through a local the comparison is the machine's, and
+    // right.
+    line(red == red ? 'equal' : 'not equal');
+    line(red != red ? 'unequal' : 'not unequal');
+
+    // Static values were worked out before any of this ran, in the
+    // order the source has them: the class's, then the lamp's.
+    line(Light.serial);
+    line(lamp.serial);
+    line(Light.serial);
+    line(Light.reading);
+    line(Light.reading);
+    line(Light.limit);
+    line(Light.palette.length());
+    line(lamp.palette[2] == green ? 'green' : 'other');
+    line(Light.owner == Light ? 'the class' : 'another');
+    line(lamp.owner == Light ? 'the class' : 'another');
+}

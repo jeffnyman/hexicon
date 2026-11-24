@@ -1,0 +1,6 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun, adjective;
+class Thing: object noun = 'thing' 'item';
+lamp: Thing noun = 'lamp' adjective = 'brass';
+_main(args) { return [lamp.noun, key.noun, key.adjective]; }

@@ -1,0 +1,8 @@
+class Match: object;
+
+grammar np(a): missing->m_ other : Match;
+grammar vp: np 'x' : Match;
+grammar declared;
+grammar np(b): declared 'y' : Match;
+_main(args) { return [np, vp, missing]; }
+

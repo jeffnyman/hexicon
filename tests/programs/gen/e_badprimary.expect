@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected an operand, but found ";"
+  --> e_badprimary.hxn:1
+  |
+1 | _main(args) { return 1 + ; }
+  |
+--- output

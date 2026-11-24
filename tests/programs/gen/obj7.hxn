@@ -1,0 +1,10 @@
+class Err: object msg = 'err';
+class Other: Err;
+f(x)
+{
+    try { throw x; }
+    catch (Err e) { return e.msg; }
+    catch (Other o) { return o; }
+    finally { "done"; }
+}
+_main(args) { try { f(1); } catch (Err e) { } }

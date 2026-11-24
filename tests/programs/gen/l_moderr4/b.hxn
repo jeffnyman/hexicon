@@ -1,0 +1,2 @@
+#include <hexicon.h>
+gone: object y = 2;

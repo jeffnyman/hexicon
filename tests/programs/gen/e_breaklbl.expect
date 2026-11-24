@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: invalid "break" - no label "foo" on any enclosing statement
+  --> e_breaklbl.hxn:1
+  |
+1 | _main(args) { while (args) { break foo; } }
+  |
+--- output

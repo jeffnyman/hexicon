@@ -1,0 +1,80 @@
+image: none
+--- messages
+error: semicolon is not allowed in a short anonymous function
+  --> e_anon1.hxn:8
+  |
+8 |     local h = {x: x; };
+  |
+
+error: expected a comma in formal parameter list, but found "x"
+  --> e_anon1.hxn:9
+  |
+9 |     local i = {x x };
+  |
+
+error: formal parameter "x" defined more than once
+  --> e_anon1.hxn:9
+  |
+9 |     local i = {x x };
+  |
+
+error: missing colon at end of anonymous function formal list - found "}"
+  --> e_anon1.hxn:9
+  |
+9 |     local i = {x x };
+  |
+
+error: expected an operand, but found "}"
+  --> e_anon1.hxn:9
+  |
+9 |     local i = {x x };
+  |
+
+error: expected a comma in formal parameter list, but found "b"
+  --> e_anon1.hxn:10
+   |
+10 |     local j = function(a b) { return a; };
+   |
+
+error: expected a comma in formal parameter list, but found "a"
+  --> e_anon1.hxn:11
+   |
+11 |     local k = function(Thing a) { return a; };
+   |
+
+error: 'multimethod' is not allowed here
+  --> e_anon1.hxn:12
+   |
+12 |     local l = function(a) multimethod { return a; };
+   |
+
+error: missing parameter name at end of formal parameter list
+  --> e_anon1.hxn:17
+   |
+17 |     local r = {x, : x};
+   |
+
+error: missing colon at end of anonymous function formal list - found "1"
+  --> e_anon1.hxn:18
+   |
+18 |     local s = { 1 + 2 };
+   |
+
+error: expected '{' at start of method code body, but found "return"
+  --> e_anon1.hxn:20
+   |
+20 |     local u = function() return 1;
+   |
+
+error: expected '{' at start of method code body, but found ";"
+  --> e_anon1.hxn:21
+   |
+21 |     local v = method;
+   |
+
+error: expected ',' or ';' after local variable, but found "<End Of File>"
+  --> e_anon1.hxn:26
+
+error: unexpected end of file in code block - '}' missing
+  --> e_anon1.hxn:26
+--- output

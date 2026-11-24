@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected property name in object definition, but found "="
+  --> e_obj21.hxn:1
+  |
+1 | a: object x = 1; y = 2;
+  |
+
+error: expected property name in object definition, but found "2"
+  --> e_obj21.hxn:1
+  |
+1 | a: object x = 1; y = 2;
+  |
+--- output

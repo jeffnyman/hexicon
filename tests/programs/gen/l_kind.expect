@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: "thing" is already the name of something else, so it cannot also name an object
+  --> b.hxn:2
+  |
+2 | thing: object y = 2;
+  |
+
+error: "other" is already the name of something else, so it cannot also name a function
+  --> b.hxn:3
+  |
+3 | other(x) { return 2; }
+  |
+--- output

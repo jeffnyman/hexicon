@@ -1,0 +1,10 @@
+image: 3803d66ec6a4e459e89eed46d01c7b7e3f32eb9150225e2d6e79a1b0418b9bd4
+--- messages
+warning: "k" is given a value here, but nothing reads it
+  --> anon3.hxn:10
+   |
+10 |     k() { return ({: targetprop }); }
+   |
+   = did you mean "m"?
+--- output
+Unhandled exception: nil object reference

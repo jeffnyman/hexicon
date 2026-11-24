@@ -1,0 +1,15 @@
+image: d6f5a2a2fe305eb312eb165b187eef29a797723c27688ef9621a6037ecbd6afe
+--- messages
+warning: unreachable statement
+  --> goto1.hxn:17
+   |
+17 |     goto e;
+   |
+
+warning: label "e" is not referenced
+  --> goto1.hxn:15
+   |
+15 | e:
+   |
+--- output
+(not run: it does not finish)

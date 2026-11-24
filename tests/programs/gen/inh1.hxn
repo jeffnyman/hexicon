@@ -1,0 +1,21 @@
+class A: object
+    name = 'a'
+    m(x) { return x; }
+    construct(n) { name = n; }
+;
+class B: A
+    m(x) { return inherited(x) + inherited.m(x) + inherited A.m(x) + inherited.name; }
+    n([x]) { return inherited(x...) + inherited.m(x...) + inherited A.(x)(x...) + inherited.(x)(1); }
+    o() { inherited; inherited(); inherited.o; inherited A; inherited A(); return inherited A.o; }
+    construct(n) { inherited(n); }
+    p() { return [targetprop, targetobj, definingobj, invokee, self.targetprop, self.targetprop(1)]; }
+    q(x) { return x.targetprop + inherited.targetprop + inherited A.targetprop(1); }
+;
+_main(args)
+{
+    local b = new B('x');
+    local c = new A(args...);
+    local d = new transient B(1, 2);
+    new B;
+    return [b, c, d, new A, new A(), new transient A];
+}

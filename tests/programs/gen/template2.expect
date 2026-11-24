@@ -1,0 +1,219 @@
+image: 659cfbbab4d8ca3a98dd024b2df7a08f820fabb0f4b2c1096befd1b3cf35d071
+--- messages
+warning: "a2" is given a value here, but nothing reads it
+  --> template2.hxn:54
+   |
+54 | X: A, A2 'x';
+   |
+   = did you mean "a"?
+
+warning: "a2" is given a value here, but nothing reads it
+  --> template2.hxn:55
+   |
+55 | Y: A2, A 'x';
+   |
+   = did you mean "a"?
+
+warning: "c" is given a value here, but nothing reads it
+  --> template2.hxn:60
+   |
+60 | C 'x' "y";
+   |
+   = did you mean "a"?
+
+warning: "d" is given a value here, but nothing reads it
+  --> template2.hxn:61
+   |
+61 | C [1] 'x' @nil;
+   |
+   = did you mean "a"?
+
+warning: "e" is given a value here, but nothing reads it
+  --> template2.hxn:61
+   |
+61 | C [1] 'x' @nil;
+   |
+   = did you mean "a"?
+
+warning: "d" is given a value here, but nothing reads it
+  --> template2.hxn:62
+   |
+62 | C [1] @nil;
+   |
+   = did you mean "a"?
+
+warning: "e" is given a value here, but nothing reads it
+  --> template2.hxn:62
+   |
+62 | C [1] @nil;
+   |
+   = did you mean "a"?
+
+warning: "f" is given a value here, but nothing reads it
+  --> template2.hxn:65
+   |
+65 | C +1 -2;
+   |
+   = did you mean "a"?
+
+warning: "g" is given a value here, but nothing reads it
+  --> template2.hxn:65
+   |
+65 | C +1 -2;
+   |
+   = did you mean "a"?
+
+warning: "g" is given a value here, but nothing reads it
+  --> template2.hxn:66
+   |
+66 | C -2;
+   |
+   = did you mean "a"?
+
+warning: "g" is given a value here, but nothing reads it
+  --> template2.hxn:67
+   |
+67 | C 'x' -2;
+   |
+   = did you mean "a"?
+
+warning: "h" is given a value here, but nothing reads it
+  --> template2.hxn:69
+   |
+69 | object 'x' @nil;
+   |
+   = did you mean "a"?
+
+warning: "k" is given a value here, but nothing reads it
+  --> template2.hxn:69
+   |
+69 | object 'x' @nil;
+   |
+   = did you mean "a"?
+
+warning: "k" is given a value here, but nothing reads it
+  --> template2.hxn:70
+   |
+70 | object @nil;
+   |
+   = did you mean "a"?
+
+warning: "j" is given a value here, but nothing reads it
+  --> template2.hxn:71
+   |
+71 | object [1] @nil;
+   |
+   = did you mean "a"?
+
+warning: "k" is given a value here, but nothing reads it
+  --> template2.hxn:71
+   |
+71 | object [1] @nil;
+   |
+   = did you mean "a"?
+
+warning: "l" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "m" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "n" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "o" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "p" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "r" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "s" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "t" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "u" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "v" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "w" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "y" is given a value here, but nothing reads it
+  --> template2.hxn:73
+   |
+73 | object 'x' ->1 +2 -3 *4 /5 %6 &q !7 ~8 ,9 [1] "m";
+   |
+   = did you mean "a"?
+
+warning: "aa" is given a value here, but nothing reads it
+  --> template2.hxn:75
+   |
+75 | object 'x' 'y';
+   |
+   = did you mean "a"?
+
+warning: "aa" is given a value here, but nothing reads it
+  --> template2.hxn:76
+   |
+76 | object 'x' 'y' 'z';
+   |
+   = did you mean "a"?
+
+warning: "bb" is given a value here, but nothing reads it
+  --> template2.hxn:76
+   |
+76 | object 'x' 'y' 'z';
+   |
+   = did you mean "b"?
+--- output

@@ -1,0 +1,2 @@
+f() { }
+_main(args) { local q; return [&q, &args, &1, &(f), &print, &'x', & &f, &(args)]; }

@@ -1,0 +1,8 @@
+image: 713f506e310a9e74545bee1d604bb3095902d7c82cce56487a990d44dc5e6500
+--- messages
+warning: "if" condition is always false
+  --> isin1.hxn:15
+   |
+15 |     if (1 is in ()) return 7;
+   |
+--- output

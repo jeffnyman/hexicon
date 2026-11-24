@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: '...' cannot be followed by additional formal parameters
+  --> e_formal5.hxn:1
+  |
+1 | f(..., a) { } _main(args) { }
+  |
+--- output

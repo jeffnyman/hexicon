@@ -1,0 +1,17 @@
+image: none
+--- messages
+error: missing colon at end of anonymous function formal list - found "<End Of File>"
+  --> e_anon3.hxn:5
+
+error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+  --> e_anon3.hxn:5
+
+error: semicolon is not allowed in a short-form anonymous function
+  --> e_anon3.hxn:5
+
+error: expected ',' or ';' after local variable, but found "<End Of File>"
+  --> e_anon3.hxn:5
+
+error: unexpected end of file in code block - '}' missing
+  --> e_anon3.hxn:5
+--- output

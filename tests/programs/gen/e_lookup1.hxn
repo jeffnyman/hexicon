@@ -1,0 +1,20 @@
+_main(args)
+{
+    local a = [1, 2 -> 3];
+    local b = [1 -> 2, 3];
+    local c = [1 -> 2, 3, 4 -> 5];
+    local d = [1 -> 2 -> 3];
+    local e = [1 -> 2, * -> 3, 4 -> 5];
+    local f = [1, * -> 2];
+    local g = [* -> 1, 2];
+    local h = [1 -> ];
+    local i = [-> 1];
+    local j = [1 -> 2,];
+    local k = [* 2];
+    local l = [1 -> 2, 3 -> 4 -> 5, 6];
+    local m = [1 -> 2 3 -> 4];
+    local n = [* -> 1 -> 2];
+    local o = [1 -> 2, * -> 3;
+    return [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o] + [1 -> 2] - [3 -> 4] + [1 -> 2][1];
+}
+

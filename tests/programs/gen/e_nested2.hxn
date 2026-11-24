@@ -1,0 +1,14 @@
+b: object
+  n: object x = 1;
+b2: object
+  n2: object;
+c: object
+  n: object { p: object q = 1 }
+;
+d: object
+  c: object { };
+e: object
+  n: object { p: object { r: object s = 2 } t = 3 } u = 4
+;
+_main(args) { }
+

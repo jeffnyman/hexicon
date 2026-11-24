@@ -1,0 +1,34 @@
+class Match: object;
+f() { }
+enum plain;
+grammar;
+grammar 5;
+grammar np(a: 'x' : Match;
+grammar np(b) 'x' : Match;
+grammar np(c): f : Match;
+grammar np(d): Match : Match;
+grammar np(e): plain : Match;
+grammar np(f): 'x' -> 5 : Match;
+grammar np(g): 'x' -> f : Match;
+grammar np(h): <f 5> 'y' : Match;
+grammar np(i): <a b 'x' : Match;
+grammar np(j): * 'x' | 'y' * : Match;
+grammar np(k): 'x' [badness 5] : Match;
+grammar np(l): [goodness 5] 'x' : Match;
+grammar np(m): [5] 'x' : Match;
+grammar np(n): ('x' | 'y' : Match;
+grammar np(o): ('x' | 'y')->p_ 'z' : Match;
+grammar np(p): 5 + 'x' : Match;
+grammar np(a): 'dup' : Match;
+grammar f(a): 'x' : Match;
+grammar Match(a): 'x' : Match;
+grammar Match: 'x' : Match;
+modify grammar np: 'x' : ;
+replace grammar np: 'x' : Match;
+modify grammar np(zz): 'x' : ;
+grammar np(q): 'x' | : Match;
+grammar np(r): : Match;
+grammar np(s): 'x' ;
+grammar np(t): 'x' { }
+_main(args) { }
+

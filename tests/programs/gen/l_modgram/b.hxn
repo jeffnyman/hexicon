@@ -1,0 +1,6 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun;
+modify grammar np(basic): 'that' noun->n_ : y = 2;
+replace grammar np(other): 'some' noun->n_ : object z = 3;
+modify grammar vp(go): : w = 4;

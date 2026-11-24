@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: missing expression after comma in "for" initializer
+  --> e_for4.hxn:1
+  |
+1 | _main(args) { for (args = 1, ; ; ) { } }
+  |
+--- output

@@ -1,0 +1,26 @@
+image: none
+--- messages
+error: invalid "break" - not in a for/while/do/switch
+  --> e_lbl12.hxn:1
+  |
+1 | _main(args) { a: break; b: continue; }
+  |
+
+error: invalid "continue" - not in a for/while/do
+  --> e_lbl12.hxn:1
+  |
+1 | _main(args) { a: break; b: continue; }
+  |
+
+warning: label "a" is not referenced
+  --> e_lbl12.hxn:1
+  |
+1 | _main(args) { a: break; b: continue; }
+  |
+
+warning: label "b" is not referenced
+  --> e_lbl12.hxn:1
+  |
+1 | _main(args) { a: break; b: continue; }
+  |
+--- output

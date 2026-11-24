@@ -1,0 +1,12 @@
+#include <general.h>
+#include <hexicon.h>
+f() { }
+_main(args)
+{
+    local c = object { x = undefinedThing };
+    local d = object { m() { return undefinedOther; } };
+    local e = __objref(Nope, warn), g = __objref(f, warn);
+    object { };
+    return [c, d, e, g, defined(a), __objref(a)];
+}
+

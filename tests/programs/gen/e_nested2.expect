@@ -1,0 +1,75 @@
+image: none
+--- messages
+error: this object has no ';' at its end
+  --> e_nested2.hxn:2
+  |
+2 |   n: object x = 1;
+  |
+  = each object ends with ';'
+
+error: this object has no ';' at its end
+  --> e_nested2.hxn:4
+  |
+4 |   n2: object;
+  |
+  = each object ends with ';'
+
+error: this object has no ';' at its end
+  --> e_nested2.hxn:6
+  |
+6 |   n: object { p: object q = 1 }
+  |
+  = each object ends with ';'
+
+error: "}" cannot start anything here
+  --> e_nested2.hxn:6
+  |
+6 |   n: object { p: object q = 1 }
+  |
+  = what is expected is a function, an object, or a class
+
+error: this object has no ';' at its end
+  --> e_nested2.hxn:9
+  |
+9 |   c: object { };
+  |
+  = each object ends with ';'
+
+error: object "c" is already defined - can't redefine as object
+  --> e_nested2.hxn:9
+  |
+9 |   c: object { };
+  |
+
+error: this object has no ';' at its end
+  --> e_nested2.hxn:11
+   |
+11 |   n: object { p: object { r: object s = 2 } t = 3 } u = 4
+   |
+   = each object ends with ';'
+
+error: "}" cannot start anything here
+  --> e_nested2.hxn:11
+   |
+11 |   n: object { p: object { r: object s = 2 } t = 3 } u = 4
+   |
+   = what is expected is a function, an object, or a class
+
+error: expected property name in object definition, but found "="
+  --> e_nested2.hxn:11
+   |
+11 |   n: object { p: object { r: object s = 2 } t = 3 } u = 4
+   |
+
+error: expected property name in object definition, but found "3"
+  --> e_nested2.hxn:11
+   |
+11 |   n: object { p: object { r: object s = 2 } t = 3 } u = 4
+   |
+
+error: expected property name in object definition, but found "}"
+  --> e_nested2.hxn:11
+   |
+11 |   n: object { p: object { r: object s = 2 } t = 3 } u = 4
+   |
+--- output

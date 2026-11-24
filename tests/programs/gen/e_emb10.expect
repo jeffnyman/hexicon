@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "if"
+  --> e_emb10.hxn:1
+  |
+1 | _main(args) { "<<if>>a<<end>>"; "<<unless>>b"; }
+  |
+--- output

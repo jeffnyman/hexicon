@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: invalid "continue" - no label "a" on any enclosing loop
+  --> e_lbl4.hxn:1
+  |
+1 | _main(args) { a: { continue a; } b: if (args) continue b; c: args = 1; }
+  |
+
+error: invalid "continue" - no label "b" on any enclosing loop
+  --> e_lbl4.hxn:1
+  |
+1 | _main(args) { a: { continue a; } b: if (args) continue b; c: args = 1; }
+  |
+
+warning: label "c" is not referenced
+  --> e_lbl4.hxn:1
+  |
+1 | _main(args) { a: { continue a; } b: if (args) continue b; c: args = 1; }
+  |
+--- output

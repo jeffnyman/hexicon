@@ -1,0 +1,15 @@
+image: none
+--- messages
+error: wrong number of arguments to function "fa": 0 required, 1 actual
+  --> e_tpl9.hxn:2
+  |
+2 | _main(args) { fa(1); undefinedthing(); }
+  |
+
+error: "undefinedthing" is not defined anywhere
+  --> e_tpl9.hxn:2
+  |
+2 | _main(args) { fa(1); undefinedthing(); }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

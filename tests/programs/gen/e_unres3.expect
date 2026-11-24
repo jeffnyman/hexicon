@@ -1,0 +1,46 @@
+image: none
+--- messages
+warning: "if" condition is always false
+  --> e_unres3.hxn:1
+  |
+1 | f(x) { unused: if (nil) { b: x = 1; } if (x) goto b; local q; }
+  |
+
+internal error: 1 unresolved branches
+warning: label "unused" is not referenced
+  --> e_unres3.hxn:1
+  |
+1 | f(x) { unused: if (nil) { b: x = 1; } if (x) goto b; local q; }
+  |
+
+warning: "if" condition is always false
+  --> e_unres3.hxn:2
+  |
+2 | g(x) { if (nil) { c: while (x) { if (x) break; x = 2; } } other: goto c; }
+  |
+
+warning: label "other" is not referenced
+  --> e_unres3.hxn:2
+  |
+2 | g(x) { if (nil) { c: while (x) { if (x) break; x = 2; } } other: goto c; }
+  |
+
+warning: "if" condition is always false
+  --> e_unres3.hxn:3
+  |
+3 | h(x) { try { if (nil) { d: x = 1; } } finally { x = 2; } goto d; }
+  |
+
+error: "nosuch" is not defined anywhere
+  --> e_unres3.hxn:4
+  |
+4 | _main(args) { return f(args) + g(args) + h(args) + nosuch; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+
+warning: the local variable "q" is never used
+  --> e_unres3.hxn:1
+  |
+1 | f(x) { unused: if (nil) { b: x = 1; } if (x) goto b; local q; }
+  |
+--- output

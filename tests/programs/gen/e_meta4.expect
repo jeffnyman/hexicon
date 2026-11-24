@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected ';', but found "{"
+  --> e_meta4.hxn:2
+  |
+2 | _main(args) { }
+  |
+
+error: expected property name in intrinsic class list, but found "{"
+  --> e_meta4.hxn:2
+  |
+2 | _main(args) { }
+  |
+--- output

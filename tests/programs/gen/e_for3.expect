@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: missing expression in "for" statement - expected ';', found ')'
+  --> e_for3.hxn:1
+  |
+1 | _main(args) { for (args = 1; args) { } }
+  |
+--- output

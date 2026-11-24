@@ -1,0 +1,20 @@
+#include <gramprod.h>
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun, adjective;
+enum token tokWord, tokInt;
+class Match: object;
+grammar nounPhrase(simple): noun->noun_ : Match
+    name = 'simple'
+;
+grammar nounPhrase(adj): adjective->adj_ nounPhrase->np_ : Match;
+grammar nounPhrase: 'the' nounPhrase->np_ | [badness 50] 'a' nounPhrase->np_ : Match;
+grammar command(take): ('take' | 'get' | 'pick' 'up') nounPhrase->dobj_ : Match
+    verb = 'take'
+;
+grammar command(put): 'put' nounPhrase->dobj_ ('in' | 'into' | ) nounPhrase->iobj_ ('please' | ) : Match;
+grammar command: <noun adjective>->word_ tokInt->num_ * : Match;
+grammar number: tokInt->val_ | tokWord : object;
+grammar empty: : object;
+grammar later;
+_main(args) { }

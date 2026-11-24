@@ -1,0 +1,16 @@
+intrinsic class Object 'root-object/030004' { ofKind(cls); }
+intrinsic class Collection 'collection/030000': Object { createIterator(); createLiveIterator(); }
+intrinsic class List 'list/030008': Collection { length(); }
+_main(args)
+{
+    foreach;
+    foreach (;
+    foreach (local 1 in args) ;
+    foreach (x args) ;
+    foreach (local x in args ;
+    for (local i in ) ;
+    for (local i in 1.. ) ;
+    for (i in 1..2 step ) ;
+    for (local i in args ; ; ) ;
+    for (local i in args, ) ;
+}

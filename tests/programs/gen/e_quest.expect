@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: missing ':' in '?' conditional expression
+  --> e_quest.hxn:1
+  |
+1 | _main(args) { return args ? 1; }
+  |
+
+error: expected an operand, but found "}"
+  --> e_quest.hxn:1
+  |
+1 | _main(args) { return args ? 1; }
+  |
+
+error: expected ';', but found "}"
+  --> e_quest.hxn:1
+  |
+1 | _main(args) { return args ? 1; }
+  |
+--- output

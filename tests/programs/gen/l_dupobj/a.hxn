@@ -1,0 +1,4 @@
+#include <hexicon.h>
+o: object x = 1;
+class C: object;
+_main(args) { return o.x; }

@@ -1,0 +1,23 @@
+image: 9451e91524784ab8d3d3e783cbe85e07d59cc3e5fb786134953b23f2d3c40c6b
+--- messages
+--- output
+house is nowhere, 0 deep
+hall is in the house, 1 deep
+table is in the hall, 2 deep
+vase is in the table, 3 deep
+hall is in the house, 1 deep
+rug is in the hall, 2 deep
+stove is in the kitchen, 2 deep
+cat is in the rug, 3 deep
+shed is in the garden, 1 deep
+drawer of the desk
+drawer
+desk
+2
+the lamp is out
+ok
+opened
+already open
+closed
+already closed
+eased open

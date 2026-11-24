@@ -1,0 +1,22 @@
+f(x)
+{
+    local unused1 = {y: 1 };
+    local g = function(z) { local unused2; local unset; return unset; };
+    local h = function(z) { local w = 1; };
+    local i = {q: q };
+    {r: r + x };
+    function(s) { return s; };
+    if ({: 1 }) return 1;
+    while ({: nil }()) { }
+    switch (x) { case 1: return {: 2 }(); }
+    return {: 1 } + {: 2 } == {: 3 } ? {: 4 } : {: 5 };
+}
+g(x) { return function() { if (x) return 1; else return; }; }
+h(x) { return function() { if (x) return 1; }; }
+i(x) { return function() { return; }(); }
+j(x) { return {: x = 1 }; }
+k(x) { local y; return {: y }; }
+l(x) { local y = 1; return {: 1 }; }
+m() { local y; local f = {: y = 1 }; return f; }
+_main(args) { return f(1); }
+

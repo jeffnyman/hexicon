@@ -1,0 +1,6 @@
+class Thing: object;
+_multiMethodCall(a, b) { }
+_multiMethodRegister(a, b, c) { }
+d(Thing x) { return 1; }
+_main(args) { return d(1); }
+

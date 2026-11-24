@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected '>>' and the string continuation, but found "}"
+  --> e_emb29.hxn:1
+  |
+1 | _main(args) { "<<if args>>x<<else>>y<<end>><<end>>"; return 'a<<}>>'; }
+  |
+
+error: <<}>> found in string without a matching unknown
+  --> e_emb29.hxn:1
+  |
+1 | _main(args) { "<<if args>>x<<else>>y<<end>><<end>>"; return 'a<<}>>'; }
+  |
+--- output

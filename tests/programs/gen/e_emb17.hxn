@@ -1,0 +1,1 @@
+_main(args) { "<<one of>>a<<if args>>b<<or>>c<<end>>d<<as decreasingly likely outcomes>>"; }

@@ -1,0 +1,4 @@
+#include <hexicon.h>
+enum red, green, blue;
+enum token tokWord;
+_main(args) { return [red, blue, tokPunct, yellow]; }

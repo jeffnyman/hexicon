@@ -1,0 +1,5 @@
+image: none
+--- messages
+error: symbol "C" (type: object) redefined in object file "b.t3o"
+error: symbol "o" (type: object) redefined in object file "b.t3o"
+--- output

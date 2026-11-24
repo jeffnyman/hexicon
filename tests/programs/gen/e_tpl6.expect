@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected '>>' at end of string template, but found ';'
+  --> e_tpl6.hxn:1
+  |
+1 | string template <<nope3 nope;
+  |
+--- output

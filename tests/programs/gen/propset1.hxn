@@ -1,0 +1,56 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+a: object
+  propertyset 'ver*Take' { Dobj = 1 Iobj() { return 2; } Sub: object { z = 3 propertyset 'in*' { ner = 9 } } ; ; propertyset 'x*' { A = 4 B(q) { return q; } } C = 5 }
+  propertyset '*' { plain = 1 }
+  propertyset '*Only' { }
+  propertyset 'pre*' (who, *) { V = 6 }
+  after = 5
+;
+b: object { propertyset 'p*' { q = 1 } r = 2 }
+class K: object propertyset 'k*' { m { return 1; } n(a, b?, [c]) { return a; } };
+modify a propertyset 'ver*Take' { replace Dobj = 10 };
+_main(args) { print(a.verDobjTake + a.verIobjTake() + a.verxATake + a.verxBTake(5) + a.verCTake + a.verSubTake.inner + a.plain + a.preV + b.pq); }

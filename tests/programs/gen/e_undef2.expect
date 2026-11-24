@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "nosuch" is not defined anywhere
+  --> e_undef2.hxn:1
+  |
+1 | f() { nosuch(); } g() { "<<nosuch>>"; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

@@ -1,0 +1,14 @@
+image: 6f79a35c95c530e101d66fc2b765baeda42b4dd86e3cb59466946d359ebb0568
+--- messages
+--- output
+take [lamp]
+take [brass lantern]
+take [box]
+put [lamp] in [wooden box]
+put [brass box] in [box]
+look
+look
+not understood
+not understood
+7
+3

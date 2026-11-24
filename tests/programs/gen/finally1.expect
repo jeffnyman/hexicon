@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: a double-quoted string ("more") is not valid within an expression
+  --> finally1.hxn:13
+   |
+13 | n(x) { try { "text"; return "more"; } finally { x = 1; } }
+   |
+--- output

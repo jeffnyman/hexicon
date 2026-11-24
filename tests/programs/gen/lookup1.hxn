@@ -1,0 +1,22 @@
+#include <lookup.h>
+#include <hexicon.h>
+obj: object
+    tab = ['a' -> 1, 'b' -> 2]
+    deflt = [1 -> 'one', * -> 'other']
+    only = [* -> 0]
+    nested = [[1 -> 2], ['k' -> ['x' -> 'y']]]
+    m(k) { return [k -> k * 2, k + 1 -> [k]]; }
+;
+f(x) { return x; }
+_main(args)
+{
+    local t = ['one' -> 1, 'two' -> 2, 'three' -> f(3), * -> -1];
+    print(t['one']); print(t['three']); print(t['nine']); print(obj.tab['b']); print(obj.deflt[7]);
+    print(obj.only[1]); print(obj.nested[2]['k']['x']); print(obj.m(4)[5][1]); print('\n');
+    [1 -> f(2)];
+    ['a' -> 1];
+    local e = [ ];
+    local u = [f(1) -> f(2), * -> f(3)];
+    print(u[1]); print(u[9]); print(e.length());
+    print([1 -> 2].ofKind(LookupTable) ? ' table' : ' list'); print(['a' -> 'b']['a']); print('\n');
+}

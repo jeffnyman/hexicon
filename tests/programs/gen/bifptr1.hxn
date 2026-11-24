@@ -1,0 +1,8 @@
+#include <hexicon.h>
+_main(args)
+{
+    local f = &print;
+    f('pointer\n');
+    local g = [&toString, &rand, &max];
+    return (g[1])(42);
+}

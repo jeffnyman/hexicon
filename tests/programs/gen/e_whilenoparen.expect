@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: missing '(' after "while" - found "args"
+  --> e_whilenoparen.hxn:1
+  |
+1 | _main(args) { while args { } }
+  |
+
+error: missing ')' after "while" expression - found "{"
+  --> e_whilenoparen.hxn:1
+  |
+1 | _main(args) { while args { } }
+  |
+--- output

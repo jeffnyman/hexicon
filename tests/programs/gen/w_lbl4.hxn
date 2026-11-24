@@ -1,0 +1,1 @@
+_main(args) { if (nil) goto a; a: if (true) return 1; else goto b; b: ; }

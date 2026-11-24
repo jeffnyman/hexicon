@@ -1,0 +1,67 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+obj: object
+    m(a, b = name, c: = 3, d:?) { return [a, b, c, d]; }
+    name = 'nm'
+    p(x) { return m(x, d: 1, c: 2); }
+    q() { return self.m(1, 2, d: 4); }
+    r(pp) { return self.(pp)(1, d: 4) + inherited.m(2, c: 1) + inherited(c: 2); }
+    s(pp) { return obj.(pp)(d: 4) + other.m(c: 1) + inherited other.m(d: 2) + name(d: 1); }
+    t(pp) { return pp.name(d: 4) + pp.(pp)(c: 1) + inherited.(pp)(d: 2) + self.(pp)(d: 1); }
+;
+other: obj
+    m(a, b?, zz: = nil, [rest]) { return inherited(a, b, zz: 5, rest...); }
+;
+_main(args)
+{
+    local o = obj;
+    obj.m(1); o.m(1, c: 9); o.p(2);
+    new obj(a: 1);
+    new transient obj(1, a: 1, b: 2);
+    toString(5, radix: 2);
+    args(n: 1, o.m(n: 2, 3, c: args(4, n: 5)));
+    args(a: 1, [1, 2]..., b: 2);
+}

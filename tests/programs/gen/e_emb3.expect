@@ -1,0 +1,11 @@
+image: none
+--- messages
+error: this string has no end: it starts "; } "
+  --> e_emb3.hxn:1
+  |
+1 | _main(args) { "a<<(1>>b"; }
+  |
+  = a string ends with the quote it starts with; a quote inside it is written \' or \"
+
+(2 more problems in e_emb3.hxn follow from the string with no end, and are not shown)
+--- output

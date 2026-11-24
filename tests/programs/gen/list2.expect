@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: invalid lvalue - cannot assign to expression on left of "="
+  --> list2.hxn:28
+   |
+28 |     [1, 2][1] = 3;
+   |
+--- output

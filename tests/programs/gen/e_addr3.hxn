@@ -1,0 +1,4 @@
+a: object x = &y;
+y() { }
+z: object w = &y;
+_main(args) { return a.x; }

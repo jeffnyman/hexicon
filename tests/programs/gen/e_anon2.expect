@@ -1,0 +1,11 @@
+image: none
+--- messages
+error: semicolon is not allowed in a short-form anonymous function
+  --> e_anon2.hxn:5
+
+error: expected ',' or ';' after local variable, but found "<End Of File>"
+  --> e_anon2.hxn:5
+
+error: unexpected end of file in code block - '}' missing
+  --> e_anon2.hxn:5
+--- output

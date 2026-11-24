@@ -1,0 +1,4 @@
+#include <hexicon.h>
+modify List first() { return self[1]; };
+modify Object describe() { return 'obj'; };
+_main(args) { return [[1].first(), [2].second(), args.describe()]; }

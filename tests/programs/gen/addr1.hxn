@@ -1,0 +1,11 @@
+a: object x = 1 y = &x z = [&x, &w, &a, &_main] m() { return &q; };
+f() { }
+_main(args)
+{
+    local p = &x;
+    local l = [&x, &y, &nosuchprop, &f, &a];
+    switch (p) { case &x: return 1; case &y: return 2; }
+    if (&x == &y) return 3;
+    if (&x == &x) return 4;
+    return a.(p) + a.(&x) + args.(&w)(1) + (&x) + l;
+}

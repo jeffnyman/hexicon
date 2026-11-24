@@ -1,0 +1,4 @@
+image: none
+--- messages
+error: unresolved external reference "_multiMethodCall"
+--- output

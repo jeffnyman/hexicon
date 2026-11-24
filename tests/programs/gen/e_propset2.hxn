@@ -1,0 +1,11 @@
+a: object
+  propertyset 'a*' { propertyset 'b*' { propertyset 'c*' { propertyset 'd*' { propertyset 'e*' { propertyset 'f*' {
+  propertyset 'g*' { propertyset 'h*' { propertyset 'i*' { propertyset 'j*' { propertyset 'k*' { propertyset 'l*' {
+    deep = 1
+  } } } } } } } } } } } }
+  propertyset 'abcdefghijklmnopqrstuvwxyz*abcdefghijklmnopqrstuvwxyz' { propertyset 'abcdefghijklmnopqrstuvwxyz*' { long = 1 } }
+  propertyset 'q*' { f: object { } g: a { } h }
+;
+f() { }
+_main(args) { }
+

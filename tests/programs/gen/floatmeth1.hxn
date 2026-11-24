@@ -1,0 +1,9 @@
+#include <hexicon.h>
+method topLoc() { return location == nil ? self : location; }
+method showName(x) { "<<name>> <<x>>\n"; return self; }
+o: object name = 'o' location = nil;
+_main(args)
+{
+    o.setMethod(&where, topLoc);
+    return [o.where(), showName];
+}

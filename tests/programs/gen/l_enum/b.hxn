@@ -1,0 +1,4 @@
+#include <hexicon.h>
+enum blue, yellow, red;
+enum token tokPunct, tokWord;
+f(x) { switch (x) { case red: return 1; case yellow: return 2; case tokWord: return 3; } return [green, blue]; }

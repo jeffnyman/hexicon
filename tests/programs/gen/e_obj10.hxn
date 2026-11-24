@@ -1,0 +1,5 @@
+a: object x = 1;
+b: a, object;
+c: object {
+ x = 1
+_main(args) { }

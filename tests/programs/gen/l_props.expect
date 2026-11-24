@@ -1,0 +1,23 @@
+image: b28fbe1094d31d85adef7d6d52aea1f4a6858b860d190bfb45ba37079297f7a7
+--- messages
+warning: "delta" is not defined anywhere
+  --> a.hxn:2
+  |
+2 | a1: object alpha = 1 beta = 2 m() { return self.gamma + self.delta; };
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "delta" is spelled
+
+warning: "zeta" is not defined anywhere
+  --> a.hxn:3
+  |
+3 | _main(args) { return [a1.alpha, &beta, &epsilon, a1.zeta]; }
+  |
+  = did you mean "beta"?
+
+warning: "theta" is not defined anywhere
+  --> b.hxn:2
+  |
+2 | b1: object gamma = 1 beta = 2 eta = 3 m() { return self.alpha + a1.theta; };
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "theta" is spelled
+--- output

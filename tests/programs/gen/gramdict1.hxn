@@ -1,0 +1,4 @@
+dictionary gDict;
+grammar np: 'a' : object
+;
+_main(args) { return np; }

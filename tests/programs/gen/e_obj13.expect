@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: expected property name in object definition, but found ")"
+  --> e_obj13.hxn:1
+  |
+1 | a: object x = 1 , y = 2 ) z = 3 ] w = 4 } v = 5;
+  |
+
+error: expected property name in object definition, but found "]"
+  --> e_obj13.hxn:1
+  |
+1 | a: object x = 1 , y = 2 ) z = 3 ] w = 4 } v = 5;
+  |
+
+error: expected property name in object definition, but found "}"
+  --> e_obj13.hxn:1
+  |
+1 | a: object x = 1 , y = 2 ) z = 3 ] w = 4 } v = 5;
+  |
+--- output

@@ -1,0 +1,1 @@
+_main(args) { return args[1; }

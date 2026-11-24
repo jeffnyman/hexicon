@@ -1,0 +1,4 @@
+modify f() { return replaced(); }
+g() { }
+modify g() { }
+_main(args) { }

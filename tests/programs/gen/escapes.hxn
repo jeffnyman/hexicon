@@ -1,0 +1,1 @@
+_main(args) { return 'a\nb\tc\\d\'e\"f\x41\u0042\101 \^x\vy\  z\b'; }

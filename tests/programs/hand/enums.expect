@@ -1,0 +1,12 @@
+image: b6159f5d1d7e5721589f84c1255b3b98ed03f6f5556e9f4110347f23c8dd00d2
+--- messages
+--- output
+green | green | no color
+same | different | not blue
+an enum | an enum | same
+3 | not there | 2
+warm | not equal | unequal
+1 | 200 | 1
+3 | 4 | 12
+3 | green | the class
+the class |

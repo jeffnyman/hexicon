@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: 'goto' cannot transfer control into a 'finally' block
+  --> e_lbl8.hxn:1
+  |
+1 | _main(args) { try { goto in; } finally { try { in: ; } finally { } } }
+  |
+--- output

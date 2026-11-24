@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: replace/modify cannot be used with an object not previously defined
+  --> plus1.hxn:75
+   |
+75 | modify Object objExtra = 1;
+   |
+--- output

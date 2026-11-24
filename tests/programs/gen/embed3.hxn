@@ -1,0 +1,17 @@
+_main(args)
+{
+    "a<<if args>>yes<<else>>no<<end>>z"; "<<if args>>yes"; "<<if args>><<else>>";
+    "<<unless args>>u<<else if args > 1>>v<<otherwise>>w<<end>>"; "<<if args>><<end>>";
+    "<<if args>>a<<if args > 1>>b<<else>>c<<end>>d<<else>>e<<if 1>>f<<end>><<end>>g";
+    "<<if args>>one<<else>>two"; "<<unless args>><<otherwise unless args>>x<<end>>";
+    "<<if args>>a<<else unless args>>b<<otherwise if args>>c<<else>>d<<end>>e";
+    "<<if nil>>a<<end>><<if true>>b<<end>><<unless 1>>c<<else>>d<<end>>";
+    "<<if args = 1>>a<<end>>"; "<<if args>><<args>><<else>><<args + 1>><<end>>";
+    "<<if args>>a<<end>><<end>>"; "<<end>><<only>><<or>><<stopping>><<otherwise>>";
+    local s = 'q<<if args>>yes<<end>>';
+    s = '<<if args>>a<<else unless args>>b<<otherwise if 3>>c';
+    s = '<<if nil>>a<<else if true>>b<<end>>';
+    s = '<<if args>><<end>>' + '<<if args>>a<<else>>';
+    s = '<<if args>><<args>><<else>><<if s>>x<<end>>y<<end>>z<<unless args>>w';
+    return s;
+}

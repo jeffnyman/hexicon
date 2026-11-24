@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: <<one of>> requires class OneOfIndexGen to be defined in the program
+  --> e_emb14.hxn:1
+  |
+1 | _main(args) { "<<first time>>a<<only>>"; local s = 'x<<one of>>a<<or>>b<<cycling>>'; }
+  |
+--- output

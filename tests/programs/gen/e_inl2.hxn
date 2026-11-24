@@ -1,0 +1,8 @@
+class Thing: object;
+_main(args)
+{
+    local a = object: Thing { x = 1 };
+    local b = object { m() { return 1; } };
+    return [a, b];
+}
+

@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: invalid lvalue - cannot assign to expression on left of "="
+  --> e_lvalue1.hxn:1
+  |
+1 | _main(args) { 1 = 2; }
+  |
+--- output

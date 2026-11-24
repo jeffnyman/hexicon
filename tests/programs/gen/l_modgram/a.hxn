@@ -1,0 +1,7 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun;
+grammar np(basic): 'the' noun->n_ : object x = 1;
+grammar np(other): 'a' noun->n_ : object x = 2;
+grammar vp(go): 'go' np->n_ : object;
+_main(args) { return np; }

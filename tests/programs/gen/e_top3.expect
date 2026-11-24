@@ -1,0 +1,15 @@
+image: none
+--- messages
+error: expected symbol after 'function', but found "1"
+  --> e_top3.hxn:1
+  |
+1 | function 1 { } _main(args) { }
+  |
+
+error: "1" cannot start anything here
+  --> e_top3.hxn:1
+  |
+1 | function 1 { } _main(args) { }
+  |
+  = what is expected is a function, an object, or a class
+--- output

@@ -1,0 +1,25 @@
+_main(args)
+{
+    local a, b = 1, c;
+    local f = {x: a };
+    local g = {x, y: local t = x, local u = y, t + u };
+    local g2 = {: local t, t };
+    local g3 = {: local t = 1 };
+    local h = {x: x; };
+    local i = {x x };
+    local j = function(a b) { return a; };
+    local k = function(Thing a) { return a; };
+    local l = function(a) multimethod { return a; };
+    local m = {x, y: x};
+    local n = {x, [y]: y};
+    local o = {...: 1};
+    local p = {[q]: q};
+    local r = {x, : x};
+    local s = { 1 + 2 };
+    local t = function { return 1; };
+    local u = function() return 1;
+    local v = method;
+    while (b) { local w = {: 1 }; local w2 = function() { break; }; lbl: w(); w2(); goto lbl; }
+    return f;
+}
+

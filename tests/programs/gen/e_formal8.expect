@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: variable-argument list parameter name expected, but found "1"
+  --> e_formal8.hxn:1
+  |
+1 | f([1]) { } _main(args) { }
+  |
+
+error: expected a symbol in formal parameter list, but found "]"
+  --> e_formal8.hxn:1
+  |
+1 | f([1]) { } _main(args) { }
+  |
+
+error: missing parameter name at end of formal parameter list
+  --> e_formal8.hxn:1
+  |
+1 | f([1]) { } _main(args) { }
+  |
+--- output

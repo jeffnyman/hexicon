@@ -1,0 +1,10 @@
+image: 186c04cd67a278005f5c1394654be7b5f8b5b903e4729902e1fdb78a01da0b87
+--- messages
+warning: code has "return" statements both with and without values
+  --> finally.hxn:21
+   |
+21 | {
+   |
+--- output
+Unhandled exception: numeric value required
+leaving

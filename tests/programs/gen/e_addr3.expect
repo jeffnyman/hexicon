@@ -1,0 +1,9 @@
+image: cb31c3d8cac35d94940e8723ca2df1df292176e756c60bedae28f5223d995c4c
+--- messages
+warning: "w" is given a value here, but nothing reads it
+  --> e_addr3.hxn:3
+  |
+3 | z: object w = &y;
+  |
+  = did you mean "x"?
+--- output

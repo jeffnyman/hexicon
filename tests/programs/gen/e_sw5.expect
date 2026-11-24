@@ -1,0 +1,5 @@
+image: none
+--- messages
+error: end of file in "switch" body
+  --> e_sw5.hxn:2
+--- output

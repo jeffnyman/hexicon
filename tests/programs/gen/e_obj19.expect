@@ -1,0 +1,5 @@
+image: none
+--- messages
+error: expected property name in object definition, but found ""
+  --> e_obj19.hxn:4
+--- output

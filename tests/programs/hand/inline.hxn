@@ -1,0 +1,76 @@
+// A program to run: objects written in expressions, and questions about
+// names that are answered when the program is compiled.
+#include <systype.h>
+#include <general.h>
+#include <io.h>
+#include <vm.h>
+
+say(val) { print(val); }
+
+// Results go one to a line.
+line(val) { print(toString(val)); print('\n'); }
+
+class Counter: object
+    name = 'counter'
+    describe() { return name + ' at ' + value(); }
+    value() { return 0; }
+;
+
+// `object: Class { ... }` in an expression makes a new object each time
+// the expression is evaluated. Its methods and values can use the
+// locals of the function it is written in, which they share with it
+// for as long as the object lasts.
+makeCounter(label, start)
+{
+    local count = start;
+    return object: Counter {
+        // A value is worked out each time it is asked for.
+        name = label
+        value() { return count; }
+        next() { return ++count; }
+
+        // `static` works a value out once, when the object is made.
+        first = static count
+
+        // An object inside is made along with it.
+        limits: object { low = start  high = start + 10 }
+
+        // Text to display.
+        banner = "[<<name>>] "
+    };
+}
+
+// An object can be written with no class at all.
+point(x, y)
+{
+    return object { px = x  py = y  dist() { return px * px + py * py; } };
+}
+
+_main(args)
+{
+    setSay(say);
+    local a = makeCounter('first', 5);
+    local b = makeCounter('second', 100);
+    line(a.describe());
+    a.next();
+    a.next();
+    b.next();
+    line(a.describe());
+    line(b.describe());
+    line(a.first);
+    line(a.limits.high);
+    a.banner; b.banner; say('\n');
+    line(a.ofKind(Counter) ? 'a counter' : 'not a counter');
+    line(point(3, 4).dist());
+
+    // `defined(name)` is true or nil as the name means something or
+    // nothing, and `__objref(name)` is the object or nil; both are
+    // settled when the program is compiled, so a program can be
+    // written to do without something it may be built without.
+    line(defined(Counter) ? 'Counter is defined' : 'Counter is not defined');
+    line(defined(Stopwatch) ? 'Stopwatch is defined' : 'Stopwatch is not defined');
+    line(__objref(Counter) == Counter ? 'an object' : 'nil');
+    line(__objref(Stopwatch) == nil ? 'nil' : 'an object');
+    if (defined(Stopwatch))
+        line('never said');
+}

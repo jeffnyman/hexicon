@@ -1,0 +1,3 @@
+#include <hexicon.h>
+o: object x = 2;
+class C: object;

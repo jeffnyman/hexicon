@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: invalid lvalue - cannot assign to expression on left of "="
+  --> e_lvalue4.hxn:1
+  |
+1 | _main(args) { (args + 1) = 2; ++(args + 1); }
+  |
+
+error: invalid lvalue - cannot apply "++" operator to expression
+  --> e_lvalue4.hxn:1
+  |
+1 | _main(args) { (args + 1) = 2; ++(args + 1); }
+  |
+--- output

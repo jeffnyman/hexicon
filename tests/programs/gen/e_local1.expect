@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected symbol name in local variable declaration, but found ";"
+  --> e_local1.hxn:1
+  |
+1 | _main(args) { local; }
+  |
+--- output

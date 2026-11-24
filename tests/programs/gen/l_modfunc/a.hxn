@@ -1,0 +1,6 @@
+#include <hexicon.h>
+f(a) { return 1; }
+g(a) { return 10; }
+k(a) { return 100; }
+modify k(a) { return replaced(a) + 1; }
+_main(args) { print(toString(f(1) + g(2) + k(3)) + '\n'); }

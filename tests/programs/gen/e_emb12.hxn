@@ -1,0 +1,1 @@
+_main(args) { "<<if args>>a<<or>>b<<end>>c<<only>>d<<stopping>>e<<at random>>f"; }

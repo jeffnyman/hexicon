@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: "TadsObject" is not defined or is not an intrinsic class
+  --> e_inl2.hxn:4
+  |
+4 |     local a = object: Thing { x = 1 };
+  |
+
+error: "TadsObject" is not defined or is not an intrinsic class
+  --> e_inl2.hxn:5
+  |
+5 |     local b = object { m() { return 1; } };
+  |
+--- output

@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: a double-quoted string ("text") is not valid within an expression
+  --> e_dstr3.hxn:1
+  |
+1 | f(x) { } _main(args) { f("text"); }
+  |
+
+error: argument expression 1 yields no value
+  --> e_dstr3.hxn:1
+  |
+1 | f(x) { } _main(args) { f("text"); }
+  |
+--- output

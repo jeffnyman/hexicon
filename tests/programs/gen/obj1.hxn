@@ -1,0 +1,13 @@
+class Animal: object
+    name = 'animal'
+    legs = 4
+    describe() { return name + ' has ' + legs; }
+    speak(what) { "<<name>> says <<what>>"; }
+;
+dog: Animal
+    name = 'dog'
+    owner = nil
+    bark() { speak('woof'); return self.describe(); }
+;
+cat: Animal { name = 'cat' lives = 9 friend = dog }
+_main(args) { dog.bark(); cat.speak('meow'); return cat.friend.name; }

@@ -1,0 +1,26 @@
+image: none
+--- messages
+warning: unreachable statement
+  --> e_lbl3.hxn:1
+  |
+1 | _main(args) { a: while (args) { break b; continue b; } }
+  |
+
+error: invalid "break" - no label "b" on any enclosing statement
+  --> e_lbl3.hxn:1
+  |
+1 | _main(args) { a: while (args) { break b; continue b; } }
+  |
+
+error: invalid "continue" - no label "b" on any enclosing loop
+  --> e_lbl3.hxn:1
+  |
+1 | _main(args) { a: while (args) { break b; continue b; } }
+  |
+
+warning: label "a" is not referenced
+  --> e_lbl3.hxn:1
+  |
+1 | _main(args) { a: while (args) { break b; continue b; } }
+  |
+--- output

@@ -1,0 +1,19 @@
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val); getArg(idx); firstObj(cls?, flags?); nextObj(obj, cls?, flags?);
+    randomize(...); rand(x, ...); toString(val, radix?, isSigned?); toInteger(val, radix?);
+    getTime(typ?); rexMatch(pat, str, idx?); rexSearch(pat, str, idx?); rexGroup(n);
+    rexReplace(pat, str, repl, flags?, idx?); savepoint(); undo(); saveGame(fname, metaTab?);
+    restoreGame(fname); restartGame(); max(val, ...); min(val, ...); makeString(val, rpt?);
+    getFuncParams(func); toNumber(val, radix?); sprintf(fmt, ...);
+}
+
+_main(args)
+{
+    "<<%d args>> <<%5.2f args + 1>><<%s 'x' >><<% d 5>><<%-5.2f 1>><<%% 3>>";
+    "<<%x args, 2>><<%d if>><<if args>><<%d args>><<end>>";
+    local s = '<<%x args>>' + '<<%s s>><<%c 65>>';
+    local sprintf = 1;
+    "<<%d args>>";
+    return s + sprintf;
+}

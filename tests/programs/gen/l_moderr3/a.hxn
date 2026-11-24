@@ -1,0 +1,3 @@
+#include <hexicon.h>
+modify later x = 1;
+_main(args) { return later.x; }

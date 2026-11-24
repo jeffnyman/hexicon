@@ -1,0 +1,26 @@
+image: none
+--- messages
+error: invalid lvalue - cannot assign to expression on left of "="
+  --> e_obj9.hxn:2
+  |
+2 | _main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }
+  |
+
+error: this constant expression cannot be called as a function
+  --> e_obj9.hxn:2
+  |
+2 | _main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }
+  |
+
+error: invalid lvalue - cannot apply "++" operator to expression
+  --> e_obj9.hxn:2
+  |
+2 | _main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }
+  |
+
+error: invalid '.' expression - right side is not a property
+  --> e_obj9.hxn:2
+  |
+2 | _main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }
+  |
+--- output

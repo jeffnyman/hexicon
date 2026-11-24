@@ -1,0 +1,11 @@
+a(x) { switch (x) { case 1: return 1; default: return 2; } }
+b(x) { switch (x) { case 1: return 1; default: break; } return 3; }
+c(x) { switch (x) { case 1: x = 2; default: x = 3; } return x; }
+d(x) { switch (x) { default: while (true) { if (x) break; } } return x; }
+e(x) { for (;;) { switch (x) { case 1: continue; default: return 2; } } }
+g(x) { out: switch (x) { case 1: break out; default: return 2; } return 3; }
+h(x) { switch (x) { case 1: throw x; default: goto done; } done: return 3; }
+i(x) { switch (x) { case 1: break; break; case 2: return 1; x = 1; x = 2; default: return 2; } return x; }
+j(x) { switch (x) { case 1: if (true) return 1; else break; default: return 2; } }
+k(x) { switch (x) { case 1: if (nil) return 1; else break; default: return 2; } return 3; }
+_main(args) { return a(1) + b(1) + c(1) + d(1) + e(1) + g(1) + h(1) + i(1) + j(1) + k(1); }

@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: incompatible constant types for two-operand '-' operator
+  --> b.hxn:2
+  |
+2 | g(x) { return 'a' - 1; }
+  |
+--- output

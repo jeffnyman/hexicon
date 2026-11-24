@@ -1,0 +1,5 @@
+#include <hexicon.h>
+dictionary gDict;
+grammar cmd: 'b' : object
+;
+object x = 1;

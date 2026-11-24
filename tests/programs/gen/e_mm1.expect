@@ -1,0 +1,164 @@
+image: none
+--- messages
+error: function "f" is already defined - can't redefine as a multi-method
+  --> e_mm1.hxn:3
+  |
+3 | f(Thing a) { }
+  |
+
+error: function "g" has an incompatible previous declaration
+  --> e_mm1.hxn:5
+  |
+5 | g(a) { }
+  |
+
+error: function "h*Thing;" is already defined
+  --> e_mm1.hxn:7
+  |
+7 | h(Thing a) { }
+  |
+
+error: parameter type "red" is not an object
+  --> e_mm1.hxn:10
+   |
+10 | m(red a, f b) { }
+   |
+
+error: parameter type "f" is not an object
+  --> e_mm1.hxn:10
+   |
+10 | m(red a, f b) { }
+   |
+
+error: expected '{' at start of method code body, but found "multimethod"
+  --> e_mm1.hxn:11
+   |
+11 | n(a) multimethod multimethod { }
+   |
+
+error: expected ';', but found "{"
+  --> e_mm1.hxn:11
+   |
+11 | n(a) multimethod multimethod { }
+   |
+
+error: expected inline object property list starting with '{' (found 'p')
+  --> e_mm1.hxn:12
+   |
+12 | o: object p(a) multimethod { } q(Thing a) { } ;
+   |
+
+error: expected ';', but found "p"
+  --> e_mm1.hxn:12
+   |
+12 | o: object p(a) multimethod { } q(Thing a) { } ;
+   |
+
+error: expected ';', but found "multimethod"
+  --> e_mm1.hxn:12
+   |
+12 | o: object p(a) multimethod { } q(Thing a) { } ;
+   |
+
+error: expected ';', but found "{"
+  --> e_mm1.hxn:12
+   |
+12 | o: object p(a) multimethod { } q(Thing a) { } ;
+   |
+
+error: expected ',' or ')' in argument list, but found "a"
+  --> e_mm1.hxn:12
+   |
+12 | o: object p(a) multimethod { } q(Thing a) { } ;
+   |
+
+error: expected ',' or ')' in argument list, but found "a"
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ","
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: unexpected ')' found - ignored
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: missing colon at end of anonymous function formal list - found "return"
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "return"
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ">"
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: semicolon is not allowed in a short-form anonymous function
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: missing ':' in '?' conditional expression
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "+"
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: expected ',' or ')' in argument list, but found "b"
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: argument list missing in inherited<> (expected '(', found ";")
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: expected ';', but found "}"
+  --> e_mm1.hxn:13
+   |
+13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+   |
+
+error: expected ';' or expression after "return", but found "{"
+  --> e_mm1.hxn:14
+   |
+14 | s(a) { return {x: 1 multimethod} ; }
+   |
+
+error: expected ';', but found "multimethod"
+  --> e_mm1.hxn:14
+   |
+14 | s(a) { return {x: 1 multimethod} ; }
+   |
+
+error: expected ';', but found "}"
+  --> e_mm1.hxn:14
+   |
+14 | s(a) { return {x: 1 multimethod} ; }
+   |
+--- output

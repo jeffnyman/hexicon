@@ -1,0 +1,21 @@
+image: 364e6c657a4cf18b984d6e6c3f397d1c2ad705bbdd29be2038e47f2c10dac6e7
+--- messages
+warning: the local variable "a" is never used
+  --> w_unused.hxn:1
+  |
+1 | _main(args) { local a; local b = 1; local c; return c; }
+  |
+
+warning: "b" is given a value that is never used
+  --> w_unused.hxn:1
+  |
+1 | _main(args) { local a; local b = 1; local c; return c; }
+  |
+
+warning: "c" is used, but never given a value
+  --> w_unused.hxn:1
+  |
+1 | _main(args) { local a; local b = 1; local c; return c; }
+  |
+  = its value is nil
+--- output

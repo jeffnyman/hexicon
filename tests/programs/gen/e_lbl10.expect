@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: invalid "goto" - label "a" is not defined in this function or method
+  --> e_lbl10.hxn:1
+  |
+1 | f() { a: ; goto a; } _main(args) { goto a; }
+  |
+--- output

@@ -1,0 +1,26 @@
+image: none
+--- messages
+error: missing expression in "foreach" - found "2"
+  --> e_forin3.hxn:4
+  |
+4 | _main(args) { for (local i in 1..2 ; i < 2 ; ) ; for (1 in args) ; foreach (2 in args) ; for (nosuch in args) ; foreach (local x in nosuch2) ; }
+  |
+
+error: expected ';', but found "in"
+  --> e_forin3.hxn:4
+  |
+4 | _main(args) { for (local i in 1..2 ; i < 2 ; ) ; for (1 in args) ; foreach (2 in args) ; for (nosuch in args) ; foreach (local x in nosuch2) ; }
+  |
+
+error: expected ';', but found "args"
+  --> e_forin3.hxn:4
+  |
+4 | _main(args) { for (local i in 1..2 ; i < 2 ; ) ; for (1 in args) ; foreach (2 in args) ; for (nosuch in args) ; foreach (local x in nosuch2) ; }
+  |
+
+error: unexpected ')' found - ignored
+  --> e_forin3.hxn:4
+  |
+4 | _main(args) { for (local i in 1..2 ; i < 2 ; ) ; for (1 in args) ; foreach (2 in args) ; for (nosuch in args) ; foreach (local x in nosuch2) ; }
+  |
+--- output

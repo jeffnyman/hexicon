@@ -1,0 +1,14 @@
+image: 2eda3db354e59c65b216a9fcea2045f29a1d5a6c2b89f9f66edc0eb4c30aa68a
+--- messages
+warning: "noun2" is given a value here, but nothing reads it
+  --> dict6.hxn:24
+   |
+24 | vase: Fancy noun = 'vase' noun2 = static ['a'];
+   |
+   = did you mean "noun"?
+--- output
+thing:thing,object// room:object,thing,room,chamber//
+lamp:object,thing,lamp,lantern/brass,old,brass/ wick:object,thing,wick/burnt/
+holder:object,thing,holder/tiny/ thing:object,thing,coin,token// |
+thing:object,thing/fancy/ thing:object,thing,urn/fancy,blue/
+thing:object,thing,ghost//

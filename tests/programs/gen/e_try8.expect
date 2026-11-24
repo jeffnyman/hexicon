@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: misplaced "finally" clause - must be associated with "try"
+  --> e_try8.hxn:1
+  |
+1 | _main(args) { try { } finally { } finally { } }
+  |
+--- output

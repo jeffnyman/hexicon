@@ -1,0 +1,7 @@
+string template <<p>> ab;
+string template <<q>> ba;
+string template <<r>> zz;
+string template <<s>> aa;
+string template <<t *>> cab;
+string template <<u>> bca;
+_main(args) { "<<s>><<r>><<q>><<p>><<u>><<t 1>>"; }

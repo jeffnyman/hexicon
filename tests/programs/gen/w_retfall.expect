@@ -1,0 +1,8 @@
+image: f27c86470cdb762a2fe7108914d8a37483708b7b229addada507d2f3cb97fa4b
+--- messages
+warning: code has "return" with value but also falls off end
+  --> w_retfall.hxn:1
+  |
+1 | _main(args) { if (args) return 1; }
+  |
+--- output

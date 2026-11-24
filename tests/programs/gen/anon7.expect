@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: expected ';' or expression after "return", but found "{"
+  --> anon7.hxn:11
+   |
+11 |         return {: a + inner };
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon7.hxn:11
+   |
+11 |         return {: a + inner };
+   |
+
+error: expected ';', but found "}"
+  --> anon7.hxn:11
+   |
+11 |         return {: a + inner };
+   |
+--- output

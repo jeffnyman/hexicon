@@ -1,0 +1,38 @@
+#include <general.h>
+#include <hexicon.h>
+class A: object name = 'A' who() { return name; };
+class B: object tag = 'B';
+holder: object
+    name = 'holder'
+    made = object: A, B { name = 'made' }
+    lazy = (object { v = 1 })
+    fresh() { return object: A { name = 'fresh!' owner = static self.name who() { return name + '?'; } }; }
+    chain(n)
+    {
+        local k = n;
+        return ({x: object { sum = x + k + n  inner: A { name = 'in' + k } get() { return ({: k++ }); } }});
+    }
+    grouped = static object { propertyset 'on*' { Start = 1 Stop() { return 2; } } operator +(o) { return 'plus'; } }
+;
+f(a, b?)
+{
+    for (local i = 0 ; i < 2 ; ++i)
+    {
+        local o = object: A { idx = i  desc = "<<idx>>;" };
+        o.desc;
+    }
+    return object { args = [a, b]  count = argcount };
+}
+say(v) { print(v); }
+_main(args)
+{
+    setSay(say);
+    say(holder.made.who()); say(holder.made.tag); say(holder.lazy.v); say(holder.fresh().who());
+    local o = holder.chain(5)(10); say(o.sum); say(o.inner.name); local g = o.get(); say(g()); say(g()); say(o.sum); say('\n');
+    say(holder.grouped.onStart); say(holder.grouped.onStop()); say(holder.grouped + 1); say(' ');
+    local r = f(1); say(r.count); say(r.args.length());
+    if (defined(A) && !defined(Zed)) say(' ok');
+    while (defined(Zed)) { say('never'); }
+    say(__objref(A, error).name); say(__objref(holder).name);
+    say('\n');
+}

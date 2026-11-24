@@ -1,0 +1,85 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+class Vec: object
+    x = 0 y = 0
+    construct(x_, y_) { x = x_; y = y_; }
+    operator +(o) { return new Vec(x + o.x, y + o.y); }
+    operator -(o) { return new Vec(x - o.x, y - o.y); }
+    operator *(k) { return new Vec(x * k, y * k); }
+    operator /(k) { return new Vec(x / k, y / k); }
+    operator %(k) { return new Vec(x % k, y % k); }
+    operator ^(k) { return 'xor' + k; }
+    operator <<(k) { return 'shl' + k; }
+    operator >>(k) { return 'ashr' + k; }
+    operator >>>(k) { return 'lshr' + k; }
+    operator ~() { return 'bnot'; }
+    operator |(k) { return 'or' + k; }
+    operator &(k) { return 'and' + k; }
+    operator negate() { return new Vec(-x, -y); }
+    operator [](i) { return i == 1 ? x : y; }
+    operator []=(i, v) { if (i == 1) x = v; else y = v; return self; }
+    show() { return '(' + x + ',' + y + ')'; }
+;
+other: object
+    operator + = 5
+    operator negate { return 'neg'; }
+    operator [ ] (i) { return i * 2; }
+;
+modify Vec
+    replace operator ^(k) { return 'XOR' + k; }
+;
+_main(args)
+{
+    local a = new Vec(1, 2), b = new Vec(10, 20);
+    print((a + b).show()); print((b - a).show()); print((a * 3).show());
+    print((b / 2).show()); print((b % 3).show()); print((-a).show()); print('\n');
+    print(a ^ 1); print(a << 2); print(a >> 3); print(a >>> 4); print(~a);
+    print(a | 5); print(a & 6); print('\n');
+    print(a[1]); print(a[2]); a[2] = 9; print(a.show()); print(other[21]); print(-other); print('\n');
+    local p = &operator +, q = &operator []=, r = &operator negate, s = &operator [];
+    print(a.(p)(b).show()); print(other.(r)()); print(other.(s)(4));
+    print(other.propType(&operator +)); print('\n');
+}

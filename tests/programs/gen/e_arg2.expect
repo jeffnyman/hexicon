@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ')' at end of argument list, but found ";"
+  --> e_arg2.hxn:1
+  |
+1 | f(a, b) { } _main(args) { f(1, 2; }
+  |
+--- output

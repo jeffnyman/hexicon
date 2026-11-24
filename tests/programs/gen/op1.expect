@@ -1,0 +1,19 @@
+image: 6b666bf26e68eed8aa98a66fecf39da8aaffb129456c10cd040bb64b76bec242
+--- messages
+warning: "propType" is not defined anywhere
+  --> op1.hxn:84
+   |
+84 |     print(other.propType(&operator +)); print('\n');
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "propType" is spelled
+
+warning: "q" is given a value that is never used
+  --> op1.hxn:82
+   |
+82 |     local p = &operator +, q = &operator []=, r = &operator negate, s = &operator [];
+   |
+--- output
+(11,22)(9,18)(3,6)(5,10)(1,2)(-1,-2)
+XOR1shl2ashr3lshr4bnotor5and6
+12(1,9)42neg
+(11,29)neg8

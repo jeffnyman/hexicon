@@ -1,0 +1,9 @@
+image: 19ecc4d5a9e1a033e31f4f86c445b3eaf8d3004320a199cbc74ba0591103d474
+--- messages
+warning: "a" is given a value that is never used
+  --> e_lbl13.hxn:1
+  |
+1 | _main(args) { local a; a: a = 1; goto a; }
+  |
+--- output
+(not run: it does not finish)

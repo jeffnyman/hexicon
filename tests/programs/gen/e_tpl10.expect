@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: unresolved external reference "aa"
+error: unresolved external reference "ab"
+error: unresolved external reference "ba"
+error: unresolved external reference "zz"
+error: unresolved external reference "cab"
+error: unresolved external reference "bca"
+--- output

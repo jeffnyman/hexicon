@@ -1,0 +1,44 @@
+image: none
+--- messages
+error: '=' is not allowed with a method definition
+  --> e_anon7.hxn:2
+  |
+2 |     p1 = {: }
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> e_anon7.hxn:2
+  |
+2 |     p1 = {: }
+  |
+
+error: expected ';', but found "p2"
+  --> e_anon7.hxn:3
+  |
+3 |     p2 = {x: x
+  |
+
+error: semicolon is not allowed in a short-form anonymous function
+  --> e_anon7.hxn:4
+  |
+4 |     p3 = 1
+  |
+
+error: expected ';', but found "p3"
+  --> e_anon7.hxn:4
+  |
+4 |     p3 = 1
+  |
+
+error: expected ';', but found "{"
+  --> e_anon7.hxn:6
+  |
+6 | _main(args) { return a; }
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_anon7.hxn:8
+
+error: expected property name in object definition, but found ""
+  --> e_anon7.hxn:8
+--- output

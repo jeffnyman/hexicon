@@ -1,0 +1,10 @@
+f(x) { return x; }
+string template <<a *>> f;
+string template <<b>> f;
+string template <<c *>> g;
+g() { return 1; }
+string template <<d *>> h;
+h(...) { }
+string template <<e *>> k;
+k(a, b) { }
+_main(args) { }

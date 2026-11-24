@@ -1,0 +1,4 @@
+_main(args)
+{
+    local a = [1, 2][2];
+    local b = [1, 5][

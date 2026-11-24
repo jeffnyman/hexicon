@@ -1,0 +1,1 @@
+two(a, b) { return a; } _main(args) { return two(args...); }

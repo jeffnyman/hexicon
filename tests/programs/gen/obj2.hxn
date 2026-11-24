@@ -1,0 +1,15 @@
+box: object
+    contents = [1, 2, 'three']
+    desc = "A box. "
+    size = 2 + 3
+    total = (size * 2)
+    label = 'box ' + 'one'
+    open = true
+    check() { size = 5; self.size += 1; total++; return open; }
+;
+_main(args)
+{
+    box.size = 3; box.size += 2; box.total++; --box.size;
+    local b = box; b.size = 1; b.size *= 2; b.check();
+    return b.contents;
+}

@@ -1,0 +1,51 @@
+image: none
+--- messages
+error: object "c" is already defined - can't redefine as object
+  --> e_modify2.hxn:49
+   |
+49 | c: object;
+   |
+
+error: "replace" can be used with a property only in a "modify" object
+  --> e_modify2.hxn:50
+   |
+50 | d: object replace x = 1;
+   |
+
+error: "5" is already the name of something else, so it cannot also name an object
+  --> e_modify2.hxn:53
+   |
+53 | modify 5 x = 1;
+   |
+
+error: base class list required for object 'replace' definition
+  --> e_modify2.hxn:55
+   |
+55 | replace g x = 1;
+   |
+
+error: expected property name in object definition, but found ":"
+  --> e_modify2.hxn:57
+   |
+57 | modify h: object x = 1;
+   |
+
+error: the object above ends without a ';'
+  --> e_modify2.hxn:57
+   |
+57 | modify h: object x = 1;
+   |
+   = each object ends with ';', and the next starts here
+
+error: "i" is already the name of something else, so it cannot also name an object
+  --> e_modify2.hxn:59
+   |
+59 | modify i x = 1;
+   |
+
+error: property "p" already defined in object
+  --> e_modify2.hxn:61
+   |
+61 | modify j p = 2 p = 3;
+   |
+--- output

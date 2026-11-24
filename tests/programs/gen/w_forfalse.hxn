@@ -1,0 +1,1 @@
+_main(args) { for (; nil; ) { args = 1; } for (; nil; args = 2) ; return 3; }

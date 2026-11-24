@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected an operand, but found ";"
+  --> b.hxn:2
+  |
+2 | g(x) { local unused2; return x +; }
+  |
+--- output

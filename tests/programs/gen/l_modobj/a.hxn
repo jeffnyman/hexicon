@@ -1,0 +1,6 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun;
+class Base: object b = 1;
+o: Base x = 1 y = 2 noun = 'old' m() { return 1; };
+_main(args) { return [o.x, h()]; }

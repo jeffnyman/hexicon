@@ -1,0 +1,1 @@
+_main(args) { local a; a: a = 1; goto a; }

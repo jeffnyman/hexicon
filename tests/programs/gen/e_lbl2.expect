@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ';', but found "b"
+  --> e_lbl2.hxn:1
+  |
+1 | _main(args) { goto nosuch; goto a b; }
+  |
+--- output

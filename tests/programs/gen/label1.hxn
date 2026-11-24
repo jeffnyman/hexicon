@@ -1,0 +1,26 @@
+f(x)
+{
+a:  for (;;) {
+b:      while (x) {
+c:          do {
+d:              switch (x) {
+                case 1: break a;
+                case 2: break b;
+                case 3: break c;
+                case 4: break d;
+                case 5: continue a;
+                case 6: continue b;
+                case 7: continue c;
+                case 8: break;
+                case 9: continue;
+                }
+            } while (x);
+        }
+    }
+e:  x = 1;
+g:  { x = 2; if (x) break g; x = 3; }
+h:  if (x) break h; else { break h; }
+i: j: k: while (x) { if (x == 1) continue i; if (x == 2) continue j; if (x == 3) break k; continue k; }
+    return x;
+}
+_main(args) { return f(1); }

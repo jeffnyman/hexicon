@@ -1,0 +1,26 @@
+string template <<* in words>> spell;
+string template <<nope>> nope;
+string template <<the * thing>> spell;
+string template <<>> nope;
+string template << * >> spell;
+string template <<the * of *>> pair;
+string template <<big *>> big;
+string template <<* said>> said;
+string template <<'*' x>> spell;
+string template <<if only>> nope;
+spell(x) { return x; }
+nope() { return 'n'; }
+pair(x) { return x; }
+big(x) { return x; }
+said(x) { return x; }
+_main(args)
+{
+    "<<args in words>> <<nope>> <<the args in words thing>> <<args>>";
+    "<<the 1 of 2>> <<the big 1 thing>> <<big the 2 thing>> <<big nope>> <<nope said>>";
+    "<<big big 1 + 2 said>> <<the nope thing>> <<the thing>> <<big>> <<nope nope>>";
+    "<<1 x>> <<'*' x>> <<if only>>a<<end>> <<%d nope>> <<%d args in words>>";
+    local s = '<<nope>><<the 1 thing>><<args, 2>>';
+    local spell = 1;
+    "<<spell in words>>";
+    return s;
+}

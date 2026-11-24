@@ -1,0 +1,6 @@
+_main(args)
+{
+    local f = {x: x + 1};
+    local g = function(a, b) { return a + b; };
+    return f(1) + g(2, 3);
+}

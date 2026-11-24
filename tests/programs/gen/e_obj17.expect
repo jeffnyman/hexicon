@@ -1,0 +1,37 @@
+image: none
+--- messages
+error: "nosuch" is not defined anywhere
+  --> e_obj17.hxn:1
+  |
+1 | a: object m() { return nosuch.x + self.(nosuch2) + nosuch3(); }
+  |
+  = did you mean "nosuch2"?
+
+warning: "nosuch2" is not defined anywhere
+  --> e_obj17.hxn:1
+  |
+1 | a: object m() { return nosuch.x + self.(nosuch2) + nosuch3(); }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "nosuch2" is spelled
+
+warning: "nosuch3" is not defined anywhere
+  --> e_obj17.hxn:1
+  |
+1 | a: object m() { return nosuch.x + self.(nosuch2) + nosuch3(); }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "nosuch3" is spelled
+
+error: "nosuch4" is not defined anywhere
+  --> e_obj17.hxn:3
+  |
+3 | f() { return nosuch4 + nosuch5(); }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+
+error: "nosuch5" is not defined anywhere
+  --> e_obj17.hxn:3
+  |
+3 | f() { return nosuch4 + nosuch5(); }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

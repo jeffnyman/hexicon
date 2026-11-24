@@ -1,0 +1,20 @@
+#include <general.h>
+#include <hexicon.h>
+class Thing: object;
+class Box: Thing;
+_multiMethodRegister(base, func, [types]) { }
+_multiMethodBuildBindings() { }
+_multiMethodCall(base, args) { return 7; }
+_multiMethodCallInherited(from, [args]) { return 8; }
+ab(Thing a) { return 1; }
+ba(Box a) { return 2; }
+ab(a) multimethod { return 3; }
+ba(Box a, List b, ...) { return 4; }
+ab(Thing a, [rest]) { return inherited(a); }
+modify ab(a) multimethod { return replaced(a) + 1; }
+replace ba(Box a) { return inherited<Box, List, ...>(a, [], 5); }
+zz() multimethod { return 0; }
+zz(a, b?) multimethod { return 1; }
+plain(Thing a) { return ({: inherited(a) }); }
+obj: object m(Thing) { return 1; } ;
+_main(args) { return [ab(1), ba(2), zz(), ab, plain(1)]; }

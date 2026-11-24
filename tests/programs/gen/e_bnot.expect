@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: unary '~' operator requires numeric value in constant expression
+  --> e_bnot.hxn:1
+  |
+1 | _main(args) { return ~nil; }
+  |
+--- output

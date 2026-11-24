@@ -1,0 +1,5 @@
+image: none
+--- messages
+error: modified or replaced object "o" found in object file "e_extern3.t3o" before original object definition was loaded
+error: modified or replaced object "p" found in object file "e_extern3.t3o" before original object definition was loaded
+--- output

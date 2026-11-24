@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: this object, written in braces, has no '}' at its end: found "class"
+  --> e_obj11.hxn:1
+  |
+1 | a: object { x = 1 class b: object;
+  |
+--- output

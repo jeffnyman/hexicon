@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: code before first "case" or "default" label in "switch" is not allowed
+  --> e_sw13.hxn:1
+  |
+1 | _main(args) { switch (args) { lbl: case 1: ; other: default: ; case 2: ; } }
+  |
+--- output

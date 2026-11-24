@@ -1,0 +1,17 @@
+image: none
+--- messages
+error: expected '{' at start of method code body, but found "return"
+  --> e_body1.hxn:1
+  |
+1 | f() return 1; _main(args) { }
+  |
+
+error: expected ';', but found "{"
+  --> e_body1.hxn:1
+  |
+1 | f() return 1; _main(args) { }
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_body1.hxn:2
+--- output

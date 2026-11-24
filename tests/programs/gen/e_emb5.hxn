@@ -1,0 +1,1 @@
+_main(args) { local x = "a<<args>>b"; x = "a<<args>>"; }

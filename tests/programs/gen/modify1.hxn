@@ -1,0 +1,62 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+f(x) { return x + 1; }
+g(x) { return x * 2; }
+h(x) { return 'h'; }
+replace f(x) { return x + 10; }
+modify g(x) { local r = replaced; return r(x) + replaced(x) + 100; }
+modify function h(x) { return replaced(x) + '!'; }
+replace function h(x) { return 'new h'; }
+q(x) { return 'q'; }
+modify q(x) { return ({: replaced(x) + '!' })(); }
+k(a, b?) { return a; }
+modify k(a, b?, c?) { return replaced(a) + replaced(a, 2) + replaced(a, [1]...); }
+v(a, ...) { return a; }
+modify v(a, [rest]) { return replaced(a, rest...) + replaced(a, n: 1); }
+_main(args)
+{
+    print(f(1)); print(g(1)); print(h(1)); print(k(1)); print(q(1)); print(v(1));
+}

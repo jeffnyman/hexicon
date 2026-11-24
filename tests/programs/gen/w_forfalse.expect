@@ -1,0 +1,8 @@
+image: fc197d729a5714e80c05b4ed657da8d7da31dbf52c8c3e1ec5ea1f8483e40df6
+--- messages
+warning: "for" condition is always false - body and reinitializer are unreachable
+  --> w_forfalse.hxn:1
+  |
+1 | _main(args) { for (; nil; ) { args = 1; } for (; nil; args = 2) ; return 3; }
+  |
+--- output

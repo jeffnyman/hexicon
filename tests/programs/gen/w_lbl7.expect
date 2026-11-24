@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: invalid "goto" - label "a" is not defined in this function or method
+  --> w_lbl7.hxn:1
+  |
+1 | f(x) { switch (x) { case 1: goto a; } } _main(args) { a: return f(args); }
+  |
+--- output

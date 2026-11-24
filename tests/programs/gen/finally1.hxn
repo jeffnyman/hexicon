@@ -1,0 +1,21 @@
+a(x) { local l1 = 1; try { return l1 + x; } finally { local l2 = 2; x = l2; } }
+b(x) { try { try { return x; } finally { x = 1; } } finally { x = 2; } }
+c(x) { try { return; } finally { x = 1; } }
+d(x) { try { return nil; } finally { x = 1; } }
+e(x) { try { return true; } finally { x = 1; } }
+g(x) { try { return x; } finally { return 2; } }
+h(x) { try { x = 1; } finally { throw x; } }
+i(x) { try { throw x; } finally { } }
+j(x) { try { } finally { } return x; }
+k(x) { try ; finally ; return x; }
+l(x) { try x = 1; finally x = 2; return x; }
+m(x) { try { return a(x); } finally { x = 1; } }
+n(x) { try { "text"; return "more"; } finally { x = 1; } }
+o(x) { try { return x; } finally { try { return x + 1; } finally { x = 3; } } }
+q(x) { while (x) { try { if (x == 1) break; if (x == 2) continue; if (x == 3) return 3; } finally { x--; } } return x; }
+r(x) { try { local t1 = x; try { local t2 = t1; return t2; } finally { local t3 = 3; x = t3; } } finally { local t4 = 4; x = t4; } }
+_main(args)
+{
+    return a(1) + b(1) + c(1) + d(1) + e(1) + g(1) + h(1) + i(1) + j(1) + k(1) + l(1) + m(1)
+        + n(1) + o(1) + q(1) + r(1);
+}

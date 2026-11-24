@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: local variable "a" defined more than once
+  --> e_localredef.hxn:1
+  |
+1 | _main(args) { local a; local a; local args; }
+  |
+
+error: local variable "args" defined more than once
+  --> e_localredef.hxn:1
+  |
+1 | _main(args) { local a; local a; local args; }
+  |
+--- output

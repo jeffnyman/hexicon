@@ -1,0 +1,4 @@
+#include <hexicon.h>
+#include "nothere.h"
+f(x) { return 1; }
+_main(args) { return f(1); }

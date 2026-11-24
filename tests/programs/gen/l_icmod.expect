@@ -1,0 +1,17 @@
+image: 33193587e54e18d44b802a5396515234555017f66aec67535b995ed036d0721b
+--- messages
+warning: "first2" is given a value here, but nothing reads it
+  --> b.hxn:2
+  |
+2 | modify List second() { return self[2]; } first2() { return inherited(); };
+  |
+  = did you mean "first"?
+
+warning: "describe2" is given a value here, but nothing reads it
+  --> c.hxn:2
+  |
+2 | modify Object describe2() { return 'obj2'; };
+  |
+  = did you mean "describe"?
+--- output
+Unhandled exception: index out of range

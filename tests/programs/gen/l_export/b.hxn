@@ -1,0 +1,7 @@
+#include <hexicon.h>
+export g 'other';
+export f 'entry2';
+export p 'entry';
+export newProp;
+g(x) { return o; }
+p: object;

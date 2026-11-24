@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "1" cannot start anything here
+  --> e_top1.hxn:1
+  |
+1 | 1; _main(args) { }
+  |
+  = what is expected is a function, an object, or a class
+--- output

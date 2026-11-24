@@ -1,0 +1,23 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> e_sw18.hxn:1
+  |
+1 | _main(args) { switch (args) { case 1: case : ; } }
+  |
+
+error: missing ':' after "case" expression - found "}"
+  --> e_sw18.hxn:1
+  |
+1 | _main(args) { switch (args) { case 1: case : ; } }
+  |
+
+error: expected start of statement, but found "}"
+  --> e_sw18.hxn:1
+  |
+1 | _main(args) { switch (args) { case 1: case : ; } }
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_sw18.hxn:2
+--- output

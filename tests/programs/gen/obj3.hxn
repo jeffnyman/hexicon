@@ -1,0 +1,21 @@
+class Base: object
+    v = 1
+;
+Base
+    v = 2
+;
+object
+    v = 3
+;
+Base v = 4;
+class C: object;
+C x = 1;
+C { y = 2 }
+object { z = 3 };
+a: object { x = 1; y = 2; m() { } };
+b: object { x = 1 }
+c: object
+{
+    x = 1
+}
+_main(args) { return 1; }

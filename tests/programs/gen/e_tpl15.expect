@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected '<<' at start of string template, but found ';'
+  --> e_tpl15.hxn:1
+  |
+1 | string template;
+  |
+
+error: expected '>>' at end of string template, but found ';'
+  --> e_tpl15.hxn:1
+  |
+1 | string template;
+  |
+--- output

@@ -55,6 +55,7 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
 - **Hexad starts from adv3Lite.**
 - **Hexad lives in this repository, in `lib/hexad`, as the built-in library.** The language and the library change together: a language change and Hexad's adoption of it go in one commit and are tested together, much as Rust ships its standard library. `lib/hexad` has its own `hexicon.toml`, so that it could move to a repository of its own later if that is ever wanted.
 - **Hexad uses no TADS names.** As Hexicon names for the built-in functions arrive (language plan, change 0), Hexad moves to them.
+- **Hexicon has one library (2026-11-24).** TADS had two, adv3 and adv3Lite, and authors having to choose between them (adv3Lite being not much lighter) cost TADS a great deal of momentum. So Hexad is the only library Hexicon ships or documents. adv3 is never offered as a second choice, even converted. A converted adv3 may be kept outside the repository, to build adv3 games as tests and to read when porting a feature. What Hexad takes from adv3 becomes Hexad's own, with the same classes and the same guide, switched on by an author at most, and never a second tier. Hexad's design decisions come first and say what to take.
 
 ## Open questions
 

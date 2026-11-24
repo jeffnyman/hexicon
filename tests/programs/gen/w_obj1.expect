@@ -1,0 +1,34 @@
+image: 4c7af600242a9746983fb32efd490508a5444dc148169e5707aa84e75b6b5ef0
+--- messages
+warning: unreachable statement
+  --> w_obj1.hxn:1
+  |
+1 | a: object m() { local q; return 1; q = 2; }
+  |
+
+warning: code has "return" with value but also falls off end
+  --> w_obj1.hxn:2
+  |
+2 |  n() { if (x) return 1; }
+  |
+
+warning: "q" is given a value that is never used
+  --> w_obj1.hxn:1
+  |
+1 | a: object m() { local q; return 1; q = 2; }
+  |
+
+warning: "m" is given a value here, but nothing reads it
+  --> w_obj1.hxn:1
+  |
+1 | a: object m() { local q; return 1; q = 2; }
+  |
+  = did you mean "x"?
+
+warning: "n" is given a value here, but nothing reads it
+  --> w_obj1.hxn:2
+  |
+2 |  n() { if (x) return 1; }
+  |
+  = did you mean "x"?
+--- output

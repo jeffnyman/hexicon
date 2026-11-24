@@ -1,0 +1,1 @@
+_main(args) { local q; switch (args) { case args: ; case 1 + args: ; } return nosuch; }

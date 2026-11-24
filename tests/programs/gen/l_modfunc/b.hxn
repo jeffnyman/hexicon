@@ -1,0 +1,4 @@
+#include <hexicon.h>
+replace f(a) { return 2; }
+modify g(a) { return replaced(a) + 1; }
+modify k(a) { local r = replaced; return r(a) + 1000; }

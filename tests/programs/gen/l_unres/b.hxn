@@ -1,0 +1,3 @@
+#include <hexicon.h>
+extern function elsewhere(x, y);
+g(x) { return elsewhere(x, x) + new Missing(); }

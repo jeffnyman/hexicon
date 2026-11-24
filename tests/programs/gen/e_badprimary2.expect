@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "*"
+  --> e_badprimary2.hxn:1
+  |
+1 | _main(args) { return * 2; }
+  |
+--- output

@@ -1,0 +1,4 @@
+a: object m() { local q; return self.; }
+ n = self.(1 ;
+;
+_main(args) { return a.; }

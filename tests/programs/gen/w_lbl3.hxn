@@ -1,0 +1,1 @@
+_main(args) { return 1; args = 2; a: return 2; args = 3; b: ; goto b; }

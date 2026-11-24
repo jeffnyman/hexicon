@@ -1,0 +1,5 @@
+#include <hexicon.h>
+thing(x) { return 1; }
+other: object x = 1;
+_main(args) { return thing(1) + other.x + red; }
+enum red;

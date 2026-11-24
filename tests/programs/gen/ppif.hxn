@@ -1,0 +1,5 @@
+#ifdef __TADS3
+_main(args) { return __TADS_VERSION_MAJOR; }
+#else
+_main(args) { return 2; }
+#endif

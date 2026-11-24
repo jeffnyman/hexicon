@@ -1,0 +1,9 @@
+_main(args)
+{
+    args is in 1, 2);
+    args is in (1 2);
+    args is in (1, ;
+    args not in (1, 2;
+    args is 3;
+    args not 4;
+}

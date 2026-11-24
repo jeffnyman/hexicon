@@ -1,0 +1,112 @@
+image: none
+--- messages
+error: too many '+' signs in object definition - location not defined
+  --> e_plus1.hxn:1
+  |
+1 | + a: object;
+  |
+
+error: symbol expected after '+ property', but found ";" instead
+  --> e_plus1.hxn:2
+  |
+2 | + property;
+  |
+
+error: symbol expected after '+ property', but found "5" instead
+  --> e_plus1.hxn:3
+  |
+3 | + property 5;
+  |
+
+error: symbol expected after '+ property', but found "6" instead
+  --> e_plus1.hxn:4
+  |
+4 | + property 6
+  |
+
+error: expected ';', but found "+"
+  --> e_plus1.hxn:5
+  |
+5 | + property f;
+  |
+
+error: "f" is already the name of something else, so it cannot also name a function
+  --> e_plus1.hxn:6
+  |
+6 | f() { }
+  |
+
+error: too many '+' signs in object definition - location not defined
+  --> e_plus1.hxn:7
+  |
+7 | + b: object;
+  |
+
+error: too many '+' signs in object definition - location not defined
+  --> e_plus1.hxn:10
+   |
+10 | +++ y: object;
+   |
+
+error: expected ':' after object name in object definition, but found ";"
+  --> e_plus1.hxn:11
+   |
+11 | + 5;
+   |
+
+error: expected superclass name in object definition, but found ";"
+  --> e_plus1.hxn:11
+   |
+11 | + 5;
+   |
+
+error: expected ':' after object name in object definition, but found "loc"
+  --> e_plus1.hxn:12
+   |
+12 | ++ property loc;
+   |
+
+error: expected ':' after object name in object definition, but found "+"
+  --> e_plus1.hxn:14
+   |
+14 | + transient class C2: object;
+   |
+
+error: expected superclass name in object definition, but found "+"
+  --> e_plus1.hxn:14
+   |
+14 | + transient class C2: object;
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "transient"
+  --> e_plus1.hxn:14
+   |
+14 | + transient class C2: object;
+   |
+
+error: this object has no ';' at its end
+  --> e_plus1.hxn:14
+   |
+14 | + transient class C2: object;
+   |
+   = each object ends with ';'
+
+error: expected ':' after object name in object definition, but found "x"
+  --> e_plus1.hxn:15
+   |
+15 | + modify x;
+   |
+
+error: expected property name in object definition, but found ":"
+  --> e_plus1.hxn:17
+   |
+17 | + d: object;
+   |
+
+error: the object above ends without a ';'
+  --> e_plus1.hxn:17
+   |
+17 | + d: object;
+   |
+   = each object ends with ';', and the next starts here
+--- output

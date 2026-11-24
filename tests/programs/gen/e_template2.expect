@@ -1,0 +1,56 @@
+image: none
+--- messages
+error: the values written here without names fit none of the class's templates
+  --> e_template2.hxn:46
+   |
+46 | object 'x';
+   |
+   = a template says what such values stand for: a Thing's, for instance, are its vocabulary in single quotes, then its description in double quotes
+
+error: the values written here without names fit none of the class's templates
+  --> e_template2.hxn:49
+   |
+49 | C "d";
+   |
+   = a template says what such values stand for: a Thing's, for instance, are its vocabulary in single quotes, then its description in double quotes
+
+error: the values written here without names fit none of the class's templates
+  --> e_template2.hxn:51
+   |
+51 | object 'x' a = 'y';
+   |
+   = a template says what such values stand for: a Thing's, for instance, are its vocabulary in single quotes, then its description in double quotes
+
+error: the values written here without names fit none of the class's templates
+  --> e_template2.hxn:52
+   |
+52 | object 'x' 'y';
+   |
+   = a template says what such values stand for: a Thing's, for instance, are its vocabulary in single quotes, then its description in double quotes
+
+error: the values written here without names fit none of the class's templates
+  --> e_template2.hxn:53
+   |
+53 | object "x" + 5;
+   |
+   = a template says what such values stand for: a Thing's, for instance, are its vocabulary in single quotes, then its description in double quotes
+
+error: cannot use template with an unimported extern class as superclass
+  --> e_template2.hxn:55
+   |
+55 | E 'x';
+   |
+
+error: cannot use template with an unimported extern class as superclass
+  --> e_template2.hxn:56
+   |
+56 | E2: E 'y';
+   |
+
+error: "Nope" is not defined anywhere
+  --> e_template2.hxn:57
+   |
+57 | class D: Nope 'x';
+   |
+   = "D" is given it as a class; check how it is spelled, and that the file that defines it is among the sources
+--- output

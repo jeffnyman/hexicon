@@ -1,0 +1,26 @@
+#include <gramprod.h>
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun;
+enum token tokWord;
+class Match: object name = 'match';
+grammar np(a): noun->n_ : Match;
+grammar np(b): 'the' np->np_ : Match extra = 1;
+grammar np(c): 'c1' | 'c2' : Match;
+grammar vp(x): 'go' np->np_ : Match;
+modify grammar np(a): tokWord->w_ : more = 2;
+modify grammar np(b): : kept = 3;
+replace grammar np(c): 'c3' ('c4' | 'c5') : Match;
+grammar vp(x2): later->l_ 'q' : Match;
+grammar later(only): [badness 10 + 5] undefinedSub->u_ | [badness 3] 'z' : Match;
+grammar undefinedSub;
+lamp: object noun = 'lamp';
+grammar zz: (('a' | 'b') ('c' | 'd') | 'e') 'f' (| 'g') : object;
+say(v) { print(v); }
+_main(args)
+{
+    local m = np.parseTokens([['lamp', tokWord, 'lamp']], gDict);
+    say(m.length());
+    foreach (local x in np.getGrammarInfo()) { say(' '); say(x.gramMatchObj.grammarInfo()[1]); say('/'); say(x.gramMatchObj.grammarTag); }
+    say('\n'); say(zz.getGrammarInfo().length());
+}

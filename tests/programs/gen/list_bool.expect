@@ -1,0 +1,51 @@
+image: 25938852106e7c631e782ad05ef2805072b050e060f6f2503412eaebd2067b3a
+--- messages
+warning: "if" condition is always false
+  --> list_bool.hxn:6
+  |
+6 |     if ([1] == [2]) a = 2;
+  |
+
+warning: "q" is given a value that is never used
+  --> list_bool.hxn:3
+  |
+3 |     local q = [1, 2] == [1, 2], r = [1] != [2], s = ![1], t = [1] || a, u = [1] == 1;
+  |
+
+warning: "r" is given a value that is never used
+  --> list_bool.hxn:3
+  |
+3 |     local q = [1, 2] == [1, 2], r = [1] != [2], s = ![1], t = [1] || a, u = [1] == 1;
+  |
+
+warning: "s" is given a value that is never used
+  --> list_bool.hxn:3
+  |
+3 |     local q = [1, 2] == [1, 2], r = [1] != [2], s = ![1], t = [1] || a, u = [1] == 1;
+  |
+
+warning: "t" is given a value that is never used
+  --> list_bool.hxn:3
+  |
+3 |     local q = [1, 2] == [1, 2], r = [1] != [2], s = ![1], t = [1] || a, u = [1] == 1;
+  |
+
+warning: "u" is given a value that is never used
+  --> list_bool.hxn:3
+  |
+3 |     local q = [1, 2] == [1, 2], r = [1] != [2], s = ![1], t = [1] || a, u = [1] == 1;
+  |
+
+warning: "v" is given a value that is never used
+  --> list_bool.hxn:4
+  |
+4 |     local v = [[1] == [1], 2], w = ([1] == [1]) ? 3 : 4;
+  |
+
+warning: "w" is given a value that is never used
+  --> list_bool.hxn:4
+  |
+4 |     local v = [[1] == [1], 2], w = ([1] == [1]) ? 3 : 4;
+  |
+--- output
+Unhandled exception: invalid datatypes for addition operator

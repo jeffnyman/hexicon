@@ -1,0 +1,56 @@
+image: none
+--- messages
+error: objects of this type cannot be modified or replaced
+  --> e_gram3.hxn:5
+  |
+5 | modify np y = 1;
+  |
+
+error: objects of this type cannot be modified or replaced
+  --> e_gram3.hxn:6
+  |
+6 | replace vp: object;
+  |
+
+error: object "vp" is already defined - can't redefine as object
+  --> e_gram3.hxn:7
+  |
+7 | class vp(x): Match;
+  |
+
+error: expected ':' after object name in object definition, but found "("
+  --> e_gram3.hxn:7
+  |
+7 | class vp(x): Match;
+  |
+
+error: expected superclass name in object definition, but found "("
+  --> e_gram3.hxn:7
+  |
+7 | class vp(x): Match;
+  |
+
+error: expected property name in object definition, but found "("
+  --> e_gram3.hxn:7
+  |
+7 | class vp(x): Match;
+  |
+
+error: expected property value or method after property name "x", but found ")"
+  --> e_gram3.hxn:7
+  |
+7 | class vp(x): Match;
+  |
+
+error: expected property name in object definition, but found ":"
+  --> e_gram3.hxn:7
+  |
+7 | class vp(x): Match;
+  |
+
+error: expected property value or method after property name "Match", but found ";"
+  --> e_gram3.hxn:7
+  |
+7 | class vp(x): Match;
+  |
+--- output

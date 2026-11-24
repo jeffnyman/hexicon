@@ -1,0 +1,3 @@
+object;
+object x = 1
+_main(args) { }

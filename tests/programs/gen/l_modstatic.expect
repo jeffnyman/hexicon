@@ -1,0 +1,23 @@
+image: b30ee7a89a0d4344dbbe94ddbcb32950787cf06a82ea797c31a0949749bacc48
+--- messages
+warning: "m" is given a value here, but nothing reads it
+  --> a.hxn:2
+  |
+2 | o: object x = static [1, 2] y = static (x + [3]) m() { return 1; };
+  |
+  = did you mean "x"?
+
+warning: "z" is given a value here, but nothing reads it
+  --> b.hxn:2
+  |
+2 | modify o z = static (y + [4]) replace x = static [9];
+  |
+  = did you mean "x"?
+
+warning: "w" is given a value here, but nothing reads it
+  --> b.hxn:3
+  |
+3 | replace p: object w = static [6];
+  |
+  = did you mean "x"?
+--- output

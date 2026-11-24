@@ -1,0 +1,3 @@
+i: object x = 1
+j: object y = 2;
+_main(args) { }

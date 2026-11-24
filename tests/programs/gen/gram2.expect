@@ -1,0 +1,11 @@
+image: 221a9857ed89a5a3e9c91538ab497556eb20a866c26850970bca48c84eea5de9
+--- messages
+warning: "gramMatchObj" is not defined anywhere
+  --> gram2.hxn:24
+   |
+24 |     foreach (local x in np.getGrammarInfo()) { say(' '); say(x.gramMatchObj.grammarInfo()[1]); say('/'); say(x.gramMatchObj.grammarTag); }
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "gramMatchObj" is spelled
+--- output
+Unhandled exception: nil object reference
+1

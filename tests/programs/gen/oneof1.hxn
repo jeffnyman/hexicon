@@ -1,0 +1,76 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+say(val) { print(val); }
+class OneOfIndexGen: object
+    numItems = 1
+    listAttrs = ''
+    idx = 0
+    getNextIndex()
+    {
+        if (listAttrs == 'seq,stop')
+            return idx < numItems ? ++idx : numItems;
+        idx = idx % numItems + 1;
+        return idx;
+    }
+;
+obj: object
+    name = 'obj'
+    desc = "It is <<one of>>red<<or>>green<<or>>blue<<cycling>>. "
+    text = 'A <<one of>>big<<or>>small<<stopping>> thing'
+    mixed = 'The <<one of>><<name>><<or>>other<<shuffled>> one'
+    once = "<<first time>>Hello! <<only>>Again. "
+    deep = "<<one of>>a<<one of>>1<<or>>2<<cycling>><<or>>b<<if name == 'obj'>>!<<end>><<at random>> "
+;
+_main(args)
+{
+    setSay(say);
+    obj.desc; obj.desc; obj.desc; obj.desc; say('\n');
+    say(obj.text); say(obj.text); say(obj.text); say('\n');
+    say(obj.mixed); say(obj.mixed); say('\n');
+    obj.once; obj.once; obj.deep; obj.deep; obj.deep; say('\n');
+    local s = 'x<<one of>>1<<or>>2<<or>>3<<then at random>>y';
+    "<<one of>>p<<or>>q<<sticky random>> <<s>> <<one of>>only<<purely at random>>\n";
+}

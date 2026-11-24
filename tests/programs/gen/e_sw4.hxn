@@ -1,0 +1,1 @@
+_main(args) { switch (args) { args = 1; args = 2; case 1: ; } }

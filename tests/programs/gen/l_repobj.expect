@@ -1,0 +1,44 @@
+image: 023fb93626717e1bc394a42b2610a62ab9ebdefea3c8a782182295245d981cd4
+--- messages
+warning: "b" is given a value here, but nothing reads it
+  --> a.hxn:4
+  |
+4 | class Base: object b = 1;
+  |
+  = did you mean "x"?
+
+warning: "y" is given a value here, but nothing reads it
+  --> a.hxn:5
+  |
+5 | o: Base x = 1 y = 2 noun = 'old' m() { return 1; };
+  |
+  = did you mean "x"?
+
+warning: "m" is given a value here, but nothing reads it
+  --> a.hxn:5
+  |
+5 | o: Base x = 1 y = 2 noun = 'old' m() { return 1; };
+  |
+  = did you mean "x"?
+
+warning: "q" is given a value here, but nothing reads it
+  --> a.hxn:7
+  |
+7 | modify p noun = 'pmod' q = 1;
+  |
+  = did you mean "x"?
+
+warning: "b" is given a value here, but nothing reads it
+  --> b.hxn:6
+  |
+6 | replace class Base: object b = 2 c = 3;
+  |
+  = did you mean "x"?
+
+warning: "c" is given a value here, but nothing reads it
+  --> b.hxn:6
+  |
+6 | replace class Base: object b = 2 c = 3;
+  |
+  = did you mean "x"?
+--- output

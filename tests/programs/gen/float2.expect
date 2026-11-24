@@ -1,0 +1,46 @@
+image: ccdc54f7f3f124afb5cfa84cd4d54aef2ea264e23e6063bc4605c4c6d6da7e8e
+--- messages
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> float2.hxn:5
+  |
+5 |     big = 4294967296
+  |
+
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> float2.hxn:16
+   |
+16 |     show(2147483647 + 1); show(-2147483647 - 2); show(2147483647 + 1 - 1); show(4294967296 - 4294967295);
+   |
+
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> float2.hxn:17
+   |
+17 |     show(0x7fffffff + 1); show(0xffffffff); show(0x100000000); show(077777777777); show(-2147483648); show(-(-2147483648)); print('\n');
+   |
+
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> float2.hxn:22
+   |
+22 |     show(4294967296 * 2); show(4294967296 / 4294967296); show(2147483648 / 2);
+   |
+
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> float2.hxn:23
+   |
+23 |     show(1.23456789012345678901234567890 + 1); show(100000 * 100000); show(-2147483648 / 1);
+   |
+
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> float2.hxn:24
+   |
+24 |     show(3000000000); show(3000000000 - 1000000000); show(1e10 - 1e10 + 5); print('\n');
+   |
+--- output
+3.75 -.5 3 1.5 -1.5 1.5 1.5 1000 .001 .5 5
+2147483648 -2147483649 2147483647 1 2147483648 -1 4294967296 8589934591 -
+2147483648 2147483648
+true true true true nil true y n true nil nil true
+a1.5 1.5a v2147483648 1,1.5 2.5 true .5 4294967296 325 3.5 true 1
+8589934592 1 1073741824 2.2345678901234567890123456789 1410065408 -2147483648
+3000000000 2000000000 5
+1 1.5 2 2 1.5 1 case 4 3 3

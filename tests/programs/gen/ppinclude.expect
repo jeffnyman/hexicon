@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: there is no file "nosuchfile.h" to include
+  --> ppinclude.hxn:1
+  |
+1 | #include "nosuchfile.h"
+  |
+  = it is looked for beside this file, and then in the include folders
+--- output

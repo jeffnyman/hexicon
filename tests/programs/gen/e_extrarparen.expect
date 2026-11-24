@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: unexpected ')' found - ignored
+  --> e_extrarparen.hxn:1
+  |
+1 | _main(args) { return 1 + 2); }
+  |
+--- output

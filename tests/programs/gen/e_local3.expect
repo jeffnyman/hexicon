@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ',' or ';' after local variable, but found "b"
+  --> e_local3.hxn:1
+  |
+1 | _main(args) { local a b; return a + b; }
+  |
+--- output

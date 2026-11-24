@@ -1,0 +1,21 @@
+f(a, b, [rest])
+{
+    local g = {: a + rest.length() };
+    local h = {x: b = x };
+    try { h(1); } catch (Exception e) { local k = {: e }; k(); }
+    for (local i = 1 ; i < 3 ; ++i) { local z = {: i * 2 }; z(); }
+    return g;
+}
+g(x, y) { return {: y }; }
+h(x, y) { return {x: x }; }
+k(x) { local x1 = x; { local x2 = 2; return {: x1 + x2 }; } }
+_main(args)
+{
+    local u;
+    local w = 1;
+    local v = {: "hello" };
+    {: w };
+    v();
+    {: "x<<w>>y" }();
+    return {a, b: a + b}(1, 2) + f(1, 2)() + g(1,2)() + h(1,2)(3) + k(1)() + (function() { return 1; })() + new function(q) { return q; }(2);
+}

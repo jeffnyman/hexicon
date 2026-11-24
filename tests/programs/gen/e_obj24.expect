@@ -1,0 +1,5 @@
+image: none
+--- messages
+error: expected property name in object definition, but found ""
+  --> e_obj24.hxn:4
+--- output

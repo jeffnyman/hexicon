@@ -1,0 +1,9 @@
+image: a5c7ef43a8348a9ae283104883add30500487c9460da57de2951f46983cc9b8e
+--- messages
+warning: unreachable statement
+  --> w_lbl5.hxn:1
+  |
+1 | _main(args) { a: while (args) { break a; } b: while (true) { continue b; } return 1; }
+  |
+--- output
+(not run: it does not finish)

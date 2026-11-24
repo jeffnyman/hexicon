@@ -1,0 +1,68 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+extern function f(x);
+extern function g;
+extern method m2(a, b?);
+extern object later;
+extern class Cls;
+extern object never;
+extern class NeverCls;
+extern function unused(a, b, ...);
+_main(args) { print(f(1)); print(g()); print(later.name); print(new Cls().name); }
+f(x) { return x + 1; }
+g() { return 'g'; }
+later: Cls name = 'later';
+class Cls: object name = 'cls';
+object name = 'anon';
+transient t1: object name = 't1';
+transient Cls name = 'anon transient';
+t2: object;
+transient object name = 'x';
+modify t1 extra = 1;
+replace transient t2: Cls;
+extern object later;
+extern class Cls;
+extern function f(y);

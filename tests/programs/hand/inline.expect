@@ -1,0 +1,15 @@
+image: 08e4e4b228c3d70b4d24934e2887479eaddd5e9545c15371ce3a1a13cec4e432
+--- messages
+--- output
+first at 5
+first at 7
+second at 101
+5
+15
+[first] [second]
+a counter
+25
+Counter is defined
+Stopwatch is not defined
+an object
+nil

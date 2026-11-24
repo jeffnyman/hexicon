@@ -1,0 +1,17 @@
+image: f958e011b55a21ee46f501b1de222defe4ce13e94fd5b89680789640f84d692d
+--- messages
+warning: symbol "make" is not an object - illegal on left of '.'
+  --> inl1.hxn:41
+   |
+41 |     say(__objref(make, warn) == nil ? ' nil' : ' ?'); say(__objref(nope2, warn) == nil ? ' nil' : ' ?');
+   |
+
+warning: "nope2" is not defined anywhere
+  --> inl1.hxn:41
+   |
+41 |     say(__objref(make, warn) == nil ? ' nil' : ' ?'); say(__objref(nope2, warn) == nil ? ' nil' : ' ?');
+   |
+   = check how it is spelled, and that the file that defines it is among the sources
+--- output
+a box 6 7const I am box. 111211 13 100 part of box obj
+same plain obj def undef def ref nil nil nil

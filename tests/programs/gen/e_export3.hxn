@@ -1,0 +1,5 @@
+f() { }
+property f, _main;
+export g;
+g() { }
+_main(args) { }

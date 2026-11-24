@@ -1,0 +1,57 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+obj1: object pp = 1;
+h(a = [1, 2], b = obj1, c = &pp, d = obj1 == obj1, e = 1 + 2, ff = nil ? 1 : 2,
+  g1 = [obj1, 1], h1 = h, i1 = !obj1, j1 = obj1.pp, k1 = [1, 2][1], l1 = (nil ?? obj1))
+{
+    return a;
+}
+k(a: = 1 + 2, b: = obj1, c: = 'str', d: = [1], e: = -1, ff: = [obj1], g1: = h, h1: = &pp,
+  i1: = nil, j1: = true)
+{
+    return a;
+}
+_main(args) { h(); k(); }

@@ -1,0 +1,11 @@
+image: none
+--- messages
+error: superclasses cannot be specified with "object" as the base class
+  --> e_obj10.hxn:2
+  |
+2 | b: a, object;
+  |
+
+error: expected property name in object definition, but found ""
+  --> e_obj10.hxn:6
+--- output

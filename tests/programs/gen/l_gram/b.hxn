@@ -1,0 +1,9 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun, adjective;
+enum token tokWord;
+grammar np(adj): adjective->a_ np->n_ : object;
+grammar cmd(drop): 'drop' np->obj_ : object;
+grammar vp: tokWord->w_ * : object;
+grammar np: 'that' [badness 10] : object;
+rock: object noun = 'rock' adjective = 'grey';

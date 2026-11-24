@@ -1,0 +1,45 @@
+image: none
+--- messages
+error: the object above ends without a ';'
+  --> e_obj2.hxn:1
+  |
+1 | a object x = 1;
+  |
+  = each object ends with ';', and the next starts here
+
+error: expected property name in object definition, but found "="
+  --> e_obj2.hxn:2
+  |
+2 | b: x = 1;
+  |
+
+error: expected property name in object definition, but found "1"
+  --> e_obj2.hxn:2
+  |
+2 | b: x = 1;
+  |
+
+error: circular class definition: e is a subclass of e
+  --> e_obj2.hxn:3
+  |
+3 | e: e;
+  |
+
+error: circular class definition: f is a subclass of g
+  --> e_obj2.hxn:5
+  |
+5 | g: f;
+  |
+
+error: '=' required between property name and value - found "1"
+  --> e_obj2.hxn:6
+  |
+6 | h: object x 1 y = ; z ;
+  |
+
+error: expected an operand, but found ";"
+  --> e_obj2.hxn:6
+  |
+6 | h: object x 1 y = ; z ;
+  |
+--- output

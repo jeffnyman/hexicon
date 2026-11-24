@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: invalid address expression - can't apply '&' operator
+  --> e_addr1.hxn:2
+  |
+2 | _main(args) { local q; return [&q, &args, &1, &(f), &print, &'x', & &f, &(args)]; }
+  |
+--- output

@@ -1,0 +1,43 @@
+image: none
+--- messages
+warning: assignment in condition (possible use of '=' where '==' was intended)
+  --> embed3.hxn:9
+  |
+9 |     "<<if args = 1>>a<<end>>"; "<<if args>><<args>><<else>><<args + 1>><<end>>";
+  |
+
+error: "end" is not defined anywhere
+  --> embed3.hxn:10
+   |
+10 |     "<<if args>>a<<end>><<end>>"; "<<end>><<only>><<or>><<stopping>><<otherwise>>";
+   |
+   = check how it is spelled, and that the file that defines it is among the sources
+
+error: "only" is not defined anywhere
+  --> embed3.hxn:10
+   |
+10 |     "<<if args>>a<<end>><<end>>"; "<<end>><<only>><<or>><<stopping>><<otherwise>>";
+   |
+   = check how it is spelled, and that the file that defines it is among the sources
+
+error: "or" is not defined anywhere
+  --> embed3.hxn:10
+   |
+10 |     "<<if args>>a<<end>><<end>>"; "<<end>><<only>><<or>><<stopping>><<otherwise>>";
+   |
+   = check how it is spelled, and that the file that defines it is among the sources
+
+error: "stopping" is not defined anywhere
+  --> embed3.hxn:10
+   |
+10 |     "<<if args>>a<<end>><<end>>"; "<<end>><<only>><<or>><<stopping>><<otherwise>>";
+   |
+   = check how it is spelled, and that the file that defines it is among the sources
+
+error: "otherwise" is not defined anywhere
+  --> embed3.hxn:10
+   |
+10 |     "<<if args>>a<<end>><<end>>"; "<<end>><<only>><<or>><<stopping>><<otherwise>>";
+   |
+   = check how it is spelled, and that the file that defines it is among the sources
+--- output

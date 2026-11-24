@@ -1,0 +1,14 @@
+image: 6807c601ed06a416822d0f6d457621d5ac8c49cdb2ff0cf5c9d20e7624bdd893
+--- messages
+warning: unreachable statement
+  --> obj11.hxn:13
+   |
+13 |         n = 2;
+   |
+
+warning: the local variable "unused" is never used
+  --> obj11.hxn:4
+  |
+4 |         local unused;
+  |
+--- output

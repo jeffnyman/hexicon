@@ -1,0 +1,93 @@
+image: none
+--- messages
+error: invalid "extern" type specifier ";"
+  --> e_extern1.hxn:46
+   |
+46 | extern;
+   |
+
+error: invalid "extern" type specifier "foo"
+  --> e_extern1.hxn:47
+   |
+47 | extern foo;
+   |
+
+error: expected object name symbol in "extern" statement but found ";"
+  --> e_extern1.hxn:48
+   |
+48 | extern object;
+   |
+
+error: expected object name symbol in "extern" statement but found "5"
+  --> e_extern1.hxn:49
+   |
+49 | extern object 5;
+   |
+
+error: expected symbol after 'function', but found ";"
+  --> e_extern1.hxn:50
+   |
+50 | extern function;
+   |
+
+error: code body is not allowed in an "extern function" declaration
+  --> e_extern1.hxn:51
+   |
+51 | extern function f1(x) { }
+   |
+
+error: code body is not allowed in an "extern function" declaration
+  --> e_extern1.hxn:52
+   |
+52 | extern function f2 { }
+   |
+
+error: function "f4" has an incompatible previous declaration
+  --> e_extern1.hxn:54
+   |
+54 | extern function f4(x, y);
+   |
+
+error: function "f5" has an incompatible previous declaration
+  --> e_extern1.hxn:56
+   |
+56 | f5(x, y) { }
+   |
+
+error: object "a1" is already defined - can't redefine as object
+  --> e_extern1.hxn:58
+   |
+58 | extern class a1;
+   |
+
+error: object "a2" is already defined - can't redefine as object
+  --> e_extern1.hxn:60
+   |
+60 | extern object a2;
+   |
+
+error: "a2" is already the name of something else, so it cannot also name a function
+  --> e_extern1.hxn:61
+   |
+61 | extern function a2;
+   |
+
+error: object "f6" is already defined - can't redefine as object
+  --> e_extern1.hxn:63
+   |
+63 | extern object f6;
+   |
+
+error: 'transient' is not allowed here
+  --> e_extern1.hxn:64
+   |
+64 | transient f7() { }
+   |
+
+error: "transient" cannot start anything here
+  --> e_extern1.hxn:66
+   |
+66 | transient 5;
+   |
+   = what is expected is a function, an object, or a class
+--- output

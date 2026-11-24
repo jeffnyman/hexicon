@@ -1,0 +1,16 @@
+image: none
+--- messages
+error: "nosuch" is not defined anywhere
+  --> e_undef1.hxn:1
+  |
+1 | _main(args) { nosuch; nosuch; nosuch(); nosuch = 1; other; return nosuch + other; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+
+error: "other" is not defined anywhere
+  --> e_undef1.hxn:1
+  |
+1 | _main(args) { nosuch; nosuch; nosuch(); nosuch = 1; other; return nosuch + other; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

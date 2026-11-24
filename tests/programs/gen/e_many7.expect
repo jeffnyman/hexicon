@@ -1,0 +1,17 @@
+image: none
+--- messages
+error: expected ',' or ';' in "for" initializer, but found "x"
+  --> e_many7.hxn:1
+  |
+1 | _main(a) { for (a x
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+  --> e_many7.hxn:2
+
+error: expected ',' or ';' in "for" initializer, but found "<End Of File>"
+  --> e_many7.hxn:2
+
+fatal error: too many errors (try fixing the first couple of errors and recompiling)
+  --> e_many7.hxn:2
+--- output

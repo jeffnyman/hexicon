@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: a double-quoted string ("s") is not valid within an expression
+  --> embed1.hxn:7
+  |
+7 |     "a<<"b<<1>>c">>d"; "<<'x<<1>>y'>>"; "<<'q<<"r<<args>>s">>t'>>";
+  |
+--- output

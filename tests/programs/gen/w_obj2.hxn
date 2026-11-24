@@ -1,0 +1,4 @@
+a: object m() { return y; }
+ n() { y = 1; return a.z + self.w + v(1); }
+;
+_main(args) { return a.u; }

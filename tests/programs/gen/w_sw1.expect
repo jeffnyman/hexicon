@@ -1,0 +1,8 @@
+image: ad2837b540d3f3f87ef35af7dcda4df63e80645e89be4498430337c12c5c3335
+--- messages
+warning: unreachable statement
+  --> w_sw1.hxn:1
+  |
+1 | _main(args) { switch (args) { case 1: return 1; args = 1; default: return 2; } args = 3; }
+  |
+--- output

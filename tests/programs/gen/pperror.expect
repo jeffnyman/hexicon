@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: #error :  stop here
+  --> pperror.hxn:1
+  |
+1 | #error stop here
+  |
+--- output

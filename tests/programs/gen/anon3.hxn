@@ -1,0 +1,15 @@
+a: object
+    v = 3
+    m(p)
+    {
+        local f = {x: x + v + p};
+        local g = method(x) { return x + v; };
+        local h = function() { return self; };
+        return f(1) + g(2) + h();
+    }
+    k() { return ({: targetprop }); }
+;
+_main(args)
+{
+    return a.m(1);
+}

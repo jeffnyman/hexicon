@@ -1,0 +1,20 @@
+image: 1044c0f0d2db0fa7dea03933e22808d121cecbcdd4da79a47473a7b862a9edcb
+--- messages
+warning: label "a" is not referenced
+  --> w_lbl6.hxn:1
+  |
+1 | _main(args) { while (nil) a: args = 1; for (; nil; ) b: args = 2; for (; nil; ) { c: ; } }
+  |
+
+warning: label "b" is not referenced
+  --> w_lbl6.hxn:1
+  |
+1 | _main(args) { while (nil) a: args = 1; for (; nil; ) b: args = 2; for (; nil; ) { c: ; } }
+  |
+
+warning: label "c" is not referenced
+  --> w_lbl6.hxn:1
+  |
+1 | _main(args) { while (nil) a: args = 1; for (; nil; ) b: args = 2; for (; nil; ) { c: ; } }
+  |
+--- output

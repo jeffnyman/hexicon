@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "nosuch" is not defined anywhere
+  --> e_undef3.hxn:1
+  |
+1 | _main(args) { try { } catch (nosuch e) { } try { } catch (nosuch e) { } nosuch = 1; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

@@ -1,0 +1,8 @@
+dictionary property noun;
+dictionary third;
+C: object noun = 'inthird';
+dictionary first;
+a: object noun = 'infirst' 'both';
+dictionary second;
+b: object noun = 'insecond' 'both';
+_main(args) { return [first, second, third]; }

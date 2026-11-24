@@ -1,0 +1,6 @@
+a: object
+    m() { return function() { return {: ; }; }
+    p3 = 1
+;
+_main(args) { return a.m() + function(; }
+

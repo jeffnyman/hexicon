@@ -1,0 +1,32 @@
+image: none
+--- messages
+error: property "x" already defined in object
+  --> e_obj1.hxn:4
+  |
+4 |     y = 3
+  |
+
+error: object "a" is already defined - can't redefine as object
+  --> e_obj1.hxn:7
+  |
+7 | a: object;
+  |
+
+error: "f" is already the name of something else, so it cannot also name an object
+  --> e_obj1.hxn:9
+  |
+9 | f: object;
+  |
+
+error: "g" is already the name of something else, so it cannot also name a function
+  --> e_obj1.hxn:11
+   |
+11 | g() { }
+   |
+
+error: "_main" is already the name of something else, so it cannot also name a function
+  --> e_obj1.hxn:13
+   |
+13 | _main(args) { }
+   |
+--- output

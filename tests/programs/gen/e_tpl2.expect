@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: only one '*' is allowed in a string template
+  --> e_tpl2.hxn:1
+  |
+1 | string template <<the * of *>> bad;
+  |
+--- output

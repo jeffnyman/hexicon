@@ -1,0 +1,6 @@
+#include <hexicon.h>
+dictionary gDict;
+grammar np: 'a' : object
+;
+class C: object;
+_main(args) { return np; }

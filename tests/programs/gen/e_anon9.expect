@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected '{' at start of method code body, but found ";"
+  --> e_anon9.hxn:3
+  |
+3 |     return new method { return 1; } + new function;
+  |
+--- output

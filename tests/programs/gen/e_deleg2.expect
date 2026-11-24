@@ -1,0 +1,53 @@
+image: none
+--- messages
+error: 'self' is not valid in this context
+  --> e_deleg2.hxn:2
+  |
+2 | f() { return delegated A.who(); }
+  |
+
+error: 'self' is not valid in this context
+  --> e_deleg2.hxn:3
+  |
+3 | g() { return delegated A; }
+  |
+
+error: 'targetprop' is not available in this context
+  --> e_deleg2.hxn:3
+  |
+3 | g() { return delegated A; }
+  |
+
+warning: "undefinedThing" is not defined anywhere
+  --> e_deleg2.hxn:5
+  |
+5 |     m6() { return delegated undefinedThing.who(); }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "undefinedThing" is spelled
+
+warning: "undefinedProp" is not defined anywhere
+  --> e_deleg2.hxn:6
+  |
+6 |     m7() { return delegated A.undefinedProp(1, 2); }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "undefinedProp" is spelled
+
+error: 'self' is not valid in this context
+  --> e_deleg2.hxn:12
+   |
+12 | _main(args) { return delegated A.who() + argcount + f.(&operator +) + g.(&operator []=)(1); }
+   |
+
+error: illegal expression - left of '.' is not an object
+  --> e_deleg2.hxn:12
+   |
+12 | _main(args) { return delegated A.who() + argcount + f.(&operator +) + g.(&operator []=)(1); }
+   |
+
+warning: "x" is not defined anywhere
+  --> e_deleg2.hxn:9
+  |
+9 |     m10() { delegated A; delegated A.who; return ({: delegated A.x }); }
+  |
+  = did you mean "A"?
+--- output

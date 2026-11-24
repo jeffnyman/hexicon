@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: function "_main" has an incompatible previous declaration
+  --> e_tpl8.hxn:2
+  |
+2 | _main(args) { }
+  |
+--- output

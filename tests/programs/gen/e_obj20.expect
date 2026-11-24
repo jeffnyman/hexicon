@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ')' but found ";"
+  --> e_obj20.hxn:1
+  |
+1 | a: object x = (1;
+  |
+--- output

@@ -1,0 +1,17 @@
+dictionary property noun, adjective;
+before: object name = 'no dict yet';
+dictionary gDict;
+class Thing: object noun = 'thing';
+lamp: Thing noun = 'lamp' adjective = 'brass';
+modify lamp noun = 'lantern' weight = 1;
+key: Thing noun = 'key' adjective = 'small';
+modify key replace noun = 'passkey';
+modify Thing adjective = 'generic';
+coin: Thing;
+replace coin: Thing noun = 'coin2';
+box: Thing
+    noun = 'box'
+    lid: Thing { noun = 'lid' adjective = 'hinged' }
+    adjective = 'wooden'
+;
+_main(args) { return gDict; }

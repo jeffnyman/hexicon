@@ -1,0 +1,68 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+f(a = 1, b: = 2)
+{
+    local g = {: a + b};
+    return g();
+}
+h(a?, b?)
+{
+    return ({x = a: x + b});
+}
+k(a?, b = 1) { }
+m(a?, [rest]) { return rest; }
+n(a = 1, ...) { return a; }
+o(a:?, [rest]) { return rest; }
+_main(args)
+{
+    f(); f(3, b: 4); h(1, 2)(); h(1, 2)(5);
+    local f1 = {a, b = 3: a + b};
+    local g1 = function(a, n: = 2) { return a + n; };
+    local h1 = method(a: = self, b?) { return a; };
+    local k1 = {a = 1, b?, c: = 2, d:: a};
+    f1(1); g1(1, n: 5); h1(); k1(d: 1);
+    m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
+}

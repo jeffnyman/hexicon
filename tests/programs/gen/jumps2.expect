@@ -1,0 +1,8 @@
+image: 941ac0640058beec000d30dfc8cca66268dfc706ab8ac9032f183da5bef9b826
+--- messages
+warning: unreachable statement
+  --> jumps2.hxn:23
+   |
+23 | o(a) { return a; a = 1; }
+   |
+--- output

@@ -1,0 +1,38 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found ">>"
+  --> e_emb30.hxn:1
+  |
+1 | _main(args) { "<<[>>"; "<<)>>"; "<<(>>"; "<<]>>"; }
+  |
+
+error: unexpected ')' found - ignored
+  --> e_emb30.hxn:1
+  |
+1 | _main(args) { "<<[>>"; "<<)>>"; "<<(>>"; "<<]>>"; }
+  |
+
+error: expected an operand, but found ">>""
+  --> e_emb30.hxn:1
+  |
+1 | _main(args) { "<<[>>"; "<<)>>"; "<<(>>"; "<<]>>"; }
+  |
+
+error: expected ']' or a list element, but found ">>""
+  --> e_emb30.hxn:1
+  |
+1 | _main(args) { "<<[>>"; "<<)>>"; "<<(>>"; "<<]>>"; }
+  |
+
+error: unexpected ']' found - ignored
+  --> e_emb30.hxn:1
+  |
+1 | _main(args) { "<<[>>"; "<<)>>"; "<<(>>"; "<<]>>"; }
+  |
+
+error: expected ')' but found ">>""
+  --> e_emb30.hxn:1
+  |
+1 | _main(args) { "<<[>>"; "<<)>>"; "<<(>>"; "<<]>>"; }
+  |
+--- output

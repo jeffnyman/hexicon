@@ -1,0 +1,10 @@
+image: a5f19903b625417d67b0aa430fda6159f320dd8339f8340d288e198ae2b74785
+--- messages
+warning: "length" is not defined anywhere
+  --> anon9.hxn:22
+   |
+22 |         try { return ({: p + more.length() }); }
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "length" is spelled
+--- output
+Unhandled exception: numeric value required

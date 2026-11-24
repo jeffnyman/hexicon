@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: this constant expression cannot be called as a function
+  --> e_callconst.hxn:1
+  |
+1 | _main(args) { return 1(2); }
+  |
+--- output

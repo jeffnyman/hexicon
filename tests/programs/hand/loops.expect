@@ -1,0 +1,8 @@
+image: c3c78f1f26e9de4f9d3161a07229c8dbe30897c3ce38f3bd331310f2a382f665
+--- messages
+warning: "while" condition is always false - loop body is unreachable
+  --> loops.hxn:44
+   |
+44 |     while (nil) i = 0;
+   |
+--- output

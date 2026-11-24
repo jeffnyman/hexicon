@@ -1,0 +1,16 @@
+image: none
+--- messages
+warning: "x" is not defined anywhere
+  --> a.hxn:5
+  |
+5 | _main(args) { return nowhere(1) + g(2) + nothing.x; }
+  |
+  = did you mean "g"?
+
+error: "Missing" is not defined anywhere
+  --> b.hxn:3
+  |
+3 | g(x) { return elsewhere(x, x) + new Missing(); }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

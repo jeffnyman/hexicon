@@ -1,0 +1,9 @@
+string template <<a>> fa;
+string template <<b>> fb;
+string template <<c *>> fc;
+used() { return 1; }
+string template <<d>> used;
+later() { }
+string template <<e>> later;
+string template <<f g h i j>> later;
+_main(args) { local q = 'x<<d>>'; return q; }

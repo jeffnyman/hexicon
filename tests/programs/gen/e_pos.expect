@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: unary '+' operator requires numeric value in constant expression
+  --> e_pos.hxn:1
+  |
+1 | _main(args) { return +true; }
+  |
+--- output

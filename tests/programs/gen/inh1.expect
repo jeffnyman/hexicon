@@ -1,0 +1,24 @@
+image: bc91229000ad3904f76d8b34f218200ce08106c27bd24705457d04307bbf7886
+--- messages
+warning: "n" is given a value here, but nothing reads it
+  --> inh1.hxn:8
+  |
+8 |     n([x]) { return inherited(x...) + inherited.m(x...) + inherited A.(x)(x...) + inherited.(x)(1); }
+  |
+  = did you mean "m"?
+
+warning: "p" is given a value here, but nothing reads it
+  --> inh1.hxn:11
+   |
+11 |     p() { return [targetprop, targetobj, definingobj, invokee, self.targetprop, self.targetprop(1)]; }
+   |
+   = did you mean "m"?
+
+warning: "q" is given a value here, but nothing reads it
+  --> inh1.hxn:12
+   |
+12 |     q(x) { return x.targetprop + inherited.targetprop + inherited A.targetprop(1); }
+   |
+   = did you mean "m"?
+--- output
+Unhandled exception: wrong number of arguments

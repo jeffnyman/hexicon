@@ -1,0 +1,3 @@
+#include <hexicon.h>
+modify o z = static (y + [4]) replace x = static [9];
+replace p: object w = static [6];

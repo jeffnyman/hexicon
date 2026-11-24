@@ -1,0 +1,1 @@
+_main(args) { switch (args) { lbl: args = 1; case 1: goto lbl; } }

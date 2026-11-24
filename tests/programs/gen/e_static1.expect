@@ -1,0 +1,44 @@
+image: none
+--- messages
+error: expected an operand, but found ";"
+  --> e_static1.hxn:47
+   |
+47 | a: object p = static ;
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "static"
+  --> e_static1.hxn:48
+   |
+48 | b: object p = static static 1;
+   |
+
+error: expected property name in object definition, but found "static"
+  --> e_static1.hxn:56
+   |
+56 | c: object static p = 1;
+   |
+
+error: '=' is not allowed with a method definition
+  --> e_static1.hxn:57
+   |
+57 | d: object p(x) = static 1;
+   |
+
+error: expected '{' at start of method code body, but found "static"
+  --> e_static1.hxn:57
+   |
+57 | d: object p(x) = static 1;
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "static"
+  --> e_static1.hxn:57
+   |
+57 | d: object p(x) = static 1;
+   |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_static1.hxn:58
+
+error: expected property name in object definition, but found ""
+  --> e_static1.hxn:58
+--- output

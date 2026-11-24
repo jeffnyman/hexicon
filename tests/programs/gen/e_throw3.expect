@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+  --> e_throw3.hxn:2
+
+error: expected ';', but found "<end of file>"
+  --> e_throw3.hxn:2
+--- output

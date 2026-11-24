@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "undefinedVar" is not defined anywhere
+  --> e_undefasi.hxn:1
+  |
+1 | _main(args) { undefinedVar = 1; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

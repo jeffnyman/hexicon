@@ -1,0 +1,52 @@
+image: none
+--- messages
+error: 'self' is not valid in this context
+  --> e_inh1.hxn:3
+  |
+3 | _main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }
+  |
+
+error: 'targetprop' is not available in this context
+  --> e_inh1.hxn:3
+  |
+3 | _main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }
+  |
+
+warning: "x" is not defined anywhere
+  --> e_inh1.hxn:3
+  |
+3 | _main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }
+  |
+  = did you mean "a"?
+
+error: illegal 'inherited' - "f" is not a class
+  --> e_inh1.hxn:3
+  |
+3 | _main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }
+  |
+
+error: "nosuch" is not defined anywhere
+  --> e_inh1.hxn:3
+  |
+3 | _main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+
+error: illegal 'inherited' - "nosuch" is not a class
+  --> e_inh1.hxn:3
+  |
+3 | _main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }
+  |
+
+error: 'targetobj' is not available in this context
+  --> e_inh1.hxn:3
+  |
+3 | _main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }
+  |
+
+error: 'definingobj' is not available in this context
+  --> e_inh1.hxn:3
+  |
+3 | _main(args) { inherited; inherited.x; inherited a.x; inherited f.x; inherited nosuch.x; targetprop; targetobj; definingobj; invokee; }
+  |
+--- output

@@ -1,0 +1,36 @@
+f(a, b, c)
+{
+    if (a) { if (b) return 1; else return 2; } else { if (c) return 3; }
+    if (a) { if (b) { if (c) return 4; } }
+    if (a) { while (b) { if (c) break; b--; } }
+    while (a) { if (b) continue; if (c) return 5; a--; }
+    while (a) { while (b) { if (c) break; else continue; } }
+    if (a && b) { } else { return 6; }
+    if (a || b) c = 1; else c = 2;
+    if (!a) c = 3;
+    if (!(a && b)) c = 4;
+    if (!(a || b)) c = 5;
+    if (!!a) c = 6;
+    return a ? (b ? 1 : 2) : (c ? 3 : 4);
+}
+g(a, b, c)
+{
+    local x = a && b && c;
+    local y = a || b || c;
+    local z = (a && b) || c;
+    local w = a && (b || c);
+    local v = !a && !b;
+    local u = (a ? b : c) && a;
+    local t = a ?? b ?? c;
+    local s = (a, b, c);
+    local r = (a = b, c);
+    a, b, c;
+    return x + y + z + w + v + u + t + s + r;
+}
+h(a)
+{
+    do { if (a) return 1; } while (a);
+    do { if (a) break; a++; } while (true);
+    for (;;) { if (a) return 2; }
+}
+_main(args) { return 1; }

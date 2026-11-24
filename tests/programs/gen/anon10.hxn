@@ -1,0 +1,23 @@
+f1() { local a = 1; local f = {: a }; local g = {: a }; return f() + g(); }
+f2() { local a = 1, b = 2, c = 3; local f = {: c }; local g = {: a }; local h = {: b }; return f() + g() + h(); }
+f3(p1, p2, p3) { local f = {: p3 + p1 }; return f; }
+f4(p1) { local x = 1; if (p1) { local y = 2; return {: x + y + p1 }; } return {: x }; }
+f5() { local zz = 1, yy = 2, ab = 3, ba = 4, abc = 5, cab = 6; return {: zz + yy + ab + ba + abc + cab }; }
+f6() { local zz = 1, yy = 2, ab = 3, ba = 4, abc = 5, cab = 6; return {: {: cab + abc + ba + ab + yy + zz } }; }
+f7() { local a = 1; local f = {: a }; local b = 2; local g = {: b }; local c = 3; return {: a + b + c + f() + g() }; }
+f8() { local a; local f = {: a = 1 }; return f; }
+f9() { local a = 1; local f = {: 1 }; return f() + a; }
+f10() { local a = 1; return {: {: 1 } }; }
+f11() { local a = 1; return {: {: a } }; }
+f12(a) { return {b: {c: {d: a + b + c + d } } }; }
+f13(a) { return {b: {c: {d: b + d } } }; }
+f14(a) { return {b: {c: {d: d } } }; }
+f15(a) { return {b: {c: {d: c + a } } }; }
+f16() { local f = {: f }; return f; }
+f17() { local f; f = {: f }; return f; }
+f18(a) { local f = {: a }; local g = {: f }; return {: g }; }
+_main(args)
+{
+    return f1() + f2() + f3(1, 2, 3) + f4(1) + f5() + f6() + f7() + f8() + f9() + f10() + f11()
+        + f12(1) + f13(1) + f14(1) + f15(1) + f16() + f17() + f18(1);
+}

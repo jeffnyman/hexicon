@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: incompatible constant types for two-operand '+' operator
+  --> e_constadd.hxn:1
+  |
+1 | _main(args) { return nil + 1; }
+  |
+--- output

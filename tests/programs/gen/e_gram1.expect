@@ -1,0 +1,224 @@
+image: none
+--- messages
+error: expected symbol name after 'grammar', but found ";"
+  --> e_gram1.hxn:4
+  |
+4 | grammar;
+  |
+
+error: expected ':' after production name, but found "grammar"
+  --> e_gram1.hxn:5
+  |
+5 | grammar 5;
+  |
+
+error: invalid token "grammar" in 'grammar' token list
+  --> e_gram1.hxn:5
+  |
+5 | grammar 5;
+  |
+
+error: invalid token "5" in 'grammar' token list
+  --> e_gram1.hxn:5
+  |
+5 | grammar 5;
+  |
+
+error: invalid token ";" in 'grammar' token list
+  --> e_gram1.hxn:5
+  |
+5 | grammar 5;
+  |
+
+error: expected superclass name in object definition, but found ";"
+  --> e_gram1.hxn:5
+  |
+5 | grammar 5;
+  |
+
+error: missing right parenthesis after name in 'grammar' - found ":"
+  --> e_gram1.hxn:6
+  |
+6 | grammar np(a: 'x' : Match;
+  |
+
+error: expected ':' after production name, but found "'x'"
+  --> e_gram1.hxn:7
+  |
+7 | grammar np(b) 'x' : Match;
+  |
+
+error: object or property symbol required in 'grammar' token list (found "f")
+  --> e_gram1.hxn:8
+  |
+8 | grammar np(c): f : Match;
+  |
+
+error: object "Match" is not valid in a grammar rule - only production names are allowed
+  --> e_gram1.hxn:9
+  |
+9 | grammar np(d): Match : Match;
+  |
+
+error: enumerator "plain" in 'grammar' list is not declared with 'enum token'
+  --> e_gram1.hxn:10
+   |
+10 | grammar np(e): plain : Match;
+   |
+
+error: '->' in 'grammar' token list must be followed by a property name (found "5")
+  --> e_gram1.hxn:11
+   |
+11 | grammar np(f): 'x' -> 5 : Match;
+   |
+
+error: invalid token "5" in 'grammar' token list
+  --> e_gram1.hxn:11
+   |
+11 | grammar np(f): 'x' -> 5 : Match;
+   |
+
+error: '->' in 'grammar' token list must be followed by a property name (found "f")
+  --> e_gram1.hxn:12
+   |
+12 | grammar np(g): 'x' -> f : Match;
+   |
+
+error: property name required in list in 'grammar', but found "f"
+  --> e_gram1.hxn:13
+   |
+13 | grammar np(h): <f 5> 'y' : Match;
+   |
+
+error: missing '>' in 'grammar' property list - found "5"
+  --> e_gram1.hxn:13
+   |
+13 | grammar np(h): <f 5> 'y' : Match;
+   |
+
+error: invalid token ">" in 'grammar' token list
+  --> e_gram1.hxn:13
+   |
+13 | grammar np(h): <f 5> 'y' : Match;
+   |
+
+error: missing '>' in 'grammar' property list - found "'x'"
+  --> e_gram1.hxn:14
+   |
+14 | grammar np(i): <a b 'x' : Match;
+   |
+
+error: '*' must be the last token in a 'grammar' alternative list (found "'x'")
+  --> e_gram1.hxn:15
+   |
+15 | grammar np(j): * 'x' | 'y' * : Match;
+   |
+
+error: invalid grammar qualifier "goodness"
+  --> e_gram1.hxn:17
+   |
+17 | grammar np(l): [goodness 5] 'x' : Match;
+   |
+
+error: expected superclass name in object definition, but found ";"
+  --> e_gram1.hxn:17
+   |
+17 | grammar np(l): [goodness 5] 'x' : Match;
+   |
+
+error: keyword required after '[' in grammar qualifier - found "5"
+  --> e_gram1.hxn:18
+   |
+18 | grammar np(m): [5] 'x' : Match;
+   |
+
+error: expected superclass name in object definition, but found ";"
+  --> e_gram1.hxn:18
+   |
+18 | grammar np(m): [5] 'x' : Match;
+   |
+
+error: missing right parentheses after group in 'grammar' - found ":"
+  --> e_gram1.hxn:19
+   |
+19 | grammar np(n): ('x' | 'y' : Match;
+   |
+
+error: '->' is not allowed after parenthesized group in 'grammar' statement
+  --> e_gram1.hxn:20
+   |
+20 | grammar np(o): ('x' | 'y')->p_ 'z' : Match;
+   |
+
+error: invalid token "5" in 'grammar' token list
+  --> e_gram1.hxn:21
+   |
+21 | grammar np(p): 5 + 'x' : Match;
+   |
+
+error: invalid token "+" in 'grammar' token list
+  --> e_gram1.hxn:21
+   |
+21 | grammar np(p): 5 + 'x' : Match;
+   |
+
+error: object "np(a)" is already defined - can't redefine as object
+  --> e_gram1.hxn:22
+   |
+22 | grammar np(a): 'dup' : Match;
+   |
+
+error: "f" is already the name of something else, so it cannot also name an object
+  --> e_gram1.hxn:23
+   |
+23 | grammar f(a): 'x' : Match;
+   |
+
+error: redefining symbol "Match" as grammar production object
+  --> e_gram1.hxn:24
+   |
+24 | grammar Match(a): 'x' : Match;
+   |
+
+error: redefining symbol "Match" as grammar production object
+  --> e_gram1.hxn:25
+   |
+25 | grammar Match: 'x' : Match;
+   |
+
+error: 'modify/replace grammar' requires name-tag
+  --> e_gram1.hxn:26
+   |
+26 | modify grammar np: 'x' : ;
+   |
+
+error: 'modify/replace grammar' requires name-tag
+  --> e_gram1.hxn:27
+   |
+27 | replace grammar np: 'x' : Match;
+   |
+
+error: invalid token ";" in 'grammar' token list
+  --> e_gram1.hxn:31
+   |
+31 | grammar np(s): 'x' ;
+   |
+
+error: expected superclass name in object definition, but found ";"
+  --> e_gram1.hxn:31
+   |
+31 | grammar np(s): 'x' ;
+   |
+
+error: invalid token "{" in 'grammar' token list
+  --> e_gram1.hxn:32
+   |
+32 | grammar np(t): 'x' { }
+   |
+
+error: expected superclass name in object definition, but found "{"
+  --> e_gram1.hxn:32
+   |
+32 | grammar np(t): 'x' { }
+   |
+--- output

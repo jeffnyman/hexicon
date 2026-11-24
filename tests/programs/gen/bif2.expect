@@ -1,0 +1,4 @@
+image: 2bcdbc30c79bed8f5b01edbee9171a7061356d60dc70cac30d698b1d8f8ff745
+--- messages
+--- output
+hexicon: case.hxg: VM Error: this interpreter version cannot run this program (program requires intrinsic function set five, which is not available in this interpreter)

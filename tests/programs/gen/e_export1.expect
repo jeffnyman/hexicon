@@ -1,0 +1,63 @@
+image: none
+--- messages
+error: expected comma in 'property' list, but found "b"
+  --> e_export1.hxn:1
+  |
+1 | property a b, 1, , c d;
+  |
+
+error: expected property name in 'property' list, but found "1"
+  --> e_export1.hxn:1
+  |
+1 | property a b, 1, , c d;
+  |
+
+error: expected property name in 'property' list, but found ","
+  --> e_export1.hxn:1
+  |
+1 | property a b, 1, , c d;
+  |
+
+error: expected comma in 'property' list, but found "d"
+  --> e_export1.hxn:1
+  |
+1 | property a b, 1, , c d;
+  |
+
+error: expected property name in 'property' list, but found ";"
+  --> e_export1.hxn:2
+  |
+2 | property;
+  |
+
+error: expected comma in 'property' list, but found "export"
+  --> e_export1.hxn:4
+  |
+4 | export;
+  |
+
+error: expected symbol in 'export' statement, but found "1"
+  --> e_export1.hxn:5
+  |
+5 | export 1;
+  |
+
+error: expected ';', but found "b"
+  --> e_export1.hxn:6
+  |
+6 | export a b;
+  |
+
+error: ";" cannot start anything here
+  --> e_export1.hxn:6
+  |
+6 | export a b;
+  |
+  = what is expected is a function, an object, or a class
+
+error: expected ';', but found "y"
+  --> e_export1.hxn:7
+  |
+7 | export a 'x' y;
+  |
+--- output

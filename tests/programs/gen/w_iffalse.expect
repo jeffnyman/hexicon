@@ -1,0 +1,8 @@
+image: 4405c341e34e4600a3ab387cf26d30228724b74a5b764d7faa97939f05cf413b
+--- messages
+warning: "if" condition is always false
+  --> w_iffalse.hxn:1
+  |
+1 | _main(args) { if (nil) return 1; if (0) return 2; return 3; }
+  |
+--- output

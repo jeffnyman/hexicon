@@ -1,0 +1,5 @@
+_main(args)
+{
+    return new method { return 1; } + new function;
+}
+

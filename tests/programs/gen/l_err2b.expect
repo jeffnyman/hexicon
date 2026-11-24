@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "undefinedA" is not defined anywhere
+  --> a.hxn:2
+  |
+2 | f(x) { return undefinedA(x); }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

@@ -1,0 +1,8 @@
+image: c317e3b05124900ccdd5db30d726c9acacaf8e103dcc3868de6c6a1754568da7
+--- messages
+warning: grammar qualifiers must precede all tokens
+  --> b.hxn:8
+  |
+8 | grammar np: 'that' [badness 10] : object;
+  |
+--- output

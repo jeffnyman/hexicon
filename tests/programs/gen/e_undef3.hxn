@@ -1,0 +1,1 @@
+_main(args) { try { } catch (nosuch e) { } try { } catch (nosuch e) { } nosuch = 1; }

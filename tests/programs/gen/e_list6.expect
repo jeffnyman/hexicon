@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: index value out of range in constant list index expression
+  --> e_list6.hxn:1
+  |
+1 | _main(args) { return [1, 2][0] + [1, 2]['a'] + 1[2] + nil[1]; }
+  |
+
+error: index value must be an integer in constant list index expression
+  --> e_list6.hxn:1
+  |
+1 | _main(args) { return [1, 2][0] + [1, 2]['a'] + 1[2] + nil[1]; }
+  |
+
+error: invalid indexed type in constant expression - list required
+  --> e_list6.hxn:1
+  |
+1 | _main(args) { return [1, 2][0] + [1, 2]['a'] + 1[2] + nil[1]; }
+  |
+--- output

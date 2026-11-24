@@ -1,0 +1,14 @@
+image: 2cedd8351eee34445442d4b55985f1e38a9367b491f18b1e1622d274526c3587
+--- messages
+warning: invalid syntax for #pragma
+  --> srcgroup1.hxn:11
+   |
+11 | #pragma sourceTextGroup(maybe)
+   |
+
+warning: invalid syntax for #pragma
+  --> srcgroup1.hxn:12
+   |
+12 | #pragma sourceTextGroup(on
+   |
+--- output

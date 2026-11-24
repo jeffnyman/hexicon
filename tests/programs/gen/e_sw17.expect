@@ -1,0 +1,29 @@
+image: none
+--- messages
+error: expected an operand, but found ";"
+  --> e_sw17.hxn:1
+  |
+1 | _main(args) { switch (;) { } }
+  |
+
+error: missing ')' after "switch" expression - found ";"
+  --> e_sw17.hxn:1
+  |
+1 | _main(args) { switch (;) { } }
+  |
+
+error: missing '{' after "switch" expression - found ";"
+  --> e_sw17.hxn:1
+  |
+1 | _main(args) { switch (;) { } }
+  |
+
+error: unexpected ')' found - ignored
+  --> e_sw17.hxn:1
+  |
+1 | _main(args) { switch (;) { } }
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_sw17.hxn:2
+--- output

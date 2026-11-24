@@ -1,0 +1,21 @@
+image: 62f7703333556866e2a5871e27067298476db6bfaf0a3a6b8ec07daf1f8ab202
+--- messages
+--- output
+(11, 22)
+(9, 18)
+(3, 6)
+(-1, -2)
+(20, 40)
+3
+(1, 7)
+a note sent to (1, 7)
+(7, 1)
+pairs can be added
+pairs cannot be divided
+(-9, -13)
+hello from the guest
+the guest greets 3 people
+hello from the guest
+hello from the guest
+0
+3

@@ -1,0 +1,5 @@
+a: object m() { local q; return 1; q = 2; }
+ n() { if (x) return 1; }
+ x = 1
+;
+_main(args) { }

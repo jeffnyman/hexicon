@@ -1,0 +1,22 @@
+a: object
+    operator +() { }
+    operator -(a, b) { }
+    operator negate(a) { }
+    operator ~(a) { }
+    operator [](a, b) { }
+    operator []=(a) { }
+    operator *(a, ...) { }
+    operator /([a]) { }
+    operator %(a?) { }
+    operator foo(a) { }
+    operator = 5
+    operator ==(a) { }
+    operator [ = 5
+    operator [5] = 6
+    operator + = 1
+    operator + = 2
+    propertyset 'x*' { operator -(a) { } operator <<(b) { } }
+    operator
+;
+_main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+

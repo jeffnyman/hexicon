@@ -1,0 +1,32 @@
+image: none
+--- messages
+warning: unreachable statement
+  --> e_anon10.hxn:10
+   |
+10 |     return f + g + h;
+   |
+
+error: invalid "goto" - label "lbl2" is not defined in this function or method
+  --> e_anon10.hxn:9
+  |
+9 |     goto lbl2;
+  |
+
+warning: label "lbl" is not referenced
+  --> e_anon10.hxn:4
+  |
+4 |     lbl:
+  |
+
+error: invalid "goto" - label "lbl" is not defined in this function or method
+  --> e_anon10.hxn:5
+  |
+5 |     local f = function() { goto lbl; };
+  |
+
+warning: label "lbl2" is not referenced
+  --> e_anon10.hxn:6
+  |
+6 |     local g = function() { lbl2: return 1; };
+  |
+--- output

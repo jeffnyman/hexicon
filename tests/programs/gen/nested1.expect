@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: replace/modify cannot be used with an object not previously defined
+  --> nested1.hxn:60
+   |
+60 | modify Object helper: object { v = 1 };
+   |
+--- output

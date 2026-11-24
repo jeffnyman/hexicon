@@ -1,0 +1,1 @@
+_main(args) { if (true) args = 1; else { a: args = 2; } goto a; }

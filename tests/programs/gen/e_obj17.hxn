@@ -1,0 +1,4 @@
+a: object m() { return nosuch.x + self.(nosuch2) + nosuch3(); }
+;
+f() { return nosuch4 + nosuch5(); }
+_main(args) { }

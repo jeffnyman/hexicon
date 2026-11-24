@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: function "g" has an incompatible previous declaration
+  --> e_extern4.hxn:2
+  |
+2 | g(a, b) { return a; }
+  |
+--- output

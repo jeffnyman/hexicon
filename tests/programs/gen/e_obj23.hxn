@@ -1,0 +1,3 @@
+a: object x = 1;
+f() { try { } catch (a e) { } catch (f g) { } catch (nosuch h) { } }
+_main(args) { }

@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: function "g" is already defined
+  --> b.hxn:3
+  |
+3 | g(x) { return x; }
+  |
+
+error: object "o" is already defined - can't redefine as object
+  --> b.hxn:5
+  |
+5 | o: object;
+  |
+--- output

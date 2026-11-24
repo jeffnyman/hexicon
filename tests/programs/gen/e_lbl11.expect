@@ -1,0 +1,26 @@
+image: none
+--- messages
+error: invalid "continue" - no label "e" on any enclosing loop
+  --> e_lbl11.hxn:1
+  |
+1 | _main(args) { a: b: break a; c: d: break d; e: g: continue e; }
+  |
+
+warning: label "b" is not referenced
+  --> e_lbl11.hxn:1
+  |
+1 | _main(args) { a: b: break a; c: d: break d; e: g: continue e; }
+  |
+
+warning: label "c" is not referenced
+  --> e_lbl11.hxn:1
+  |
+1 | _main(args) { a: b: break a; c: d: break d; e: g: continue e; }
+  |
+
+warning: label "g" is not referenced
+  --> e_lbl11.hxn:1
+  |
+1 | _main(args) { a: b: break a; c: d: break d; e: g: continue e; }
+  |
+--- output

@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: this "switch" already has a "default:" label
+  --> e_sw9.hxn:1
+  |
+1 | _main(args) { switch (args) { default: ; default: ; default: ; } }
+  |
+--- output

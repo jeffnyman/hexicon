@@ -72,6 +72,60 @@ pub const HEADERS: &[(&str, &str)] = &[
     ("t3test.h", "vmtest.h"),
 ];
 
+/// The identifiers by which the virtual machine binds a set of built-in
+/// functions or the class of the program's objects, and Hexicon's.
+pub const IDENTIFIERS: &[(&str, &str)] = &[
+    ("t3vm", "hexicon-vm"),
+    ("t3vmTEST", "hexicon-vm-test"),
+    ("tads-gen", "hexicon-gen"),
+    ("tads-io", "hexicon-io"),
+    ("tads-io-ext", "hexicon-io-ext"),
+    ("tads-net", "hexicon-net"),
+    ("tads-object", "hexicon-object"),
+];
+
+/// The edits that give an `intrinsic` declaration Hexicon's identifier:
+/// `intrinsic 'tads-gen/030008'` is `intrinsic 'hexicon-gen/030008'`,
+/// and `intrinsic class TadsObject 'tads-object/030005'` names
+/// `hexicon-object`. A program on a system library has these from its
+/// headers; a program that declares them itself needs them changed.
+fn identifier_edits(text: &[u8], names: &[Name]) -> Vec<(usize, usize, Vec<u8>)> {
+    let mut edits = Vec::new();
+    for (index, name) in names.iter().enumerate() {
+        if !name.in_code || name.in_directive || &text[name.start..name.end] != b"intrinsic" {
+            continue;
+        }
+        // After `class Name`, if this is an intrinsic class.
+        let mut pos = name.end;
+        if let [class, cls_name, ..] = &names[index + 1..]
+            && &text[class.start..class.end] == b"class"
+            && text[name.end..class.start]
+                .iter()
+                .all(u8::is_ascii_whitespace)
+            && text[class.end..cls_name.start]
+                .iter()
+                .all(u8::is_ascii_whitespace)
+        {
+            pos = cls_name.end;
+        }
+        while text.get(pos).is_some_and(u8::is_ascii_whitespace) {
+            pos += 1;
+        }
+        if text.get(pos) != Some(&b'\'') {
+            continue;
+        }
+        let start = pos + 1;
+        let Some(slash) = text[start..].iter().position(|&c| c == b'/' || c == b'\'') else {
+            continue;
+        };
+        let old = &text[start..start + slash];
+        if let Some(&(_, new)) = IDENTIFIERS.iter().find(|(o, _)| o.as_bytes() == old) {
+            edits.push((start, start + slash, new.as_bytes().to_vec()));
+        }
+    }
+    edits
+}
+
 /// The edits that rename the system headers a file includes: in each
 /// `#include <tads.h>` or `#include "t3.h"`, the name Hexicon gives the
 /// header.
@@ -652,6 +706,9 @@ pub fn convert_source(text: &[u8], renames: &[(&str, &str)]) -> ConvertedSource 
         edits.push((name.start, name.end, replacement.into_bytes()));
         renamed += 1;
     }
+    let identifiers = identifier_edits(text, &names);
+    renamed += identifiers.len();
+    edits.extend(identifiers);
     let headers = header_edits(text);
     renamed += headers.len();
     edits.extend(headers);

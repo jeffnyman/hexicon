@@ -1,0 +1,3 @@
+string template <<* in words>> spell;
+spell(x, y) { return x; }
+_main(args) { }

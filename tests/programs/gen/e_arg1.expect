@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ',' or ')' in argument list, but found "2"
+  --> e_arg1.hxn:1
+  |
+1 | f(a, b) { } _main(args) { f(1 2); }
+  |
+--- output

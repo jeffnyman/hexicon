@@ -1,0 +1,4 @@
+f() { }
+a: object f = 1 g() { } _main = 2;
+g() { }
+_main(args) { }

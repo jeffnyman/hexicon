@@ -1,0 +1,11 @@
+dictionary gDict;
+dictionary property noun;
+c: gDict noun = 'c';
+d: object
+    m() { local y = gDict.foo; inherited gDict.foo(); return delegated gDict.foo(); }
+    p = gDict
+    q = [gDict]
+    r = static gDict
+;
+_main(args) { local x = new gDict; local z = new gDict(1); x = &gDict; gDict = 5; return gDict + 1; }
+

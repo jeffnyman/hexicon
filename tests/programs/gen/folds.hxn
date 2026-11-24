@@ -1,0 +1,27 @@
+f(a)
+{
+    local x1 = 10 / 3, x2 = -10 / 3, x3 = 10 % 3, x4 = -10 % 3, x5 = 10 % -3;
+    local x6 = 1 << 31, x7 = 1 << 32, x8 = 1 << 33, x9 = -1 >> 31, x10 = -1 >>> 31;
+    local x11 = 2147483647, x12 = -2147483647, x13 = 0x7fffffff, x14 = 0xffffffff;
+    local x15 = 1 + 2 * 3 - 4 / 2, x16 = (1, 2, 3), x17 = 1 == 1, x18 = 1 != 1;
+    local x19 = 1 < 2, x20 = 2 <= 2, x21 = 3 > 4, x22 = 4 >= 5;
+    local x23 = nil == nil, x24 = true == true, x25 = nil == true, x26 = nil != 0;
+    local x27 = 'a' + 'b', x28 = 'a' + 1, x29 = 1 + 'a', x30 = 'x' + true;
+    local x31 = !nil, x32 = !true, x33 = !0, x34 = !1, x35 = !'s';
+    local x36 = true && true, x37 = true && nil, x38 = nil || nil, x39 = 1 && 2;
+    local x40 = 0 || 5, x41 = 0 && 5, x42 = 'a' == 'a', x43 = 'a' == 'b';
+    local x44 = 'abc' < 'abd', x45 = 'b' > 'abc', x46 = 'a' <= 'a';
+    local x47 = true ? 1 : 2, x48 = nil ? 1 : 2, x49 = 0 ? 1 : 2, x50 = 5 ?? 6;
+    local x51 = a + 1 + 2, x52 = 1 + 2 + a, x53 = a + (1 + 2), x54 = 2 * 3 * a;
+    local x55 = f == f, x56 = f != f, x57 = f == nil, x58 = (f, 1);
+    local x59 = -0, x60 = - -1, x61 = ~~5, x62 = +5, x63 = 127 + 1, x64 = 126 + 1;
+    local x65 = a && true, x66 = a || nil, x67 = true && a, x68 = nil || a;
+    local x69 = 1 ? a : 2, x70 = a ?? 1, x71 = nil ?? a;
+    return x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11 + x12 + x13
+        + x14 + x15 + x16 + x17 + x18 + x19 + x20 + x21 + x22 + x23 + x24 + x25
+        + x26 + x27 + x28 + x29 + x30 + x31 + x32 + x33 + x34 + x35 + x36 + x37
+        + x38 + x39 + x40 + x41 + x42 + x43 + x44 + x45 + x46 + x47 + x48 + x49
+        + x50 + x51 + x52 + x53 + x54 + x55 + x56 + x57 + x58 + x59 + x60 + x61
+        + x62 + x63 + x64 + x65 + x66 + x67 + x68 + x69 + x70 + x71;
+}
+_main(args) { return 1; }

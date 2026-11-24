@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: incompatible types for comparison in constant expression
+  --> e_list8.hxn:1
+  |
+1 | _main(args) { return [1, 2] < [3]; }
+  |
+--- output

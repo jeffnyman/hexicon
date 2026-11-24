@@ -1,0 +1,26 @@
+image: 64e067335495f5b8fcef3e0267fd28c4dbd0392ecf15a4f9ec30ed9e55dfc61e
+--- messages
+warning: label "a" is not referenced
+  --> w_lbl1.hxn:1
+  |
+1 | _main(args) { a: args = 1; bb: cc: args = 2; { d: ; } }
+  |
+
+warning: label "d" is not referenced
+  --> w_lbl1.hxn:1
+  |
+1 | _main(args) { a: args = 1; bb: cc: args = 2; { d: ; } }
+  |
+
+warning: label "bb" is not referenced
+  --> w_lbl1.hxn:1
+  |
+1 | _main(args) { a: args = 1; bb: cc: args = 2; { d: ; } }
+  |
+
+warning: label "cc" is not referenced
+  --> w_lbl1.hxn:1
+  |
+1 | _main(args) { a: args = 1; bb: cc: args = 2; { d: ; } }
+  |
+--- output

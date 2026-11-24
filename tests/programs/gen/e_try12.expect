@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: local variable "e" defined more than once
+  --> e_try12.hxn:1
+  |
+1 | _main(args) { try { } catch (A e) { local e; local f; return f; } }
+  |
+--- output

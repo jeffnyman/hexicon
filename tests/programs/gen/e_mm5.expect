@@ -1,0 +1,4 @@
+image: none
+--- messages
+error: library support function "_multiMethodRegister" is missing or invalid - check that the system library is included in the build
+--- output

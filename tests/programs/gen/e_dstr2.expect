@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: a double-quoted string ("text") is not valid within an expression
+  --> e_dstr2.hxn:1
+  |
+1 | _main(args) { return "text"; }
+  |
+--- output

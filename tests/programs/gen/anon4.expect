@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: expected ';' or expression after "return", but found "{"
+  --> anon4.hxn:7
+  |
+7 |         return {: r + q + c };
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon4.hxn:7
+  |
+7 |         return {: r + q + c };
+  |
+
+error: expected ';', but found "}"
+  --> anon4.hxn:7
+  |
+7 |         return {: r + q + c };
+  |
+--- output

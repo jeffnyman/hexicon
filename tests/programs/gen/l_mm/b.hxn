@@ -1,0 +1,7 @@
+#include <hexicon.h>
+put(Thing a, Thing b) { return 3; }
+show(Box a) { return inherited<Thing>(a); }
+show(Thing a) { return put(a, a); }
+show(a) multimethod { return 0; }
+_multiMethodCall(base, args) { return nil; }
+_multiMethodCallInherited(from, [args]) { return nil; }

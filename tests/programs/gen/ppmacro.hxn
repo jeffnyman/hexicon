@@ -1,0 +1,3 @@
+#define ADD(a, b) ((a) + (b))
+#define TWICE(x) ADD(x, x)
+_main(args) { return TWICE(args) + __LINE__; }

@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: formal parameter "a" defined more than once
+  --> e_formalredef.hxn:1
+  |
+1 | f(a, a) { } _main(args) { }
+  |
+--- output

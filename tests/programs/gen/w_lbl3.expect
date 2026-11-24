@@ -1,0 +1,14 @@
+image: e16f4cd34b1b14b25143bce19eac3fa06102cf3688b5d5d3307d8f00bb876d38
+--- messages
+warning: unreachable statement
+  --> w_lbl3.hxn:1
+  |
+1 | _main(args) { return 1; args = 2; a: return 2; args = 3; b: ; goto b; }
+  |
+
+warning: label "a" is not referenced
+  --> w_lbl3.hxn:1
+  |
+1 | _main(args) { return 1; args = 2; a: return 2; args = 3; b: ; goto b; }
+  |
+--- output

@@ -1,0 +1,5 @@
+intrinsic class A 'a/030000' { x(); }
+b: A;
+A: object;
+A() { }
+_main(args) { A(); A = 1; A.x = 2; &A; new A.x; try { } catch (A e) { } return inherited A.x(); }

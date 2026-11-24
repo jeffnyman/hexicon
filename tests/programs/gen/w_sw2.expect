@@ -1,0 +1,8 @@
+image: abe390364ba1be18b6dadbde7ca2d812d2415d29b1ac30b96bc91dbc2c942830
+--- messages
+warning: code has "return" with value but also falls off end
+  --> w_sw2.hxn:1
+  |
+1 | _main(args) { switch (args) { case 1: return 1; } }
+  |
+--- output

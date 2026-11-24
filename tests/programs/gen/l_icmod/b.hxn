@@ -1,0 +1,4 @@
+#include <hexicon.h>
+modify List second() { return self[2]; } first2() { return inherited(); };
+modify List third = 3;
+modify String shout() { return toUpper(); };

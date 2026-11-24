@@ -1,0 +1,6 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun, adjective, plural;
+key: Thing noun = 'key' adjective = 'brass' 'small' plural = 'keys';
+class Odd: Thing noun = 'oddity';
+strange: Odd, Thing adjective = 'strange';

@@ -1,0 +1,20 @@
+image: 338a3e545c83cfd5764e5d2092aff57a158e23c3fc7ce3715f10e793da0d8ebc
+--- messages
+warning: "bare" is given a value that is never used
+  --> scopes.hxn:20
+   |
+20 |     if (a) local bare = 1;
+   |
+
+warning: "single" is given a value that is never used
+  --> scopes.hxn:18
+   |
+18 |     for (local a = 0 ; a < 1 ; a++) local single = a;
+   |
+
+warning: the local variable "never" is never used
+  --> scopes.hxn:26
+   |
+26 | unusedLocal() { local never; return 1; }
+   |
+--- output

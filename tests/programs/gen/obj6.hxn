@@ -1,0 +1,9 @@
+class A: object a = 1;
+class B: object b = 2;
+c: A, B c = 3;
+d: A, B construct(x) { c = x; } ;
+class E: A, B;
+A, B, E;
+f: A, B construct() { if (a) return; b = 1; };
+g: object construct(x, y) { a = x; b = y; };
+_main(args) { return 1; }

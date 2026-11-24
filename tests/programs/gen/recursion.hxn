@@ -1,0 +1,2 @@
+_main(args) { return _main(args) + f(args); }
+f(x) { return x ? f(x - 1) : _main(x); }

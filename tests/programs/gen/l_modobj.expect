@@ -1,0 +1,65 @@
+image: 8c41b03ebe803a31e7cd70b293a6d83c2b79961c8978b3e32aff045299b65d74
+--- messages
+warning: "b" is given a value here, but nothing reads it
+  --> a.hxn:4
+  |
+4 | class Base: object b = 1;
+  |
+  = did you mean "x"?
+
+warning: "y" is given a value here, but nothing reads it
+  --> a.hxn:5
+  |
+5 | o: Base x = 1 y = 2 noun = 'old' m() { return 1; };
+  |
+  = did you mean "x"?
+
+warning: "m" is given a value here, but nothing reads it
+  --> a.hxn:5
+  |
+5 | o: Base x = 1 y = 2 noun = 'old' m() { return 1; };
+  |
+  = did you mean "x"?
+
+warning: "m" is given a value here, but nothing reads it
+  --> b.hxn:4
+  |
+4 | modify o replace x = 5 z = 3 noun = 'new' m() { return inherited() + 1; };
+  |
+  = did you mean "x"?
+
+warning: "y" is given a value here, but nothing reads it
+  --> c.hxn:4
+  |
+4 | modify o replace y = 7 replace m() { return 9; } w = 1 noun = 'newer';
+  |
+  = did you mean "x"?
+
+warning: "m" is given a value here, but nothing reads it
+  --> c.hxn:4
+  |
+4 | modify o replace y = 7 replace m() { return 9; } w = 1 noun = 'newer';
+  |
+  = did you mean "x"?
+
+warning: "w" is given a value here, but nothing reads it
+  --> c.hxn:4
+  |
+4 | modify o replace y = 7 replace m() { return 9; } w = 1 noun = 'newer';
+  |
+  = did you mean "x"?
+
+warning: "v" is given a value here, but nothing reads it
+  --> c.hxn:5
+  |
+5 | modify o v = 2;
+  |
+  = did you mean "x"?
+
+warning: "c" is given a value here, but nothing reads it
+  --> c.hxn:6
+  |
+6 | modify Base c = 2;
+  |
+  = did you mean "x"?
+--- output

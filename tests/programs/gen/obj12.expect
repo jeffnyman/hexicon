@@ -1,0 +1,33 @@
+image: 6dac0ea1628f1de4979583d1da93ad8a5688fe60ccefbf6645a096febd37fd78
+--- messages
+warning: code has "return" with value but also falls off end
+  --> obj12.hxn:3
+  |
+3 | {
+  |
+
+warning: unreachable statement
+  --> obj12.hxn:12
+   |
+12 |     finally { goto L0; args; L0: while (args) { } do { } while (args); }
+   |
+
+warning: code has "return" with value but also falls off end
+  --> obj12.hxn:9
+  |
+9 | {
+  |
+
+warning: code has "return" with value but also falls off end
+  --> obj12.hxn:15
+   |
+15 | {
+   |
+
+warning: label "b" is not referenced
+  --> obj12.hxn:39
+   |
+39 |             b: { if (args) break out; }
+   |
+--- output
+(not run: it does not finish)

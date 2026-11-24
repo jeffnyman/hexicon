@@ -1,0 +1,7 @@
+image: none
+--- messages
+error: unresolved external reference "C"
+error: unresolved external reference "f"
+error: unresolved external reference "g"
+error: unresolved external reference "o"
+--- output

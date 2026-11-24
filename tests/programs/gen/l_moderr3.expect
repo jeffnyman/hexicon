@@ -1,0 +1,12 @@
+image: none
+--- messages
+warning: "y" is given a value here, but nothing reads it
+  --> b.hxn:2
+  |
+2 | later: object y = 2;
+  |
+  = did you mean "x"?
+
+error: modified or replaced object "later" found in object file "a.t3o" before original object definition was loaded
+error: symbol "later" (type: object) redefined in object file "b.t3o"
+--- output

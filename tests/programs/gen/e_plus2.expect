@@ -1,0 +1,96 @@
+image: none
+--- messages
+error: expected ':' after object name in object definition, but found "x"
+  --> e_plus2.hxn:3
+  |
+3 | + replace x: object;
+  |
+
+error: expected property name in object definition, but found ":"
+  --> e_plus2.hxn:3
+  |
+3 | + replace x: object;
+  |
+
+error: the object above ends without a ';'
+  --> e_plus2.hxn:3
+  |
+3 | + replace x: object;
+  |
+  = each object ends with ';', and the next starts here
+
+error: expected ':' after object name in object definition, but found "g"
+  --> e_plus2.hxn:4
+  |
+4 | ++ function g() { }
+  |
+
+error: expected property name in object definition, but found "("
+  --> e_plus2.hxn:4
+  |
+4 | ++ function g() { }
+  |
+
+error: expected property name in object definition, but found ")"
+  --> e_plus2.hxn:4
+  |
+4 | ++ function g() { }
+  |
+
+error: expected property name in object definition, but found "{"
+  --> e_plus2.hxn:4
+  |
+4 | ++ function g() { }
+  |
+
+error: expected property name in object definition, but found "}"
+  --> e_plus2.hxn:4
+  |
+4 | ++ function g() { }
+  |
+
+error: the object above ends without a ';'
+  --> e_plus2.hxn:4
+  |
+4 | ++ function g() { }
+5 | + x: object;
+  |
+  = each object ends with ';', and the next starts here
+
+error: object "x" is already defined - can't redefine as object
+  --> e_plus2.hxn:5
+  |
+5 | + x: object;
+  |
+
+error: expected ':' after object name in object definition, but found "+"
+  --> e_plus2.hxn:8
+  |
+8 | + property loc, loc2;
+  |
+
+error: expected superclass name in object definition, but found "+"
+  --> e_plus2.hxn:8
+  |
+8 | + property loc, loc2;
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found "property"
+  --> e_plus2.hxn:8
+  |
+8 | + property loc, loc2;
+  |
+
+error: expected property name in object definition, but found ":"
+  --> e_plus2.hxn:9
+  |
+9 | + y: object + z: object;
+  |
+
+error: the object above ends without a ';'
+  --> e_plus2.hxn:9
+  |
+9 | + y: object + z: object;
+  |
+  = each object ends with ';', and the next starts here
+--- output

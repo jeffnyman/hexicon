@@ -1,0 +1,2 @@
+f() { nosuch(); } g() { "<<nosuch>>"; }
+_main(args) { nosuch; try { } catch (nosuch e) { } }

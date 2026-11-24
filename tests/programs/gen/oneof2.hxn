@@ -1,0 +1,7 @@
+extern class OneOfIndexGen;
+_main(args)
+{
+    return 'x<<one of>>1<<or>>2<<cycling>>y';
+}
+class OneOfIndexGen: object;
+f() { return "<<one of>>a<<or>><<one of>>b<<or>>c<<half shuffled>><<then purely at random>>"; }

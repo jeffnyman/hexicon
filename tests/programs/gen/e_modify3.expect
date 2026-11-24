@@ -1,0 +1,45 @@
+image: none
+--- messages
+error: intrinsic class property "length" cannot be modified
+  --> e_modify3.hxn:49
+   |
+49 | modify List length() { return 1; };
+   |
+
+error: intrinsic class property "length" cannot be modified
+  --> e_modify3.hxn:50
+   |
+50 | modify List length = 1 createIterator() { } ofKind = 2 x = 3;
+   |
+
+error: intrinsic class property "createIterator" cannot be modified
+  --> e_modify3.hxn:50
+   |
+50 | modify List length = 1 createIterator() { } ofKind = 2 x = 3;
+   |
+
+error: intrinsic class property "ofKind" cannot be modified
+  --> e_modify3.hxn:50
+   |
+50 | modify List length = 1 createIterator() { } ofKind = 2 x = 3;
+   |
+
+error: "List" is already the name of something else, so it cannot also name an object
+  --> e_modify3.hxn:51
+   |
+51 | replace List: object;
+   |
+
+error: expected property name in object definition, but found ":"
+  --> e_modify3.hxn:52
+   |
+52 | modify List: object x = 1;
+   |
+
+error: the object above ends without a ';'
+  --> e_modify3.hxn:52
+   |
+52 | modify List: object x = 1;
+   |
+   = each object ends with ';', and the next starts here
+--- output

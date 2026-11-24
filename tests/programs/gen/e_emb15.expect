@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: <<one of>> requires class OneOfIndexGen to be defined in the program
+  --> e_emb15.hxn:1
+  |
+1 | _main(args) { "<<one of>>a<<or>>b<<or>><<if args>>c<<end>><<stopping>>"; }
+  |
+--- output

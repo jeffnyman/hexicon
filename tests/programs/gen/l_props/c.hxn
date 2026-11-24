@@ -1,0 +1,3 @@
+#include <hexicon.h>
+c1: object iota = 1 kappa = 2;
+g() { return b1.eta + a1.alpha; }

@@ -1,0 +1,128 @@
+image: none
+--- messages
+error: expected ';' or expression after "return", but found "{"
+  --> anon5.hxn:9
+  |
+9 | g(x, y) { return {: y }; }
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon5.hxn:9
+  |
+9 | g(x, y) { return {: y }; }
+  |
+
+error: expected ';', but found "}"
+  --> anon5.hxn:9
+  |
+9 | g(x, y) { return {: y }; }
+  |
+
+error: expected ';' or expression after "return", but found "{"
+  --> anon5.hxn:10
+   |
+10 | h(x, y) { return {x: x }; }
+   |
+
+error: expected ';', but found "}"
+  --> anon5.hxn:10
+   |
+10 | h(x, y) { return {x: x }; }
+   |
+
+error: expected ';' or expression after "return", but found "{"
+  --> anon5.hxn:11
+   |
+11 | k(x) { local x1 = x; { local x2 = 2; return {: x1 + x2 }; } }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon5.hxn:11
+   |
+11 | k(x) { local x1 = x; { local x2 = 2; return {: x1 + x2 }; } }
+   |
+
+error: expected ';', but found "}"
+  --> anon5.hxn:11
+   |
+11 | k(x) { local x1 = x; { local x2 = 2; return {: x1 + x2 }; } }
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon5.hxn:17
+   |
+17 |     {: w };
+   |
+
+error: expected ';', but found "}"
+  --> anon5.hxn:17
+   |
+17 |     {: w };
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon5.hxn:19
+   |
+19 |     {: "x<<w>>y" }();
+   |
+
+error: expected ';', but found "w"
+  --> anon5.hxn:19
+   |
+19 |     {: "x<<w>>y" }();
+   |
+
+error: expected ';', but found ">>y""
+  --> anon5.hxn:19
+   |
+19 |     {: "x<<w>>y" }();
+   |
+
+error: expected start of statement, but found ">>y""
+  --> anon5.hxn:19
+   |
+19 |     {: "x<<w>>y" }();
+   |
+
+error: unexpected ')' found - ignored
+  --> anon5.hxn:19
+   |
+19 |     {: "x<<w>>y" }();
+   |
+
+error: expected an operand, but found ";"
+  --> anon5.hxn:19
+   |
+19 |     {: "x<<w>>y" }();
+   |
+
+error: expected ')' but found ";"
+  --> anon5.hxn:19
+   |
+19 |     {: "x<<w>>y" }();
+   |
+
+error: expected ';' or expression after "return", but found "{"
+  --> anon5.hxn:20
+   |
+20 |     return {a, b: a + b}(1, 2) + f(1, 2)() + g(1,2)() + h(1,2)(3) + k(1)() + (function() { return 1; })() + new function(q) { return q; }(2);
+   |
+
+error: expected ';', but found ":"
+  --> anon5.hxn:20
+   |
+20 |     return {a, b: a + b}(1, 2) + f(1, 2)() + g(1,2)() + h(1,2)(3) + k(1)() + (function() { return 1; })() + new function(q) { return q; }(2);
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon5.hxn:20
+   |
+20 |     return {a, b: a + b}(1, 2) + f(1, 2)() + g(1,2)() + h(1,2)(3) + k(1)() + (function() { return 1; })() + new function(q) { return q; }(2);
+   |
+
+error: expected ';', but found "}"
+  --> anon5.hxn:20
+   |
+20 |     return {a, b: a + b}(1, 2) + f(1, 2)() + g(1,2)() + h(1,2)(3) + k(1)() + (function() { return 1; })() + new function(q) { return q; }(2);
+   |
+--- output

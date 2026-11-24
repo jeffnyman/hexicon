@@ -1,0 +1,1 @@
+f(x) { try { } finally { break a; } } g(x) { a: ; b: ; } _main(args) { a: b: return f(args); }

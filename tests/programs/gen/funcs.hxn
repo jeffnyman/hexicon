@@ -1,0 +1,8 @@
+function withKeyword(a) { return a; }
+function declared;
+function declared(a) { return a + 1; }
+function kwNoParens { return 2; }
+callsAll() { return withKeyword(1) + declared(2) + kwNoParens(); }
+;
+;;
+_main(args) { return 1; }

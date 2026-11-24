@@ -1,0 +1,4 @@
+image: none
+--- messages
+error: symbol "f" (type: function) redefined in object file "b.t3o"
+--- output

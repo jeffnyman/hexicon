@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: initializer expected after local variable name in "for", but found ")"
+  --> e_for1.hxn:1
+  |
+1 | _main(args) { for (local i) { } }
+  |
+
+error: missing expression in "for" statement - expected ';', found ')'
+  --> e_for1.hxn:1
+  |
+1 | _main(args) { for (local i) { } }
+  |
+--- output

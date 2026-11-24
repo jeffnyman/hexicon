@@ -1,0 +1,5 @@
+a: object construct() { return 1; }
+;
+b: object construct() { return self; }
+;
+_main(args) { }

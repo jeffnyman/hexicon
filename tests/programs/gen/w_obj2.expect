@@ -1,0 +1,37 @@
+image: 7a33ce380b6d43b73777b5d8c96339d96c0fdf7276496aab1c9b69948733fd4d
+--- messages
+warning: "y" is not defined anywhere
+  --> w_obj2.hxn:1
+  |
+1 | a: object m() { return y; }
+  |
+  = did you mean "a"?
+
+warning: "z" is not defined anywhere
+  --> w_obj2.hxn:2
+  |
+2 |  n() { y = 1; return a.z + self.w + v(1); }
+  |
+  = did you mean "a"?
+
+warning: "w" is not defined anywhere
+  --> w_obj2.hxn:2
+  |
+2 |  n() { y = 1; return a.z + self.w + v(1); }
+  |
+  = did you mean "a"?
+
+warning: "v" is not defined anywhere
+  --> w_obj2.hxn:2
+  |
+2 |  n() { y = 1; return a.z + self.w + v(1); }
+  |
+  = did you mean "a"?
+
+warning: "u" is not defined anywhere
+  --> w_obj2.hxn:4
+  |
+4 | _main(args) { return a.u; }
+  |
+  = did you mean "a"?
+--- output

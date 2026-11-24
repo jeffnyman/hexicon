@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: cannot assign to "dataType"
+  --> e_bif2.hxn:45
+   |
+45 | _main(args) { dataType = 1; dataType++; return 1; }
+   |
+--- output

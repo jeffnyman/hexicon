@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: a double-quoted string ("b") is not valid within an expression
+  --> e_emb5.hxn:1
+  |
+1 | _main(args) { local x = "a<<args>>b"; x = "a<<args>>"; }
+  |
+
+warning: "x" is given a value that is never used
+  --> e_emb5.hxn:1
+  |
+1 | _main(args) { local x = "a<<args>>b"; x = "a<<args>>"; }
+  |
+--- output

@@ -1,0 +1,4 @@
+#include <hexicon.h>
+o: object x = static [1, 2] y = static (x + [3]) m() { return 1; };
+p: object x = static [5];
+_main(args) { return o.x; }

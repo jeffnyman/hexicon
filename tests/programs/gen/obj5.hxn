@@ -1,0 +1,6 @@
+a: object
+    m() { return undefinedProp + other(1) ; }
+    n() { newProp = 1; return self; }
+;
+f() { return a.neverDefined; }
+_main(args) { a.alsoNew = 1; a.callIt(1, 2); return f(); }

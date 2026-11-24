@@ -1,0 +1,3 @@
+extern function g;
+g(a, b) { return a; }
+_main(args) { g(1, 2); }

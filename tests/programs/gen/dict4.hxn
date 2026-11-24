@@ -1,0 +1,7 @@
+dictionary property noun;
+dictionary zDict;
+object noun = 'only anon';
+class K: object noun = 'k';
+K;
+K noun = 'more' 'k';
+_main(args) { }

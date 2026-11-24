@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: string template processor function nope() does not match template - must take 0 parameter(s) and return a value
+  --> e_tpl3.hxn:2
+  |
+2 | string template <<nope2>> nope;
+  |
+--- output

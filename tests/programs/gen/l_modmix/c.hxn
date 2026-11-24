@@ -1,0 +1,4 @@
+#include <hexicon.h>
+modify Thing replace weight = 6;
+modify rock describe() { return inherited() + '!'; };
+modify List count2() { return inherited() + '?'; };

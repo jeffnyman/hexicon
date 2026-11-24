@@ -1,0 +1,39 @@
+image: none
+--- messages
+error: 'self' is not valid in this context
+  --> e_obj5.hxn:3
+  |
+3 | _main(args) { self; self.x; x; x = 1; x(1); a.f; a.f(1); a.a; f.x; 'str'.x; [1].x; nil.x; args.f; args.(f); args.(a); a.(f)(1); nosuch.x; nosuch.x = 1; f.x = 1; a.(1) = 2; }
+  |
+
+error: cannot call property "x" without "object." prefix - no "self"
+  --> e_obj5.hxn:3
+  |
+3 | _main(args) { self; self.x; x; x = 1; x(1); a.f; a.f(1); a.a; f.x; 'str'.x; [1].x; nil.x; args.f; args.(f); args.(a); a.(f)(1); nosuch.x; nosuch.x = 1; f.x = 1; a.(1) = 2; }
+  |
+
+error: cannot assign to property "x" without "object." prefix - no "self"
+  --> e_obj5.hxn:3
+  |
+3 | _main(args) { self; self.x; x; x = 1; x(1); a.f; a.f(1); a.a; f.x; 'str'.x; [1].x; nil.x; args.f; args.(f); args.(a); a.(f)(1); nosuch.x; nosuch.x = 1; f.x = 1; a.(1) = 2; }
+  |
+
+error: invalid '.' expression - right side is not a property
+  --> e_obj5.hxn:3
+  |
+3 | _main(args) { self; self.x; x; x = 1; x(1); a.f; a.f(1); a.a; f.x; 'str'.x; [1].x; nil.x; args.f; args.(f); args.(a); a.(f)(1); nosuch.x; nosuch.x = 1; f.x = 1; a.(1) = 2; }
+  |
+
+error: illegal expression - left of '.' is not an object
+  --> e_obj5.hxn:3
+  |
+3 | _main(args) { self; self.x; x; x = 1; x(1); a.f; a.f(1); a.a; f.x; 'str'.x; [1].x; nil.x; args.f; args.(f); args.(a); a.(f)(1); nosuch.x; nosuch.x = 1; f.x = 1; a.(1) = 2; }
+  |
+
+error: "nosuch" is not defined anywhere
+  --> e_obj5.hxn:3
+  |
+3 | _main(args) { self; self.x; x; x = 1; x(1); a.f; a.f(1); a.a; f.x; 'str'.x; [1].x; nil.x; args.f; args.(f); args.(a); a.(f)(1); nosuch.x; nosuch.x = 1; f.x = 1; a.(1) = 2; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

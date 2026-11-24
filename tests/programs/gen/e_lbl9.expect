@@ -1,0 +1,11 @@
+image: none
+--- messages
+error: expected start of statement, but found "}"
+  --> e_lbl9.hxn:1
+  |
+1 | _main(args) { a: }
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_lbl9.hxn:2
+--- output

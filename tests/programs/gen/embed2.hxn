@@ -1,0 +1,19 @@
+f() { return 1; }
+g() { }
+_main(args)
+{
+    local s = 'p<<args>>q<<3>>';
+    s = '<<1>><<2>>'; s = 'a<<1>>b'; s = '<<>>'; s = '<<args>>'; s = 'a<<>>b';
+    s = 'a<<'b'>>c' + 'p<<'q<<args>>r'>>s';
+    s = '<<1, 2>><<args>>' + ['a<<1>>', 'b<<args>>'];
+    s = 'a<<f()>>b<<g()>>c<<f>>';
+    s = 'a<<args>>b'[1];
+    s += 'x<<s>>' + '<<nil>><<true>><<[1]>><<[args]>>';
+    switch (args)
+    {
+    case 'x<<1>>y': return 1;
+    case 'x<<if nil>>a<<else>>b<<end>>': return s;
+    case 'a<<1>>' == 'a1': return 2;
+    }
+    return 'a<<1>>' == 'a1';
+}

@@ -1,0 +1,17 @@
+_main(args)
+{
+    local a = 1;
+    local unused;
+    local f = function(x) {
+        local inner;
+        local n = 0;
+        lbl:
+        n++;
+        if (n < 3) goto lbl;
+        return {: a + inner };
+    };
+    local g = function() { a = 2; };
+    local h = function(z) { if (z) return 1; };
+    local i = {: local q = 3 };
+    return f(1)() + g() + h(1);
+}

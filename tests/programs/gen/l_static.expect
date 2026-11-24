@@ -1,0 +1,14 @@
+image: 4fd65e2c5376fde6b97585d229edc2bccd0189d5e7955156c66905d45e88353e
+--- messages
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> a.hxn:2
+  |
+2 | a1: object x = static (3.5 + 1) y = 1.25 pat = R'a+b' big = 99999999999;
+  |
+
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> b.hxn:3
+  |
+3 | f() { return [1.25, 99999999999, R'a+b']; }
+  |
+--- output

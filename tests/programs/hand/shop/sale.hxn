@@ -1,0 +1,40 @@
+// A sale: second definitions of what the other files define. This
+// file comes after them when the program is put together, as it has
+// to: a definition can only be changed once it is there.
+#include <systype.h>
+#include <general.h>
+#include <vm.h>
+
+dictionary shopWords;
+dictionary property noun;
+
+// `modify` puts a new definition in front of an object's or a
+// class's: what it does not mention stays as it was.
+modify apple
+    price = 2
+    noun = 'pippin'
+;
+
+modify Goods
+    label() { return inherited() + ' *'; }
+;
+
+// `replace` before a property takes the old one away for good.
+modify rice
+    replace weight = 2.5
+;
+
+// `replace` takes a function's place, and `modify` goes in front of
+// it, with `replaced` for the function as it was.
+replace total(lst)
+{
+    local sum = 0;
+    foreach (local item in lst)
+        sum += item.price * 2;
+    return sum;
+}
+
+modify describeAll()
+{
+    return 'on sale: ' + replaced();
+}

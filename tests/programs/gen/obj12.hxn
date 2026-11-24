@@ -1,0 +1,45 @@
+class C: object;
+f(args)
+{
+    try { args = 2; }
+    catch (C e) { do { return args; } while (args); }
+    finally { args = 3; }
+}
+g(args)
+{
+    try { args = 2; }
+    catch (C e) { local x = 1; local left = 2; do { return (x + left); } while (args); }
+    finally { goto L0; args; L0: while (args) { } do { } while (args); }
+}
+h(args)
+{
+    try { args = 1; }
+    finally { try { args = 2; } catch (C e) { return args; } finally { args = 3; } }
+}
+_main(args)
+{
+    out: while (args)
+    {
+        try { args = 2; }
+        catch (C e)
+        {
+            if (args) break;
+            if (args > 1) goto here;
+            while (args)
+            {
+                if (args) break out;
+                if (args > 2) continue out;
+                if (args > 3) goto here;
+                if (args > 4) goto away;
+                return 1;
+            }
+        here:
+            switch (args) { case 1: break out; case 2: goto away; default: return 2; }
+            a: { break a; }
+            b: { if (args) break out; }
+        }
+        finally { args = 3; }
+    }
+away:
+    return f(args) + g(args) + h(args);
+}

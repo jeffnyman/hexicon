@@ -1,0 +1,3 @@
+#include <hexicon.h>
+modify Object describe2() { return 'obj2'; };
+modify List fourth = 4;

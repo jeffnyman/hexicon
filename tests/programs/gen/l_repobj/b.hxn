@@ -1,0 +1,7 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun;
+replace o: object z = 3 noun = 'new';
+replace p: Base noun = 'pnew';
+replace class Base: object b = 2 c = 3;
+h() { return o.z; }

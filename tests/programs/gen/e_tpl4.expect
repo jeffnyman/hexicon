@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: function "spell" has an incompatible previous declaration
+  --> e_tpl4.hxn:2
+  |
+2 | spell(x, y) { return x; }
+  |
+--- output

@@ -1,0 +1,15 @@
+class A: object who() { return 1; };
+f() { return delegated A.who(); }
+g() { return delegated A; }
+c: object
+    m1() { return delegated; }
+    m2() { return delegated A.; }
+    m4() { return delegated .who(); }
+    m5() { return delegated A.who().x; }
+    m6() { return delegated undefinedThing.who(); }
+    m7() { return delegated A.undefinedProp(1, 2); }
+    m8 = (delegated A.who())
+    m9 = static (delegated A.who())
+;
+_main(args) { return delegated A.who() + argcount; }
+

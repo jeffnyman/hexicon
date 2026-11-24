@@ -1,0 +1,15 @@
+image: none
+--- messages
+warning: code has "return" with value but also falls off end
+  --> e_try3.hxn:1
+  |
+1 | _main(args) { try { } catch (NoSuch e) { return e; } }
+  |
+
+error: "NoSuch" is not defined anywhere
+  --> e_try3.hxn:1
+  |
+1 | _main(args) { try { } catch (NoSuch e) { return e; } }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

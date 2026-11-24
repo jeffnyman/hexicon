@@ -1,0 +1,2 @@
+#include <hexicon.h>
+g(x) { return 'a' - 1; }

@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "u" is not defined anywhere
+  --> e_many6.hxn:2
+  |
+2 |   u();
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

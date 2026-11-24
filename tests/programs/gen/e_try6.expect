@@ -1,0 +1,32 @@
+image: none
+--- messages
+error: expected class name in "catch" clause - found "1"
+  --> e_try6.hxn:1
+  |
+1 | _main(args) { try { } catch (1 e) { } catch (A 2) { } catch (A) { } catch () { } }
+  |
+
+error: expected variable name in "catch" clause - found "2"
+  --> e_try6.hxn:1
+  |
+1 | _main(args) { try { } catch (1 e) { } catch (A 2) { } catch (A) { } catch () { } }
+  |
+
+error: expected variable name in "catch" clause - found ")"
+  --> e_try6.hxn:1
+  |
+1 | _main(args) { try { } catch (1 e) { } catch (A 2) { } catch (A) { } catch () { } }
+  |
+
+error: expected class name in "catch" clause - found ")"
+  --> e_try6.hxn:1
+  |
+1 | _main(args) { try { } catch (1 e) { } catch (A 2) { } catch (A) { } catch () { } }
+  |
+
+error: "try" statement has no "catch" or "finally" clauses
+  --> e_try6.hxn:1
+  |
+1 | _main(args) { try { } catch (1 e) { } catch (A 2) { } catch (A) { } catch () { } }
+  |
+--- output

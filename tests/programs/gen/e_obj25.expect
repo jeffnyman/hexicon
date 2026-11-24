@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: "construct" cannot return a value
+  --> e_obj25.hxn:1
+  |
+1 | a: object construct() { return 1; }
+  |
+
+error: "construct" cannot return a value
+  --> e_obj25.hxn:3
+  |
+3 | b: object construct() { return self; }
+  |
+--- output

@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: invalid "break" - no label "a" on any enclosing statement
+  --> w_lbl8.hxn:1
+  |
+1 | f(x) { try { } finally { break a; } } g(x) { a: ; b: ; } _main(args) { a: b: return f(args); }
+  |
+
+warning: label "a" is not referenced
+  --> w_lbl8.hxn:1
+  |
+1 | f(x) { try { } finally { break a; } } g(x) { a: ; b: ; } _main(args) { a: b: return f(args); }
+  |
+
+warning: label "b" is not referenced
+  --> w_lbl8.hxn:1
+  |
+1 | f(x) { try { } finally { break a; } } g(x) { a: ; b: ; } _main(args) { a: b: return f(args); }
+  |
+--- output

@@ -1,0 +1,13 @@
+dictionary gDict;
+dictionary property noun, adjective, plural;
+class Top: object noun = 'top';
+class Mid: Top adjective = 'mid';
+class Low: Mid plural = 'lows';
+x1: Low noun = 'x1';
+class Other: object noun = 'other' plural = 'others';
+x2: Low, Other;
+x3: Other, Low adjective = 'x3';
+class Late: Low;
+zz: Late;
+aa: Late;
+_main(args) { }

@@ -1,0 +1,172 @@
+image: none
+--- messages
+error: vocabulary property cannot be defined - no dictionary is active
+  --> e_dict1.hxn:2
+  |
+2 | a: object noun = 'x';
+  |
+
+error: expected 'property' or object name after 'dictionary', but found ";"
+  --> e_dict1.hxn:3
+  |
+3 | dictionary;
+  |
+
+error: expected 'property' or object name after 'dictionary', but found "5"
+  --> e_dict1.hxn:4
+  |
+4 | dictionary 5;
+  |
+
+error: "5" cannot start anything here
+  --> e_dict1.hxn:4
+  |
+4 | dictionary 5;
+  |
+  = what is expected is a function, an object, or a class
+
+error: expected property name in 'dictionary property' list, but found ";"
+  --> e_dict1.hxn:5
+  |
+5 | dictionary property;
+  |
+
+error: expected property name in 'dictionary property' list, but found "5"
+  --> e_dict1.hxn:6
+  |
+6 | dictionary property 5, adjective plural, , weight;
+  |
+
+error: expected comma in 'dictionary property' list, but found "plural"
+  --> e_dict1.hxn:6
+  |
+6 | dictionary property 5, adjective plural, , weight;
+  |
+
+error: expected property name in 'dictionary property' list, but found ","
+  --> e_dict1.hxn:6
+  |
+6 | dictionary property 5, adjective plural, , weight;
+  |
+
+error: vocabulary property requires string value, but found "5"
+  --> e_dict1.hxn:11
+   |
+11 |     noun = 5
+   |
+
+error: expected property name in object definition, but found "5"
+  --> e_dict1.hxn:12
+   |
+12 |     adjective = 'a' 'b' 5
+   |
+
+error: vocabulary property requires string value, but found "("
+  --> e_dict1.hxn:13
+   |
+13 |     plural() { }
+   |
+
+error: vocabulary property requires string value, but found ":"
+  --> e_dict1.hxn:15
+   |
+15 |     weight = 'w', 'x'
+   |
+
+error: expected property name in object definition, but found ","
+  --> e_dict1.hxn:15
+   |
+15 |     weight = 'w', 'x'
+   |
+
+error: expected property name in object definition, but found "x"
+  --> e_dict1.hxn:15
+   |
+15 |     weight = 'w', 'x'
+   |
+
+error: property "noun" already defined in object
+  --> e_dict1.hxn:17
+   |
+17 | ;
+   |
+
+error: property "noun" is a dictionary property - not valid in templates
+  --> e_dict1.hxn:18
+   |
+18 | object template 'noun';
+   |
+
+error: empty template definition
+  --> e_dict1.hxn:19
+   |
+19 | object template 'name' @adjective;
+   |
+
+error: property "adjective" is a dictionary property - not valid in templates
+  --> e_dict1.hxn:19
+   |
+19 | object template 'name' @adjective;
+   |
+
+error: the object above ends without a ';'
+  --> e_dict1.hxn:21
+   |
+21 | d: object noun = 'x' + 'y';
+   |
+   = each object ends with ';', and the next starts here
+
+error: expected ':' after object name in object definition, but found ";"
+  --> e_dict1.hxn:21
+   |
+21 | d: object noun = 'x' + 'y';
+   |
+
+error: expected superclass name in object definition, but found ";"
+  --> e_dict1.hxn:21
+   |
+21 | d: object noun = 'x' + 'y';
+   |
+
+error: too many '+' signs in object definition - location not defined
+  --> e_dict1.hxn:21
+   |
+21 | d: object noun = 'x' + 'y';
+   |
+
+error: vocabulary property requires string value, but found "static"
+  --> e_dict1.hxn:22
+   |
+22 | e: object noun = static 'x';
+   |
+
+error: vocabulary property requires string value, but found "["
+  --> e_dict1.hxn:23
+   |
+23 | f: object noun = ['x', 'y'];
+   |
+
+error: expected property name in object definition, but found "z"
+  --> e_dict1.hxn:24
+   |
+24 | g: object noun = 'x' 'y' "z";
+   |
+
+error: object "gDict" is already defined - can't redefine as object
+  --> e_dict1.hxn:25
+   |
+25 | class gDict: object;
+   |
+
+error: objects of this type cannot be modified or replaced
+  --> e_dict1.hxn:26
+   |
+26 | modify gDict x = 1;
+   |
+
+error: objects of this type cannot be modified or replaced
+  --> e_dict1.hxn:27
+   |
+27 | replace gDict: object;
+   |
+--- output

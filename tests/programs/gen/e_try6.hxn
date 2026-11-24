@@ -1,0 +1,1 @@
+_main(args) { try { } catch (1 e) { } catch (A 2) { } catch (A) { } catch () { } }

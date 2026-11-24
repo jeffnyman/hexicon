@@ -1,0 +1,87 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+intrinsic class Object 'root-object/030004' { ofKind(cls); }
+intrinsic class Collection 'collection/030000': Object { createIterator(); createLiveIterator(); }
+intrinsic class List 'list/030008': Collection { length(); }
+
+class Base: object
+    name = 'base'
+    describe() { return 'I am ' + name; }
+;
+thing: Base
+    name = 'thing'
+    weight = 5
+    describe() { return inherited() + ', weight ' + weight; }
+;
+other: Base name = 'other';
+modify thing
+    weight = 7
+    color = 'red'
+    describe() { return inherited() + ', ' + color; }
+;
+object name = 'no name';
+modify thing
+    replace weight = 9
+    replace describe() { return 'replaced: ' + inherited(); }
+    size = static [weight]
+;
+modify Base
+    describe() { return '[' + inherited() + ']'; }
+    extra = 1
+;
+replace other: object name = 'replaced other' describe() { return name; };
+class Gone: object x = 1;
+replace class Gone: Base x = 2;
+aa: object v = 1;
+modify aa v = 2;
+modify aa { v = 3 w = 4 }
+replace aa: Base, Gone v = 5;
+modify aa v = 6;
+_main(args)
+{
+    print(thing.describe()); print(other.describe());
+    print(new Base().describe()); print(aa.v); print(thing.sourceTextOrder);
+    print(thing.ofKind(Base) ? 'y' : 'n'); print(Gone.x);
+}

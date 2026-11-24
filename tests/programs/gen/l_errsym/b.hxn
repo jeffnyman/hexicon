@@ -1,0 +1,5 @@
+#include <hexicon.h>
+g(x) { return x; }
+g(x) { return x; }
+o: object;
+o: object;

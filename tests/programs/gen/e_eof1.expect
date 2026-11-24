@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ')' after the "if" condition, but found "<End Of File>"
+  --> e_eof1.hxn:2
+
+error: unexpected end of file in code block - '}' missing
+  --> e_eof1.hxn:2
+--- output

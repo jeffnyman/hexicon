@@ -1,0 +1,1 @@
+_main(args) { a: args = 1; bb: cc: args = 2; { d: ; } }

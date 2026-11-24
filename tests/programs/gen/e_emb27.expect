@@ -1,0 +1,23 @@
+image: none
+--- messages
+error: "nosuch" is not defined anywhere
+  --> e_emb27.hxn:1
+  |
+1 | _main(args) { "<<nosuch>><<end>><<or>>"; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+
+error: "end" is not defined anywhere
+  --> e_emb27.hxn:1
+  |
+1 | _main(args) { "<<nosuch>><<end>><<or>>"; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+
+error: "or" is not defined anywhere
+  --> e_emb27.hxn:1
+  |
+1 | _main(args) { "<<nosuch>><<end>><<or>>"; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

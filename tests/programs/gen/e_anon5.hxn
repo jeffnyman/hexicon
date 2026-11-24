@@ -1,0 +1,25 @@
+_main(args)
+{
+    local a = {x: local, x };
+    local b = {x: local 1 };
+    local c = {x: local y = , x };
+    local d = {x: local y, local y, y };
+    local e = {x: local y = 1, };
+    local f = {x, x: x };
+    local g = {x: };
+    local h = { };
+    local i = {: };
+    local j = {x: x };;
+    local k = {x: return x; };
+    local l = function(x) { return x };
+    local m = function(x) { local x; return x; };
+    local n = method(x) { return self + x + targetprop; };
+    local o = function() { return self + targetobj; };
+    local p = {: self };
+    local q = {: inherited() };
+    local r = {: break };
+    local s = function() { continue; };
+    local t = {: args = 1, args };
+    return a;
+}
+

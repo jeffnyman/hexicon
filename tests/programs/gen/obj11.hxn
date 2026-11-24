@@ -1,0 +1,19 @@
+a: object
+    m(x)
+    {
+        local unused;
+        local n = 0;
+    again:
+        for (local i = 1 ; i <= x ; ++i)
+        {
+            try { if (i == limit) break again; n += step; }
+            finally { count++; }
+        }
+        switch (n) { case 1: return self; default: return n; }
+        n = 2;
+    }
+    limit = 10
+    step = 2
+    count = 0
+;
+_main(args) { return a.m(5); }

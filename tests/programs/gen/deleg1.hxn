@@ -1,0 +1,81 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+class A: object
+    name = 'A'
+    who() { return 'A.who as ' + name; }
+    add(a, b) { return name + (a + b); }
+    many([lst]) { return name + lst.length(); }
+;
+class B: object
+    name = 'B'
+    who() { return 'B.who as ' + name; }
+;
+c: object
+    name = 'c'
+    target = A
+    who() { return delegated A.who(); }
+    who2() { return delegated B.who; }
+    who3() { return delegated target.who(); }
+    who4() { return delegated (target).who(); }
+    who5(p) { return delegated A.(p)(); }
+    who6() { return delegated A(); }
+    add(a, b) { return delegated A(a, b) + delegated A.add(b, a); }
+    many([lst]) { return delegated A.many(lst...) + delegated A.(&many)(1, lst...); }
+    who7() { return delegated A.targetprop(); }
+    who8() { local f = {: delegated B.who() }; return f(); }
+    cnt(a?, b?, [r]) { return argcount; }
+    lst = [A, B]
+    who9() { return delegated lst[2].who(); }
+    who10() { return delegated self.target.who(); }
+    who11() { delegated A.who(); return delegated new B().who(); }
+;
+f(a?, b?) { return argcount + ({: argcount })(); }
+_main(args)
+{
+    print(c.who()); print(c.who2()); print(c.who3()); print(c.who4()); print(c.who5(&who)); print(c.who6()); print('\n');
+    print(c.add(1, 2)); print(c.many(1, 2, 3)); print(c.who7()); print(c.who8()); print(c.cnt()); print(c.cnt(1, 2, 3)); print('\n');
+    print(c.who9()); print(c.who10()); print(c.who11()); print(f(1)); print(argcount); print('\n');
+}

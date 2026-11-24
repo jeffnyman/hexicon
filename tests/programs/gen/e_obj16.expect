@@ -1,0 +1,94 @@
+image: none
+--- messages
+error: object "a" is already defined - can't redefine as object
+  --> e_obj16.hxn:2
+  |
+2 | class a: object;
+  |
+
+error: expected ':' after object name in object definition, but found "("
+  --> e_obj16.hxn:3
+  |
+3 | class f() { }
+  |
+
+error: expected superclass name in object definition, but found "("
+  --> e_obj16.hxn:3
+  |
+3 | class f() { }
+  |
+
+error: expected property name in object definition, but found "("
+  --> e_obj16.hxn:3
+  |
+3 | class f() { }
+  |
+
+error: expected property name in object definition, but found ")"
+  --> e_obj16.hxn:3
+  |
+3 | class f() { }
+  |
+
+error: expected property name in object definition, but found "{"
+  --> e_obj16.hxn:3
+  |
+3 | class f() { }
+  |
+
+error: expected property name in object definition, but found "}"
+  --> e_obj16.hxn:3
+  |
+3 | class f() { }
+  |
+
+error: the object above ends without a ';'
+  --> e_obj16.hxn:3
+  |
+3 | class f() { }
+4 | class 1;
+  |
+  = each object ends with ';', and the next starts here
+
+error: expected ':' after object name in object definition, but found ";"
+  --> e_obj16.hxn:4
+  |
+4 | class 1;
+  |
+
+error: expected superclass name in object definition, but found ";"
+  --> e_obj16.hxn:4
+  |
+4 | class 1;
+  |
+
+error: expected ':' after object name in object definition, but found "_main"
+  --> e_obj16.hxn:6
+  |
+6 | _main(args) { }
+  |
+
+error: expected property name in object definition, but found "("
+  --> e_obj16.hxn:6
+  |
+6 | _main(args) { }
+  |
+
+error: expected property value or method after property name "args", but found ")"
+  --> e_obj16.hxn:6
+  |
+6 | _main(args) { }
+  |
+
+error: expected property name in object definition, but found "{"
+  --> e_obj16.hxn:6
+  |
+6 | _main(args) { }
+  |
+
+error: expected property name in object definition, but found "}"
+  --> e_obj16.hxn:6
+  |
+6 | _main(args) { }
+  |
+--- output

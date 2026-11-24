@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: a double-quoted string (" end") is not valid within an expression
+  --> a.hxn:2
+  |
+2 | f() { return ['same', 'only a', 'same', 'a string that is long enough not to be shared with others', "dq <<g()>> end"]; }
+  |
+--- output

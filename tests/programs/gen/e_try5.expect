@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: missing '(' after "catch" - found "NoSuch"
+  --> e_try5.hxn:1
+  |
+1 | _main(args) { try { } catch NoSuch e) { } }
+  |
+--- output

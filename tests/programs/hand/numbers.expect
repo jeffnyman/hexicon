@@ -1,0 +1,31 @@
+image: aa5bff1be151e60da5dcbfb8a8e76e347125ecdf61826051c917ea779740d16e
+--- messages
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> numbers.hxn:36
+   |
+36 |     line(2147483647 + 1);
+   |
+
+warning: constant value exceeds integer range; promoted to BigNumber
+  --> numbers.hxn:37
+   |
+37 |     line(0x100000000);
+   |
+--- output
+3.75
+1.5
+1000
+less
+half is 0.5
+2147483648
+4294967296
+1
+3.75
+.375
+377.5
+5
+1
+1.5
+2
+9
+one two three

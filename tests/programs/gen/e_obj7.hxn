@@ -1,0 +1,7 @@
+a: object
+    x = 1
+    m() { return 1 }
+    n = { return 2; }
+    y = 2
+;
+_main(args) { }

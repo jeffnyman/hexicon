@@ -1,0 +1,31 @@
+image: 82c2be178fad9414bdc731ebd6a245b341e7169c5a2dbdcc267de319113ef1c9
+--- messages
+warning: "q" is given a value here, but nothing reads it
+  --> param3.hxn:50
+   |
+50 |     q() { return self.m(1, 2, d: 4); }
+   |
+   = did you mean "m"?
+
+warning: "r" is given a value here, but nothing reads it
+  --> param3.hxn:51
+   |
+51 |     r(pp) { return self.(pp)(1, d: 4) + inherited.m(2, c: 1) + inherited(c: 2); }
+   |
+   = did you mean "m"?
+
+warning: "s" is given a value here, but nothing reads it
+  --> param3.hxn:52
+   |
+52 |     s(pp) { return obj.(pp)(d: 4) + other.m(c: 1) + inherited other.m(d: 2) + name(d: 1); }
+   |
+   = did you mean "m"?
+
+warning: "t" is given a value here, but nothing reads it
+  --> param3.hxn:53
+   |
+53 |     t(pp) { return pp.name(d: 4) + pp.(pp)(c: 1) + inherited.(pp)(d: 2) + self.(pp)(d: 1); }
+   |
+   = did you mean "m"?
+--- output
+Unhandled exception: wrong number of arguments

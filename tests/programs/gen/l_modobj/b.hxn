@@ -1,0 +1,5 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun;
+modify o replace x = 5 z = 3 noun = 'new' m() { return inherited() + 1; };
+h() { return o.z; }

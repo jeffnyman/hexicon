@@ -1,0 +1,2 @@
+string template <<q>> _main;
+_main(args) { }

@@ -1,0 +1,18 @@
+intrinsic 'hexicon-io/030007' { print(val, ...); }
+f(a?) { }
+k(x)
+{
+    x++;
+    return x;
+}
+g(a:) { }
+obj: object
+  m(a?) { }
+  p = (nosuch1 + 1)
+  n(b: = 3) {
+     print(1);
+  }
+  q(b?) { }
+;
+h(c?) { }
+_main(args) { f(); g(a: 1); }

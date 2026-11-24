@@ -1,0 +1,2 @@
+string template <<* in words>> spell;
+_main(args) { "<<args in words>>"; }

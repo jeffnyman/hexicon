@@ -1,0 +1,19 @@
++ a: object;
++ property;
++ property 5;
++ property 6
++ property f;
+f() { }
++ b: object;
++ property loc;
+x: object;
++++ y: object;
++ 5;
+++ property loc;
++ class;
++ transient class C2: object;
++ modify x;
++ c: object
++ d: object;
+_main(args) { }
+

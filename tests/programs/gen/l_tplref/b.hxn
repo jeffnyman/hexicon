@@ -1,0 +1,6 @@
+#include <hexicon.h>
+object template 'name';
+Cls0 template 'name' @loc;
+class Cls0: object;
+class Other: object;
+second: Cls0 'second' @first;

@@ -1,0 +1,19 @@
+intrinsic class Object 'root-object/030004'
+{
+    ofKind(cls);
+    getSuperclassList();
+    propDefined(prop, flags?);
+}
+intrinsic class Collection 'collection/030000': Object
+{
+    createIterator();
+    createLiveIterator();
+}
+intrinsic class List 'list/030008': Collection
+{
+    subset(func);
+    mapAll(func);
+    length();
+    static generate(func, n);
+}
+_main(args) { return args.length() + [1, 2].length(); }

@@ -1,0 +1,3 @@
+#include <hexicon.h>
+replace gone: object x = 1;
+_main(args) { return gone.x; }

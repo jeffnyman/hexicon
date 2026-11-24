@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: misplaced "case" keyword - not in a "switch" statement
+  --> e_sw10.hxn:1
+  |
+1 | _main(args) { case 1: ; default: ; case 2 }
+  |
+
+error: misplaced "default" keyword - not in a "switch" statement
+  --> e_sw10.hxn:1
+  |
+1 | _main(args) { case 1: ; default: ; case 2 }
+  |
+--- output

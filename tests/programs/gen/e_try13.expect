@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "A" is not defined anywhere
+  --> e_try13.hxn:1
+  |
+1 | _main(args) { try { } catch (A e) x: { goto x; } finally { goto x; } }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

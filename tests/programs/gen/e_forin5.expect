@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: missing ')' at end of "foreach" expression - found "<End Of File>"
+  --> e_forin5.hxn:5
+
+error: unexpected end of file in code block - '}' missing
+  --> e_forin5.hxn:5
+--- output

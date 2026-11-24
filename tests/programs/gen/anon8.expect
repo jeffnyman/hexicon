@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: expected ';' or expression after "return", but found "{"
+  --> anon8.hxn:12
+   |
+12 |                 return {: a + b + c + x + y + z };
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> anon8.hxn:12
+   |
+12 |                 return {: a + b + c + x + y + z };
+   |
+
+error: expected ';', but found "}"
+  --> anon8.hxn:12
+   |
+12 |                 return {: a + b + c + x + y + z };
+   |
+--- output

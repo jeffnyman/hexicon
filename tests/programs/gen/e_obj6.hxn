@@ -1,0 +1,5 @@
+a: Nosuch x = 1;
+f() { }
+b: f;
+c: a, Nosuch2, f;
+_main(args) { }

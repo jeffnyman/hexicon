@@ -1,0 +1,8 @@
+#include <hexicon.h>
+class Thing: object;
+class Box: Thing;
+put(Thing a, Box b) { return 1; }
+put(Box a, b) { return inherited(a, b); }
+_main(args) { return [put(Thing, Box), show(Thing), show];  }
+_multiMethodRegister(base, func, params) { }
+_multiMethodBuildBindings() { }

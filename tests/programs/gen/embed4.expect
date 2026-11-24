@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "if"
+  --> embed4.hxn:14
+   |
+14 |     "<<%x args, 2>><<%d if>><<if args>><<%d args>><<end>>";
+   |
+--- output

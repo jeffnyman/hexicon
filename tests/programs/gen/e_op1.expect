@@ -1,0 +1,225 @@
+image: none
+--- messages
+error: wrong number of parameters defined for overloaded operator (1 required)
+  --> e_op1.hxn:3
+  |
+3 |     operator -(a, b) { }
+  |
+
+error: wrong number of parameters defined for overloaded operator (1 required)
+  --> e_op1.hxn:4
+  |
+4 |     operator negate(a) { }
+  |
+
+error: wrong number of parameters defined for overloaded operator (0 required)
+  --> e_op1.hxn:5
+  |
+5 |     operator ~(a) { }
+  |
+
+error: wrong number of parameters defined for overloaded operator (0 required)
+  --> e_op1.hxn:6
+  |
+6 |     operator [](a, b) { }
+  |
+
+error: wrong number of parameters defined for overloaded operator (1 required)
+  --> e_op1.hxn:7
+  |
+7 |     operator []=(a) { }
+  |
+
+error: wrong number of parameters defined for overloaded operator (2 required)
+  --> e_op1.hxn:8
+  |
+8 |     operator *(a, ...) { }
+  |
+
+error: wrong number of parameters defined for overloaded operator (1 required)
+  --> e_op1.hxn:9
+  |
+9 |     operator /([a]) { }
+  |
+
+error: wrong number of parameters defined for overloaded operator (1 required)
+  --> e_op1.hxn:10
+   |
+10 |     operator %(a?) { }
+   |
+
+error: wrong number of parameters defined for overloaded operator (1 required)
+  --> e_op1.hxn:11
+   |
+11 |     operator foo(a) { }
+   |
+
+error: invalid overloaded operator 'foo'
+  --> e_op1.hxn:11
+   |
+11 |     operator foo(a) { }
+   |
+
+error: invalid overloaded operator '='
+  --> e_op1.hxn:12
+   |
+12 |     operator = 5
+   |
+
+error: '=' required between property name and value - found "5"
+  --> e_op1.hxn:12
+   |
+12 |     operator = 5
+   |
+
+error: property "unknown_operator" already defined in object
+  --> e_op1.hxn:13
+   |
+13 |     operator ==(a) { }
+   |
+
+error: invalid overloaded operator '=='
+  --> e_op1.hxn:13
+   |
+13 |     operator ==(a) { }
+   |
+
+error: property "unknown_operator" already defined in object
+  --> e_op1.hxn:14
+   |
+14 |     operator [ = 5
+   |
+
+error: expected ']' in 'operator []', found '='
+  --> e_op1.hxn:14
+   |
+14 |     operator [ = 5
+   |
+
+error: '=' required between property name and value - found "5"
+  --> e_op1.hxn:14
+   |
+14 |     operator [ = 5
+   |
+
+error: property "operator []" already defined in object
+  --> e_op1.hxn:15
+   |
+15 |     operator [5] = 6
+   |
+
+error: expected ']' in 'operator []', found '5'
+  --> e_op1.hxn:15
+   |
+15 |     operator [5] = 6
+   |
+
+error: expected property value or method after property name "operator []", but found "]"
+  --> e_op1.hxn:15
+   |
+15 |     operator [5] = 6
+   |
+
+error: expected property name in object definition, but found "="
+  --> e_op1.hxn:15
+   |
+15 |     operator [5] = 6
+   |
+
+error: expected property name in object definition, but found "6"
+  --> e_op1.hxn:15
+   |
+15 |     operator [5] = 6
+   |
+
+error: property "operator +" already defined in object
+  --> e_op1.hxn:17
+   |
+17 |     operator + = 2
+   |
+
+error: property "operator +" already defined in object
+  --> e_op1.hxn:18
+   |
+18 |     propertyset 'x*' { operator -(a) { } operator <<(b) { } }
+   |
+
+error: an 'operator' property cannot be defined within a 'propertyset'
+  --> e_op1.hxn:18
+   |
+18 |     propertyset 'x*' { operator -(a) { } operator <<(b) { } }
+   |
+
+error: property "operator -" already defined in object
+  --> e_op1.hxn:18
+   |
+18 |     propertyset 'x*' { operator -(a) { } operator <<(b) { } }
+   |
+
+error: invalid overloaded operator ';'
+  --> e_op1.hxn:20
+   |
+20 | ;
+   |
+
+error: '=' required between property name and value - found "_main"
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: property "unknown_operator" already defined in object
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: expected property name in object definition, but found "{"
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: expected property name in object definition, but found "local"
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: invalid overloaded operator ','
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: invalid overloaded operator 'foo'
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: expected property value or method after property name "foo", but found ","
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: invalid overloaded operator '=='
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: expected an operand, but found ";"
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+
+error: "}" cannot start anything here
+  --> e_op1.hxn:21
+   |
+21 | _main(args) { local x = &operator, y = &operator foo, z = &operator ==; }
+   |
+   = what is expected is a function, an object, or a class
+--- output

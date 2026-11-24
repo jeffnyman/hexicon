@@ -1,0 +1,65 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+replace a: object;
+modify b x = 1;
+c: object;
+c: object;
+d: object replace x = 1;
+e: object;
+modify e replace x = 1 replace 5 = 2;
+modify 5 x = 1;
+g: object;
+replace g x = 1;
+h: object;
+modify h: object x = 1;
+enum i;
+modify i x = 1;
+j: object p = 1;
+modify j p = 2 p = 3;
+k: object x = static f() y = 1 z() { };
+f() { }
+modify k replace x = 2 replace z = 3 replace q = 4;
+_main(args) { }

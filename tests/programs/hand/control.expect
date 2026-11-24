@@ -1,0 +1,9 @@
+image: f2ad6342acb63bb56b18474c79cfc4ef6caf9ebcea972104cd16c3bdac7a5a56
+--- messages
+--- output
+one, two or three, the word four, nil, a list, something else.
+Counted to 12.
+Pairs: 9.
+in out early
+in through out late
+Loops: 24.

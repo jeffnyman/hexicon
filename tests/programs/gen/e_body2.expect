@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected '{' at start of method code body, but found ";"
+  --> e_body2.hxn:1
+  |
+1 | f(); _main(args) { }
+  |
+--- output

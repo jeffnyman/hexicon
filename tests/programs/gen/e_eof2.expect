@@ -1,0 +1,11 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+  --> e_eof2.hxn:2
+
+error: expected ',' or ')' in argument list, but found "<End Of File>"
+  --> e_eof2.hxn:2
+
+error: expected ';', but found "<end of file>"
+  --> e_eof2.hxn:2
+--- output

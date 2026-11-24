@@ -1,0 +1,8 @@
+class Match: object;
+grammar np(a): missing->m_ : Match;
+grammar vp(x): 'x' : Match;
+_main(args) { local x = new np; x = np.foo; np = 3; return vp(1); }
+modify np y = 1;
+replace vp: object;
+class vp(x): Match;
+

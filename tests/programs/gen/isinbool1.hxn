@@ -1,0 +1,5 @@
+#include <hexicon.h>
+f(x, y) { return x && y is in (1, 2); }
+g(x, y) { return x not in (3, 4) || y; }
+h(x, y) { return (x is in (1)) && (y not in (2)); }
+_main(args) { return [f(1, 2), g(3, 4), h(1, 2)]; }

@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: index value out of range in constant list index expression
+  --> e_list5.hxn:1
+  |
+1 | _main(args) { return [1, 2][3]; }
+  |
+--- output

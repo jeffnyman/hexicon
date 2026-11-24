@@ -1,0 +1,1 @@
+_main(args) { foreach (local x in args) ; for (local i in args) ; }

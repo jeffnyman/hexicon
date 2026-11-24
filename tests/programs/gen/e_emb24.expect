@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected an operand, but found ">> ""
+  --> e_emb24.hxn:4
+  |
+4 | >>
+  |
+
+error: expected '>>' and the string continuation, but found "args"
+  --> e_emb24.hxn:6
+  |
+6 | <<args args>>
+  |
+--- output

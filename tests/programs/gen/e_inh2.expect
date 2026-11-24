@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected property name or parenthesized expression after '.', found ";"
+  --> e_inh2.hxn:2
+  |
+2 | a: object m() { inherited f.x; inherited nosuch.x(1); return inherited.; };
+  |
+
+error: expected ';', but found "}"
+  --> e_inh2.hxn:2
+  |
+2 | a: object m() { inherited f.x; inherited nosuch.x(1); return inherited.; };
+  |
+--- output

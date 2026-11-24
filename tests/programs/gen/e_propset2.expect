@@ -1,0 +1,29 @@
+image: none
+--- messages
+error: 'propertyset' nesting is too deep
+  --> e_propset2.hxn:3
+  |
+3 |   propertyset 'g*' { propertyset 'h*' { propertyset 'i*' { propertyset 'j*' { propertyset 'k*' { propertyset 'l*' {
+  |
+
+error: expanded property name in propertyset is too long
+  --> e_propset2.hxn:6
+  |
+6 |   propertyset 'abcdefghijklmnopqrstuvwxyz*abcdefghijklmnopqrstuvwxyz' { propertyset 'abcdefghijklmnopqrstuvwxyz*' { long = 1 } }
+  |
+
+error: expected property value or method after property name "qh", but found "}"
+  --> e_propset2.hxn:7
+  |
+7 |   propertyset 'q*' { f: object { } g: a { } h }
+  |
+
+error: property "qf" already defined in object
+  --> e_propset2.hxn:10
+   |
+10 | _main(args) { }
+   |
+
+error: expected property name in object definition, but found ""
+  --> e_propset2.hxn:12
+--- output

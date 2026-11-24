@@ -1,0 +1,10 @@
+image: 0ae36f99c9cfb304437175294500b5771e63444aa762d80c9893f0eba00b54f0
+--- messages
+--- output
+Counting: 10, 11, 100, 12, 101.
+Deposit: 75. Withdraw: 15. Too much: refused.
+Adding: 6. Squares to four: 30; times 3: 30.
+From the loop: 34 34 34.
+the box, a pebble. box is now 5; box is now 10. Doubled: 20.
+I am the box.
+Sorted: 1 3 5 8; backwards: 8 5 3 1. Big ones: 3 5 8; doubled: 2 6 10 16.

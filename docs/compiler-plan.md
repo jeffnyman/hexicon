@@ -94,6 +94,8 @@ tools/
   compile-tests/          programs for compile-compare.sh, and the generator of random ones;
                           suite-compare.sh builds the test suite's programs with both compilers,
                           and game-compare.sh the games, each from its project file
+  program-check.py        checks Hexicon against tests/programs, the compile tests converted to
+                          Hexicon with what they print, recorded once against the reference
 ```
 
 The compiler reads files through a small interface the caller supplies, as the VM reaches the outside through its host. That keeps it usable inside the VM, in a browser, and in tests.

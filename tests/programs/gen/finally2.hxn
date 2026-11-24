@@ -1,0 +1,42 @@
+a(x)
+{
+    try { if (x) goto out; x = 1; inside: x = 2; goto inside; } finally { x = 3; }
+out:
+    return x;
+}
+b(x)
+{
+    try { try { goto out; } finally { x = 1; } } finally { x = 2; }
+out:
+    try { goto out; } finally { x = 3; }
+}
+c(x)
+{
+    try { x = 1; } finally { here: x = 2; if (x) goto here; }
+    goto in;
+    try { in: x = 4; } finally { x = 5; }
+    return x;
+}
+d(x)
+{
+lbl:
+    while (x)
+    {
+        try { try { if (x == 1) break lbl; if (x == 2) continue lbl; if (x == 3) goto lbl; }
+              finally { x = 1; } }
+        finally { x = 2; }
+    }
+    return x;
+}
+e(x)
+{
+    switch (x)
+    {
+    case 1:
+        try { break; } finally { x = 2; }
+    case 2:
+        try { return x; } finally { x = 3; }
+    }
+    return x;
+}
+_main(args) { return a(1) + b(1) + c(1) + d(1) + e(1); }

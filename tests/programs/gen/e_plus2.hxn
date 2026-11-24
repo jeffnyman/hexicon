@@ -1,0 +1,11 @@
++ property loc;
+x: object;
++ replace x: object;
+++ function g() { }
++ x: object;
++ x 'a';
++ +;
++ property loc, loc2;
++ y: object + z: object;
+_main(args) { }
+

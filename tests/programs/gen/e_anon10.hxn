@@ -1,0 +1,12 @@
+_main(args)
+{
+    local a = 1;
+    lbl:
+    local f = function() { goto lbl; };
+    local g = function() { lbl2: return 1; };
+    local h = function() { lbl: a++; if (a < 5) goto lbl; };
+    try { local i = {: a }; i(); } finally { local j = function() { return a; }; j(); }
+    goto lbl2;
+    return f + g + h;
+}
+

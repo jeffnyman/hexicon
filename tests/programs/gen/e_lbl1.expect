@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: code label "a" already defined in this function or method
+  --> e_lbl1.hxn:1
+  |
+1 | _main(args) { a: args = 1; a: args = 2; a: ; goto a; }
+  |
+--- output

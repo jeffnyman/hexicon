@@ -1,0 +1,4 @@
+class Thing: object;
+d(Thing x) { return 1; }
+_main(args) { return d; }
+

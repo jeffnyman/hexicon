@@ -1,0 +1,5 @@
+image: none
+--- messages
+error: grammar production "missing" has no alternatives defined
+error: grammar production "other" has no alternatives defined
+--- output

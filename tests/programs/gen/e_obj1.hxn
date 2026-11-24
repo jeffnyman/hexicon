@@ -1,0 +1,13 @@
+a: object
+    x = 1
+    x = 2
+    y = 3
+    sourceTextOrder = 9
+;
+a: object;
+f() { }
+f: object;
+g: object z = 1;
+g() { }
+_main: object;
+_main(args) { }

@@ -1,0 +1,74 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+counter: object n = 0 next() { return ++n; };
+a: object
+    p1 = static counter.next()
+    p2 = static [1, 2, 3]
+    p3 = static (counter.next() + p1)
+    p4 = static 'const'
+    p5 = static "dstr"
+    p6 = static nosuchprop
+    p7 = (counter.next())
+    m() { return p1; }
+;
+f() { return 1; }
+class B: object
+    q1 = static [counter.next(), f(), self]
+    q2 = static print('init q2')
+    q3 = static {: counter.next() }
+    q4 = static {: self }
+    q5 = static (new B())
+    q6 = static (targetprop)
+    q7 = static
+        [1,
+         f()]
+;
+b2: B q1 = static 7 + f();
+_main(args)
+{
+    print(a.p1); print(a.p1); print(a.p3); print(a.p7); print(a.p7);
+    print(B.q1.length()); print(b2.q1); print(a.p6 == nil ? 'nil' : 'x');
+}

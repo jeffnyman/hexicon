@@ -1,0 +1,38 @@
+class Exception: object;
+a: object
+    v = 3
+    m(p)
+    {
+        local f = {x: x + v + p};
+        local g = method(x) { return x + v + self.v; };
+        local h = function() { return self; };
+        return f(1) + g(2) + h();
+    }
+    k() { return ({: targetprop }); }
+    k2() { return ({: {: definingobj } }); }
+    k3(q) { return ({: {: q + v } }); }
+    k4() { return ({: inherited() }); }
+    k5() { return method() { return {: self }; }; }
+    k6() { return {: "str" }; }
+    k7() { local z = 1; return method() { return z; }; }
+    k8() { return method() { return {: targetobj }; }; }
+    p1 = {: v }
+    p2 = {: 1 }
+    p3 = ({x: x + v} (2))
+    p4 = [{: self }, {: targetprop }]
+    p5 = method() { return v; }
+    p6 = {: "hello" }
+;
+b: object
+    q1 = {: 2 }
+    m1() { return {: targetprop }; }
+    q2 = {: self }
+    m2() { return 1; }
+    q3 = {: self }
+;
+f1() { return {: nosuch }; }
+f2() { return {: self }; }
+_main(args)
+{
+    return a.m(1);
+}

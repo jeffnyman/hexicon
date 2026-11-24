@@ -1,0 +1,7 @@
+class Thing: object;
+a(Thing x) { return inherited(x); }
+b(Thing x) { return inherited<Thing, Thing>(x); }
+c(x) { return inherited<Thing>(x); }
+d(Nope x) { return 1; }
+_main(args) { return [a(1), b(2), c(3), d(4)]; }
+

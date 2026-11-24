@@ -1,0 +1,44 @@
+image: none
+--- messages
+error: function "f" has an incompatible previous declaration
+  --> e_modify1.hxn:47
+   |
+47 | replace f(x) { }
+   |
+
+error: function "g" has an incompatible previous declaration
+  --> e_modify1.hxn:49
+   |
+49 | modify g(x) { }
+   |
+
+error: expected "function" or object name after "replace", but found ";"
+  --> e_modify1.hxn:52
+   |
+52 | replace ;
+   |
+
+error: expected "function" or object name after "replace", but found "5"
+  --> e_modify1.hxn:53
+   |
+53 | replace 5;
+   |
+
+error: "b" is already the name of something else, so it cannot also name a function
+  --> e_modify1.hxn:55
+   |
+55 | replace b() { }
+   |
+
+error: "b" is already the name of something else, so it cannot also name a function
+  --> e_modify1.hxn:56
+   |
+56 | modify b() { }
+   |
+
+error: "m" is already the name of something else, so it cannot also name an object
+  --> e_modify1.hxn:58
+   |
+58 | replace m: object;
+   |
+--- output

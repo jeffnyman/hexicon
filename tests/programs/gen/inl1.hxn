@@ -1,0 +1,44 @@
+#include <general.h>
+#include <hexicon.h>
+class Thing: object name = 'thing' describe() { return 'a ' + name; };
+make(label, n)
+{
+    local count = 0;
+    return object: Thing {
+        name = label
+        size = n * 2
+        fixed = 7
+        text = 'const'
+        desc = "I am <<name>>. "
+        bump() { return ++count; }
+        twice(x) { return x * 2 + n; }
+        made = static (count + 100)
+        part: Thing { name = 'part of ' + label }
+        construct() { count = 10; }
+    };
+}
+other: object
+    m()
+    {
+        local o = object { v = self.w  f() { return self; } };
+        return o;
+    }
+    w = 5
+;
+say(v) { print(v); }
+_main(args)
+{
+    setSay(say);
+    local a = make('box', 3), b = make('jar', 4);
+    say(a.describe()); say(' '); say(a.size); say(' '); say(a.fixed); say(a.text); say(' '); a.desc;
+    say(a.bump()); say(a.bump()); say(b.bump()); say(' '); say(a.twice(5)); say(' '); say(a.made); say(' ');
+    say(a.part.name); say(' '); say(a.part.lexicalParent == nil ? 'nil' : 'obj'); say('\n');
+    local o = other.m(); say(o.v); say(o.f() == o ? ' same' : ' other'); say(o.ofKind(Thing) ? ' thing' : ' plain');
+    local e = object { };
+    say(e.ofKind(ProgramObject) ? ' obj' : ' ?');
+    say(defined(Thing) ? ' def' : ' undef'); say(defined(nope) ? ' def' : ' undef'); say(defined(make) ? ' def' : ' undef');
+    say(__objref(Thing) == Thing ? ' ref' : ' noref'); say(__objref(nope) == nil ? ' nil' : ' ?');
+    say(__objref(make, warn) == nil ? ' nil' : ' ?'); say(__objref(nope2, warn) == nil ? ' nil' : ' ?');
+    if (defined(nope)) say('never');
+    say('\n');
+}

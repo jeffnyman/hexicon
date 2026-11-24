@@ -1,0 +1,4 @@
+image: none
+--- messages
+error: function _main() is not defined
+--- output

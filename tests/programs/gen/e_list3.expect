@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: extra list element expected after comma, but found end of list
+  --> e_list3.hxn:1
+  |
+1 | _main(args) { return [1, ]; }
+  |
+
+error: unexpected ']' found - ignored
+  --> e_list3.hxn:1
+  |
+1 | _main(args) { return [1, ]; }
+  |
+--- output

@@ -1,0 +1,32 @@
+image: 11cdd6c84b9fc27964d1b16f0d86fb690702d2549b8a396653d4024b5e521a2b
+--- messages
+warning: code has "return" with value but also falls off end
+  --> forin2.hxn:6
+  |
+6 | {
+  |
+
+warning: code has "return" with value but also falls off end
+  --> forin2.hxn:19
+   |
+19 | {
+   |
+
+warning: code has "return" with value but also falls off end
+  --> forin2.hxn:24
+   |
+24 | {
+   |
+
+warning: "i" is given a value that is never used
+  --> forin2.hxn:14
+   |
+14 |     for (local i in lst) { }
+   |
+
+warning: "x" is given a value that is never used
+  --> forin2.hxn:15
+   |
+15 |     foreach (local x in lst) { return 1; }
+   |
+--- output

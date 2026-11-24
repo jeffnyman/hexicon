@@ -1,0 +1,14 @@
+image: b2a66c98c047d79c9fb9795227d17f4bd6197ae2091a4e267245a64c7c9b4e4f
+--- messages
+--- output
+apple: 2
+18
+true
+beans (tinned) *
+on sale: apple (fresh) *, rice (dried) *, beans (tinned) *
+4
+true
+true
+nil
+3
+true

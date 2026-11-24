@@ -1,0 +1,9 @@
+image: 32aeac67afcc269aa267a40f9b91977d55ec8bdffc406117198e81dca8ace5e9
+--- messages
+warning: unreachable statement
+  --> w_throw1.hxn:1
+  |
+1 | _main(args) { throw args; args = 1; }
+  |
+--- output
+unhandled exception

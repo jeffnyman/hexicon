@@ -1,0 +1,20 @@
+image: 3fb6ea19e2e541750cbdf55062c18295769c85d17010eb17e949e90f6e260cef
+--- messages
+warning: unreachable statement
+  --> labels.hxn:10
+   |
+10 |     n = 1000;
+   |
+
+warning: label "never" is not referenced
+  --> labels.hxn:100
+    |
+100 | never:
+    |
+
+warning: label "also_never" is not referenced
+  --> labels.hxn:102
+    |
+102 | also_never:
+    |
+--- output

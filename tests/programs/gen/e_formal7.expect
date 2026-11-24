@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ']' after variable-argument list parameter, but found ")"
+  --> e_formal7.hxn:1
+  |
+1 | f([a) { } _main(args) { }
+  |
+--- output

@@ -1,0 +1,17 @@
+#include <general.h>
+#include <hexicon.h>
+class Thing: object;
+class Box: Thing;
+_multiMethodRegister(base, func, [types]) { print('reg '); print(types.length()); print('\n'); }
+_multiMethodBuildBindings() { print('build\n'); }
+_multiMethodCall(base, args) { print('call '); print(args.length()); return 7; }
+_multiMethodCallInherited(from, [args]) { return 8; }
+put(Thing a, Box b) { return 1; }
+put(Box a, b) { return inherited(a, b); }
+put(a, String s, ...) { return inherited<Thing, Box>(a, s); }
+show(x) multimethod { return 0; }
+show(Thing x) { return 2; }
+_main(args)
+{
+    print(put(Thing, Box)); print(show(1)); local f = put; print(f(1, 2, 3)); print('\n');
+}

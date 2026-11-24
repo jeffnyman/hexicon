@@ -1,0 +1,4 @@
+f(x) { unused: if (nil) { b: x = 1; } if (x) goto b; local q; }
+g(x) { if (nil) { c: while (x) { if (x) break; x = 2; } } other: goto c; }
+h(x) { try { if (nil) { d: x = 1; } } finally { x = 2; } goto d; }
+_main(args) { return f(args) + g(args) + h(args) + nosuch; }

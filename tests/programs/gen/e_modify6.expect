@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: function "f" is already defined
+  --> e_modify6.hxn:2
+  |
+2 | f() { }
+  |
+
+error: object "a" is already defined - can't redefine as object
+  --> e_modify6.hxn:4
+  |
+4 | a: object;
+  |
+--- output

@@ -1,0 +1,1 @@
+f() { } _main(args) { try { } catch (f e) { } catch (_main e) { } }

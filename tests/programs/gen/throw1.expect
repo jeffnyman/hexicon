@@ -1,0 +1,14 @@
+image: none
+--- messages
+warning: unreachable statement
+  --> throw1.hxn:2
+  |
+2 | g(x) { throw 'text'; x = 1; }
+  |
+
+error: a double-quoted string ("text") is not valid within an expression
+  --> throw1.hxn:4
+  |
+4 | i(x) { throw "text"; }
+  |
+--- output

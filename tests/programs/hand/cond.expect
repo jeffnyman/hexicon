@@ -1,0 +1,15 @@
+image: 32b077f53b84ead72d85a20f9df5dfebef44dcc2574e101b66d27e86e106036b
+--- messages
+warning: "if" condition is always false
+  --> cond.hxn:42
+   |
+42 |     if (nil) x = 2; else x = 3;
+   |
+
+warning: "if" condition is always false
+  --> cond.hxn:43
+   |
+43 |     if (1 > 2) x = 4;
+   |
+--- output
+Unhandled exception: numeric value required

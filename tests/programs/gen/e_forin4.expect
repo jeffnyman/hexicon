@@ -1,0 +1,33 @@
+image: none
+--- messages
+error: "x" is not defined anywhere
+  --> e_forin4.hxn:4
+  |
+4 | _main(args) { foreach (local x in args) { local y = x; } return x; }
+  |
+  = did you mean "f"?
+
+error: illegal expression - left of '.' is not an object
+  --> e_forin4.hxn:5
+  |
+5 | f() { foreach (local a in 1) break; continue; }
+  |
+
+error: invalid "continue" - not in a for/while/do
+  --> e_forin4.hxn:5
+  |
+5 | f() { foreach (local a in 1) break; continue; }
+  |
+
+warning: "y" is given a value that is never used
+  --> e_forin4.hxn:4
+  |
+4 | _main(args) { foreach (local x in args) { local y = x; } return x; }
+  |
+
+warning: "a" is given a value that is never used
+  --> e_forin4.hxn:5
+  |
+5 | f() { foreach (local a in 1) break; continue; }
+  |
+--- output

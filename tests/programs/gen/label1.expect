@@ -1,0 +1,9 @@
+image: 66d4ac9517dd88f2cb1073a48f24da42ff822061b8287a7547b90154a7cd4101
+--- messages
+warning: label "e" is not referenced
+  --> label1.hxn:20
+   |
+20 | e:  x = 1;
+   |
+--- output
+(not run: it does not finish)

@@ -1,0 +1,1 @@
+_main(args) { local y = ("<<args>>b", 1); local z = args ? "a<<1>>" : "b"; }

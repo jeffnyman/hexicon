@@ -1,0 +1,11 @@
+a: object x = 1;
+b: object x = 2;
+_main(args)
+{
+    local l = [a, b, a.x];
+    if (a == b) return 1;
+    if (a == a) return 2;
+    if (a != nil) return [a] + b;
+    switch (args) { case a: return 3; case b: return 4; }
+    return a + 1 + l + (a - 1) + 'x' + a + (a ? 1 : 2) + (a && b) + !a;
+}

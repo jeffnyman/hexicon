@@ -1,0 +1,3 @@
+f() { }
+a: object m() { inherited f.x; inherited nosuch.x(1); return inherited.; };
+_main(args) { }

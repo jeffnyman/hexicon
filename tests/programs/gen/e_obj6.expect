@@ -1,0 +1,28 @@
+image: none
+--- messages
+error: "Nosuch" is not defined anywhere
+  --> e_obj6.hxn:1
+  |
+1 | a: Nosuch x = 1;
+  |
+  = "a" is given it as a class; check how it is spelled, and that the file that defines it is among the sources
+
+error: invalid superclass "f" - not an object
+  --> e_obj6.hxn:3
+  |
+3 | b: f;
+  |
+
+error: "Nosuch2" is not defined anywhere
+  --> e_obj6.hxn:4
+  |
+4 | c: a, Nosuch2, f;
+  |
+  = "c" is given it as a class; check how it is spelled, and that the file that defines it is among the sources
+
+error: invalid superclass "f" - not an object
+  --> e_obj6.hxn:4
+  |
+4 | c: a, Nosuch2, f;
+  |
+--- output

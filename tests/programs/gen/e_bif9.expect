@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: "f" is already the name of something else, so it cannot also name a function
+  --> e_bif9.hxn:1
+  |
+1 | intrinsic 'x' { f(); } f() { } _main(args) { return f(); }
+  |
+--- output

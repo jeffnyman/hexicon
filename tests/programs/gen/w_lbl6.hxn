@@ -1,0 +1,1 @@
+_main(args) { while (nil) a: args = 1; for (; nil; ) b: args = 2; for (; nil; ) { c: ; } }

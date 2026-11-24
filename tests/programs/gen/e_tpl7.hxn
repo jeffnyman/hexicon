@@ -1,0 +1,2 @@
+string template <<a b>> 3;
+_main(args) { }

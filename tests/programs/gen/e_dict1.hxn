@@ -1,0 +1,29 @@
+dictionary property noun;
+a: object noun = 'x';
+dictionary;
+dictionary 5;
+dictionary property;
+dictionary property 5, adjective plural, , weight;
+dictionary property size;
+dictionary gDict;
+dictionary gDict;
+b: object
+    noun = 5
+    adjective = 'a' 'b' 5
+    plural() { }
+    size: object { }
+    weight = 'w', 'x'
+    noun = 'again'
+;
+object template 'noun';
+object template 'name' @adjective;
+c: gDict;
+d: object noun = 'x' + 'y';
+e: object noun = static 'x';
+f: object noun = ['x', 'y'];
+g: object noun = 'x' 'y' "z";
+class gDict: object;
+modify gDict x = 1;
+replace gDict: object;
+_main(args) { return gDict; }
+

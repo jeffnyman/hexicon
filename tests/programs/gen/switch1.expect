@@ -1,0 +1,14 @@
+image: f4919465379bb4a3879bfc4dade381fc06b22a6c0401070a3261933df36980b7
+--- messages
+warning: label "there" is not referenced
+  --> switch1.hxn:21
+   |
+21 |     there:
+   |
+
+warning: label "here" is not referenced
+  --> switch1.hxn:18
+   |
+18 |     here:
+   |
+--- output

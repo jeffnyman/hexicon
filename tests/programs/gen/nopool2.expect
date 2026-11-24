@@ -1,0 +1,4 @@
+image: 68ec1633c24b59ee2a39411649823153489403c199827a8e417dd6532ef26693
+--- messages
+--- output
+VM Error: argument mismatch calling Main entrypoint - function definition is incorrect

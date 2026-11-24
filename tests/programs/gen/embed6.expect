@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: string template processor function later() does not match template - must take 0 parameter(s) and return a value
+  --> embed6.hxn:7
+  |
+7 | string template <<e>> later;
+  |
+
+error: string template processor function later() does not match template - must take 0 parameter(s) and return a value
+  --> embed6.hxn:8
+  |
+8 | string template <<f g h i j>> later;
+  |
+--- output

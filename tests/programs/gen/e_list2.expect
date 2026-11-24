@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ',' separating list elements, but found "2"
+  --> e_list2.hxn:1
+  |
+1 | _main(args) { return [1 2]; }
+  |
+--- output

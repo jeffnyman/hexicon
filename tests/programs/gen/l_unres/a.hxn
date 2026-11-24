@@ -1,0 +1,5 @@
+#include <hexicon.h>
+extern function nowhere(x);
+extern object nothing;
+extern class Missing;
+_main(args) { return nowhere(1) + g(2) + nothing.x; }

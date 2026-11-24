@@ -1091,6 +1091,19 @@ impl Linker {
             if let Some(first) = first {
                 self.prog.objdefs[first + def_base].prev_def = Some(*old_def);
             }
+            // A `modify` is transient if what it modifies is, as it is
+            // when both are in one file.
+            if self.prog.objdefs[*old_def].transient {
+                for (index, def) in m.objdefs.iter().enumerate() {
+                    if def.sym != Some(*obj) || def.meta.is_some() {
+                        continue;
+                    }
+                    self.prog.objdefs[index + def_base].transient = true;
+                    if let Some(&gen_obj) = self.out.def_objs.get(&(index + def_base)) {
+                        self.out.objs[gen_obj].transient = true;
+                    }
+                }
+            }
             for prop in &m.objs[*obj].del_props {
                 let Some(prop) = maps.props[*prop] else {
                     continue;

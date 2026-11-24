@@ -1,0 +1,9 @@
+export a 'LastProp';
+export b 'operator +';
+export c 'Constructor';
+export d 'same';
+export e 'same';
+export f 'same';
+export print 'bif';
+intrinsic 'hexicon-io/030007' { print(val, ...); }
+_main(args) { }

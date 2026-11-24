@@ -1,0 +1,18 @@
+a: object
+    f(x) { return x.name; }
+    g(x, p) { return x.(p); }
+    h(x) { return x.name(1, 2); }
+    i(x, p) { return x.(p)(3); }
+    j() { return self.(name); }
+    k(p) { self.(p) = 1; self.(p) += 2; a.(p) = 3; a.(p)++; }
+    l(x, p) { x.(p) = 1; x.(p) -= 2; x.name = 3; x.name /= 4; return x.name++; }
+    m(x) { local y = x.name; y.name.name = x; x.name.name(1).name += 1; return y.(x).(y); }
+    n(x...) { return self.m(x...) + m(x...) + a.m(x...) + x.m(x...) + x.(m)(x...) + self.(x)(x...) + a.(x)(x...); }
+    o(x) { ++self.name; self.name--; name += 1; --name; x.(name)--; return self.name(1) + name(2, 3); }
+    name = 'a'
+;
+_main(args)
+{
+    args.x.y.z = 1; args[1].x = 2; args.x[1] = 3; args.x[1].y++;
+    return a.f(a) + a.g(a, 1) + args.length() + args.length;
+}

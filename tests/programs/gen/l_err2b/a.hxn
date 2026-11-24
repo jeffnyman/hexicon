@@ -1,0 +1,3 @@
+#include <hexicon.h>
+f(x) { return undefinedA(x); }
+_main(args) { return f(1) + 'a' - 1; }

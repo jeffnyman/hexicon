@@ -1,0 +1,8 @@
+ab: object ab1 = 1 ba1 = 2 x = 3;
+ba: object;
+cab: object;
+bca: object bac = 1 cab1 = 2 abc = 3;
+acb: object;
+f(o) { o.bca1 = 1; o.acb1 = 2; o.cba1 = 3; o.x1 = 4; return o.y1 + o.abc + o.ba1; }
+g(o) { return o.b1ca + o.a1bc + o.c1ab + o.ab1 + o.abc; }
+_main(args) { return [ab, ba, cab, bca, acb]; }

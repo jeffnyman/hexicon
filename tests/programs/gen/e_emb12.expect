@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected '>>' and the string continuation, but found "random"
+  --> e_emb12.hxn:1
+  |
+1 | _main(args) { "<<if args>>a<<or>>b<<end>>c<<only>>d<<stopping>>e<<at random>>f"; }
+  |
+--- output

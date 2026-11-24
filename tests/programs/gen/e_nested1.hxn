@@ -1,0 +1,12 @@
+a: object
+  lexicalParent = 1
+  n: object { lexicalParent = 2 }
+  m: object { x = 1 x = 2 }
+  k: Undefined { }
+  f: object { y }
+  g: f2 { }
+  h: 5 { }
+;
+f2() { }
+_main(args) { }
+

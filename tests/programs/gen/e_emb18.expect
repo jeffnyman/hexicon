@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected an operand, but found ">>""
+  --> e_emb18.hxn:1
+  |
+1 | _main(args) { "<<%d>>"; }
+  |
+--- output

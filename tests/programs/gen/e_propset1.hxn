@@ -1,0 +1,19 @@
+a: object
+  propertyset 5 { }
+  propertyset 'no star' { x = 1 }
+  propertyset '**' { y = 1 }
+  propertyset '5*' { z = 1 }
+  propertyset '' { z0 = 1 }
+  propertyset 'a*' ( { }
+  propertyset 'b*' (x y, , *) { }
+  propertyset 'c*' (x,) { }
+  propertyset 'd*' (*, *) { }
+  propertyset 'e*' w = 1 }
+  propertyset 'g*' { x = 2 x = 3 }
+  propertyset 'h*' { ; class
+;
+b: object
+  propertyset;
+c: object { propertyset 'a*' { x = 1 } 
+_main(args) { }
+

@@ -1,0 +1,32 @@
+a: object
+    p1 = [1, {: 2 }]
+    p2 = {x: x }
+    p3 = {: p1 }
+    p4 = (function() { return self; })
+    p5 = {: targetprop }
+    p6 = {: {: self } }
+    p7 = method() { return self; }
+    p8 = new function() { return 1; }
+    p9 = ({: 1 }() + 2)
+    p10 = {: "hello" }
+    p11 = "say <<{: 1 }()>>"
+    p12 = '<<{: 1 }()>>'
+    m1() { return 1; }
+    p13 = {: self }
+    m2() { return {: targetprop }; }
+    p14 = {: self }
+    p15 = {: {: 1 } }
+;
+f() { return {: 1 }; }
+b: object
+    p1 = {: self }
+;
+c: object
+    m() { return {: {: definingobj } }; }
+    p1 = {: self }
+    p2 = {: targetobj }
+;
+_main(args)
+{
+    return a.p1 + b.p1;
+}

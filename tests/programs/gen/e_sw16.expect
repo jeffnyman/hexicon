@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: invalid "continue" - not in a for/while/do
+  --> e_sw16.hxn:1
+  |
+1 | _main(args) { switch (args) { case 1: continue; } }
+  |
+--- output

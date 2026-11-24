@@ -1,0 +1,5 @@
+f(x) { throw x; }
+g(x) { throw 'text'; x = 1; }
+h(x) { if (x) throw [1, 2]; else throw x + 1; }
+i(x) { throw "text"; }
+_main(args) { return f(1) + g(1) + h(1) + i(1); }

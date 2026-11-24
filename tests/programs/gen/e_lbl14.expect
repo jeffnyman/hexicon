@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: expected ';', but found ":"
+  --> e_lbl14.hxn:1
+  |
+1 | _main(args) { args: args = 1; goto args; return args:; }
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> e_lbl14.hxn:1
+  |
+1 | _main(args) { args: args = 1; goto args; return args:; }
+  |
+
+error: expected ';', but found "}"
+  --> e_lbl14.hxn:1
+  |
+1 | _main(args) { args: args = 1; goto args; return args:; }
+  |
+--- output

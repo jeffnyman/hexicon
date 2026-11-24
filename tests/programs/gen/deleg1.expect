@@ -1,0 +1,12 @@
+image: 2188cfe4dfd79362ff73bb5b1187cc73e167243d2ecdb2cb69fe22e9db82a25c
+--- messages
+warning: "length" is not defined anywhere
+  --> deleg1.hxn:50
+   |
+50 |     many([lst]) { return name + lst.length(); }
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "length" is spelled
+--- output
+A.who as cB.who as cA.who as cA.who as cA.who as c
+c3c3ccB.who as c03
+B.who as cA.who as AB.who as c11

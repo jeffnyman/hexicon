@@ -1,0 +1,12 @@
+image: 9e56a9e1cedcf69d86ce087aa907c0c5d28269b420b644b519bb1fd2b38e750b
+--- messages
+--- output
+Missing: 1 4 6 8 19 in all.
+Counting down by threes: 10 7 4 1. Each part of the box: lid base.
+Three is among the first three, and is not among the next two.
+The box has 2 parts: lid, base. The pebble has 0 parts.
+A vector of 3, the longest being 'three'.
+HELLO, 5 letters, from the second: ello.
+Sorted: 1 2 3. Found at 2.
+The box is a thing, and has parts of its own; the pebble lacks them.
+A list is a list, and of the class List.

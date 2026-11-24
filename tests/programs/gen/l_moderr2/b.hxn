@@ -1,0 +1,6 @@
+#include <hexicon.h>
+modify gDict x = 1;
+replace f(a, b) { return 2; }
+modify o x = 1;
+replace o: object y = 2;
+modify o z = 3;

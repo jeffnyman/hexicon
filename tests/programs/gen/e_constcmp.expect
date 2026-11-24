@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: incompatible types for comparison in constant expression
+  --> e_constcmp.hxn:1
+  |
+1 | _main(args) { return 1 < 'a'; }
+  |
+--- output

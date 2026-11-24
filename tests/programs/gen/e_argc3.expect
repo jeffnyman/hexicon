@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: wrong number of arguments to function "two": 2 required, 1 actual
+  --> e_argc3.hxn:1
+  |
+1 | two(a, b) { return a; } _main(args) { return two(args...); }
+  |
+--- output

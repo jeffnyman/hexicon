@@ -1,0 +1,62 @@
+image: none
+--- messages
+error: only one '*' is allowed in a string template
+  --> embed5.hxn:6
+  |
+6 | string template <<the * of *>> pair;
+  |
+
+error: string template processor function spell() does not match template - must take 0 parameter(s) and return a value
+  --> embed5.hxn:9
+  |
+9 | string template <<'*' x>> spell;
+  |
+
+error: expected '>>' and the string continuation, but found "1"
+  --> embed5.hxn:19
+   |
+19 |     "<<the 1 of 2>> <<the big 1 thing>> <<big the 2 thing>> <<big nope>> <<nope said>>";
+   |
+
+error: expected '>>' and the string continuation, but found "the"
+  --> embed5.hxn:19
+   |
+19 |     "<<the 1 of 2>> <<the big 1 thing>> <<big the 2 thing>> <<big nope>> <<nope said>>";
+   |
+
+error: expected '>>' and the string continuation, but found "nope"
+  --> embed5.hxn:19
+   |
+19 |     "<<the 1 of 2>> <<the big 1 thing>> <<big the 2 thing>> <<big nope>> <<nope said>>";
+   |
+
+error: expected '>>' and the string continuation, but found "said"
+  --> embed5.hxn:19
+   |
+19 |     "<<the 1 of 2>> <<the big 1 thing>> <<big the 2 thing>> <<big nope>> <<nope said>>";
+   |
+
+error: expected '>>' and the string continuation, but found "big"
+  --> embed5.hxn:20
+   |
+20 |     "<<big big 1 + 2 said>> <<the nope thing>> <<the thing>> <<big>> <<nope nope>>";
+   |
+
+error: expected '>>' and the string continuation, but found "thing"
+  --> embed5.hxn:20
+   |
+20 |     "<<big big 1 + 2 said>> <<the nope thing>> <<the thing>> <<big>> <<nope nope>>";
+   |
+
+error: expected '>>' and the string continuation, but found "nope"
+  --> embed5.hxn:20
+   |
+20 |     "<<big big 1 + 2 said>> <<the nope thing>> <<the thing>> <<big>> <<nope nope>>";
+   |
+
+error: expected '>>' and the string continuation, but found "x"
+  --> embed5.hxn:21
+   |
+21 |     "<<1 x>> <<'*' x>> <<if only>>a<<end>> <<%d nope>> <<%d args in words>>";
+   |
+--- output

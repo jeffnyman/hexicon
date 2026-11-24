@@ -1,0 +1,122 @@
+image: none
+--- messages
+error: floating point values can't be used with this operator
+  --> e_float1.hxn:3
+  |
+3 |     local a = 1.5 | 2;
+  |
+
+error: floating point values can't be used with this operator
+  --> e_float1.hxn:4
+  |
+4 |     local b = 1 & 2.5;
+  |
+
+error: floating point values can't be used with this operator
+  --> e_float1.hxn:5
+  |
+5 |     local c = 1.5 << 1;
+  |
+
+error: floating point values can't be used with this operator
+  --> e_float1.hxn:6
+  |
+6 |     local d = 2 >> 1.0;
+  |
+
+error: floating point values can't be used with this operator
+  --> e_float1.hxn:7
+  |
+7 |     local e = 1.5 ^ 2.5;
+  |
+
+error: unary '~' operator requires numeric value in constant expression
+  --> e_float1.hxn:8
+  |
+8 |     local f = ~1.5;
+  |
+
+error: divide by zero in constant expression
+  --> e_float1.hxn:9
+  |
+9 |     local g = 1.5 / 0;
+  |
+
+error: divide by zero in constant expression
+  --> e_float1.hxn:10
+   |
+10 |     local h = 1.5 / 0.0;
+   |
+
+error: divide by zero in constant expression
+  --> e_float1.hxn:11
+   |
+11 |     local i = 1 % 0.0;
+   |
+
+error: incompatible types for comparison in constant expression
+  --> e_float1.hxn:12
+   |
+12 |     local j = 1.5 < 'a';
+   |
+
+error: incompatible constant types for two-operand '+' operator
+  --> e_float1.hxn:13
+   |
+13 |     local k = nil + 1.5;
+   |
+
+error: incompatible constant types for two-operand '-' operator
+  --> e_float1.hxn:14
+   |
+14 |     local l = 1.5 - 'a';
+   |
+
+error: index value must be an integer in constant list index expression
+  --> e_float1.hxn:16
+   |
+16 |     local n = [1, 2][1.5];
+   |
+
+error: unary '-' operator requires numeric value in constant expression
+  --> e_float1.hxn:17
+   |
+17 |     local o = -'a' + +'b' + -R'x' + +R'y';
+   |
+
+error: unary '+' operator requires numeric value in constant expression
+  --> e_float1.hxn:17
+   |
+17 |     local o = -'a' + +'b' + -R'x' + +R'y';
+   |
+
+error: incompatible types for comparison in constant expression
+  --> e_float1.hxn:19
+   |
+19 |     local q = R'a' < R'b';
+   |
+
+error: invalid indexed type in constant expression - list required
+  --> e_float1.hxn:20
+   |
+20 |     local r = R'a'[1];
+   |
+
+error: binary '*' operator requires numeric value in constant expression
+  --> e_float1.hxn:21
+   |
+21 |     local s = 1.5 * nil;
+   |
+
+error: floating point values can't be used with this operator
+  --> e_float1.hxn:22
+   |
+22 |     local t = 4294967296 | 1;
+   |
+
+error: floating point values can't be used with this operator
+  --> e_float1.hxn:23
+   |
+23 |     local u = 2147483648 >>> 1;
+   |
+--- output

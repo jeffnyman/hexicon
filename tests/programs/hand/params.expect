@@ -1,0 +1,16 @@
+image: 55ff8e294d7c17ab7e388882932ee02bbd6753d50d0eff2cfd16432e7bff7ebf
+--- messages
+--- output
+[1, nil] | [1, 2] | 6
+3 | [1, 2, 3] | [1, 7, 8]
+[1, 7, 9] | [default] 1 | 2
+[1, b, []] | [1, 2, [2]] | [1, 2, [2, 3, 4]]
+12 | 20 | [loud default] plain.
+[loud default] > both! | [loud default] named first? | LOUD.
+[nil, 0] | [3, 3] | missing: error 2204
+a square with 4 sides | the red pentagons with 5 sides | one blue triangle with
+3 sides!
+one blue triangles with 3 sides! | 8 | 20
+11 | 3 | 8
+20 | some red pentagons with 5 sides | [1, 2, [2, 3, 4, 5]]
+[loud default] [2, 3, 4] long. |

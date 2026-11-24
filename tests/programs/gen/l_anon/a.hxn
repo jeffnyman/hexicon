@@ -1,0 +1,7 @@
+#include <hexicon.h>
+class Room: object desc = 'room';
+object template 'name';
+Room 'hall';
+Room 'den' north = hall2 inner: Room { 'nested' } ;
+hall2: Room 'hall2';
+_main(args) { return object: Room { name = 'inline' m() { return hall2; } }; }

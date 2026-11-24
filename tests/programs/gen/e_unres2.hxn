@@ -1,0 +1,2 @@
+f(x) { if (nil) { b: x = 1; } if (x) goto b; goto b; }
+_main(args) { if (true) args = 1; else { a: args = 2; } if (args) goto a; return f(args); }

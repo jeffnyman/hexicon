@@ -1,0 +1,29 @@
+image: none
+--- messages
+error: misplaced "catch" clause - must be associated with "try"
+  --> e_try2.hxn:1
+  |
+1 | _main(args) { catch (a b) { } finally { } catch { } catch (a) }
+  |
+
+error: misplaced "finally" clause - must be associated with "try"
+  --> e_try2.hxn:1
+  |
+1 | _main(args) { catch (a b) { } finally { } catch { } catch (a) }
+  |
+
+error: unexpected ')' found - ignored
+  --> e_try2.hxn:1
+  |
+1 | _main(args) { catch (a b) { } finally { } catch { } catch (a) }
+  |
+
+error: expected start of statement, but found "}"
+  --> e_try2.hxn:1
+  |
+1 | _main(args) { catch (a b) { } finally { } catch { } catch (a) }
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_try2.hxn:2
+--- output

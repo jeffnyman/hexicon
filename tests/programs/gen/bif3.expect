@@ -1,0 +1,4 @@
+image: defbf7ed4452b5bb0689507bf440d1c5982de1be40db3ad5426b7d266e1c769b
+--- messages
+--- output
+hexicon: case.hxg: VM Error: this interpreter version cannot run this program (program requires intrinsic function set many/1, which is not available in this interpreter)

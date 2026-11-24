@@ -1,0 +1,5 @@
+image: none
+--- messages
+error: unexpected end of file in code block - '}' missing
+  --> e_norbrace.hxn:2
+--- output

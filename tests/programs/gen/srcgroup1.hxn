@@ -1,0 +1,13 @@
+#include <hexicon.h>
+a1: object;
+#pragma sourceTextGroup(on)
+class C: object;
+b1: object;
+c1: C x = 1;
+#pragma sourceTextGroup(off)
+d1: object;
+#pragma sourceTextGroup
+e1: object;
+#pragma sourceTextGroup(maybe)
+#pragma sourceTextGroup(on
+_main(args) { return [b1.sourceTextGroup, e1.sourceTextGroup.sourceTextGroupName]; }

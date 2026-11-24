@@ -1,0 +1,75 @@
+intrinsic 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+    vmVersion();
+    vmId();
+    vmBanner();
+    inPreinit();
+    debugTrace(mode, ...);
+    globalSymbols(which?);
+    newProperty();
+    stackTrace(level?, flags?);
+    namedArg(name, defval?);
+    namedArgList();
+}
+intrinsic 'hexicon-gen/030008'
+{
+    dataType(val);
+    getArg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+    toInteger(val, radix?);
+    getTime(timeType?);
+    rexMatch(pat, str, index?);
+    rexSearch(pat, str, index?);
+    rexGroup(groupNum);
+    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    savepoint();
+    undo();
+    saveGame(filename, metaTable?);
+    restoreGame(filename);
+    restartGame();
+    max(val1, ...);
+    min(val1, ...);
+    makeString(val, repeatCount?);
+    getFuncParams(func);
+}
+intrinsic 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+enum ;
+enum a b;
+enum c, ;
+enum d,, e;
+enum 5, g;
+enum token;
+f() { }
+enum f;
+enum h;
+h() { }
+enum i;
+i: object;
+obj1: object p2 = 1;
+enum obj1;
+enum p2;
+enum q;
+property q;
+enum r;
+class C: r;
+export r;
+m(x)
+{
+    r = 1;
+    switch(x) { case r: case r: return 1; }
+    for (local r in [1]) ;
+    "<<r>>";
+    return [&r, r.x, r(1), new r, r + 1, r < q, r + 'x', 'x' + r, [1][r], -r, r && 1, x.(r), r - 1, [r, 1] + r, r++];
+}
+_main(args) { }
+enum last

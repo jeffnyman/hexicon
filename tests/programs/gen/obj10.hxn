@@ -1,0 +1,26 @@
+a: object
+    x = 1
+    m() { return 1; }
+    o { return 3; }
+    p(a, b) { return a + b; }
+    q = (1, 2)
+    r = [x, 1]
+    s = self
+    t = "<<x>>"
+    u = 'a<<x>>'
+    v = (x = 2)
+    w = nil
+    y = true
+    z = [nil, true, a, [a]]
+    aa = "plain"
+    bb = (m(), p(1, 2))
+    cc = a
+    dd = a.x
+    ee = (self.x ? 'yes' : 'no')
+    ff = [1, 2][1]
+    gg = -1
+    hh = 'a' + 1
+    ii = _main
+    jj = nil + 1
+;
+_main(args) { "<<a.x>><<a.m()>><<a.t>>"; return 'x<<a.u>>y'; }

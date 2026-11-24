@@ -1,0 +1,4 @@
+#include <hexicon.h>
+g() { local same = 1, onlyB = 2; return ['same', 'only b', 'a string that is long enough not to be shared with others', same, onlyB]; }
+h(a, b:, c:?) { return a + b + (c ?? 0); }
+k() { return h(1, b: 2) + h(1, c: 3, b: 4); }

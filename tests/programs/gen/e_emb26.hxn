@@ -1,0 +1,1 @@
+_main(args) { 'a<<if args>>b<<else'; 'c<<end>>'; }

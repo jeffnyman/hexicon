@@ -1,0 +1,32 @@
+image: none
+--- messages
+error: 'inherited<>' requires "_multiMethodCallInherited", which is not defined or not a function
+  --> e_mm2.hxn:2
+  |
+2 | a(Thing x) { return inherited(x); }
+  |
+
+error: 'inherited<>' function "b" undefined
+  --> e_mm2.hxn:3
+  |
+3 | b(Thing x) { return inherited<Thing, Thing>(x); }
+  |
+
+error: 'self' is not valid in this context
+  --> e_mm2.hxn:4
+  |
+4 | c(x) { return inherited<Thing>(x); }
+  |
+
+error: 'inherited<>' is not valid here; it can only be used in a multi-method
+  --> e_mm2.hxn:4
+  |
+4 | c(x) { return inherited<Thing>(x); }
+  |
+
+error: 'targetprop' is not available in this context
+  --> e_mm2.hxn:4
+  |
+4 | c(x) { return inherited<Thing>(x); }
+  |
+--- output

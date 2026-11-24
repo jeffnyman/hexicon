@@ -1,0 +1,8 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun;
+enum token tokWord;
+grammar np: 'the' noun->n_ : object;
+grammar np(short): noun->n_ : object;
+grammar cmd: 'take' np->obj_ | 'get' np->obj_ : object;
+_main(args) { return cmd; }

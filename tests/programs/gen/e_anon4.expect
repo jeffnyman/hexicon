@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected ';' or expression after "return", but found "{"
+  --> e_anon4.hxn:3
+  |
+3 |     local f = function(x) { return {y:
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_anon4.hxn:5
+
+error: expected ',' or ';' after local variable, but found "<End Of File>"
+  --> e_anon4.hxn:5
+--- output

@@ -1,0 +1,11 @@
+none() { }
+one(a) { return a; }
+f(t)
+{
+    t += t ? one(1) : none();
+    if (t ? one(1) : none()) return 1;
+    if ((++t ? -2 : none())) return 1;
+    t = (t ? 2 : none());
+    return t;
+}
+_main(args) { return 1; }

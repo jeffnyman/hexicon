@@ -1,0 +1,2 @@
+intrinsic class A 'a/030000' { x();
+_main(args) { }

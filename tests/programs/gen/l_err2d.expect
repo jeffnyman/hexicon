@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: there is no file "nothere.h" to include
+  --> a.hxn:2
+  |
+2 | #include "nothere.h"
+  |
+  = it is looked for beside this file, and then in the include folders
+--- output

@@ -1,0 +1,1 @@
+f(a) { return a; } _main(args) { return f() + f(1, 2); }

@@ -1,0 +1,4 @@
+image: f49989c78cd7d88f85e84133424f77a13f5ced51937718519734de3822a2c809
+--- messages
+warning: undefined symbol "neverMentioned" - assuming this is a property name
+--- output

@@ -1,0 +1,17 @@
+class Thing: object;
+f(a) { }
+f(Thing a) { }
+g(Thing a) { }
+g(a) { }
+h(Thing a) { }
+h(Thing a) { }
+k(Nope a) { }
+enum red;
+m(red a, f b) { }
+n(a) multimethod multimethod { }
+o: object p(a) multimethod { } q(Thing a) { } ;
+r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
+s(a) { return {x: 1 multimethod} ; }
+t(a multimethod) { }
+_main(args) { }
+

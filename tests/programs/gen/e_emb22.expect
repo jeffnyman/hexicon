@@ -1,0 +1,35 @@
+image: none
+--- messages
+error: expected '>>' and the string continuation, but found ";"
+  --> e_emb22.hxn:1
+  |
+1 | _main(args) { "a<<args; "b"; }
+  |
+
+error: <<;>> found in string without a matching unknown
+  --> e_emb22.hxn:1
+  |
+1 | _main(args) { "a<<args; "b"; }
+  |
+
+error: expected '>>' and the string continuation, but found "}"
+  --> e_emb22.hxn:1
+  |
+1 | _main(args) { "a<<args; "b"; }
+  |
+
+error: <<}>> found in string without a matching unknown
+  --> e_emb22.hxn:1
+  |
+1 | _main(args) { "a<<args; "b"; }
+  |
+
+error: expected '>>' and the string continuation, but found "<End Of File>"
+  --> e_emb22.hxn:2
+
+error: <<>> found in string without a matching unknown
+  --> e_emb22.hxn:2
+
+fatal error: too many errors (try fixing the first couple of errors and recompiling)
+  --> e_emb22.hxn:2
+--- output

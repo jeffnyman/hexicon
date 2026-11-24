@@ -1,0 +1,3 @@
+#include <hexicon.h>
+a1: object alpha = 1 beta = 2 m() { return self.gamma + self.delta; };
+_main(args) { return [a1.alpha, &beta, &epsilon, a1.zeta]; }

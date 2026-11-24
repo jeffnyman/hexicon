@@ -1,0 +1,8 @@
+image: 59deef5b1f034688eca8cd7495dd29e1e7a3445a98bf553e9144d09bdbe04f34
+--- messages
+warning: "if" condition is always false
+  --> obj8.hxn:6
+  |
+6 |     if (a == b) return 1;
+  |
+--- output

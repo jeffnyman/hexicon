@@ -1,0 +1,1 @@
+_main(args) { try { } catch (A e) x: { goto x; } finally { goto x; } }

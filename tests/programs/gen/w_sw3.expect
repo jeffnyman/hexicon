@@ -1,0 +1,8 @@
+image: abe390364ba1be18b6dadbde7ca2d812d2415d29b1ac30b96bc91dbc2c942830
+--- messages
+warning: code has "return" statements both with and without values
+  --> w_sw3.hxn:1
+  |
+1 | _main(args) { switch (args) { case 1: return 1; default: return; } }
+  |
+--- output

@@ -1,0 +1,6 @@
+#include <hexicon.h>
+object template 'name';
+Cls0 template 'name' @loc;
+Other template "desc";
+first: object 'first';
+_main(args) { return first; }

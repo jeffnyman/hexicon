@@ -1,0 +1,1 @@
+_main(args) { switch (args) { lbl: case 1: ; other: default: ; case 2: ; } }

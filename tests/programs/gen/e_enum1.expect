@@ -1,0 +1,89 @@
+image: none
+--- messages
+error: symbol expected in 'enum' list - found ";"
+  --> e_enum1.hxn:46
+   |
+46 | enum ;
+   |
+
+error: comma expected in 'enum' symbol list, but found "b"
+  --> e_enum1.hxn:47
+   |
+47 | enum a b;
+   |
+
+error: symbol expected in 'enum' list - found ";"
+  --> e_enum1.hxn:47
+   |
+47 | enum a b;
+   |
+
+error: symbol expected in 'enum' list - found ";"
+  --> e_enum1.hxn:48
+   |
+48 | enum c, ;
+   |
+
+error: symbol expected in 'enum' list - found ","
+  --> e_enum1.hxn:49
+   |
+49 | enum d,, e;
+   |
+
+error: symbol expected in 'enum' list - found "5"
+  --> e_enum1.hxn:50
+   |
+50 | enum 5, g;
+   |
+
+error: symbol expected in 'enum' list - found ","
+  --> e_enum1.hxn:50
+   |
+50 | enum 5, g;
+   |
+
+error: symbol expected in 'enum' list - found ";"
+  --> e_enum1.hxn:51
+   |
+51 | enum token;
+   |
+
+error: symbol "f" is already defined - can't be used as an enum name
+  --> e_enum1.hxn:53
+   |
+53 | enum f;
+   |
+
+error: "h" is already the name of something else, so it cannot also name a function
+  --> e_enum1.hxn:55
+   |
+55 | h() { }
+   |
+
+error: "i" is already the name of something else, so it cannot also name an object
+  --> e_enum1.hxn:57
+   |
+57 | i: object;
+   |
+
+error: symbol "obj1" is already defined - can't be used as an enum name
+  --> e_enum1.hxn:59
+   |
+59 | enum obj1;
+   |
+
+error: symbol "p2" is already defined - can't be used as an enum name
+  --> e_enum1.hxn:60
+   |
+60 | enum p2;
+   |
+
+error: "q" is already the name of something else, so it cannot also name a property
+  --> e_enum1.hxn:62
+   |
+62 | property q;
+   |
+
+error: expected ';', but found "<End Of File>"
+  --> e_enum1.hxn:76
+--- output

@@ -4711,3 +4711,31 @@ mod verb_conversion {
         }
     }
 }
+
+mod intrinsic_conversion {
+    use crate::convert::{RENAMES, convert_source};
+
+    fn converted(text: &str) -> String {
+        String::from_utf8(convert_source(text.as_bytes(), RENAMES).text).unwrap()
+    }
+
+    #[test]
+    fn an_intrinsic_declaration_gets_hexicons_identifier() {
+        assert_eq!(
+            converted(
+                "intrinsic 't3vm/010006' { t3RunGC(); }\n\
+                 intrinsic 'tads-io/030007' { tadsSay(val, ...); }\n\
+                 intrinsic class TadsObject 'tads-object/030005': Object { }\n\
+                 intrinsic 'other-set/010000' { f(); }\n\
+                 // intrinsic 'tads-gen/030008' in a comment\n\
+                 f() { return 'intrinsic \\'tads-gen/030008\\''; }\n"
+            ),
+            "intrinsic 'hexicon-vm/010006' { collectGarbage(); }\n\
+             intrinsic 'hexicon-io/030007' { print(val, ...); }\n\
+             intrinsic class ProgramObject 'hexicon-object/030005': Object { }\n\
+             intrinsic 'other-set/010000' { f(); }\n\
+             // intrinsic 'tads-gen/030008' in a comment\n\
+             f() { return 'intrinsic \\'tads-gen/030008\\''; }\n"
+        );
+    }
+}

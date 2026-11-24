@@ -1,0 +1,17 @@
+image: none
+--- messages
+error: expected ';', but found "+"
+  --> e_isin2.hxn:1
+  |
+1 | _main(args) { return args is in (nosuch, 1) + (args is in (1
+  |
+
+error: expected ',' or ')' in 'in' list, but found "<End Of File>"
+  --> e_isin2.hxn:2
+
+error: expected ')' but found "<End Of File>"
+  --> e_isin2.hxn:2
+
+error: expected ';', but found "<end of file>"
+  --> e_isin2.hxn:2
+--- output

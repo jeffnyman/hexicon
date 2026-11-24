@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ';', but found "_main"
+  --> e_tpl16.hxn:2
+  |
+2 | _main(args) { }
+  |
+--- output

@@ -1,0 +1,21 @@
+image: 1b1cc8e720e0b8a5cde7f4e2a8fb6bc7a65c0c045c8473bce76e1a58fc1dedfc
+--- messages
+warning: unreachable statement
+  --> switch2.hxn:8
+  |
+8 | i(x) { switch (x) { case 1: break; break; case 2: return 1; x = 1; x = 2; default: return 2; } return x; }
+  |
+
+warning: "if" condition is always true - "else" part is unreachable
+  --> switch2.hxn:9
+  |
+9 | j(x) { switch (x) { case 1: if (true) return 1; else break; default: return 2; } }
+  |
+
+warning: "if" condition is always false
+  --> switch2.hxn:10
+   |
+10 | k(x) { switch (x) { case 1: if (nil) return 1; else break; default: return 2; } return 3; }
+   |
+--- output
+(not run: it does not finish)

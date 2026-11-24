@@ -1,0 +1,11 @@
+image: none
+--- messages
+error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+  --> e_sw14.hxn:2
+
+error: missing ':' after "case" expression - found "<End Of File>"
+  --> e_sw14.hxn:2
+
+error: unexpected end of file in code block - '}' missing
+  --> e_sw14.hxn:2
+--- output

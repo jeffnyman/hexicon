@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: expected '>>' and the string continuation, but found ";"
+  --> e_emb4.hxn:1
+  |
+1 | _main(args) { "a<<1;>>b"; local s = 'a<<args args>>b'; }
+  |
+
+error: <<;>> found in string without a matching unknown
+  --> e_emb4.hxn:1
+  |
+1 | _main(args) { "a<<1;>>b"; local s = 'a<<args args>>b'; }
+  |
+
+error: expected '>>' and the string continuation, but found "args"
+  --> e_emb4.hxn:1
+  |
+1 | _main(args) { "a<<1;>>b"; local s = 'a<<args args>>b'; }
+  |
+--- output

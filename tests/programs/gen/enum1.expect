@@ -1,0 +1,11 @@
+image: c72f036561fca96ad2c5f5642be9a7c6b87a36d934dbac026f76a954b7dd0543
+--- messages
+warning: "length" is not defined anywhere
+  --> enum1.hxn:71
+   |
+71 |     return l.length() + (red is in (red, green) ? 1 : 0) + (red ?? 1) + (red, 1);
+   |
+   = it is taken to be a property, which has no value until something gives it one; check how "length" is spelled
+--- output
+Unhandled exception: invalid datatypes for addition operator
+gnene2ne3nnyTF14!

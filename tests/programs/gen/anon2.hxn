@@ -1,0 +1,9 @@
+_main(args)
+{
+    local n = 5;
+    local q = 7;
+    local f = {x: x + n};
+    n = 6;
+    local g = {: f(args) + {y: y + n + q}(2) };
+    return f(1) + g();
+}

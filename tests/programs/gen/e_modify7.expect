@@ -1,0 +1,44 @@
+image: none
+--- messages
+error: 'replaced' is not available in this context
+  --> e_modify7.hxn:46
+   |
+46 | h() { return replaced(); }
+   |
+
+error: 'replaced' is not available in this context
+  --> e_modify7.hxn:47
+   |
+47 | i() { return replaced; }
+   |
+
+error: 'replaced' is not available in this context
+  --> e_modify7.hxn:48
+   |
+48 | a: object m() { return replaced(1); } p = (replaced);
+   |
+
+error: wrong number of arguments to function "": 1 required, 0 actual
+  --> e_modify7.hxn:50
+   |
+50 | modify j(a) { return replaced() + replaced(1, 2); }
+   |
+
+error: wrong number of arguments to function "": 1 required, 2 actual
+  --> e_modify7.hxn:50
+   |
+50 | modify j(a) { return replaced() + replaced(1, 2); }
+   |
+
+error: 'replaced' is not available in this context
+  --> e_modify7.hxn:53
+   |
+53 | replace k() { return replaced(); }
+   |
+
+error: 'replaced' is not available in this context
+  --> e_modify7.hxn:55
+   |
+55 | modify n(x) { return ({: replaced(x) })(); }
+   |
+--- output

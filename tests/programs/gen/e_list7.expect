@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ']' at end of subscript, but found ";"
+  --> e_list7.hxn:1
+  |
+1 | _main(args) { return args[1; }
+  |
+--- output

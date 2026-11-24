@@ -1,0 +1,20 @@
+image: none
+--- messages
+error: <<one of>> requires class OneOfIndexGen to be defined in the program
+  --> e_oneof1.hxn:3
+  |
+3 |     local a = 'x<<one of>>1<<or>>2<<cycling>>y';
+  |
+
+error: <<one of>> requires class OneOfIndexGen to be defined in the program
+  --> e_oneof1.hxn:4
+  |
+4 |     "<<one of>>p<<or>>q<<stopping>>";
+  |
+
+error: <<one of>> requires class OneOfIndexGen to be defined in the program
+  --> e_oneof1.hxn:5
+  |
+5 |     "<<first time>>p<<only>>";
+  |
+--- output

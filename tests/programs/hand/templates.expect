@@ -1,0 +1,19 @@
+image: 30989e08de3ff60bca68ac146f6b5e9694b433cdb282e3e0eaf4befd081aecbf
+--- messages
+--- output
+Lobby: A wide lobby with a marble floor.
+Office: Nothing special.
+Vault (steel vault): Nothing special.
+lamp (brass lamp) in the Lobby: It gives a warm light.
+key in the Office: Nothing special.
+stone: Nothing special.
+thing: It weighs nothing, and yet you cannot lift it.
+scale (kitchen scale) in the Lobby: It reads 51.
+box (wooden box): Nothing special.
+session (this session): Nothing special.
+Lobby
+2
+50
+9
+thing
+a room is a thing

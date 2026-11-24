@@ -1,0 +1,6 @@
+#include <hexicon.h>
+dictionary gDict;
+enum red;
+f(a) { return 1; }
+o: object;
+_main(args) { return f(1); }

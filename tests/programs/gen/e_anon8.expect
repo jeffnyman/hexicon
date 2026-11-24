@@ -1,0 +1,50 @@
+image: none
+--- messages
+error: expected ';' or expression after "return", but found "{"
+  --> e_anon8.hxn:2
+  |
+2 |     m() { return function() { return {: ; }; }
+  |
+
+error: expected integer, string, symbol, '[', or '(', but found ":"
+  --> e_anon8.hxn:2
+  |
+2 |     m() { return function() { return {: ; }; }
+  |
+
+error: expected ';', but found "}"
+  --> e_anon8.hxn:2
+  |
+2 |     m() { return function() { return {: ; }; }
+  |
+
+error: expected ';', but found "p3"
+  --> e_anon8.hxn:3
+  |
+3 |     p3 = 1
+  |
+
+error: expected ';', but found "{"
+  --> e_anon8.hxn:5
+  |
+5 | _main(args) { return a.m() + function(; }
+  |
+
+error: missing right parenthesis ')' at end of formal parameter list - found ";"
+  --> e_anon8.hxn:5
+  |
+5 | _main(args) { return a.m() + function(; }
+  |
+
+error: expected '{' at start of method code body, but found ";"
+  --> e_anon8.hxn:5
+  |
+5 | _main(args) { return a.m() + function(; }
+  |
+
+error: unexpected end of file in code block - '}' missing
+  --> e_anon8.hxn:7
+
+error: expected property name in object definition, but found ""
+  --> e_anon8.hxn:7
+--- output

@@ -1,0 +1,6 @@
+#include <hexicon.h>
+export f 'entry';
+export o;
+f(x) { return 1; }
+o: object;
+_main(args) { }

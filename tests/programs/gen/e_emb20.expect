@@ -1,0 +1,9 @@
+image: none
+--- messages
+error: "sprintf" is not defined anywhere
+  --> e_emb20.hxn:1
+  |
+1 | _main(args) { "<<%d args>>"; }
+  |
+  = check how it is spelled, and that the file that defines it is among the sources
+--- output

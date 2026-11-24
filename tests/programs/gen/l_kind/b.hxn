@@ -1,0 +1,4 @@
+#include <hexicon.h>
+thing: object y = 2;
+other(x) { return 2; }
+f() { return thing.y + other(1) + self.red; }

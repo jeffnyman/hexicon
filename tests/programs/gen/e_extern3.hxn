@@ -1,0 +1,5 @@
+extern object o;
+modify o x = 1;
+extern object p;
+replace p: object;
+_main(args) { }

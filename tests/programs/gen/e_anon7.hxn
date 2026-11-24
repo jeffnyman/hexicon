@@ -1,0 +1,7 @@
+a: object
+    p1 = {: }
+    p2 = {x: x
+    p3 = 1
+;
+_main(args) { return a; }
+

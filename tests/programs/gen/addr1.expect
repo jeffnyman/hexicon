@@ -1,0 +1,28 @@
+image: 4677262b62485c24efae83226e12f9a2f69c42db7172a1fe949ce8f46d1f6862
+--- messages
+warning: unreachable statement
+  --> addr1.hxn:10
+   |
+10 |     return a.(p) + a.(&x) + args.(&w)(1) + (&x) + l;
+   |
+
+warning: "if" condition is always false
+  --> addr1.hxn:8
+  |
+8 |     if (&x == &y) return 3;
+  |
+
+warning: "z" is given a value here, but nothing reads it
+  --> addr1.hxn:1
+  |
+1 | a: object x = 1 y = &x z = [&x, &w, &a, &_main] m() { return &q; };
+  |
+  = did you mean "q"?
+
+warning: "m" is given a value here, but nothing reads it
+  --> addr1.hxn:1
+  |
+1 | a: object x = 1 y = &x z = [&x, &w, &a, &_main] m() { return &q; };
+  |
+  = did you mean "q"?
+--- output

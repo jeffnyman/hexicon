@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ';' or expression after "return", but found "}"
+  --> e_retexpr.hxn:1
+  |
+1 | _main(args) { return }
+  |
+--- output

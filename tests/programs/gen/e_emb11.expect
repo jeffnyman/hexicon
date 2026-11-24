@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: <<else>> found in string without a matching <<if>> or <<unless>>
+  --> e_emb11.hxn:1
+  |
+1 | _main(args) { "<<if args>>a<<else>>b<<else>>c<<end>>"; }
+  |
+--- output

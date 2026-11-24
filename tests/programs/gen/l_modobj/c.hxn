@@ -1,0 +1,6 @@
+#include <hexicon.h>
+dictionary gDict;
+dictionary property noun;
+modify o replace y = 7 replace m() { return 9; } w = 1 noun = 'newer';
+modify o v = 2;
+modify Base c = 2;

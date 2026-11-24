@@ -1,0 +1,14 @@
+image: none
+--- messages
+error: expected a comma in formal parameter list, but found "..."
+  --> obj4.hxn:10
+   |
+10 |     n(x...) { return self.m(x...) + m(x...) + a.m(x...) + x.m(x...) + x.(m)(x...) + self.(x)(x...) + a.(x)(x...); }
+   |
+
+error: missing parameter name at end of formal parameter list
+  --> obj4.hxn:10
+   |
+10 |     n(x...) { return self.m(x...) + m(x...) + a.m(x...) + x.m(x...) + x.(m)(x...) + self.(x)(x...) + a.(x)(x...); }
+   |
+--- output

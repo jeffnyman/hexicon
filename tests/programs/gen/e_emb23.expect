@@ -1,0 +1,29 @@
+image: none
+--- messages
+error: expected '>>' and the string continuation, but found "}"
+  --> e_emb23.hxn:1
+  |
+1 | _main(args) { "a<<args}
+  |
+
+error: <<}>> found in string without a matching unknown
+  --> e_emb23.hxn:1
+  |
+1 | _main(args) { "a<<args}
+  |
+
+error: expected '>>' and the string continuation, but found "{"
+  --> e_emb23.hxn:2
+  |
+2 | f() { "x<<1 2>>y<<3>>z<<4 5"; }
+  |
+
+error: this string has no end: it starts "; } "
+  --> e_emb23.hxn:2
+  |
+2 | f() { "x<<1 2>>y<<3>>z<<4 5"; }
+  |
+  = a string ends with the quote it starts with; a quote inside it is written \' or \"
+
+(1 more problems in e_emb23.hxn follow from the string with no end, and are not shown)
+--- output

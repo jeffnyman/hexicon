@@ -1,0 +1,5 @@
+#include <hexicon.h>
+class Thing: object name = 'thing' describe() { return name; };
+rock: Thing name = 'rock';
+modify Thing describe() { return '[' + inherited() + ']'; };
+_main(args) { print(rock.describe() + ' ' + toString(rock.weight) + ' ' + [1,2].count2() + '\n'); }

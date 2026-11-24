@@ -1,0 +1,1 @@
+f() { a: ; goto a; } _main(args) { goto a; }

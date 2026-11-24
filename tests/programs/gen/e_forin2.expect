@@ -1,0 +1,140 @@
+image: none
+--- messages
+error: expected '(' after "foreach", but found ";"
+  --> e_forin2.hxn:6
+  |
+6 |     foreach;
+  |
+
+error: missing expression in "foreach" - found ";"
+  --> e_forin2.hxn:6
+  |
+6 |     foreach;
+  |
+
+error: missing expression in "foreach" - found ";"
+  --> e_forin2.hxn:7
+  |
+7 |     foreach (;
+  |
+
+error: expected symbol name in local variable declaration, but found "1"
+  --> e_forin2.hxn:8
+  |
+8 |     foreach (local 1 in args) ;
+  |
+
+error: "in" required in "foreach" - found "args"
+  --> e_forin2.hxn:9
+  |
+9 |     foreach (x args) ;
+  |
+
+error: missing ')' at end of "foreach" expression - found ";"
+  --> e_forin2.hxn:10
+   |
+10 |     foreach (local x in args ;
+   |
+
+error: unexpected ')' found - ignored
+  --> e_forin2.hxn:11
+   |
+11 |     for (local i in ) ;
+   |
+
+error: expected an operand, but found ";"
+  --> e_forin2.hxn:11
+   |
+11 |     for (local i in ) ;
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "for"
+  --> e_forin2.hxn:12
+   |
+12 |     for (local i in 1.. ) ;
+   |
+
+error: expected ';' after "for" condition, but found "local"
+  --> e_forin2.hxn:12
+   |
+12 |     for (local i in 1.. ) ;
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "local"
+  --> e_forin2.hxn:12
+   |
+12 |     for (local i in 1.. ) ;
+   |
+
+error: missing ')' at end of "for" expression list - found "in"
+  --> e_forin2.hxn:12
+   |
+12 |     for (local i in 1.. ) ;
+   |
+
+error: expected ';', but found "1"
+  --> e_forin2.hxn:12
+   |
+12 |     for (local i in 1.. ) ;
+   |
+
+error: expected ';', but found ".."
+  --> e_forin2.hxn:12
+   |
+12 |     for (local i in 1.. ) ;
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found ".."
+  --> e_forin2.hxn:12
+   |
+12 |     for (local i in 1.. ) ;
+   |
+
+error: unexpected ')' found - ignored
+  --> e_forin2.hxn:13
+   |
+13 |     for (i in 1..2 step ) ;
+   |
+
+error: expected an operand, but found ";"
+  --> e_forin2.hxn:13
+   |
+13 |     for (i in 1..2 step ) ;
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "for"
+  --> e_forin2.hxn:14
+   |
+14 |     for (local i in args ; ; ) ;
+   |
+
+error: expected ';' after "for" condition, but found "local"
+  --> e_forin2.hxn:14
+   |
+14 |     for (local i in args ; ; ) ;
+   |
+
+error: expected integer, string, symbol, '[', or '(', but found "local"
+  --> e_forin2.hxn:14
+   |
+14 |     for (local i in args ; ; ) ;
+   |
+
+error: missing ')' at end of "for" expression list - found "in"
+  --> e_forin2.hxn:14
+   |
+14 |     for (local i in args ; ; ) ;
+   |
+
+error: expected ';', but found "args"
+  --> e_forin2.hxn:14
+   |
+14 |     for (local i in args ; ; ) ;
+   |
+
+error: unexpected ')' found - ignored
+  --> e_forin2.hxn:14
+   |
+14 |     for (local i in args ; ; ) ;
+   |
+--- output

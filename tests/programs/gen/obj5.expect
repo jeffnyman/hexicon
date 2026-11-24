@@ -1,0 +1,44 @@
+image: 2b7937dc2b22f33a108b56b1db5afb0831752219cbfe6299cc1bacdb4aa3dfcf
+--- messages
+warning: "undefinedProp" is not defined anywhere
+  --> obj5.hxn:2
+  |
+2 |     m() { return undefinedProp + other(1) ; }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "undefinedProp" is spelled
+
+warning: "other" is not defined anywhere
+  --> obj5.hxn:2
+  |
+2 |     m() { return undefinedProp + other(1) ; }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "other" is spelled
+
+warning: "newProp" is not defined anywhere
+  --> obj5.hxn:3
+  |
+3 |     n() { newProp = 1; return self; }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "newProp" is spelled
+
+warning: "neverDefined" is not defined anywhere
+  --> obj5.hxn:5
+  |
+5 | f() { return a.neverDefined; }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "neverDefined" is spelled
+
+warning: "alsoNew" is not defined anywhere
+  --> obj5.hxn:6
+  |
+6 | _main(args) { a.alsoNew = 1; a.callIt(1, 2); return f(); }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "alsoNew" is spelled
+
+warning: "callIt" is not defined anywhere
+  --> obj5.hxn:6
+  |
+6 | _main(args) { a.alsoNew = 1; a.callIt(1, 2); return f(); }
+  |
+  = it is taken to be a property, which has no value until something gives it one; check how "callIt" is spelled
+--- output

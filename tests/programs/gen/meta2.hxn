@@ -1,0 +1,35 @@
+intrinsic class Vector 'vector/030005': Collection
+{
+    toList(start?, cnt?);
+    length();
+}
+intrinsic class String 'string/030008': Object
+{
+    length();
+    substr(start, len?);
+}
+intrinsic class Object 'root-object/030004'
+{
+    ofKind(cls);
+}
+intrinsic class Collection 'collection/030000': Object
+{
+    createIterator();
+}
+intrinsic class Iterator 'iterator/030001': Object
+{
+    getNext();
+}
+intrinsic class BigNumber 'bignumber/030001': Object { formatString(); }
+intrinsic class IntrinsicClass 'intrinsic-class/030001': Object { isIntrinsicClass(obj); }
+intrinsic class ByteArray 'bytearray/030002': Object { }
+a: object x = 1;
+_main(args)
+{
+    local v = new Vector(10);
+    local w = new transient Vector(args...);
+    v.ofKind(Vector);
+    Vector;
+    return [Vector, String, a, v.length(), 'abc'.substr(2), Vector.length, String.substr(1),
+            new ByteArray(1, 2), w, new Vector, new Vector()];
+}

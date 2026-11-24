@@ -1,0 +1,13 @@
+#include <hexicon.h>
+f(x) { return x * 2; }
+_main(args)
+{
+    rand("One", "Two", "Three");
+    local r = rand(f(1), f(2), f(3));
+    local s = rand('a', 'b');
+    local t = rand(10);
+    local u = rand(r, s...);
+    local rand = {n: n};
+    local v = rand(1, 2);
+    return [r, s, t, u, v];
+}

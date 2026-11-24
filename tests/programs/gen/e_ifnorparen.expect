@@ -1,0 +1,8 @@
+image: none
+--- messages
+error: expected ')' after the "if" condition, but found "return"
+  --> e_ifnorparen.hxn:1
+  |
+1 | _main(args) { if (args return 1; }
+  |
+--- output

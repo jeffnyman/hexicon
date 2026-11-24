@@ -1,0 +1,4 @@
+image: aac2945b3c416bd8539867d52ace16dd3b1b5a966db2ad485715ea07be5aa6a7
+--- messages
+--- output
+Unhandled exception: default output function is not defined

@@ -1,0 +1,2 @@
+#include <hexicon.h>
+f(x) { return g(x); }
