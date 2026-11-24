@@ -1,8 +1,6 @@
 #charset "us-ascii"
 
 /*
- *   Copyright (c) 2008 Michael J. Roberts.  All Rights Reserved.
- *   
  *   This module provides the run-time component of "multi-methods" in TADS
  *   3.  This works with the compiler to implement a multiple-dispatch
  *   system.

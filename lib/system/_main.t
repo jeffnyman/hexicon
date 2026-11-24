@@ -1,8 +1,6 @@
 #charset "us-ascii"
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved.
- *   
  *   This module defines a number of low-level functions and classes that
  *   most TADS 3 programs will need, whether based on the adv3 library or
  *   not.  This module includes the main program entrypoint, the basic

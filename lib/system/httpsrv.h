@@ -2,10 +2,6 @@
 #pragma once
 
 /*
- *   Copyright 2010 Michael J. Roberts.
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This module defines the HTTPServer intrinsic class.  This class is used
  *   to set up a network HTTP server, which has a number of potential
  *   applications:

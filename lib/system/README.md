@@ -10,6 +10,6 @@ Hexicon's system library: what every program is built on, below any library such
 
 The compiler has all of this built in. A build looks for the system library and its headers where it is told to (`-FL` and `-FI`, or `lib` and `include` beside the program), and then here, so a game builds with nothing else installed.
 
-## Where it comes from
+## What comes next
 
-These files are derived from TADS 3, by Michael J. Roberts, and are part of Hexicon with his permission. Each keeps its copyright notice. For now they are as TADS 3 has them, apart from the line in each that says what it is part of, so that programs built on them are the same as they were. Their names and the names within them are to become Hexicon's own, as the rest of Hexicon has.
+The files' names, and many names within them (`tads.h`, `TadsObject`), are older than Hexicon's own. They are to be renamed, as the built-in functions have been (`hexicon.h`). Programs built on these files are the same as before until then, which is how the change is checked.

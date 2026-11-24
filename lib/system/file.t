@@ -1,10 +1,6 @@
 #charset "us-ascii"
 
 /*
- *   Copyright (c) 2001, 2006 Michael J. Roberts
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This module defines classes and constants related to the File
  *   intrinsic class.  In particular, this module defines the Exception
  *   subclasses thrown by File methods.  

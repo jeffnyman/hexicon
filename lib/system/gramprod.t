@@ -1,10 +1,6 @@
 #charset "us-ascii"
 
 /*
- *   Copyright (c) 2005, 2006 Michael J. Roberts
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This module defines some classes used by the GrammarProd intrinsic
  *   class.  
  */

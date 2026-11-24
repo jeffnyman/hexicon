@@ -2,10 +2,6 @@
 #pragma once
 
 /*
- *   Copyright 2009 Michael J. Roberts.
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This module defines the StringBuffer intrinsic class.  StringBuffer is
  *   essentialy a mutable version of String: you can append, insert, replace,
  *   and delete characters in place, without creating new objects as a

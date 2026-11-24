@@ -2,10 +2,6 @@
 #pragma once
 
 /*
- *   Copyright 2000, 2006 Michael J. Roberts.
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This module defines the fundamental intrinsic classes, including Object,
  *   String, Collection, List, and Iterator.  
  */

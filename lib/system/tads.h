@@ -2,9 +2,6 @@
 #pragma once
 
 /* 
- *   Copyright (c) 1999, 2006 Michael J. Roberts
- *.  Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This file includes all of the standard TADS system headers, so programs
  *   can include this header alone rather than having to include all of the
  *   separate headers individually.  

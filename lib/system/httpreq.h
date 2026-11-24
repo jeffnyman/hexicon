@@ -2,10 +2,6 @@
 #pragma once
 
 /*
- *   Copyright 2010 Michael J. Roberts.
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This module defines the HTTPRequest intrinsic class.  This class
  *   represents a request sent from a network client to the byte-code program
  *   via the program's HTTP server object.

@@ -2,10 +2,6 @@
 #pragma once
 
 /*
- *   Copyright (c) 2001, 2006 Michael J. Roberts
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This header defines the Date and TimeZone intrinsic classes.  
  */
 

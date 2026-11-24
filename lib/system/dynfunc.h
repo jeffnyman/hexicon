@@ -2,10 +2,6 @@
 #pragma once
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   The header defines the DynamicFunc intrinsic class.  This class is used
  *   for creating new functions from source code strings dynamically at
  *   run-time.

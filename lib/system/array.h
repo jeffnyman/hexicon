@@ -1,11 +1,5 @@
 #charset "us-ascii"
 
-/* 
- *   Copyright (c) 2000, 2002 Michael J. Roberts
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- */
-
 #ifndef _ARRAY_H_
 #define _ARRAY_H_
 

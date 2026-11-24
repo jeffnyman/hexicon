@@ -2,10 +2,6 @@
 #pragma once
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   The header defines the GrammarProd intrinsic class and some associated
  *   properties and constants.  
  */

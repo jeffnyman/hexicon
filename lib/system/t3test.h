@@ -2,10 +2,6 @@
 #pragma once
 
 /* 
- *   Copyright (c) 1999, 2006 Michael J. Roberts
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   This header defines the t3vmTEST function set.  This function set is
  *   intended primarily for use by the developers of the VM itself, for
  *   testing purposes.  User could should not use this function set, as the

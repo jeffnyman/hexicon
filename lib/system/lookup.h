@@ -2,10 +2,6 @@
 #pragma once
 
 /* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts
- *   
- *   Part of Hexicon's system library, derived from TADS 3 by permission.
- *   
  *   The header defines the LookupTable and WeakRefLookupTable intrinsic
  *   classes, as well as LookupTableIterator, the special Iterator type for
  *   these classes.  
