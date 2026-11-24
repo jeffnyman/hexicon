@@ -136,6 +136,8 @@ LANGUAGE = "this selects the language the library uses"
   - `nil`.
 - **It lowers to TADS 3 where it can,** for the testing reasons above.
 
+Since the break, a clearer word is reason enough to rename: see [vocabulary.md](vocabulary.md).
+
 ## Candidate changes
 
 These are in rough order of value for the cost. The syntax shown is illustrative only; settling it is part of each change's own design.
