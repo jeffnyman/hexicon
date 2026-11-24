@@ -1,4 +1,4 @@
-image: 1044c0f0d2db0fa7dea03933e22808d121cecbcdd4da79a47473a7b862a9edcb
+image: 687ab9a66e68073d32a917a110fe86988848cee9a09727d24630468af3f7100d
 --- messages
 warning: label "a" is not referenced
   --> w_lbl6.hxn:1

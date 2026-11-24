@@ -1,9 +1,8 @@
 image: none
 --- messages
-error: the object above ends without a ';'
+error: missing semicolon at end of object definition - found "class"
   --> e_obj12.hxn:1
   |
 1 | a: object x = 1 class b: object;
   |
-  = each object ends with ';', and the next starts here
 --- output

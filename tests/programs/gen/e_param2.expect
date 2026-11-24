@@ -1,7 +1,7 @@
 image: none
 --- messages
 error: optional parameters require support function "getArg", which is undefined
-error: named parameters require support function "t3GetNamedArg", which is undefined
+error: named parameters require support function "namedArg", which is undefined
   --> e_param2.hxn:6
   |
 6 |     return x;
@@ -20,7 +20,7 @@ warning: "nosuch1" is not defined anywhere
    |
    = it is taken to be a property, which has no value until something gives it one; check how "nosuch1" is spelled
 
-error: named parameters require support function "t3GetNamedArg", which is undefined
+error: named parameters require support function "namedArg", which is undefined
   --> e_param2.hxn:13
    |
 13 |      print(1);

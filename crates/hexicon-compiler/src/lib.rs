@@ -30,7 +30,7 @@ mod project;
 mod wording;
 
 pub use compile::{
-    CompileOptions, Compiled, Dialect, RuntimeSymbol, RuntimeValue, compile, compile_program,
+    CompileOptions, Compiled, RuntimeSymbol, RuntimeValue, compile, compile_program,
 };
 pub use lex::Tok;
 pub use manifest::MANIFEST;

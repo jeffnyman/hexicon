@@ -1,4 +1,4 @@
-image: 32aeac67afcc269aa267a40f9b91977d55ec8bdffc406117198e81dca8ace5e9
+image: 3528feaa61ef90985ae43d74499a50fa0fe8548a28e1c1aec039095b597a9a31
 --- messages
 warning: unreachable statement
   --> w_throw1.hxn:1

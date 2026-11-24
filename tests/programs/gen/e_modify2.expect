@@ -30,12 +30,11 @@ error: expected property name in object definition, but found ":"
 57 | modify h: object x = 1;
    |
 
-error: the object above ends without a ';'
+error: missing semicolon at end of object definition - found "object"
   --> e_modify2.hxn:57
    |
 57 | modify h: object x = 1;
    |
-   = each object ends with ';', and the next starts here
 
 error: "i" is already the name of something else, so it cannot also name an object
   --> e_modify2.hxn:59

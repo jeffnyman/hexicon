@@ -5384,11 +5384,9 @@ impl Gen<'_> {
         }
         // The class is TadsObject in TADS 3, and ProgramObject in
         // Hexicon's system library.
-        let class = [b"TadsObject".as_slice(), b"ProgramObject"]
-            .into_iter()
-            .find_map(|name| self.prog.globals.get(name).copied());
+        let class = self.prog.globals.get(b"ProgramObject").copied();
         let Some(Global::Meta(program_object)) = class else {
-            self.error("\"TadsObject\" is not defined or is not an intrinsic class");
+            self.error("\"ProgramObject\" is not defined or is not an intrinsic class");
             return;
         };
         let Some(create) = self.named_prop(b"createInstanceOf") else {
@@ -6052,23 +6050,7 @@ impl Gen<'_> {
     /// Call a function the compiler itself needs, which a system
     /// header has to have declared.
     fn call_internal_bif(&mut self, name: &[u8], what: &str, argc: usize) {
-        // The function may have Hexicon's name for it, as it has in
-        // Hexicon's system library.
-        const HEXICON_NAMES: [(&[u8], &[u8]); 1] = [(b"t3GetNamedArg", b"namedArg")];
-        let hexicon_name = HEXICON_NAMES
-            .iter()
-            .find(|(old, _)| *old == name)
-            .map(|(_, new)| *new);
-        // Found by neither, the message names the TADS 3 name, as the
-        // reference's does.
-        let found = std::iter::once(name)
-            .chain(hexicon_name)
-            .find_map(|have| Some((have, self.prog.globals.get(have).copied()?)));
-        let (name, global) = match found {
-            Some((have, global)) => (have, Some(global)),
-            None => (name, None),
-        };
-        match global {
+        match self.prog.globals.get(name).copied() {
             None => self.error(format!(
                 "{what} require support function \"{}\", which is undefined",
                 show_name(name)
@@ -6142,18 +6124,18 @@ impl Gen<'_> {
                 argc += 1;
             }
             self.gen_str(&name);
-            self.call_internal_bif(b"t3GetNamedArg", WHAT, argc);
+            self.call_internal_bif(b"namedArg", WHAT, argc);
         } else if local.defval_is_const {
             self.gen_defval(id);
             self.gen_str(&name);
-            self.call_internal_bif(b"t3GetNamedArg", WHAT, 2);
+            self.call_internal_bif(b"namedArg", WHAT, 2);
         } else {
             // The default value is only worked out if it is needed:
             // ask for the argument, and catch the error if it is not
             // there.
             let start_ofs = self.rel_ofs();
             self.gen_str(&name);
-            self.call_internal_bif(b"t3GetNamedArg", WHAT, 1);
+            self.call_internal_bif(b"namedArg", WHAT, 1);
             let end_ofs = self.rel_ofs() - 1;
             let assign = self.gen_jump_ahead(Op::Jmp);
             self.cg.note_pop();

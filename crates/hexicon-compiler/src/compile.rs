@@ -60,37 +60,6 @@ impl Default for CompileOptions {
     }
 }
 
-/// The language a source file is in, which its extension says: a
-/// `.hxn` file is Hexicon, and anything else TADS 3.
-///
-/// The two compile to the same program. TADS 3 is compiled as the
-/// reference compiles it, odd cases included; Hexicon leaves out what is
-/// kept only to match the reference. An included file is read in the
-/// language of the source that includes it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Dialect {
-    /// TADS 3, as the reference compiler reads it.
-    #[default]
-    Tads3,
-    /// Hexicon's own language.
-    Hexicon,
-}
-
-impl Dialect {
-    /// The language of the source file `path`.
-    pub fn of(path: &str) -> Self {
-        let name = path.rsplit(['/', '\\']).next().unwrap_or(path);
-        match name.rsplit_once('.') {
-            Some((_, ext)) if ext.eq_ignore_ascii_case("hxn") => Self::Hexicon,
-            _ => Self::Tads3,
-        }
-    }
-}
-
-/// The name of the system programs are compiled on, as `__TADS_SYSTEM_NAME`
-/// gives it. Hexicon is the same system wherever it runs.
-const SYSTEM_NAME: &str = "HEXICON";
-
 /// What came of compiling.
 #[derive(Debug, Clone, Default)]
 pub struct Compiled {
@@ -146,11 +115,9 @@ pub enum RuntimeValue {
 
 /// The macros the compiler defines before any source is read: what is
 /// compiling, and when. The date is `Nov 19 2026` and the time
-/// `09:24:12`, as strings. A Hexicon source is told it is one
-/// (`__HEXICON`, and Hexicon's version); a TADS 3 source gets the macros
-/// the reference defines (`__TADS3` and the rest). Then those the
-/// options define.
-fn predefined_macros(options: &CompileOptions, dialect: Dialect) -> Vec<(String, String)> {
+/// `09:24:12`, as strings. A source is told it is Hexicon's
+/// (`__HEXICON`, and Hexicon's version). Then those the options define.
+fn predefined_macros(options: &CompileOptions) -> Vec<(String, String)> {
     let stamp = String::from_utf8_lossy(&options.timestamp);
     let part = |range: std::ops::Range<usize>| stamp.get(range).unwrap_or("").to_owned();
     let mut macros = vec![
@@ -163,27 +130,17 @@ fn predefined_macros(options: &CompileOptions, dialect: Dialect) -> Vec<(String,
     if options.debug {
         macros.push(("__DEBUG".to_owned(), "1".to_owned()));
     }
-    match dialect {
-        Dialect::Hexicon => macros.extend([
-            ("__HEXICON".to_owned(), "1".to_owned()),
-            (
-                "__HEXICON_VERSION_MAJOR".to_owned(),
-                env!("CARGO_PKG_VERSION_MAJOR").to_owned(),
-            ),
-            (
-                "__HEXICON_VERSION_MINOR".to_owned(),
-                env!("CARGO_PKG_VERSION_MINOR").to_owned(),
-            ),
-        ]),
-        Dialect::Tads3 => macros.extend([
-            (format!("__TADS_SYS_{SYSTEM_NAME}"), "1".to_owned()),
-            ("__TADS_SYSTEM_NAME".to_owned(), format!("'{SYSTEM_NAME}'")),
-            ("__TADS_VERSION_MAJOR".to_owned(), "3".to_owned()),
-            ("__TADS_VERSION_MINOR".to_owned(), "1".to_owned()),
-            ("__TADS_MACRO_FORMAT_VERSION".to_owned(), "1".to_owned()),
-            ("__TADS3".to_owned(), "1".to_owned()),
-        ]),
-    }
+    macros.extend([
+        ("__HEXICON".to_owned(), "1".to_owned()),
+        (
+            "__HEXICON_VERSION_MAJOR".to_owned(),
+            env!("CARGO_PKG_VERSION_MAJOR").to_owned(),
+        ),
+        (
+            "__HEXICON_VERSION_MINOR".to_owned(),
+            env!("CARGO_PKG_VERSION_MINOR").to_owned(),
+        ),
+    ]);
     macros.extend(options.defines.iter().cloned());
     macros
 }
@@ -236,13 +193,7 @@ fn debug_macros(table: &MacroTable) -> (Vec<u8>, Vec<(usize, usize)>) {
 /// macro two modules define differently is in neither, unless a later
 /// module defines it again. `__LINE__` and `__FILE__` are in the table,
 /// as `0` and nothing, as they are when no source is being read.
-/// The program's macros are Hexicon's if any of its sources is in
-/// Hexicon (`dialect`).
-fn link_macro_table(
-    options: &CompileOptions,
-    dialect: Dialect,
-    modules: Vec<Vec<LinkMacro>>,
-) -> MacroTable {
+fn link_macro_table(options: &CompileOptions, modules: Vec<Vec<LinkMacro>>) -> MacroTable {
     struct Entry {
         mac: LinkMacro,
         pseudo: bool,
@@ -263,7 +214,7 @@ fn link_macro_table(
     };
     add(&mut table, plain("__LINE__", "0"), true);
     add(&mut table, plain("__FILE__", ""), true);
-    for (name, expansion) in predefined_macros(options, dialect) {
+    for (name, expansion) in predefined_macros(options) {
         add(&mut table, plain(&name, &expansion), false);
     }
     let mut undefined = std::collections::HashSet::new();
@@ -322,7 +273,7 @@ fn start<'a>(
         pp.set_default_charset(charset);
     }
 
-    for (name, expansion) in predefined_macros(options, Dialect::of(source)) {
+    for (name, expansion) in predefined_macros(options) {
         pp.define(&name, &expansion);
     }
     for path in &options.include_paths {
@@ -342,7 +293,6 @@ fn start<'a>(
         });
     }
     pp.set_compile_mode();
-    pp.set_dialect(Dialect::of(source));
     pp.set_imports(options.imports.clone());
     Ok(pp)
 }
@@ -383,13 +333,12 @@ pub fn compile_program(
         };
         let prog = Parser::new(&mut pp, true, Exports::default()).parse_top();
         let mut found = pp.take_diagnostics();
-        let mut warnings = Vec::new();
-        if Dialect::of(source) == Dialect::Hexicon {
-            found.iter_mut().for_each(crate::wording::for_hexicon);
-            (warnings, found) = found
-                .into_iter()
-                .partition(|d| d.severity == Severity::Warning);
-        }
+        found.iter_mut().for_each(crate::wording::for_hexicon);
+        // A warning is given once, by the second reading, unless only
+        // the first gave it.
+        let (warnings, mut found): (Vec<_>, Vec<_>) = found
+            .into_iter()
+            .partition(|d| d.severity == Severity::Warning);
         first_warnings.push(warnings);
         compiled.diagnostics.append(&mut found);
         if has_errors(&compiled.diagnostics) {
@@ -405,12 +354,9 @@ pub fn compile_program(
     // files are numbered after those of the modules before it, a file
     // that two modules read once for each.
     let mut source_files: Vec<String> = Vec::new();
-    // Names are checked when the game has a Hexicon source of its own.
+    // Names are checked when the game has a source of its own.
     let from_library = |index: usize| options.from_library.get(index) == Some(&true);
-    let checks_names = sources
-        .iter()
-        .enumerate()
-        .any(|(index, source)| Dialect::of(source) == Dialect::Hexicon && !from_library(index));
+    let checks_names = (0..sources.len()).any(|index| !from_library(index));
     let mut names = crate::names::Checker::default();
     for (index, source) in sources.iter().enumerate() {
         let module = options
@@ -429,12 +375,9 @@ pub fn compile_program(
         parser.set_module(module, options.source_text_group);
         let mut prog = parser.parse_top();
         let mut found = pp.take_diagnostics();
-        let hexicon = Dialect::of(source) == Dialect::Hexicon;
-        if hexicon {
-            for diagnostic in &mut found {
-                crate::wording::for_hexicon(diagnostic);
-                crate::wording::suggest_name(diagnostic, &prog.globals);
-            }
+        for diagnostic in &mut found {
+            crate::wording::for_hexicon(diagnostic);
+            crate::wording::suggest_name(diagnostic, &prog.globals);
         }
         // A warning only the first reading gave is still reported.
         for warning in std::mem::take(&mut first_warnings[index]) {
@@ -451,7 +394,7 @@ pub fn compile_program(
         if checks_names {
             names.add(
                 crate::names::collect(&prog),
-                Dialect::of(source) == Dialect::Hexicon && !from_library(index),
+                !from_library(index),
                 from_library(index),
                 &|file| pp.file_name(file).to_owned(),
             );
@@ -473,10 +416,8 @@ pub fn compile_program(
                 message: diagnostic.message,
                 ..Default::default()
             };
-            if hexicon {
-                crate::wording::for_hexicon(&mut diagnostic);
-                crate::wording::suggest_name(&mut diagnostic, &prog.globals);
-            }
+            crate::wording::for_hexicon(&mut diagnostic);
+            crate::wording::suggest_name(&mut diagnostic, &prog.globals);
             compiled.diagnostics.push(diagnostic);
         }
         if has_errors(&compiled.diagnostics) {
@@ -564,15 +505,7 @@ pub fn compile_program(
         return compiled;
     }
 
-    let dialect = if sources
-        .iter()
-        .any(|source| Dialect::of(source) == Dialect::Hexicon)
-    {
-        Dialect::Hexicon
-    } else {
-        Dialect::Tads3
-    };
-    let table = link_macro_table(options, dialect, module_macros);
+    let table = link_macro_table(options, module_macros);
     let debug = options.debug.then(|| {
         let (macros, macros_unspecified) = debug_macros(&table);
         image::DebugRecords {

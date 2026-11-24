@@ -12,12 +12,11 @@ error: expected property name in object definition, but found ":"
 3 | + replace x: object;
   |
 
-error: the object above ends without a ';'
+error: missing semicolon at end of object definition - found "object"
   --> e_plus2.hxn:3
   |
 3 | + replace x: object;
   |
-  = each object ends with ';', and the next starts here
 
 error: expected ':' after object name in object definition, but found "g"
   --> e_plus2.hxn:4
@@ -87,10 +86,9 @@ error: expected property name in object definition, but found ":"
 9 | + y: object + z: object;
   |
 
-error: the object above ends without a ';'
+error: missing semicolon at end of object definition - found "object"
   --> e_plus2.hxn:9
   |
 9 | + y: object + z: object;
   |
-  = each object ends with ';', and the next starts here
 --- output

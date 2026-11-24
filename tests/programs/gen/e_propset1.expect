@@ -102,12 +102,11 @@ error: expected property name in object definition, but found ":"
 15 | b: object
    |
 
-error: the object above ends without a ';'
+error: missing semicolon at end of object definition - found "object"
   --> e_propset1.hxn:15
    |
 15 | b: object
    |
-   = each object ends with ';', and the next starts here
 
 error: expected property name pattern string after 'propertyset' - found ";"
   --> e_propset1.hxn:16

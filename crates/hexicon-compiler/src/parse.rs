@@ -310,7 +310,7 @@ pub(crate) struct MetaEntry {
 /// or not. One more, `intrinsic-class`, is added after whatever the
 /// program declares.
 pub(crate) const PREDEFINED_METACLASSES: [&str; 8] = [
-    "tads-object/000000",
+    "hexicon-object/000000",
     "list/000000",
     "dictionary2/030000",
     "grammar-production/030000",
@@ -319,15 +319,6 @@ pub(crate) const PREDEFINED_METACLASSES: [&str; 8] = [
     "int-class-mod/030000",
     "lookuptable/030003",
 ];
-
-/// Whether two names of built-in classes, without their versions, are
-/// one class's. The class of the program's own objects is
-/// `hexicon-object` on Hexicon's system library and `tads-object` on
-/// TADS 3's.
-pub(crate) fn same_meta(a: &[u8], b: &[u8]) -> bool {
-    let root = |name: &[u8]| name == b"hexicon-object" || name == b"tads-object";
-    a == b || (root(a) && root(b))
-}
 
 /// A property, as a name.
 #[derive(Debug, Clone)]
@@ -1148,14 +1139,9 @@ impl Program {
         };
         let (name_len, version) = split(name);
         for (index, entry) in self.meta_table.iter_mut().enumerate() {
-            let (entry_len, mut entry_version) = split(&entry.name);
-            if !same_meta(&entry.name[..entry_len], &name[..name_len]) {
-                continue;
-            }
+            let (entry_len, entry_version) = split(&entry.name);
             if entry.name[..entry_len] != name[..name_len] {
-                // The Hexicon name for the program's objects' class.
-                entry.name = [&name[..name_len], &entry.name[entry_len..]].concat();
-                entry_version = entry_version.map(|at| at - entry_len + name_len);
+                continue;
             }
             if let (Some(version), Some(entry_version)) = (version, entry_version) {
                 let (new, old) = (&name[version..], &entry.name[entry_version..]);
@@ -1211,8 +1197,6 @@ pub(crate) struct Parser<'p, 'a> {
     /// Reading the expression of a preprocessor directive, in which a
     /// string in double quotes is a value like one in single quotes.
     pp_expr: bool,
-    /// The language of the directive whose expression is being read.
-    pp_dialect: crate::Dialect,
     /// The line of the token before the current one.
     prev_line: u32,
     /// Objects named by a token whose text the reference keeps only in
@@ -1475,7 +1459,6 @@ impl<'p, 'a> Parser<'p, 'a> {
         Self {
             tok,
             pp_expr: false,
-            pp_dialect: crate::Dialect::Tads3,
             prev_line: 0,
             unkept_objs: Vec::new(),
             syntax_only,
@@ -5605,12 +5588,9 @@ impl Parser<'_, '_> {
                 Tok::LPar if allow_call => sub = self.parse_call(sub)?,
                 Tok::LBrack => sub = self.parse_subscript(sub)?,
                 Tok::Dot if allow_member => sub = self.parse_member(sub)?,
-                // In Hexicon, ++ and -- after an expression are on its
-                // line: on the next, a ++ starts the next object.
-                Tok::Inc | Tok::Dec
-                    if self.tok.dialect() == crate::Dialect::Hexicon
-                        && self.tok.cur_token().line > self.prev_line =>
-                {
+                // ++ and -- after an expression are on its line: on the
+                // next, a ++ starts the next object.
+                Tok::Inc | Tok::Dec if self.tok.cur_token().line > self.prev_line => {
                     return Some(sub);
                 }
                 Tok::Inc => {
@@ -8061,8 +8041,7 @@ impl Parser<'_, '_> {
     /// colon, a string, `@`, `[`, `->`, or another name). The tokens are
     /// read to see, and put back.
     fn starts_plus_object(&mut self) -> bool {
-        if self.tok.dialect() != crate::Dialect::Hexicon
-            || !matches!(self.cur(), Tok::Plus | Tok::Inc)
+        if !matches!(self.cur(), Tok::Plus | Tok::Inc)
             || self.tok.cur_token().line <= self.prev_line
         {
             return false;
@@ -8096,8 +8075,9 @@ impl Parser<'_, '_> {
     /// starts. In Hexicon, the problem is said where the object ends,
     /// with that line and the next one shown.
     fn missing_object_end(&mut self, missing_end: &str) {
-        if self.tok.dialect() == crate::Dialect::Hexicon && missing_end.contains("semicolon") {
-            let (end, next) = (self.prev_line, self.tok.cur_token().line);
+        let (end, next) = (self.prev_line, self.tok.cur_token().line);
+        // On one line, what comes next says it best.
+        if missing_end.contains("semicolon") && next > end {
             self.tok.log_noted(
                 end,
                 "the object above ends without a ';'".to_owned(),
@@ -8262,12 +8242,8 @@ impl Parser<'_, '_> {
     }
 
     /// Whether a Hexicon form starts here: one of `words`, and then a
-    /// name. Neither is anything in TADS 3, where a name followed by a
-    /// name does not start a definition or a property.
+    /// name, which does not otherwise start a definition or a property.
     fn at_hexicon_form(&mut self, words: &[&[u8]]) -> bool {
-        if self.tok.dialect() != crate::Dialect::Hexicon {
-            return false;
-        }
         let text = self.tok.cur_token().text.as_slice();
         if !words.contains(&text) {
             return false;
@@ -9810,22 +9786,11 @@ impl crate::pp::SourceFiles for NoFiles {
 }
 
 impl Parser<'_, '_> {
-    /// Read one constant expression of a directive, as the reference's
-    /// tokenizer has its parser do. With `last`, the expression is to end
-    /// the line; but the reference looks for the end one token past the
-    /// one the expression stopped at, so a single token after it goes
-    /// unremarked.
+    /// Read one constant expression of a directive. With `last`, the
+    /// expression is to end the line.
     fn parse_pp_expr(&mut self, last: bool) -> Option<ConstVal> {
         let expr = self.parse_expr();
-        // Hexicon looks at the token the expression stopped at.
-        let at_end = |parser: &mut Self| {
-            if parser.pp_dialect == crate::Dialect::Hexicon {
-                parser.cur() == Tok::Eof
-            } else {
-                parser.next() == Tok::Eof
-            }
-        };
-        if last && !at_end(self) {
+        if last && self.cur() != Tok::Eof {
             self.tok.log_error("extra characters at end of line");
         }
         let expr = expr?;
@@ -9844,7 +9809,6 @@ impl Parser<'_, '_> {
 /// collect what it found wrong.
 fn with_pp_parser<T>(
     text: &[u8],
-    dialect: crate::Dialect,
     read: impl FnOnce(&mut Parser<'_, '_>) -> Option<T>,
 ) -> (Option<T>, Problems) {
     let mut files = NoFiles;
@@ -9852,7 +9816,6 @@ fn with_pp_parser<T>(
     let value = {
         let mut parser = Parser::new(&mut pp, false, Exports::default());
         parser.pp_expr = true;
-        parser.pp_dialect = dialect;
         parser.next();
         read(&mut parser)
     };
@@ -9867,19 +9830,16 @@ fn with_pp_parser<T>(
 /// Evaluate the condition of an `#if` or `#elif`, whose macros have been
 /// expanded: whether it is true, or nothing if it has no constant value;
 /// and the problems found, for the directive's line.
-pub(crate) fn eval_pp_condition(text: &[u8], dialect: crate::Dialect) -> (Option<bool>, Problems) {
-    with_pp_parser(text, dialect, |parser| {
+pub(crate) fn eval_pp_condition(text: &[u8]) -> (Option<bool>, Problems) {
+    with_pp_parser(text, |parser| {
         parser.parse_pp_expr(true).map(|value| value.is_true())
     })
 }
 
 /// Evaluate the line number and file name of a `#line`, whose macros have
 /// been expanded.
-pub(crate) fn eval_pp_line(
-    text: &[u8],
-    dialect: crate::Dialect,
-) -> (Option<(i32, Vec<u8>)>, Problems) {
-    with_pp_parser(text, dialect, |parser| {
+pub(crate) fn eval_pp_line(text: &[u8]) -> (Option<(i32, Vec<u8>)>, Problems) {
+    with_pp_parser(text, |parser| {
         let line = parser.parse_pp_expr(false)?;
         let Value::Int(line) = line.value else {
             parser.tok.log_error("integer value required for #line");

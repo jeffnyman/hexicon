@@ -109,12 +109,11 @@ error: property "adjective" is a dictionary property - not valid in templates
 19 | object template 'name' @adjective;
    |
 
-error: the object above ends without a ';'
+error: missing semicolon at end of object definition - found "+"
   --> e_dict1.hxn:21
    |
 21 | d: object noun = 'x' + 'y';
    |
-   = each object ends with ';', and the next starts here
 
 error: expected ':' after object name in object definition, but found ";"
   --> e_dict1.hxn:21

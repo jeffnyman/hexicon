@@ -1,4 +1,4 @@
-image: 2b7937dc2b22f33a108b56b1db5afb0831752219cbfe6299cc1bacdb4aa3dfcf
+image: 60c28cc03b876275ab6ab0dee8d3665d9f9c5cf9ba08e2cbb70c10cc4d5fcdbb
 --- messages
 warning: "undefinedProp" is not defined anywhere
   --> obj5.hxn:2

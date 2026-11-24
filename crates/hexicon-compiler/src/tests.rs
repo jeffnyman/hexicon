@@ -37,12 +37,12 @@ impl SourceFiles for Files {
     }
 }
 
-/// The preprocessed lines of `main.t`, and the messages about it.
+/// The preprocessed lines of `main.hxn`, and the messages about it.
 fn preprocess_files(mut files: Files) -> (Vec<String>, Vec<String>) {
     let mut pp = Preprocessor::new(&mut files);
     pp.set_test_report_mode(true);
     pp.add_include_path("inc");
-    assert!(pp.set_source("main.t"));
+    assert!(pp.set_source("main.hxn"));
     let mut lines = Vec::new();
     while let Some(line) = pp.next_line() {
         lines.push(String::from_utf8_lossy(&line.text).into_owned());
@@ -68,7 +68,7 @@ fn preprocess_files(mut files: Files) -> (Vec<String>, Vec<String>) {
 }
 
 fn preprocess(text: &str) -> Vec<String> {
-    let (lines, messages) = preprocess_files(Files::default().with("main.t", text));
+    let (lines, messages) = preprocess_files(Files::default().with("main.hxn", text));
     assert_eq!(messages, Vec::<String>::new());
     lines
 }
@@ -140,13 +140,13 @@ fn conditions_are_read_by_the_compilers_own_parser() {
     // operators the language has. `is in` is not worked out while
     // compiling, so it is not a constant, and so counts as true.
     let (lines, messages) = preprocess_files(Files::default().with(
-        "main.t",
+        "main.hxn",
         "#if 1.5 > 1\na\n#endif\n#if \"ab\" + 'c' == 'abc'\nb\n#endif\n\
          #if 1 is in (2, 1)\nc\n#endif\n#if nil ?? 0\nd\n#endif\n",
     ));
     assert_eq!(
         messages,
-        ["main.t(7): error: preprocessor expression is not a constant value"]
+        ["main.hxn(7): error: preprocessor expression is not a constant value"]
     );
     let shown: Vec<&str> = lines
         .iter()
@@ -155,19 +155,19 @@ fn conditions_are_read_by_the_compilers_own_parser() {
         .collect();
     assert_eq!(shown, ["a", "b", "c"]);
 
-    // The reference looks for the end of the line a token late, so one
-    // token after the expression passes; two do not. A name is not a
+    // Anything after the expression is an error. A name is not a
     // constant, and the message is the parser's.
     let (_, messages) = preprocess_files(Files::default().with(
-        "main.t",
+        "main.hxn",
         "#if 1 2\n#endif\n#if 1 2 3\n#endif\n#if foo\n#endif\n#if 1 <<\n#endif\n",
     ));
     assert_eq!(
         messages,
         [
-            "main.t(3): error: extra characters at end of line",
-            "main.t(5): error: preprocessor expression is not a constant value",
-            "main.t(7): error: expected integer, string, symbol, '[', or '(', but found \"<End Of File>\"",
+            "main.hxn(1): error: extra characters at end of line",
+            "main.hxn(3): error: extra characters at end of line",
+            "main.hxn(5): error: preprocessor expression is not a constant value",
+            "main.hxn(7): error: expected integer, string, symbol, '[', or '(', but found \"<End Of File>\"",
         ]
     );
 }
@@ -175,16 +175,16 @@ fn conditions_are_read_by_the_compilers_own_parser() {
 #[test]
 fn a_line_directive_takes_a_number_and_a_name() {
     let (_, messages) = preprocess_files(Files::default().with(
-        "main.t",
-        "#line 10\n#line 'x' 'y'\n#line 5 6\n#line 7 \"other.t\"\nz\n",
+        "main.hxn",
+        "#line 10\n#line 'x' 'y'\n#line 5 6\n#line 7 \"other.hxn\"\nz\n",
     ));
     assert_eq!(
         messages,
         [
-            "main.t(1): error: expected integer, string, symbol, '[', or '(', but found \"<End Of File>\"",
-            "main.t(1): error: string value required for #line",
-            "main.t(2): error: integer value required for #line",
-            "main.t(3): error: string value required for #line",
+            "main.hxn(1): error: expected integer, string, symbol, '[', or '(', but found \"<End Of File>\"",
+            "main.hxn(1): error: string value required for #line",
+            "main.hxn(2): error: integer value required for #line",
+            "main.hxn(3): error: string value required for #line",
         ]
     );
 }
@@ -221,32 +221,32 @@ fn a_comment_to_end_of_line_inside_a_macro_call_loses_what_follows() {
 fn includes_and_the_line_and_file_macros() {
     let files = Files::default()
         .with(
-            "main.t",
+            "main.hxn",
             "#include \"local.h\"\n#include <system.h>\n__FILE__ __LINE__ LOCAL SYSTEM\n",
         )
         .with("local.h", "#pragma once\n#define LOCAL 1\n")
         .with("inc/system.h", "#define SYSTEM __FILE__\n");
     let (lines, messages) = preprocess_files(files);
     assert_eq!(messages, Vec::<String>::new());
-    assert_eq!(lines, ["", "", "", "", "", "'main.t' 3 1 'main.t'"]);
+    assert_eq!(lines, ["", "", "", "", "", "'main.hxn' 3 1 'main.hxn'"]);
 }
 
 #[test]
 fn problems_are_reported_in_the_reference_wording() {
     let (lines, messages) = preprocess_files(Files::default().with(
-        "main.t",
+        "main.hxn",
         "#define ONE(a) a\nONE(1, 2)\n#include \"missing.h\"\n#bogus\n#define ONE(b) b b\n#endif\n#if 1\n",
     ));
     assert_eq!(lines.len(), 7);
     assert_eq!(
         messages,
         [
-            "main.t(2): error: too many arguments for macro \"ONE\"",
-            "main.t(3): error: cannot open include file \"missing.h\"",
-            "main.t(4): error: invalid preprocessor directive",
-            "main.t(5): warning: redefinition of macro \"ONE\"",
-            "main.t(6): error: #endif without #if",
-            "main.t(8): error: #if without #endif (line 7, file main.t)",
+            "main.hxn(2): error: too many arguments for macro \"ONE\"",
+            "main.hxn(3): error: cannot open include file \"missing.h\"",
+            "main.hxn(4): error: invalid preprocessor directive",
+            "main.hxn(5): warning: redefinition of macro \"ONE\"",
+            "main.hxn(6): error: #endif without #if",
+            "main.hxn(8): error: #if without #endif (line 7, file main.hxn)",
         ]
     );
 }
@@ -255,7 +255,7 @@ fn problems_are_reported_in_the_reference_wording() {
 fn a_file_says_what_character_set_it_is_in() {
     let mut files = Files::default();
     files.0.insert(
-        "main.t".to_owned(),
+        "main.hxn".to_owned(),
         b"#charset \"iso-8859-1\"\n'caf\xe9'\n".to_vec(),
     );
     let (lines, messages) = preprocess_files(files);
@@ -264,32 +264,34 @@ fn a_file_says_what_character_set_it_is_in() {
 
     // Without one, a file is ASCII, and other bytes are not characters.
     let mut files = Files::default();
-    files.0.insert("main.t".to_owned(), b"'caf\xe9'\n".to_vec());
+    files
+        .0
+        .insert("main.hxn".to_owned(), b"'caf\xe9'\n".to_vec());
     let (lines, _) = preprocess_files(files);
     assert_eq!(lines, ["'caf\u{fffd}'"]);
 
     // A set the compiler does not know itself is asked for from outside.
     let (lines, messages) =
-        preprocess_files(Files::default().with("main.t", "#charset \"shifted\"\nHAL\n"));
+        preprocess_files(Files::default().with("main.hxn", "#charset \"shifted\"\nHAL\n"));
     assert_eq!(messages, Vec::<String>::new());
     assert_eq!(lines, ["\u{b}IBM\u{b}"]);
 
     // A set that is not known is an error, and the file is read as ASCII.
     let (lines, messages) =
-        preprocess_files(Files::default().with("main.t", "#charset \"klingon\"\nx\n"));
+        preprocess_files(Files::default().with("main.hxn", "#charset \"klingon\"\nx\n"));
     assert_eq!(lines, ["", "x"]);
-    assert_eq!(messages, ["main.t(1): error: unable to load #charset"]);
+    assert_eq!(messages, ["main.hxn(1): error: unable to load #charset"]);
 }
 
 // ---- the tokenizer ----
 
-/// The tokens of `main.t`, as kind and text, and the messages about it.
+/// The tokens of `main.hxn`, as kind and text, and the messages about it.
 fn tokens(text: &str) -> (Vec<(Tok, String)>, Vec<String>) {
-    let mut files = Files::default().with("main.t", text);
+    let mut files = Files::default().with("main.hxn", text);
     let mut pp = Preprocessor::new(&mut files);
     pp.set_test_report_mode(true);
     pp.set_compile_mode();
-    assert!(pp.set_source("main.t"));
+    assert!(pp.set_source("main.hxn"));
     let mut out = Vec::new();
     while pp.next_token() != Tok::Eof {
         let token = pp.cur_token();
@@ -388,10 +390,10 @@ fn a_string_with_embedded_expressions_is_several_tokens() {
 
 #[test]
 fn tokens_can_be_put_back() {
-    let mut files = Files::default().with("main.t", "a b c");
+    let mut files = Files::default().with("main.hxn", "a b c");
     let mut pp = Preprocessor::new(&mut files);
     pp.set_compile_mode();
-    assert!(pp.set_source("main.t"));
+    assert!(pp.set_source("main.hxn"));
     pp.next_token();
     pp.next_token();
     assert_eq!(pp.cur_token().text, b"b");
@@ -436,8 +438,8 @@ fn tokenizer_problems() {
 use crate::{CompileOptions, Compiled, compile};
 
 fn compile_text(text: &str) -> Compiled {
-    let mut files = Files::default().with("main.t", text);
-    compile(&mut files, "main.t", &CompileOptions::default())
+    let mut files = Files::default().with("main.hxn", text);
+    compile(&mut files, "main.hxn", &CompileOptions::default())
 }
 
 fn compile_messages(text: &str) -> Vec<String> {
@@ -584,7 +586,7 @@ fn adding_nil_to_a_constant_string_adds_nothing() {
 fn problems_are_reported_as_the_reference_reports_them() {
     assert_eq!(
         compile_messages("_main(args) { return undefinedThing; }\n"),
-        ["1: error: undefined symbol \"undefinedThing\""]
+        ["1: error: \"undefinedThing\" is not defined anywhere"]
     );
     assert_eq!(
         compile_messages("f(a) { return a; }\n_main(args) { return f(); }\n"),
@@ -613,9 +615,9 @@ fn locals_that_are_not_used_get_warnings() {
             "_main(args)\n{\n    local a;\n    local b = 1;\n    local c;\n    return c;\n}\n"
         ),
         [
-            "3: warning: local variable \"a\" is never used",
-            "4: warning: value is assigned to local variable \"b\" but the value is never used",
-            "5: warning: no value is assigned to local variable \"c\"",
+            "3: warning: the local variable \"a\" is never used",
+            "4: warning: \"b\" is given a value that is never used",
+            "5: warning: \"c\" is used, but never given a value",
         ]
     );
 }
@@ -1000,7 +1002,10 @@ fn the_compiler_gives_up_after_a_hundred_errors() {
     source.push_str("}\n");
     let messages = compile_messages(&source);
     assert_eq!(messages.len(), 102);
-    assert_eq!(messages[100], "102: error: undefined symbol \"u100\"");
+    assert_eq!(
+        messages[100],
+        "102: error: \"u100\" is not defined anywhere"
+    );
     assert!(messages[101].starts_with("102: fatal error: too many errors"));
 }
 
@@ -1009,8 +1014,8 @@ fn an_undefined_name_is_reported_once() {
     assert_eq!(
         compile_messages("f() { nosuch(); }\n_main(args) { nosuch; other = nosuch; }\n"),
         [
-            "1: error: undefined symbol \"nosuch\"",
-            "2: error: undefined symbol \"other\"",
+            "1: error: \"nosuch\" is not defined anywhere",
+            "2: error: \"other\" is not defined anywhere",
         ]
     );
 }
@@ -1094,9 +1099,9 @@ fn a_name_nothing_defines_is_taken_for_a_property_where_one_makes_sense() {
             "a: object m() { return size; }\n;\n_main(args) { return a.weight + other; }\n"
         ),
         [
-            "1: warning: undefined symbol \"size\" - assuming this is a property name",
-            "3: warning: undefined symbol \"weight\" - assuming this is a property name",
-            "3: error: undefined symbol \"other\"",
+            "1: warning: \"size\" is not defined anywhere",
+            "3: warning: \"weight\" is not defined anywhere",
+            "3: error: \"other\" is not defined anywhere",
         ]
     );
 }
@@ -1111,7 +1116,7 @@ fn object_definitions_that_are_wrong() {
         [
             "1: error: property \"x\" already defined in object",
             "2: error: object \"a\" is already defined - can't redefine as object",
-            "4: error: symbol \"f\" is already defined - can't redefine as object",
+            "4: error: \"f\" is already the name of something else, so it cannot also name an object",
             "5: error: circular class definition: b is a subclass of b",
             // `c` is taken for the class of an object with no name.
             "6: error: missing semicolon at end of object definition - found \"object\"",
@@ -1122,14 +1127,14 @@ fn object_definitions_that_are_wrong() {
     assert_eq!(
         compile_messages("a: object;\nb: object x = 1\na: object y = 2;\n_main(args) { }\n"),
         [
-            "3: error: unterminated object definition",
+            "3: error: this object has no ';' at its end",
             "3: error: object \"a\" is already defined - can't redefine as object",
         ]
     );
     assert_eq!(
         compile_messages("a: Nosuch;\nf() { }\nb: f;\n_main(args) { }\n"),
         [
-            "1: error: undefined symbol \"Nosuch\" (used as superclass of \"a\")",
+            "1: error: \"Nosuch\" is not defined anywhere",
             "3: error: invalid superclass \"f\" - not an object",
         ]
     );
@@ -1186,7 +1191,7 @@ fn a_catch_names_a_class_of_exception() {
         compile_messages("f() { }\n_main(args) { try { } catch (f e) { } catch (nosuch e) { } }\n"),
         [
             "2: error: exception class symbol \"f\" in \"catch\" clause is not an object",
-            "2: error: undefined symbol \"nosuch\"",
+            "2: error: \"nosuch\" is not defined anywhere",
         ]
     );
 }
@@ -1222,7 +1227,7 @@ fn new_makes_an_object_of_a_class() {
         [
             "2: error: cannot apply operator 'new' to this expression",
             "2: error: cannot apply operator 'new' to this expression",
-            "2: error: undefined symbol \"nosuch\"",
+            "2: error: \"nosuch\" is not defined anywhere",
         ]
     );
 }
@@ -1256,7 +1261,7 @@ fn inherited_calls_what_a_method_overrides() {
         compile_messages("a: object;\n_main(args) { inherited.x; inherited a.x; targetprop; }\n"),
         [
             "2: error: 'self' is not valid in this context",
-            "2: warning: undefined symbol \"x\" - assuming this is a property name",
+            "2: warning: \"x\" is not defined anywhere",
             "2: error: 'self' is not valid in this context",
             "2: error: 'targetprop' is not available in this context",
         ]
@@ -1326,7 +1331,7 @@ fn a_built_in_class_is_declared_with_its_properties() {
              intrinsic class A 'a/030000': Nosuch { 1; }\n_main(args) { return A(); }\n"
         ),
         [
-            "2: error: symbol \"f\" is already defined - can't redefine as intrinsic class",
+            "2: error: \"f\" is already the name of something else, so it cannot also name an intrinsic class",
             "3: error: intrinsic class superclass \"Nosuch\" is not defined",
             "3: error: expected property name in intrinsic class list, but found \"1\"",
         ]
@@ -1396,8 +1401,8 @@ fn a_loop_over_a_collection_asks_it_for_an_iterator() {
         [
             "1: error: Container.createIterator is not defined - foreach..in is not valid",
             "1: error: Container.createIterator is not defined - for..in is not valid",
-            "1: warning: value is assigned to local variable \"x\" but the value is never used",
-            "1: warning: value is assigned to local variable \"y\" but the value is never used",
+            "1: warning: \"x\" is given a value that is never used",
+            "1: warning: \"y\" is given a value that is never used",
         ]
     );
 }
@@ -1559,11 +1564,11 @@ fn a_short_anonymous_function_has_its_own_mistakes() {
 
 /// The declarations of the built-in functions that optional and named
 /// parameters are filled in with.
-const PARAM_SUPPORT: &str = "intrinsic 't3vm/010006' { t3RunGC(); t3SetSay(val); t3GetVMVsn(); \
-    t3GetVMID(); t3GetVMBanner(); t3GetVMPreinitMode(); t3DebugTrace(mode, ...); \
-    t3GetGlobalSymbols(which?); t3AllocProp(); t3GetStackTrace(level?, flags?); \
-    t3GetNamedArg(name, defval?); t3GetNamedArgList(); }\n\
-    intrinsic 'tads-gen/030008' { dataType(val); getArg(idx); }\n";
+const PARAM_SUPPORT: &str = "intrinsic 'hexicon-vm/010006' { collectGarbage(); setSay(val); vmVersion(); \
+    vmId(); vmBanner(); inPreinit(); debugTrace(mode, ...); \
+    globalSymbols(which?); newProperty(); stackTrace(level?, flags?); \
+    namedArg(name, defval?); namedArgList(); }\n\
+    intrinsic 'hexicon-gen/030008' { dataType(val); getArg(idx); }\n";
 
 #[test]
 fn an_optional_parameter_is_a_local_filled_in_at_the_start() {
@@ -1610,7 +1615,7 @@ fn a_named_parameter_is_asked_for_by_name() {
     let code = code(&image);
     // No parameters as the machine counts them, and two locals.
     assert_eq!(code[0..4], [0, 0, 2, 0]);
-    // t3GetNamedArg('n'), and t3GetNamedArg('m', 3).
+    // namedArg('n'), and namedArg('m', 3).
     assert_eq!(code[10], 0x05);
     assert_eq!(code[15..20], [0xb1, 1, 10, 0xee, 0]);
     assert_eq!(code[20..23], [0x03, 3, 0x05]);
@@ -1685,8 +1690,12 @@ fn a_static_property_is_code_that_runs_before_the_program() {
         "f() { return 7; }\na: object p = static f() q = static 5;\n\
          _main(args) { return a.p; }\n",
     );
+    // q is given a value nothing reads, which is a warning.
     assert!(
-        compiled.diagnostics.is_empty(),
+        compiled
+            .diagnostics
+            .iter()
+            .all(|d| d.severity == Severity::Warning),
         "{:?}",
         compiled.diagnostics
     );
@@ -1875,8 +1884,8 @@ fn a_template_gives_properties_to_the_values_an_object_starts_with() {
              a: object [1];\nb: C 'x' 'y';\nextern class E;\nc: E 'x';\n_main(args) { }\n"
         ),
         [
-            "4: error: object definition does not match any template",
-            "5: error: object definition does not match any template",
+            "4: error: the values written here without names fit none of the class's templates",
+            "5: error: the values written here without names fit none of the class's templates",
             "7: error: cannot use template with an unimported extern class as superclass",
         ]
     );
@@ -2000,7 +2009,7 @@ fn an_object_can_be_the_value_of_a_property_of_another() {
         ),
         [
             "3: error: property \"lexicalParent\" already defined in object",
-            "6: error: unterminated object definition",
+            "6: error: this object has no ';' at its end",
         ]
     );
 }
@@ -2020,7 +2029,15 @@ fn a_propertyset_gives_its_properties_a_pattern_for_their_names_and_parameters()
          verxATake(actor, q, last, extra) { return q + last; }\n;\n\
          _main(args) { return a.verDobjTake(1, 2, 3) + a.vervalTake; }\n",
     );
-    assert!(grouped.diagnostics.is_empty(), "{:?}", grouped.diagnostics);
+    // verIobjTake is given a value nothing reads, which is a warning.
+    assert!(
+        grouped
+            .diagnostics
+            .iter()
+            .all(|d| d.severity == Severity::Warning),
+        "{:?}",
+        grouped.diagnostics
+    );
     assert!(grouped.image.is_some());
     assert_eq!(grouped.image, written_out.image);
 
@@ -2416,7 +2433,7 @@ fn dictionary_words_have_their_own_mistakes() {
     assert_eq!(
         compile_messages("f() { }\na: object;\ndictionary f;\ndictionary a;\n_main(args) { }\n"),
         [
-            "3: error: symbol \"f\" is already defined - can't redefine as object",
+            "3: error: \"f\" is already the name of something else, so it cannot also name an object",
             "4: error: redefining symbol \"a\" as dictionary object",
         ]
     );
@@ -2533,14 +2550,14 @@ fn grammar_statements_have_their_own_mistakes() {
 }
 
 /// What a program needs to declare for objects written in expressions.
-const TADS_OBJECT: &str = "intrinsic class Object 'root-object/030004' { }\n\
-    intrinsic class TadsObject 'tads-object/030005': Object\n\
+const PROGRAM_OBJECT: &str = "intrinsic class Object 'root-object/030004' { }\n\
+    intrinsic class ProgramObject 'hexicon-object/030005': Object\n\
     { createInstanceOf(...); setMethod(prop, meth); }\n";
 
 #[test]
 fn an_object_written_in_an_expression_is_made_when_it_is_evaluated() {
     let source = format!(
-        "{TADS_OBJECT}class Thing: object;\n\
+        "{PROGRAM_OBJECT}class Thing: object;\n\
          make(n) {{ return object: Thing {{ fixed = 7 size = n * 2 twice(x) {{ return x + n; }} }}; }}\n\
          _main(args) {{ return make(1); }}\n"
     );
@@ -2569,7 +2586,7 @@ fn an_object_written_in_an_expression_is_made_when_it_is_evaluated() {
     // The program has to have declared the class of its own objects.
     assert_eq!(
         compile_messages("_main(args) { return object { x = 1 }; }\n"),
-        ["1: error: \"TadsObject\" is not defined or is not an intrinsic class"]
+        ["1: error: \"ProgramObject\" is not defined or is not an intrinsic class"]
     );
     assert_eq!(
         compile_messages("class Thing: object;\n_main(args) { return object Thing { }; }\n")[..1],
@@ -2589,7 +2606,7 @@ fn a_question_about_a_name_is_answered_when_the_program_is_compiled() {
         ),
         [
             "7: warning: symbol \"f\" is not an object - illegal on left of '.'",
-            "8: warning: undefined symbol \"nope\"",
+            "8: warning: \"nope\" is not defined anywhere",
         ]
     );
     assert_eq!(
@@ -2697,7 +2714,7 @@ fn a_program_can_be_several_source_files() {
                _main(args) { return rock.weight + twice(rock.size) + (rock.kind == light ? 1 : 0); }\n";
     let two = "rock: Thing weight = 7 size = 3 kind = light;\n\
                twice(x) { return x * 2 + Thing.weight; }\n";
-    let compiled = compile_files(&[("one.t", one), ("two.t", two)]);
+    let compiled = compile_files(&[("one.hxn", one), ("two.hxn", two)]);
     assert!(
         compiled.diagnostics.is_empty(),
         "{:?}",
@@ -2745,7 +2762,7 @@ fn what_two_files_both_define_is_found_when_they_are_put_together() {
     let one = "f(x) { return 1; }\no: object;\n_main(args) { return f(1); }\n";
     let two = "f(x) { return 2; }\no: object;\n";
     assert_eq!(
-        messages_of(compile_files(&[("one.t", one), ("two.t", two)])),
+        messages_of(compile_files(&[("one.hxn", one), ("two.hxn", two)])),
         [
             "(0): symbol \"f\" (type: function) redefined in object file \"two.t3o\"",
             "(0): symbol \"o\" (type: object) redefined in object file \"two.t3o\"",
@@ -2758,7 +2775,7 @@ fn what_no_file_defines_is_unresolved() {
     let one = "extern function nowhere(x);\n_main(args) { return nowhere(1) + there(2); }\n";
     let two = "extern object nothing;\nthere(x) { return nothing; }\n";
     assert_eq!(
-        messages_of(compile_files(&[("one.t", one), ("two.t", two)])),
+        messages_of(compile_files(&[("one.hxn", one), ("two.hxn", two)])),
         [
             "(0): unresolved external reference \"nothing\"",
             "(0): unresolved external reference \"nowhere\"",
@@ -2767,9 +2784,9 @@ fn what_no_file_defines_is_unresolved() {
     // A mistake in a file is reported for that file, and nothing is
     // put together.
     let bad = "there(x) { return x +; }\n";
-    let messages = messages_of(compile_files(&[("one.t", one), ("bad.t", bad)]));
+    let messages = messages_of(compile_files(&[("one.hxn", one), ("bad.hxn", bad)]));
     assert_eq!(messages.len(), 1, "{messages:?}");
-    assert!(messages[0].starts_with("bad.t(1): "), "{messages:?}");
+    assert!(messages[0].starts_with("bad.hxn(1): "), "{messages:?}");
 }
 
 #[test]
@@ -2780,7 +2797,7 @@ fn what_each_file_adds_to_a_built_in_class_is_there_together() {
         "{decl}modify List first() {{ return self[1]; }};\n_main(args) {{ return [1].first() + [1, 2].second(); }}\n"
     );
     let two = format!("{decl}modify List second() {{ return self[2]; }};\n");
-    let compiled = compile_files(&[("one.t", &one), ("two.t", &two)]);
+    let compiled = compile_files(&[("one.hxn", &one), ("two.hxn", &two)]);
     assert!(
         compiled.diagnostics.is_empty(),
         "{:?}",
@@ -2837,7 +2854,7 @@ fn a_second_definition_can_be_in_another_file() {
                _main(args) { return f(1) + g(2) + Thing.weight; }\n";
     let two = "replace f(x) { return 2; }\nmodify g(x) { return replaced(x) + 1; }\n\
                modify Thing replace weight = 5 size = 2;\n";
-    let compiled = compile_files(&[("one.t", one), ("two.t", two)]);
+    let compiled = compile_files(&[("one.hxn", one), ("two.hxn", two)]);
     assert!(
         compiled.diagnostics.is_empty(),
         "{:?}",
@@ -2879,8 +2896,9 @@ fn a_second_definition_has_to_come_after_the_first() {
     let one = "modify later x = 1;\n_main(args) { return later.x; }\n";
     let two = "later: object y = 2;\n";
     assert_eq!(
-        messages_of(compile_files(&[("one.t", one), ("two.t", two)])),
+        messages_of(compile_files(&[("one.hxn", one), ("two.hxn", two)])),
         [
+            "two.hxn(1): \"y\" is given a value here, but nothing reads it",
             "(0): modified or replaced object \"later\" found in object file \"one.t3o\" \
              before original object definition was loaded",
             "(0): symbol \"later\" (type: object) redefined in object file \"two.t3o\"",
@@ -2888,9 +2906,12 @@ fn a_second_definition_has_to_come_after_the_first() {
     );
     // The other way about, it is the object the first file defined
     // that the second changes.
-    let compiled = compile_files(&[("two.t", two), ("one.t", one)]);
+    let compiled = compile_files(&[("two.hxn", two), ("one.hxn", one)]);
     assert!(
-        compiled.diagnostics.is_empty(),
+        compiled
+            .diagnostics
+            .iter()
+            .all(|d| d.severity == Severity::Warning),
         "{:?}",
         compiled.diagnostics
     );
@@ -3045,7 +3066,7 @@ fn the_program_s_symbols_for_preinitialization() {
                enum red;\n\
                f() { return 1; }\n\
                _main(args) { return f(); }\n";
-    let compiled = compile_files(&[("one.t", one)]);
+    let compiled = compile_files(&[("one.hxn", one)]);
     assert!(
         compiled.diagnostics.is_empty(),
         "{:?}",
@@ -3093,7 +3114,7 @@ fn the_program_s_macros_for_preinitialization() {
                #define DIFFERENT 1\n\
                _main(args) { }\n";
     let two = "#define SAME 1\n#define DIFFERENT 2\n";
-    let compiled = compile_files(&[("one.t", one), ("two.t", two)]);
+    let compiled = compile_files(&[("one.hxn", one), ("two.hxn", two)]);
     assert!(
         compiled.diagnostics.is_empty(),
         "{:?}",
@@ -3117,7 +3138,7 @@ fn the_program_s_macros_for_preinitialization() {
     assert!(find("SAME").is_some());
     // The compiler's own are there, with `__LINE__` and `__FILE__` as
     // they are when no source is being read.
-    assert!(find("__TADS3").is_some());
+    assert!(find("__HEXICON").is_some());
     assert_eq!(find("__LINE__").expect("__LINE__").expansion, b"0");
     assert_eq!(find("__FILE__").expect("__FILE__").expansion, b"");
     // In the order of the reference's table: by the sum of the name's
@@ -3135,8 +3156,8 @@ fn resources_come_from_libraries_and_after_res() {
     let mut files = Files::default()
         .with("game/game.t3m", "-lib art/art\n-source start\n-res\nfront.png\n-norecurse\nmusic\nlogo.png=images/logo.png\n")
         .with("game/art/art.tl", "source: art\nresource: pics\n")
-        .with("game/art/art.t", "")
-        .with("game/start.t", "");
+        .with("game/art/art.hxn", "")
+        .with("game/start.hxn", "");
     let project = read(&mut files, &["-nodef", "-f", "game/game.t3m"]).expect("a project");
     let spec = |file: String, alias: Option<&str>, recurse: bool| crate::ResourceSpec {
         file,
@@ -3244,7 +3265,7 @@ fn a_program_compiled_for_debugging_says_where_its_code_came_from() {
                 }\n\
                 #endif\n";
     let other = "helper() { return 2; }\n";
-    let compiled = compile_debug(&[("main.t", main), ("other.t", other)]);
+    let compiled = compile_debug(&[("main.hxn", main), ("other.hxn", other)]);
     assert!(
         compiled.diagnostics.is_empty(),
         "{:?}",
@@ -3272,7 +3293,7 @@ fn a_program_compiled_for_debugging_says_where_its_code_came_from() {
     let srcf = block(&image, b"SRCF");
     assert_eq!(u16_at(srcf, 0), 2);
     let name_len = u16_at(srcf, 4 + 6);
-    assert_eq!(&srcf[4 + 8..4 + 8 + name_len], b"main.t");
+    assert_eq!(&srcf[4 + 8..4 + 8 + name_len], b"main.hxn");
     assert_eq!(u32_at(srcf, 4 + 8 + name_len), 3, "three lines with code");
 
     // Every function, and the global names, `__DEBUG` among the macros.
@@ -3446,25 +3467,14 @@ fn messages_compiling(name: &str, text: &str) -> Vec<String> {
 }
 
 #[test]
-fn a_source_is_hexicon_by_its_extension() {
-    use crate::Dialect;
-    assert_eq!(Dialect::of("game/start.hxn"), Dialect::Hexicon);
-    assert_eq!(Dialect::of("START.HXN"), Dialect::Hexicon);
-    assert_eq!(Dialect::of("game/start.t"), Dialect::Tads3);
-    assert_eq!(Dialect::of("game.hxn/start"), Dialect::Tads3);
-}
-
-#[test]
-fn hexicon_finds_extra_characters_after_a_condition_on_time() {
+fn extra_characters_after_a_condition_are_found_on_time() {
     let text = "#if 1 2\n#endif\n_main(args) { }\n";
-    assert_eq!(messages_compiling("main.t", text), Vec::<String>::new());
     assert_eq!(
         messages_compiling("main.hxn", text),
         ["main.hxn(1): Error: extra characters at end of line"]
     );
     // #line's name ends the line too.
-    let text = "#line 10 \"x.t\" 3\n_main(args) { }\n";
-    assert_eq!(messages_compiling("main.t", text), Vec::<String>::new());
+    let text = "#line 10 \"x.hxn\" 3\n_main(args) { }\n";
     assert_eq!(
         messages_compiling("main.hxn", text),
         ["main.hxn(1): Error: extra characters at end of line"]
@@ -3472,13 +3482,10 @@ fn hexicon_finds_extra_characters_after_a_condition_on_time() {
 }
 
 #[test]
-fn hexicon_reports_a_warning_once() {
+fn a_warning_is_reported_once() {
+    // Though each source is read twice.
     let text = "#define ONE 1\n#define ONE 2\n_main(args) { }\n";
     let warning = "(2): Warning: redefinition of macro \"ONE\"";
-    assert_eq!(
-        messages_compiling("main.t", text),
-        [format!("main.t{warning}"), format!("main.t{warning}")]
-    );
     assert_eq!(
         messages_compiling("main.hxn", text),
         [format!("main.hxn{warning}")]
@@ -3601,39 +3608,12 @@ fn options_with_inc() -> CompileOptions {
 }
 
 #[test]
-fn hexicons_names_call_the_same_functions_as_the_tads_names() {
-    // A function set is bound by its identifier, not by the names its
-    // functions are given: Hexicon's names make the same program.
-    let hexicon = "intrinsic 't3vm/010006' { collectGarbage(); setSay(val); vmVersion(); \
-        vmId(); vmBanner(); inPreinit(); debugTrace(mode, ...); \
-        globalSymbols(which?); newProperty(); stackTrace(level?, flags?); }\n\
-        intrinsic 'tads-io/030007' { print(val, ...); }\n\
-        _main(args) { print('VM <<vmId()>>'); collectGarbage(); \
-        local p = newProperty(); print(stackTrace(1, 0x0002)); }\n";
-    let obj = "intrinsic 't3vm/010006' { t3RunGC(); t3SetSay(val); t3GetVMVsn(); \
-        t3GetVMID(); t3GetVMBanner(); t3GetVMPreinitMode(); t3DebugTrace(mode, ...); \
-        t3GetGlobalSymbols(which?); t3AllocProp(); t3GetStackTrace(level?, flags?); }\n\
-        intrinsic 'tads-io/030007' { tadsSay(val, ...); }\n\
-        _main(args) { tadsSay('VM <<t3GetVMID()>>'); t3RunGC(); \
-        local p = t3AllocProp(); tadsSay(t3GetStackTrace(1, 0x0002)); }\n";
-    let mut files = stub_system_headers()
-        .with("names.hxn", hexicon)
-        .with("names.t", obj);
-    let a = compile(&mut files, "names.hxn", &options_with_inc());
-    let b = compile(&mut files, "names.t", &options_with_inc());
-    // Each has a warning: p is never used.
-    assert_eq!(a.diagnostics.len(), 1, "{:?}", a.diagnostics);
-    assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
-    assert_eq!(a.image.expect("an image"), b.image.expect("an image"));
-}
-
-#[test]
 fn a_built_in_header_comes_after_the_include_path() {
     let program = "#include <hexicon.h>\n#ifdef FROM_DISK\n#error from disk\n#endif\n\
                    _main(args) { print('x'); }\n";
     // Built in: found though no folder has it, and named as built in.
-    let mut files = stub_system_headers().with("main.t", program);
-    let compiled = compile(&mut files, "main.t", &options_with_inc());
+    let mut files = stub_system_headers().with("main.hxn", program);
+    let compiled = compile(&mut files, "main.hxn", &options_with_inc());
     assert!(
         compiled.diagnostics.is_empty(),
         "{:?}",
@@ -3641,18 +3621,18 @@ fn a_built_in_header_comes_after_the_include_path() {
     );
     // A file of the name on the include path comes first.
     let mut files = stub_system_headers()
-        .with("main.t", program)
+        .with("main.hxn", program)
         .with("inc/hexicon.h", "#define FROM_DISK\n");
-    let messages: Vec<String> = compile(&mut files, "main.t", &options_with_inc())
+    let messages: Vec<String> = compile(&mut files, "main.hxn", &options_with_inc())
         .diagnostics
         .into_iter()
         .map(|d| format!("{}({}): {}", d.file, d.line, d.message))
         .collect();
-    assert_eq!(messages[0], "main.t(3): #error :  from disk");
+    assert_eq!(messages[0], "main.hxn(3): #error :  from disk");
     // With no headers anywhere, the system library's built-in ones are
     // what hexicon.h includes.
-    let mut files = Files::default().with("main.t", program);
-    let compiled = compile(&mut files, "main.t", &CompileOptions::default());
+    let mut files = Files::default().with("main.hxn", program);
+    let compiled = compile(&mut files, "main.hxn", &CompileOptions::default());
     assert!(compiled.image.is_some(), "{:?}", compiled.diagnostics);
 }
 
@@ -3666,10 +3646,10 @@ mod system_library {
         let mut files = Files::default()
             .with(
                 "game/hexicon.toml",
-                "[game]\nlibraries = [\"system\"]\nsources = [\"start.t\"]\n",
+                "[game]\nlibraries = [\"system\"]\nsources = [\"start.hxn\"]\n",
             )
             .with(
-                "game/start.t",
+                "game/start.hxn",
                 "#include <hexicon.h>\nmain(args) { \"Hello, world.\"; }\n",
             );
         let paths = crate::ProjectPaths {
@@ -3688,7 +3668,7 @@ mod system_library {
                 "<hexicon>/system/tok.hxn",
                 "<hexicon>/system/gramprod.hxn",
                 "<hexicon>/system/multmeth.hxn",
-                &super::sys_path(&["game", "start.t"]),
+                &super::sys_path(&["game", "start.hxn"]),
             ]
         );
         let sources: Vec<&str> = project.sources.iter().map(String::as_str).collect();
@@ -3820,7 +3800,7 @@ mod checked_names {
     /// named. The library reads `isTakeable` and the handlers of Take.
     fn messages_with(library: &str, game_name: &str, game: &str) -> Vec<String> {
         let mut files = Files::default()
-            .with("lib.t", library)
+            .with("lib.hxn", library)
             .with(game_name, game);
         let options = CompileOptions {
             from_library: vec![true, false],
@@ -3828,7 +3808,7 @@ mod checked_names {
         };
         messages_of(crate::compile_program(
             &mut files,
-            &["lib.t", game_name],
+            &["lib.hxn", game_name],
             &options,
         ))
     }
@@ -3866,14 +3846,14 @@ mod checked_names {
     #[test]
     fn the_name_meant_is_in_the_note() {
         let mut files = Files::default()
-            .with("lib.t", LIBRARY)
+            .with("lib.hxn", LIBRARY)
             .with("game.hxn", GAME);
         let options = CompileOptions {
             from_library: vec![true, false],
             ..CompileOptions::default()
         };
         let notes: Vec<Option<String>> =
-            crate::compile_program(&mut files, &["lib.t", "game.hxn"], &options)
+            crate::compile_program(&mut files, &["lib.hxn", "game.hxn"], &options)
                 .diagnostics
                 .into_iter()
                 .map(|d| d.note)
@@ -3886,11 +3866,6 @@ mod checked_names {
                 Some("did you mean \"isTakeable\"?".to_owned()),
             ]
         );
-    }
-
-    #[test]
-    fn a_tads_3_source_is_not_checked() {
-        assert_eq!(messages("game.t", GAME), Vec::<String>::new());
     }
 
     #[test]
@@ -4078,12 +4053,6 @@ box: Thing
     }
 
     #[test]
-    fn a_tads_3_source_has_no_such_forms() {
-        let compiled = build("lib.t", "game.t", IN_HEXICON);
-        assert!(compiled.image.is_none());
-    }
-
-    #[test]
     fn names_called_dobj_and_action_are_still_names() {
         // An object called action, and properties called dobj, iobj,
         // and aobj, beside the forms.
@@ -4173,9 +4142,7 @@ mod imports {
 
     #[test]
     fn an_import_is_hexicons_and_a_line_of_its_own() {
-        // In TADS 3 it is not a directive, and in a block not being
-        // compiled it is nothing.
-        assert!(compile("start.t", "import lib;\n").image.is_none());
+        // In a block not being compiled it is nothing.
         let skipped = compile("start.hxn", "#if 0\nimport nothing;\n#endif\nimport lib;\n");
         assert_eq!(messages(&skipped), Vec::<String>::new());
     }
@@ -4211,6 +4178,7 @@ mod imports {
 fn a_hexicon_source_is_told_it_is_one() {
     let text = "#ifdef __HEXICON\n#error hexicon\n#endif\n\
                 #ifdef __TADS3\n#error tads\n#endif\n_main(args) { }\n";
+    // __TADS3 is not defined: Hexicon is not TADS 3.
     let errors = |name: &str| -> Vec<String> {
         messages_compiling(name, text)
             .into_iter()
@@ -4221,7 +4189,6 @@ fn a_hexicon_source_is_told_it_is_one() {
         errors("main.hxn"),
         ["main.hxn(2): Error: #error :  hexicon"]
     );
-    assert_eq!(errors("main.t"), ["main.t(5): Error: #error :  tads"]);
 }
 
 #[test]
@@ -4262,15 +4229,6 @@ mod hexicon_messages {
         assert_eq!(d.message, "the object above ends without a ';'");
         assert_eq!((d.line, d.lines), (3, Some((3, 5))));
         assert!(d.hexicon && d.note.is_some());
-        // TADS 3 sources keep the reference's messages.
-        let found = diagnostics("game.t", MISSING);
-        assert!(found.iter().all(|d| !d.hexicon), "{found:?}");
-        assert!(
-            found
-                .iter()
-                .all(|d| d.message != "the object above ends without a ';'" && d.note.is_none()),
-            "{found:?}"
-        );
     }
 
     #[test]
@@ -4307,13 +4265,6 @@ mod hexicon_messages {
             )),
             "{shown:?}"
         );
-        let in_tads_3 = diagnostics("game.t", text);
-        assert!(
-            in_tads_3
-                .iter()
-                .any(|d| d.message.starts_with("undefined symbol")),
-            "{in_tads_3:?}"
-        );
     }
 }
 
@@ -4344,18 +4295,6 @@ mod image_names {
         // The predefined class took the Hexicon name, and is not there
         // twice.
         assert!(!has(&image, b"tads-object"));
-    }
-
-    #[test]
-    fn a_program_on_tads_3_names_is_a_t3_image() {
-        let image = image(
-            "intrinsic 'tads-gen/030008' { dataType(val); }\n\
-             rock: object;\n\
-             _main(args) { return dataType(rock); }\n",
-        );
-        assert!(image.starts_with(b"T3-image\r\n\x1a"));
-        assert!(has(&image, b"tads-object/"));
-        assert!(!has(&image, b"hexicon-"));
     }
 }
 
@@ -4441,12 +4380,6 @@ replace verb LookAtWhat for Examine 'look' singleDobj: ;
     #[test]
     fn verb_rules_are_what_the_macro_makes() {
         assert_eq!(image(IN_HEXICON), image(WITH_MACROS));
-    }
-
-    #[test]
-    fn a_tads_3_source_has_no_verb_declarations() {
-        let compiled = build("lib.t", "game.t", IN_HEXICON);
-        assert!(compiled.image.is_none());
     }
 
     #[test]

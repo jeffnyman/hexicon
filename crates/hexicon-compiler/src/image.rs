@@ -288,15 +288,7 @@ pub(crate) fn write_image(
         out: Vec::new(),
         item_ofs: Vec::new(),
     };
-    // A program on Hexicon's system library is a Hexicon image. One on a
-    // TADS 3 system library, as the comparisons with the reference
-    // build, is a T3 image, which is the same but for its signature.
-    let hexicon = prog.fnsets.iter().any(|name| name.starts_with(b"hexicon-"));
-    writer.out.extend_from_slice(if hexicon {
-        b"HX-image\r\n\x1a"
-    } else {
-        b"T3-image\r\n\x1a"
-    });
+    writer.out.extend_from_slice(b"HX-image\r\n\x1a");
     writer.out.extend_from_slice(&1u16.to_le_bytes());
     writer.out.extend_from_slice(&[0; 28]);
     unspecified.push((writer.out.len(), tool_data.len() + timestamp.len()));

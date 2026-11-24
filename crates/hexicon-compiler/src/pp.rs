@@ -384,8 +384,6 @@ pub struct Preprocessor<'a> {
     /// Tokens are being read for the expression of a directive, which
     /// changes what some problems are reported as.
     pp_expr: bool,
-    /// The language of the source being read.
-    dialect: crate::Dialect,
     /// The libraries a Hexicon source can import, with their headers.
     imports: Vec<(String, Option<String>)>,
     /// The libraries imported already: importing one again is nothing.
@@ -440,7 +438,6 @@ impl<'a> Preprocessor<'a> {
             gave_up: false,
             default_charset: "utf-8".to_owned(),
             pp_expr: false,
-            dialect: crate::Dialect::Tads3,
             imports: Vec::new(),
             imported: Vec::new(),
             lowered_pos: None,
@@ -469,21 +466,10 @@ impl<'a> Preprocessor<'a> {
         self.test_report = on;
     }
 
-    /// The language the source being read is in.
-    pub(crate) fn dialect(&self) -> crate::Dialect {
-        self.dialect
-    }
-
     /// The libraries a Hexicon source can import (`import hexad;`), each
     /// with the header importing it gives, if it has one.
     pub fn set_imports(&mut self, imports: Vec<(String, Option<String>)>) {
         self.imports = imports;
-    }
-
-    /// Set the language of the source, which decides a few of the
-    /// things the reference does only for TADS 3.
-    pub fn set_dialect(&mut self, dialect: crate::Dialect) {
-        self.dialect = dialect;
     }
 
     /// Set the character set of source files that do not say what they
@@ -1241,10 +1227,9 @@ impl<'a> Preprocessor<'a> {
             // A directive is one line, so a string cannot carry on from
             // it.
             self.in_quote = 0;
-        } else if let Some(name) =
-            (!started_in_string && self.dialect == crate::Dialect::Hexicon && !self.in_false_if())
-                .then(|| import_line(&self.linebuf[self.p.min(self.linebuf.len())..]))
-                .flatten()
+        } else if let Some(name) = (!started_in_string && !self.in_false_if())
+            .then(|| import_line(&self.linebuf[self.p.min(self.linebuf.len())..]))
+            .flatten()
         {
             self.pp_import(&name);
         } else {
@@ -2720,7 +2705,7 @@ impl<'a> Preprocessor<'a> {
     /// have been expanded into the expansion buffer: whether it is true,
     /// or nothing if it has no constant value.
     fn pp_parse_expr(&mut self) -> Option<bool> {
-        let (value, problems) = crate::parse::eval_pp_condition(&self.expbuf, self.dialect);
+        let (value, problems) = crate::parse::eval_pp_condition(&self.expbuf);
         self.report_all(problems);
         value
     }
@@ -2847,7 +2832,7 @@ impl<'a> Preprocessor<'a> {
         }
         let text = self.expbuf.clone();
         self.clear_linebuf();
-        let (value, problems) = crate::parse::eval_pp_line(&text, self.dialect);
+        let (value, problems) = crate::parse::eval_pp_line(&text);
         self.report_all(problems);
         if let Some((line, name)) = value {
             let desc = self.file_desc(&String::from_utf8_lossy(&name));

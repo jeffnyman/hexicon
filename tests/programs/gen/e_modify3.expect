@@ -36,10 +36,9 @@ error: expected property name in object definition, but found ":"
 52 | modify List: object x = 1;
    |
 
-error: the object above ends without a ';'
+error: missing semicolon at end of object definition - found "object"
   --> e_modify3.hxn:52
    |
 52 | modify List: object x = 1;
    |
-   = each object ends with ';', and the next starts here
 --- output

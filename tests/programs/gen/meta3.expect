@@ -1,4 +1,4 @@
-image: c9c7c887ae9296342257c06a639ab19e02c02998f00e216d486d5f59eaf7ace0
+image: ea8e85584bc9aadec071685e015003069d27359430d66c5af56bb4c9cf3e7ba2
 --- messages
 --- output
 Unhandled exception: invalid datatypes for addition operator
