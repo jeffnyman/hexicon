@@ -4,7 +4,7 @@ import hexad;
 
 /*
  *   *************************************************************************
- *   thoughts.t
+ *   thoughts.hxn
  *
  *   This file adds support for a THINK about command
  */

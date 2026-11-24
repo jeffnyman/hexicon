@@ -1,7 +1,7 @@
 #charset "us-ascii"
 import hexad;
 
-/* SceneTopic Extension, based on work by D.Smith */
+/* SceneTopic Extension */
 
 /* Modifications to Scene for the SCENETOPIC EXTENSION */
 modify Scene

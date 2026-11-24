@@ -6,7 +6,7 @@ import hexad;
    *    Custom Banner version 1.2
    *  
    *     Version date: 13-Sep-06
-   *    Adapted for adv3Lite: 28-Dec-24
+   *    Revised: 28-Dec-24
    *
    *     This file implements a CustomBannerWindow class that vastly eases
    *     the process of setting up banners and displaying material in them.

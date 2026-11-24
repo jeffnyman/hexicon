@@ -4,7 +4,7 @@ import hexad;
 
 /*
  *   ***************************************************************************
- *   lister.t
+ *   lister.hxn
  */
 
 
@@ -106,7 +106,7 @@ class Lister: object
  *   An Item Lister is a lister used for listing physical items. Notice that
  *   most of the specifics of the listers defined below are language-specific,
  *   and so are defined in the language-specific part of the library (e.g. in
- *   english.t).
+ *   english.hxn).
  */
 class ItemLister: Lister
     

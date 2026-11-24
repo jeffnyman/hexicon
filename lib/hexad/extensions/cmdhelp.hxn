@@ -715,7 +715,7 @@ action CmdMenu: SystemAction
             local actor_lst = [];
             
             /* 
-             *   We can only populate the list if the actor.t module is present.
+             *   We can only populate the list if the actor.hxn module is present.
              */
             if(defined(Actor))
             {

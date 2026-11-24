@@ -8,7 +8,7 @@
  *   
  *   The functions in this module are designed primarily for internal use
  *   within the library itself.  Games should use the higher level objects
- *   and functions defined in input.t and output.t instead of directly
+ *   and functions defined in input.hxn and output.hxn instead of directly
  *   calling the functions defined here.  The reason for separating these
  *   functions is to make the UI selection pluggable, so that the same game
  *   can be compiled for either the traditional UI or the Web UI simply by
@@ -33,7 +33,7 @@ transient browserGlobals: object
      */
     logFile = nil
     
-    /* logging type (LogTypeXxx from tadsio.h, or nil if not logging) */
+    /* logging type (LogTypeXxx from io.h, or nil if not logging) */
     logFileType = nil
 ;
 
@@ -720,7 +720,7 @@ statusHTML(stage)
 /*
  *   Web Banner Window.  This is designed as a *partial* drop-in
  *   replacement for the BannerWindow class, using Web UI windows as
- *   implemented in the core TADS javascript client.
+ *   implemented in the Web UI's javascript client.
  *   
  *   This class is designed to be mixed with a WebWindow subclass.
  *   

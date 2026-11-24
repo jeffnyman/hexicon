@@ -3,7 +3,7 @@ import hexad;
 
 /*----------------------------------------------------------------------------*/
 /*  
- *   senseRegion.t
+ *   senseRegion.hxn
  *
  *   This file defines the senseRegion class and the modifications to other
  *   classes needed to support it. It can be omitted from games that don't need

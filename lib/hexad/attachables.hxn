@@ -3,7 +3,7 @@ import hexad;
 
 /*
  *   ***************************************************************************
- *   attachables.t
+ *   attachables.hxn
  *
  *   The attachables file provides a framework for simple and common case
  *   attachables.

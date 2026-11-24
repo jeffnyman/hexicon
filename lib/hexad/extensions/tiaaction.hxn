@@ -5,7 +5,7 @@ import hexad;
 /* 
  *   TIAACTION EXTENSION
  *
- *   Adds the TIAAction class to adv3Lite
+ *   Adds the TIAAction class to Hexad
  *
  *   A TIA Action is an action involving three objects: Direct Object, Indirect
  *   Object and Accessory Object

@@ -170,8 +170,7 @@ class Parser: object
      *   understand the input.  The best way to help the user correct the
      *   problem is to let them know exactly which word we didn't know,
      *   rather than make them guess at what we didn't understand.  This is
-     *   the way the classic Infocom games worked, and it's the traditional
-     *   TADS default as well.
+     *   the way the classic Infocom games worked.
      *   
      *   The second school holds that the user's overriding interest is
      *   maintaining suspension of disbelief, and that the parser should do
@@ -5808,7 +5807,7 @@ class BadMultiError: ParseError
  *   stores a three-way association: word string, part-of-speech property,
  *   and object.  The object association is designed to allow the parser to
  *   come up with a list of objects that could match a given word, but the
- *   adv3L library doesn't use this feature.  We instead figure out the
+ *   library doesn't use this feature.  We instead figure out the
  *   word-to-object association by directly asking the objects in scope if
  *   they're associated with a word.  We still need *something* to store as
  *   the object association for each word entry in the dictionary, though.

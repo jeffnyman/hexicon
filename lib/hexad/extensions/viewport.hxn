@@ -5,7 +5,7 @@ import hexad;
 /* 
  *   VIEWPORT EXTENSION
  *
- *   Adds the Viewport mix-in class to adv3Lite
+ *   Adds the Viewport mix-in class to Hexad
  *
  *   A Viewport is an object that allows you to look into one room from another
  *   when you examine it or look through it (say); this can be used to model
@@ -14,8 +14,8 @@ import hexad;
  *   VERSION 1
  *.  27-Jul-13
  *
- *   Usage: include this extension after the adv3Lite library but before your
- *   own game-specific files. The senseRegion.t module must also be present.
+ *   Usage: include this extension after Hexad but before your
+ *   own game-specific files. The senseRegion.hxn module must also be present.
  */
 
 

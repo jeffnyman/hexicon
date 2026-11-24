@@ -4,7 +4,7 @@ import hexad;
 
 /*
  *   ****************************************************************************
- *    room.t 
+ *    travel.hxn 
  */
 
 property lastTravelInfo;
@@ -251,7 +251,7 @@ class Room: TravelConnector, Thing
     
     /* 
      *   Should we look around on entering this room? By default we should; this
-     *   is overridden in senseRegion.t to provide for the possibility of a
+     *   is overridden in senseRegion.hxn to provide for the possibility of a
      *   "continuous space" implementation.
      */
     lookOnEnter(obj)

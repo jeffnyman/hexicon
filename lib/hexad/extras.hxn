@@ -4,7 +4,7 @@ import hexad;
 
 /*
  *   ***************************************************************************
- *   extras.t
+ *   extras.hxn
  *
  *   This file contains a number of (in principle) optional classes that can be
  *   used in addition to Thing. A game does not need to use any of these classes
@@ -20,7 +20,7 @@ property soundSize;
 
 /* 
  *   We define SensoryEmanation to be the base class for Odor and Noise. It
- *   doesn't add any functionality here, but makes it possible for the sensory.t
+ *   doesn't add any functionality here, but makes it possible for the sensory.hxn
  *   extension to add functionality to this class.
  */
 class SensoryEmanation: Decoration
@@ -409,7 +409,7 @@ class Unthing: Decoration
     notImportantMsg = BMsg(unthing absent, '{The subj cobj} {isn\'t} {here}. ')
                    
     /* 
-     *   Users coming from adv3 may be used to Unthings having a notHereMsg, so
+     *   Authors may expect Unthings to have a notHereMsg, so
      *   we'll define this to be the same as the notImportantMsg
      */
     notHereMsg = notImportantMsg

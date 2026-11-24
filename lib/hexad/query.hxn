@@ -3,7 +3,7 @@ import hexad;
 
 /*
  *   ***************************************************************************
- *   query.t
+ *   query.hxn
  */
 
 /* ------------------------------------------------------------------------ */
@@ -1178,7 +1178,7 @@ class ScopeList: object
 /*  
  *   An object describing a reach problem; such objects are used by the Query
  *   object to communicate problems with one object touching another to the
- *   touchObj PreCondition (see also precond.t). ReachProblem objects are
+ *   touchObj PreCondition (see also precond.hxn). ReachProblem objects are
  *   normally created dynamicallty as required, although it is usually one of
  *   the subclasses of ReachProblem that it used.
  */

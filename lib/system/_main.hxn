@@ -505,7 +505,7 @@ class CircularExecException: Exception
     displayException()
     {
         "circular module dependency detected (refer to
-        ModuleExecObject._execute() in _main.t)";
+        ModuleExecObject._execute() in _main.hxn)";
     }
 
     /* 

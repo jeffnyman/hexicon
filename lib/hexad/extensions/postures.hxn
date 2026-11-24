@@ -4,9 +4,9 @@ import hexad;
 
 
 /*
- *   postures.t
+ *   postures.hxn
  *
- *   The POSTURES extension is intended for use with the adv3Lite library. It
+ *   The POSTURES extension is intended for use with Hexad. It
  *   adds handling to keep track of actor posture (standing, sitting or lying)
  *   and for the enforcement of postures in relation to various kinsds of nested
  *   room.
@@ -14,7 +14,7 @@ import hexad;
  *   VERSION 2
  *.  16-Feb-25
  *
- *   Usage: include this extension after the adv3Lite library but before your
+ *   Usage: include this extension after Hexad but before your
  *   own game-specific files. This makes it possible to sit, stand and lie in
  *   and on various things, with the posture being tracked.
  */

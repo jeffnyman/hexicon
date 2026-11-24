@@ -5,7 +5,7 @@ import hexad;
 /*   
  *   MobileCollective Group Extension
  *
- *   This extension requires events.t and extras.t to be present also.
+ *   This extension requires events.hxn and extras.hxn to be present also.
  */
 
 

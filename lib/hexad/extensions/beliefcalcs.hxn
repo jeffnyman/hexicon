@@ -6,7 +6,7 @@ import hexad;
  *
  *   Version 1.0 23rd April 2024
  *
- *   The (curernlty experimental) beliefcalcs.t extension implements various calculations involving
+ *   The (curernlty experimental) beliefcalcs.hxn extension implements various calculations involving
  *   the degree of belief enums likely, dubious, unlikely and untrue, together with true.
  *
  *   To do this it defines a set of corresponding wrapper objects bTrue, bLikely, bDubious,
@@ -39,7 +39,7 @@ import hexad;
  *.  bVeryLikely: BelVal status = veryLikely score = 90;
  *.  bVeryUnlikely: BelVal status = veryUnlikely score = 10;
  *
- *   Note that this extension does NOT require the facts.t module to be present (although it is
+ *   Note that this extension does NOT require the facts.hxn module to be present (although it is
  *   [perfectly compatinle with it.
  */
  

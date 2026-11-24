@@ -3,7 +3,7 @@ import hexad;
 
 /*
  *   ************************************************************************
- *   debug.t This module forms part of the adv3Lite library, and defines a
+ *   debug.hxn: this module defines a
  *   number of commands that can be used for debugging purposes.
  */
 
@@ -85,7 +85,7 @@ action Debug: SystemAction
     }
 ;
 
-/* DEBUG without any options simply breaks into the debugger, as in adv3 */
+/* DEBUG without any options simply breaks into the debugger */
 action DebugI: SystemAction
     execAction(cmd)
     {
@@ -201,7 +201,7 @@ action Evaluate: LiteralAction
     
     /* 
      *   Do we want to use Compiler.compile rather than Compiler.eval()? By default we do since this
-     *   circumvents a bug on FrobTADS for Limux users.
+     *   circumvents a bug in some Linux interpreters.
      */
     
     useCompile = true
@@ -748,7 +748,7 @@ VerbRule(AssertMsg)
 ///////////////////////////////////////////////
 
 /* 
- * Based upon the Test object in the TADS library, this overhauls it to actually work
+ * An overhaul of the Test object, to make it work
  * and provide needed functionality for actually ASSERTing if something is correct
  * Moreover, the Test did not work and had issues with "leftovers" where each subsequent
  * test depended upon the results of the previous test!

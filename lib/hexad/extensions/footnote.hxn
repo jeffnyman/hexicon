@@ -293,7 +293,7 @@ footnotePreinit: PreinitObject
  *  Note to translators: the following VerbRules are defined directly in
  *  the FOOTNOTES extension file since it would be awkward to put them
  *  anywhere else. When translating, define an additional language-specific
- *  file (e.g. footnotes_fr.t or footnotes_de.t) and in it include (a)
+ *  file (e.g. footnotes_fr.hxn or footnotes_de.hxn) and in it include (a)
  *  your language-specific modifications to the following VerbRules
  *  (using modify VerbRule) and (b) a CustomMessages object containing
  *  translations of any DMsg and BMsg text used in this extension. Then

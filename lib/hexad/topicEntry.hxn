@@ -3,7 +3,7 @@ import hexad;
 
 /*
  *   ****************************************************************************
- *    topicEntry.t 
+ *    topicEntry.hxn 
  */
 
 /* 
@@ -173,7 +173,7 @@ class TopicEntry: object
      *   whether a TopicEntry is currently available for use. On the base
      *   TopicEntry class a topic entry is active if its isActive property is
      *   true, but this is not necessarily the case on the ActorTopicEntry
-     *   subclass defined in actor.t, which needs to distinguish between these
+     *   subclass defined in actor.hxn, which needs to distinguish between these
      *   properties.
      *
      *   Game code should not normally need to override the active property.

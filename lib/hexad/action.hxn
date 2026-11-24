@@ -3,14 +3,14 @@ import hexad;
 
 /*
  *   ****************************************************************************
- *    action.t 
+ *    action.hxn 
  */
 
 
 /* 
  *   The library doesn't yet provide any support for actions that take three
  *   objects (TIAActions, as they might hypothetically be called), but since the
- *   Mercury parser does we provide a number of hooks that other code could use.
+ *   parser does we provide a number of hooks that other code could use.
  *   To this end we need to define the properties a TIAAction might use so the
  *   compiler recognizes them.
  */
@@ -340,7 +340,7 @@ class Action: ReplaceRedirector
         gPlayerChar.getOutermostRoom.roomDaemon();                 
         
         /* 
-         *   If the events.t module is included, execute all current Daemons and
+         *   If the events.hxn module is included, execute all current Daemons and
          *   Fuses/
          */
         if(defined(eventManager) && eventManager.executeTurn())          
@@ -424,7 +424,7 @@ class Action: ReplaceRedirector
         
         /* 
          *   Note which properties to use according to which role we're
-         *   verifying for. (No actions in the adv3Lite library currently use an
+         *   verifying for. (No actions in the library currently use an
          *   Accessory object but the possibility is included here to ease
          *   subsequent extension).
          */        
@@ -966,7 +966,7 @@ class Action: ReplaceRedirector
     /* Our currently cached list of items in scope for this action. */         
     scopeList = []
     
-    /* Used by Mercury's spelling corrector code. */
+    /* Used by the spelling corrector. */
     spellingPriority = 10
     
     /* 
@@ -3478,7 +3478,8 @@ notePronounAntecedent([objlist])
     
 }
 
-/* The remainder of this file contains code  "borrowed" from the adv3 library */
+/* The rest of this file: the objects notified around saving, restoring,
+ * restarting, and undoing. */
 
 /* ------------------------------------------------------------------------ */
 /*

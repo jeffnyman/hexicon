@@ -3,9 +3,9 @@
 import hexad;
 
 /*
- *   sensory.t
+ *   sensory.hxn
  *
- *   The SENSORY EXTENSION is intended for use with the adv3Lite library. It
+ *   The SENSORY EXTENSION is intended for use with Hexad. It
  *   adds slightly more sophisticated handling for smells and sounds, as well as
  *   a new SensoryEvent class which can be useful for making actors and other
  *   objects respond to sensory events.
@@ -13,8 +13,8 @@ import hexad;
  *   VERSION 2
  *.  19-Jul-14
  *
- *   Usage: include this extension after the adv3Lite library but before your
- *   own game-specific files. Make sure that events.t is also included in your
+ *   Usage: include this extension after Hexad but before your
+ *   own game-specific files. Make sure that events.hxn is also included in your
  *   build.
  */
 

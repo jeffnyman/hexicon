@@ -365,7 +365,7 @@ class CorrectionCandidate: object
  *   actions.  That information is sometimes needed, such as during
  *   spelling correction.
  *   
- *   Note that the system library file gramprod.t must be included in the
+ *   Note that the system library file gramprod.hxn must be included in the
  *   build, so that GrammarAltInfo is defined.  
  */
 actionDictionary: PreinitObject

@@ -7,7 +7,7 @@
  *   run-time.
  *   
  *   Programs that use the DynamicFunc class should add the system library
- *   source file dynfunc.t to the build file list, since it contains some
+ *   source file dynfunc.hxn to the build file list, since it contains some
  *   additional definitions that are useful with this class.  
  */
 

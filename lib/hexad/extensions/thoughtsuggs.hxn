@@ -4,7 +4,7 @@ import hexad;
 
 
 /*
- *   *************************************************************************** thoughtsuggs.t
+ *   *************************************************************************** thoughtsuggs.hxn
  *
  *   This module provides the Thought Sugestions extension.
  *
@@ -15,7 +15,7 @@ import hexad;
  *   topics). For this to work the Thoughts the player can think about must be located in a
  *   ThoughtManager object and provided with a name property.
  *
- *   The thoughtsuggs.t required thoughts.t and actor.t to be present in the game.
+ *   The thoughtsuggs.hxn required thoughts.hxn and actor.hxn to be present in the game.
  */
 
 

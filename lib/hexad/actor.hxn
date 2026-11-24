@@ -4,7 +4,7 @@ import hexad;
 
 /*
  *   ****************************************************************************
- *    actor.t 
+ *    actor.hxn 
  */
 
 /* Declare the eventList property in case the eventList module isn't included */
@@ -3148,7 +3148,7 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
     
     /*   
      *   If the noResponse method is defined (i.e. non-nil) then this ActorState
-     *   will behave like a TADS 3 HermitActorState, i.e. the noResponse message
+     *   will behave like a hermit (it takes part in no conversation), i.e. the noResponse message
      *   will be displayed in response to any conversational command
      *
      *   noResponse can be either a single-quoted string, a double-quoted string
@@ -6304,8 +6304,8 @@ modify conversationManager
                  *   player char (by using a <.reveal> tag) and information
                  *   imparted by the player char to other characters (using the
                  *   <.inform> tag). Game authors do not have to observe this
-                 *   distinction if they only want to use <.reveal> as in the
-                 *   adv3 library, but it may be a useful distinction for some
+                 *   distinction if they only want to use <.reveal> for both, but
+                 *   it may be a useful distinction for some
                  *   games.
                  *
                  *   Note that there is one global table of revealed tags (on
@@ -6709,7 +6709,7 @@ modify conversationManager
      *
      *   The actual method and the revealedNameTab are on libGlobal rather than
      *   here in order to make them available to games that don't include
-     *   actor.t.
+     *   actor.hxn.
      */
     setRevealed(tag, val?)
     {
@@ -6751,7 +6751,7 @@ modify conversationManager
      *   Mark a tag as unrevealed.  This removes an entry for the tag to the revealedNameTab table.
      *
      *   The actual method and the revealedNameTab are on libGlobal rather than here in order to
-     *   make them available to games that don't include actor.t.
+     *   make them available to games that don't include actor.hxn.
      */
     setUnrevealed(tag)
     {

@@ -2,9 +2,9 @@
 import hexad;
 
 /* 
- *   roomparts.t
+ *   roomparts.hxn
  *
- *   The ROOMPARTS extension is intended for use with the adv3Lite library. It
+ *   The ROOMPARTS extension is intended for use with Hexad. It
  *   adds walls and a ceiling to every Room. It also adds an OutdoorRoom class
  *   that has only ground and sky. It also allows Things to be associated with
  *   particular room parts, such as a picture hanging on a wall.
@@ -12,7 +12,7 @@ import hexad;
  *   VERSION 1
  *.  20-Jul-13
  *
- *   Usage: include this extension after the adv3Lite library but before your
+ *   Usage: include this extension after Hexad but before your
  *   own game-specific files. This will add four walls and a ceiling to every
  *   Room in your game. For outdoor rooms that have only sky and ground, use the
  *   OutdoorRoom class defined below.
@@ -63,7 +63,7 @@ class DefaultWall: RoomPart 'wall'
 
 /* 
  *   Modifications to the Room class to allow for room parts. Note that the
- *   standard adv3Lite library already supplies a foor in every room defined via
+ *   library already supplies a floor in every room defined via
  *   its floorObj property. [MODIFIED FOR ROOMPARTS EXTENSION]
  */
 modify Room
@@ -133,7 +133,7 @@ defaultSky: Ceiling 'sky'
 ;
 
 /* 
- *   The Floor class is defined in the standard adv3Lite library. Here we modify
+ *   The Floor class is defined in the library. Here we modify
  *   it to use the ROOMPART EXTENSIONS's version of examineStatus.
  */
 modify Floor

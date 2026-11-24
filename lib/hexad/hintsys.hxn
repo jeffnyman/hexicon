@@ -15,9 +15,9 @@ import hexad;
 
 /* ------------------------------------------------------------------------ */
 /*
- *   We refer to some properties defined primarily in score.t - that's an
+ *   We refer to some properties defined primarily in score.hxn - that's an
  *   optional module, though, so make sure the compiler has heard of these. 
- *   We do the same for some properties in eventList.t
+ *   We do the same for some properties in eventList.hxn
  */
 property scoreCount;
 property achieved;

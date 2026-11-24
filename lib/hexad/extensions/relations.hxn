@@ -4,8 +4,8 @@ import hexad;
 /* 
  *   RELATIONS EXTENSION
  *
- *   The relations.t extension allows Inform7-style relations to be
- *   defined in a TADS 3 game.
+ *   The relations extension allows Inform7-style relations to be
+ *   defined in a game.
  */
 
  

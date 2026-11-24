@@ -4,8 +4,8 @@ import hexad;
 /* 
  *   RULES EXTENSION
  *
- *   The rules.t extension allows Inform7-style rules and rulebooks to be
- *   defined in a TADS 3 game.
+ *   The rules extension allows Inform7-style rules and rulebooks to be
+ *   defined in a game.
  */
 
 

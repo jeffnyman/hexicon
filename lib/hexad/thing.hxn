@@ -1776,7 +1776,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   The next four methods are provided so that listContents() can call
      *   them, but they do nothing in the core library. They are overridden in
-     *   senseRegion.t (for use if senseRegion.t is included in the build).
+     *   senseRegion.hxn (for use if senseRegion.hxn is included in the build).
      */    
     unmentionRemoteContents() {}
     showFirstConnectedSpecials(pov) {}
@@ -1900,7 +1900,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* 
      *   Simpply return the value of contentsListedInExamine. We supply this extra step to faciliate
-     *   overrrding this in senseRegion.t to allow for remotv viewing.
+     *   overrrding this in senseRegion.hxn to allow for remotv viewing.
      */
     areContentsListedInExamine = contentsListedInExamine
     
@@ -4317,7 +4317,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* 
      *   The ThoughtManager object associated with this Thing (if this Thing does any thinking);
-     *   this is only relevant if thoughts.t is present and this Thing becomea a player character.
+     *   this is only relevant if thoughts.hxn is present and this Thing becomea a player character.
      */
     myThoughtManager = nil
     
@@ -7123,7 +7123,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   We'll take REMOVE to mean DOFF when it's dobj is worn and TAKE otherwise. This
      *   handling will be dealt with by removeDoer insteadof remap, since this form of
-     *   remap has now been discontinued. See english.t for removeDoer (which seems to be
+     *   remap has now been discontinued. See english.hxn for removeDoer (which seems to be
      *   a language-specific construct). If we want REMOVE to be treated as a separate
      *   action, set separateRemove to to true.
      */    
@@ -8131,7 +8131,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   By default most things can't be attached to any things. The base
      *   handling of ATTACH and DETACH on Thing merely rules them out at the
      *   verify stage. The SimpleAttachable and NearbyAttachable classes define
-     *   in the optional attachables.t module provide fuller handling.
+     *   in the optional attachables.hxn module provide fuller handling.
      */
     isAttachable = nil
     
@@ -9510,7 +9510,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   Do we allow an implicit say command to be directed to this object? Normally we don't. Thuis
      *   property is only really meaningful on the Actor class but we define it here because it's
-     *   needed by parser.t.
+     *   needed by parser.hxn.
      */
     allowImplicitSay = nil
     
@@ -10537,7 +10537,7 @@ class MultiLoc: object
  */
 class Floor: MultiLoc, Thing
     /* 
-     *   A Floor is a Decoration, but since the extras.t module is optional we
+     *   A Floor is a Decoration, but since the extras.hxn module is optional we
      *   have to define is as isFixed = true and isDecoration = true.
      */
     isFixed = true
@@ -10656,7 +10656,7 @@ class Topic: Mentionable
     newlyCreated = nil
 ;
 
-/* Stub definitions to allow Actor to be modfied in actor.t */
+/* Stub definitions to allow Actor to be modfied in actor.hxn */
 class EndConvBlocker: object;
 class AgendaManager: object;
 class ActorTopicDatabase: TopicDatabase;
@@ -10665,9 +10665,9 @@ class TopicDatabase: object;
 
 /* 
  *   Very basic Actor class with a few basic properties defined. This allows code that need to
- *   references the Actor class to compile in adv3Liter and adv3Litest. It also allows the Player
+ *   references the Actor class to compile without actor.hxn. It also allows the Player
  *   class to descend from Actor. The implementation here is replaced by the much more sophisticated
- *   one in actor.t when actor.t is present.
+ *   one in actor.hxn when actor.hxn is present.
  */
 class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     isFixed = true

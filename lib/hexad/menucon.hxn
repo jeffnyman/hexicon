@@ -133,7 +133,7 @@ modify MenuItem
     
     /*
      *   Display the menu in plain text mode.  This is used when the
-     *   interpreter only supports the old tads2-style text-mode
+     *   interpreter only supports the old-style text-mode
      *   single-line status area.
      *   
      *   Returns true if we should return to the parent menu, nil if the
@@ -590,7 +590,7 @@ modify MenuItem
             break;
 
         case StatusModeText:
-            /* tads2-style statusline - there's no way to remove it */
+            /* old-style statusline - there's no way to remove it */
             break;
         }
     }

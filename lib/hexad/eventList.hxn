@@ -3,14 +3,14 @@ import hexad;
 
 /*
  *   ************************************************************************
- *   eventList.t This module forms an optional part of the adv3Lite library.
+ *   eventList.hxn: an optional part of Hexad.
  *   
  *   Hexad - EventLists
  *
  *   This module contains definitions of various types of EventLists. These are
  *   defined in a separate module so that games that don't require EventLists
  *   can exclude this module from the build. The Script class, from which all
- *   EventLists inherits is defined in misc.t to allow other modules to test for
+ *   EventLists inherits is defined in misc.hxn to allow other modules to test for
  *   an object being ofKind(Script) even when this EventList module is not
  *   present.
  */

@@ -33,7 +33,7 @@ export propNotDefined;
 
 /* ------------------------------------------------------------------------ */
 /*
- *   We refer to some properties defined primarily in score.t - that's an
+ *   We refer to some properties defined primarily in score.hxn - that's an
  *   optional module, though, so make sure the compiler has heard of these. 
  */
 property calcMaxScore, runScoreNotifier;
@@ -175,7 +175,7 @@ class GameMainDef: object
     /*
      *   Set up the HTML-mode about-box.  By default, this does nothing.
      *   Games can use this routine to show an <ABOUTBOX> tag, if desired,
-     *   to set up the contents of an about-box for HTML TADS platforms.
+     *   to set up the contents of an about-box for interpreters that show one.
      *   
      *   Note that an <ABOUTBOX> tag must be re-initialized each time the
      *   main game window is cleared, so this routine should be called
@@ -521,10 +521,10 @@ hexadInit: InitObject
  *   Generic script object.  This class can be used to implement a simple state
  *   machine.
  *
- *   We define Script in misc.t rather than eventList.t so that other parts of
+ *   We define Script in misc.hxn rather than eventList.hxn so that other parts of
  *   the library can safely test whether something is ofKind(Script) even it
- *   eventList.t is not present. The various types and subclasses of script are
- *   defined in eventList.t to allow them to be optionally excluded from the
+ *   eventList.hxn is not present. The various types and subclasses of script are
+ *   defined in eventList.hxn to allow them to be optionally excluded from the
  *   build if they're not needed in a particular game.
  */
 class Script: object
@@ -706,7 +706,7 @@ libGlobal: object
      *   systems is to break the line into tokens delimited by space
      *   characters.  Many systems also allow space characters to be
      *   embedded in tokens by quoting the tokens.  The first argument is
-     *   always the name of the .t3 file currently executing.  
+     *   always the name of the game file currently executing.  
      */
     commandLineArgs = []
 
@@ -719,7 +719,7 @@ libGlobal: object
      *   conventionally the value of the switch.  For example, the command
      *   line might look like this:
      *   
-     *.    t3run mygame.t3 -name=MyGame -user=Bob
+     *.    hexicon run mygame.hxg -name=MyGame -user=Bob
      *   
      *   Searching for '-name=' would return 'MyGame', and searching for
      *   '-user=' would return' Bob'.
@@ -809,7 +809,7 @@ libGlobal: object
      testing the presence of the table entry will see that the slot is indeed set.)
      *
      *   We put the revealedNameTab table and the setRevealed method here rather than on
-     *   conversationManager so that it's available to games that don't include actor.t.
+     *   conversationManager so that it's available to games that don't include actor.hxn.
      */
         
     setRevealed(tag, arg?)
@@ -872,7 +872,7 @@ libGlobal: object
      *
      *   We put the revealedNameTab table and the setRevealed method here rather
      *   than on conversationManager so that it's available to games that don't
-     *   include actor.t.
+     *   include actor.hxn.
      */
     setUnrevealed(tag)
     {
@@ -1630,7 +1630,6 @@ makeMentioned(obj)
  *   true, the second element is a list giving the elements for which 'fn'
  *   returns nil.
  *   
- *   (Contributed by Tommy Nordgren.)  
  */
 partitionList(lst, fn)
 {
@@ -3137,7 +3136,7 @@ failVerifyObj: Thing
         of a command. ')
 ;
 
-/* We define Mood and Stance in thing.t so english.t can define the built-in moods and stances */
+/* We define Mood and Stance in thing.hxn so english.hxn can define the built-in moods and stances */
 
 /* A Mood object can be used to represent the mood of an actor (happy, sad, bored, etc.) */
 class Mood: object

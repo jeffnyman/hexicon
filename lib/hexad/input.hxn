@@ -3,8 +3,7 @@ import hexad;
 
 /*
  *   ************************************************************************
- *   actor.t This module forms part of the adv3Lite library
- *.  Based substantially on input.t in the adv3 library
+ *   input.hxn
  *
  *   This modules defines functions and objects related to reading input from
  *   the player.

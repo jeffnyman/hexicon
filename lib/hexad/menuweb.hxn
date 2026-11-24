@@ -150,7 +150,7 @@ modify MenuItem
      *   special <.xxx> sequences.  If 'val' is a property, we'll evaluate
      *   the property of self, capturing the output if it generates any or
      *   capturing the string if it returns one.  In all cases, we take the
-     *   result string and convert TADS special characters to HTML, and
+     *   result string and convert Hexicon's special characters to HTML, and
      *   finally html-escape the result for inclusion in XML output, and
      *   return the resulting string.  
      */

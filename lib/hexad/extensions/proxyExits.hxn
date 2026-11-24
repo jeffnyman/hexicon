@@ -5,7 +5,7 @@ import hexad;
 /* 
  *   PROXYEXITS EXTENSION
  *
- *   Adds a number of predefined ProxyExit objects to adv3Lite, together with their associated
+ *   Adds a number of predefined ProxyExit objects to Hexad, together with their associated
  *   SpecialTravelActions
  *
  *   This extension provides the code for doorways, passageways, paths and archways that may be

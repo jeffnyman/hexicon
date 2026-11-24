@@ -205,7 +205,7 @@ intrinsic class FileName 'filename/030000' : Object
     /*
      *   Get extended information on the file named by this object.  This
      *   retrieves the size of the file, timestamps, and the file's type,
-     *   and returns the information as a FileInfo object (see file.t).  If
+     *   and returns the information as a FileInfo object (see file.hxn).  If
      *   the file doesn't exist, or can't be accessed for some other reason
      *   at the operating system level, returns nil.
      *   

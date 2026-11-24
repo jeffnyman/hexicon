@@ -4,7 +4,7 @@ import hexad;
 
 /*
  *   **************************************************************************
- *   doer.t
+ *   doer.hxn
  */
 
 /*  
@@ -12,8 +12,8 @@ import hexad;
  *   doInstead wrapper method that provides a common interface. Subclasses are
  *   responsible for implementing the redirect method.
  *
- *   We begin this module by defing the Redirector class since in adv3Lite
- *   (though not in Mercury) Redirector is the base class for Doer.
+ *   We begin this module by defining the Redirector class, since
+ *   Redirector is the base class for Doer.
  */
 class Redirector: object
     
@@ -494,7 +494,7 @@ class Doer: Redirector
     /*  
      *   Flag, do we want to ignore (i.e. not report) an error in the
      *   construction of this Doer. We may want to do this when the error is
-     *   simply due to the exclusion of a module like extras.t
+     *   simply due to the exclusion of a module like extras.hxn
      */
     ignoreError = nil
 ;

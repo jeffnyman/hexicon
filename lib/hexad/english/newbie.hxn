@@ -3,7 +3,7 @@ import hexad;
 
 /*
  *   ****************************************************************************
- *    newbie.t 
+ *    newbie.hxn 
  */
 import hexad;
 
@@ -349,7 +349,7 @@ modify EmptyNounError
 
 //-------------------------------------------------------------------------------
 /* 
- *   More newbie-helpful bits and pieces, based on work by Emily Short for I6
+ *   More newbie-helpful bits and pieces
  *
  *   The idea is to trap the kind of invalid input a newcomer to IF might 
  *   type and respond with something a bit more helpful than a standard 
@@ -627,7 +627,7 @@ VerbRule(WhatNext)
 
 /* 
  *   Provide a command to display a brief introduction to playing IF (as an 
- *   alternative to the full INSTRUCTIONS menu provided by the TADS 3 library)
+ *   alternative to the full INSTRUCTIONS menu)
  */
 action Intro: SystemAction
     execAction(cmd) { helpMessage.briefIntro(); }

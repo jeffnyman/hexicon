@@ -88,7 +88,7 @@
 #define numericAcc     numberPhrase -> accMatch
 #define numericAobj    numberPhrase -> accMatch
 
-/* Also add a couple of synonyms familiar froma adv3 */
+/* Also add a couple of synonyms */
 #define dobjList      nounList->dobjMatch
 #define iobjList      nounList->iobjMatch
 
@@ -399,7 +399,7 @@ enum rmcDisambig;
 #define reportPostImplicit(msg) gCommand.postImplicitReports += msg
 
 /* 
- *   Defined for the sake of adv3 users moving to adv3Lite, who may be more used to using
+ *   Defined for the sake of authors who may be more used to using
  *   mainReport() in a similar context.
  */
 #define mainReport(msg, args...) actionReport(msg, ##args)
@@ -533,7 +533,7 @@ enum rmcDisambig;
 
 /* 
  *   Define an action OBJECT with the given name inheriting from the given base
- *   class, for use with the Mercury parser.
+ *   class, for use with the parser.
  */
 
 #define DefineAction(name, baseClass...) \
@@ -766,8 +766,8 @@ enum rmcDisambig;
 
 
 /* 
- *   IllogicalAlready doesn't do anything mush different from IllogicalNow in
- *   adv3Lite, but is supplied so that game authors familiar with adv3 can use
+ *   IllogicalAlready doesn't do anything much different from IllogicalNow,
+ *   but is supplied so that game authors used to it can use
  *   it without getting a compilation error. It may also be slightly useful for
  *   documentary purposes to clarify why a verify routine in game code is ruling
  *   out an action. We now give it a slightly higher logical rank than illogicalNow().
@@ -1516,7 +1516,7 @@ enum likely, dubious, unlikely, untrue;
 
 /*----------------------------------------------------------------------------*/
 /*
- *   Definitions for the rules.t extension
+ *   Definitions for the rules.hxn extension
  */
 
 #define stop return stopValue;
@@ -1540,7 +1540,7 @@ Rule template @location? "follow";
 
 /*----------------------------------------------------------------------------*/
 /*
- *   Definitions for the relations.t extension
+ *   Definitions for the relations.hxn extension
  */
 
 enum oneToOne, oneToMany, manyToOne, manyToMany;

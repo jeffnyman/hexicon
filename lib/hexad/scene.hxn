@@ -4,8 +4,8 @@ import hexad;
 
 /*
  *   ****************************************************************************
- *    scene.t 
- *    This module forms an optional part of the adv3Lite library 
+ *    scene.hxn 
+ *    An optional part of Hexad. 
  */
 
 /* 
@@ -180,7 +180,7 @@ class Scene: object
     /* 
      *   Is this scene currently taking place? (Game code should treat this as
      *   read-only). We provide isActive as a read-only synonym of isHappening in
-     *   case game code uses it on analogy with several other adv3Lite entities
+     *   case game code uses it on analogy with several other entities
      *   that do use an isActive property
      */
     isActive = isHappening

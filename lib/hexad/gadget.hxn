@@ -5,7 +5,7 @@ import hexad;
 
 /*
  *   ***************************************************************************
- *   gadget.t
+ *   gadget.hxn
  *
  *   This module contains definitions for various control gadgets like buttons,
  *   levers and dials.

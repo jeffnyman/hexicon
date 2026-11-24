@@ -6366,7 +6366,7 @@ takePathDoer: Doer 'take PathPassage'
     
     /* 
      *   Ignore an error report for this Doer in PreInit, since it only means
-     *   that extras.t hasn't been included.
+     *   that extras.hxn hasn't been included.
      */
     ignoreError = true
 ;

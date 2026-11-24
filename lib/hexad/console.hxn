@@ -5,11 +5,11 @@
  *   
  *   This module defines the low-level functions for handling input and
  *   output via the traditional interpreter's user interface, using the
- *   local keyboard and console via the "tads-io" function set.
+ *   local keyboard and console via the input/output function set.
  *   
  *   The functions in this module are designed primarily for internal use
  *   within the library itself.  Games should use the higher level objects
- *   and functions defined in input.t and output.t instead of directly
+ *   and functions defined in input.hxn and output.hxn instead of directly
  *   calling the functions defined here.  The reason for separating these
  *   functions is so that we can substitute the Web UI versions for games
  *   that wish to use the Web UI insetad of the traditional console UI.  

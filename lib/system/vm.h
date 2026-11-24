@@ -111,7 +111,7 @@ intrinsic 't3vm/010006'
      *   The symbol tables are available under two conditions.  First, while
      *   pre-initialization is running during the program build (compiling)
      *   process, regardless of the debug/release mode being used for
-     *   compilation.  Second, during normal "t3run" execution, but only when
+     *   compilation.  Second, during normal "hexicon run" execution, but only when
      *   the program has been compiled for debugging.  When you compile in
      *   release mode, the compiler omits the debugging symbols from the .hxg
      *   image file to save space, so the symbol tables won't be available

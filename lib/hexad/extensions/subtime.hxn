@@ -223,8 +223,8 @@ clockManager: PreinitObject
      *   supplied as a Date object.
      *
      *   The format string (fmt) is specified in the same way as for the
-     *   formatDate() method of the Date class (for which see the TADS 3 System
-     *   Manual). [SUBTIME EXTENSION]
+     *   formatDate() method of the Date class (for which see date.h in the
+     *   system library). [SUBTIME EXTENSION]
      */
     formatTime(t, fmt)    
     {
@@ -375,7 +375,7 @@ clockManager: PreinitObject
 
     /* 
      *   Check each turn whether another ClockEvent has been reached. Note that
-     *   this requires the events.t module to be present to work. [SUBTIME EXTENSION]
+     *   this requires the events.hxn module to be present to work. [SUBTIME EXTENSION]
      */
     reachCheck()
     {

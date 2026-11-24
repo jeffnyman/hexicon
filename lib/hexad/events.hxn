@@ -4,9 +4,9 @@ import hexad;
 
 /*
  *   *************************************************************************
- *   events.t This module forms an optional part of the adv3Lite library. Note,
- *   however, that it must be present for certain other modules such as actor.t
- *   and scene.t to function properly, so it must be included if any of them
+ *   events.hxn: an optional part of Hexad. Note,
+ *   however, that it must be present for certain other modules such as actor.hxn
+ *   and scene.hxn to function properly, so it must be included if any of them
  *   are.
  */
 

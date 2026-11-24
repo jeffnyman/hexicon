@@ -19,8 +19,8 @@
  *   for usability reasons, but this is something to keep in mind.  If you
  *   need more items, you can group some of them into a submenu.
  *   
- *   The user interface for the menu system is implemented in menucon.t for
- *   traditional console interpreter, and in menuweb.t for the Web UI.
+ *   The user interface for the menu system is implemented in menucon.hxn for
+ *   traditional console interpreter, and in menuweb.hxn for the Web UI.
  */
 
 import hexad;
@@ -46,7 +46,7 @@ import hexad;
  *   be shown in the menu; "menuContents" is either a string to be printed
  *   or a routine to be called.
  *   
- *   adv3.h contains templates for MenuItems, for your convenience.
+ *   hexad.h contains templates for MenuItems, for your convenience.
  *   
  *   A simple example menu:
  *   

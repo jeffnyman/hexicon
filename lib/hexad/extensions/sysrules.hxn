@@ -8,7 +8,7 @@ import hexad;
  *   This extension requires the Rules Extension
  *
  *   The Sysrules extension defines a number of rulebooks and rules that add
- *   more flexibility to certain aspects of the adv3Lite library.
+ *   more flexibility to certain aspects of the library.
  */
 
 /*  
@@ -97,14 +97,14 @@ turnEndRules: RuleBook
 ;
     
 /* 
- *   If the events.t module is included, execute all current Daemons and
+ *   If the events.hxn module is included, execute all current Daemons and
  *   Fuses [SYSRULES EXTENSION]
  */	
 +  executeEventsRule: Rule
     follow()
     {
         /* 
-         *   If the events.t module is included, execute all current Daemons and
+         *   If the events.hxn module is included, execute all current Daemons and
          *   Fuses.
          */
         if(defined(eventManager) && eventManager.executeTurn())          

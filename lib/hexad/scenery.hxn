@@ -2,8 +2,7 @@
 import hexad;
 
 /*
- *   This module was inspired by the Inform 6 Scenic.h extension created by Richard Barnett and
- *   subsquently extended by Joe Mason, Roger Firth and Stefano Gaburri, although the adv3Lite
+ *   This module was inspired by the Inform 6 Scenic.h extension, although this
  *   implementation is quite different.
  */
 

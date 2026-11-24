@@ -136,7 +136,7 @@ class ModuleID: object
      *   respect to the other modules with the same listing order.
      *   
      *   The value 1 is reserved for the game's own ID object.  Note that
-     *   the TADS 3 library defines a module ID with listing order 50,
+     *   Hexad defines a module ID with listing order 50,
      *   which is chosen so that the main library credit will appear after
      *   the game credits but before any extension credits using the
      *   default order value 100 that we define here.  Extensions are
@@ -208,13 +208,13 @@ class MetadataModuleID: ModuleID, PreinitObject
 
 /*
  *   A module ID with GameInfo metadata.  The GameInfo metadata format is
- *   the standard TADS format for descriptive data about the game.  The
+ *   the standard format for descriptive data about the game.  The
  *   usual way to use GameInfo metadata is to create a file called
  *   "gameinfo.txt" for a game, then embed this file directly in the
- *   game's .t3 file using the TADS 3 resource bundler (t3res).  Once the
- *   gameinfo.txt is embedded in the .t3 file, tools will be able to read
- *   the game's descriptive data directly from the .t3 file.  For example,
- *   HTML TADS on Windows can read the information into its Game Chest,
+ *   game's .hxg file as a resource (`resources` in its manifest).  Once the
+ *   gameinfo.txt is embedded in the .hxg file, tools will be able to read
+ *   the game's descriptive data directly from the .hxg file.  For example,
+ *   an interpreter can read the information into its list of games,
  *   which allows the interpreter to show the full name of the game, the
  *   author, and a blurb describing the game, among other things.
  */
@@ -254,7 +254,7 @@ class GameInfoModuleID: MetadataModuleID
      *   IFIDs in version 4, you prevent version 4 from adding yet another
      *   implied IFID of its own: the explicit IFID list supersedes the
      *   implied IFID.)  See the Babel spec for more information, and for
-     *   instructions on how to calculate the implied IFID for a TADS game
+     *   instructions on how to calculate the implied IFID for a game
      *   that was released without a UUID-style IFID.  
      */
     IFID = ''
@@ -536,7 +536,7 @@ class GameInfoModuleID: MetadataModuleID
  *   these properties):
  *
  *.  IFID - a random 32-digit hex number to uniquely identify the game;
- *.    you can generate one at http://www.tads.org/ifidgen/ifidgen
+ *.    hexicon new writes one, as can any tool that makes a UUID
  *.  name - the name of the game
  *.  byline - the main author credit: "by so and so"
  *.  htmlByline - the main author credit as an HTML fragment
