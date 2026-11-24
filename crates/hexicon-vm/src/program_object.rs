@@ -28,7 +28,7 @@ pub struct PropEntry {
 /// Properties keep the order they were added in, which programs can see
 /// through `getPropList`.
 #[derive(Debug, Clone, Default)]
-pub struct TadsObject {
+pub struct ProgramObject {
     /// The direct superclasses, in declaration order.
     pub superclasses: Vec<ObjId>,
     /// Flags from the image; see [`OBJ_FLAG_CLASS`].
@@ -59,7 +59,7 @@ fn ref_table(count: usize) -> (usize, usize) {
     (hash, count.max(hash))
 }
 
-impl TadsObject {
+impl ProgramObject {
     /// An object with the given superclasses and no properties.
     pub fn new(superclasses: Vec<ObjId>) -> Self {
         Self::with_room(superclasses, PROP_ROOM)
@@ -79,7 +79,7 @@ impl TadsObject {
 
     /// The bytes the reference's header for this object takes.
     pub(crate) fn heap_bytes(&self) -> i64 {
-        crate::heap::tads_bytes(self.superclasses.len(), self.ref_hash, self.ref_room)
+        crate::heap::program_object_bytes(self.superclasses.len(), self.ref_hash, self.ref_room)
     }
 
     /// Grow the reference's header to so many superclasses and room for
@@ -87,7 +87,7 @@ impl TadsObject {
     fn ref_expand(&mut self, superclasses: usize, props: usize) {
         (self.ref_hash, self.ref_room) = ref_table(props);
         crate::heap::count(
-            crate::heap::tads_bytes(superclasses, self.ref_hash, self.ref_room),
+            crate::heap::program_object_bytes(superclasses, self.ref_hash, self.ref_room),
             "tads-object",
         );
     }
@@ -260,7 +260,7 @@ impl TadsObject {
         'build: loop {
             let mut insert_after = position;
             for &superclass in &current.superclasses {
-                if !matches!(table.get(superclass), Some(Object::Tads(_))) {
+                if !matches!(table.get(superclass), Some(Object::Program(_))) {
                     continue;
                 }
                 let mut node = head;
@@ -294,7 +294,7 @@ impl TadsObject {
                     break;
                 }
             }
-            match table.tads(nodes[position].0) {
+            match table.program_object(nodes[position].0) {
                 Some(object) => current = object,
                 None => break,
             }
@@ -318,7 +318,7 @@ pub struct Search<'a> {
     table: &'a ObjectTable,
     /// The object the walk is at.
     pub current: ObjId,
-    object: Option<&'a TadsObject>,
+    object: Option<&'a ProgramObject>,
     path: Option<(Rc<[ObjId]>, usize)>,
 }
 
@@ -328,7 +328,7 @@ impl<'a> Search<'a> {
         Self {
             table,
             current: start,
-            object: table.tads(start),
+            object: table.program_object(start),
             path: None,
         }
     }
@@ -343,7 +343,7 @@ impl<'a> Search<'a> {
                 };
                 *position += 1;
                 self.current = next;
-                self.object = self.table.tads(next);
+                self.object = self.table.program_object(next);
                 return true;
             }
             let Some(object) = self.object else {
@@ -355,7 +355,7 @@ impl<'a> Search<'a> {
                 // by far the most common case.
                 1 => {
                     self.current = object.superclasses[0];
-                    self.object = self.table.tads(self.current);
+                    self.object = self.table.program_object(self.current);
                     return self.object.is_some();
                 }
                 _ => self.path = Some((object.search_path(self.table), 0)),
@@ -394,14 +394,14 @@ impl<'a> Search<'a> {
 /// the superclass gives is looked up once and remembered: see
 /// [`ObjectTable::cached_lookup`].
 pub fn find_prop(table: &ObjectTable, object: ObjId, prop: PropId) -> Option<(Value, ObjId)> {
-    let tads = table.tads(object)?;
-    if let Some(value) = tads.get(prop) {
+    let obj = table.program_object(object)?;
+    if let Some(value) = obj.get(prop) {
         return Some((value, object));
     }
-    match tads.superclasses.as_slice() {
+    match obj.superclasses.as_slice() {
         [] => None,
         &[superclass] => {
-            table.tads(superclass)?;
+            table.program_object(superclass)?;
             table.cached_lookup(superclass, prop, || find_prop(table, superclass, prop))
         }
         _ => Search::new(table, object).find(prop),

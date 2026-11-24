@@ -3,7 +3,7 @@
 //! records everything displayed; command logs, which record what the
 //! player entered; and log consoles, which format text into a file.
 //!
-//! The functions here are the `tads-io` function set apart from `tadsSay`.
+//! The functions here are the `hexicon-io` function set apart from `print`.
 
 use hexicon_host::Input;
 
@@ -839,7 +839,7 @@ impl Vm {
 
     // ---- the functions ----
 
-    /// Run a `tads-io` function other than `tadsSay`. False means the
+    /// Run a `hexicon-io` function other than `print`. False means the
     /// function is not implemented.
     pub(crate) fn bif_io(&mut self, index: u16, argc: u32) -> VmResult<bool> {
         let bad_value = || VmError::new(code::BAD_VAL_BIF);

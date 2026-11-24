@@ -408,7 +408,8 @@ impl Vm {
         let mut spec = value;
         if let Value::Obj(id) = value {
             let get_filename = self.predef.filespec_get_filename;
-            if get_filename != INVALID_PROP && matches!(self.objects.get(id), Some(Object::Tads(_)))
+            if get_filename != INVALID_PROP
+                && matches!(self.objects.get(id), Some(Object::Program(_)))
             {
                 let native = NativeCall::named("FileSpec.getFilename");
                 spec = self.call_prop(value, get_filename, 0, Some(native))?;
@@ -1073,7 +1074,7 @@ impl Vm {
                 if let Value::Obj(spec_id) = spec {
                     let close_file = self.predef.filespec_close_file;
                     if close_file != INVALID_PROP
-                        && matches!(self.objects.get(spec_id), Some(Object::Tads(_)))
+                        && matches!(self.objects.get(spec_id), Some(Object::Program(_)))
                     {
                         let native = NativeCall::named("System.closeFile");
                         self.call_prop(spec, close_file, 0, Some(native))?;

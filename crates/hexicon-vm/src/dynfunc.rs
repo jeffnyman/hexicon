@@ -123,7 +123,7 @@ impl DynHost for FuncObjects<'_> {
             vm.push(Value::Obj(class));
             argc = 1;
         }
-        let Ok((id, _)) = vm.create_tads_object(argc, false, None) else {
+        let Ok((id, _)) = vm.create_program_object(argc, false, None) else {
             return 0;
         };
         // Keep it while the rest is made.
@@ -153,7 +153,7 @@ impl DynHost for FuncObjects<'_> {
 impl Vm {
     /// `new DynamicFunc(source, globals?, locals?, macros?)`: compile the
     /// source, against the table of global names and the table of macros
-    /// given, which are what `t3GetGlobalSymbols` gives.
+    /// given, which are what `globalSymbols` gives.
     pub(crate) fn create_dynfunc(&mut self, argc: u32) -> VmResult<ObjId> {
         if !(1..=4).contains(&argc) {
             return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
@@ -363,7 +363,7 @@ impl Vm {
                         DynObjKind::Invokable
                     } else {
                         match object {
-                            Object::Tads(_) => DynObjKind::TadsObject,
+                            Object::Program(_) => DynObjKind::ProgramObject,
                             Object::GramProd(_) => DynObjKind::GrammarProd,
                             Object::Dict(_) => DynObjKind::Dictionary,
                             Object::IntClassMod(_) => DynObjKind::ClassModifier,

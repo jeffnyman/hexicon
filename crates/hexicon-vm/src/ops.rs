@@ -473,7 +473,7 @@ impl Vm {
         match self.objects.get(id) {
             // An anonymous function is stored like a vector but is not a list.
             Some(Object::Vector(items)) => return Ok(Some(items.len())),
-            Some(Object::Tads(_)) => {}
+            Some(Object::Program(_)) => {}
             _ => return Ok(None),
         }
         let (operator_idx, length) = (self.predef.operator_idx, self.predef.length);

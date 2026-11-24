@@ -1,8 +1,9 @@
 //! The Hexicon virtual machine.
 //!
-//! This crate runs T3 program images: the `.t3` files the TADS 3 compiler
-//! produces. It follows the T3 VM specification and, where the
-//! specification is silent, the behavior of the reference interpreter.
+//! This crate runs the games Hexicon builds (`.hxg` files), and T3
+//! images for the comparisons with the reference. It follows the T3 VM
+//! specification, the layout both share, and where that is silent, the
+//! behavior of the reference interpreter.
 //!
 //! The VM does no input or output of its own. Everything it needs from
 //! the outside world comes through a [`hexicon_host::Host`].
@@ -55,6 +56,7 @@ mod ops;
 mod pack;
 #[cfg(feature = "profile")]
 pub mod prof;
+mod program_object;
 mod props;
 mod rebuild;
 mod reflect;
@@ -66,7 +68,6 @@ mod sprintf;
 mod strbuf;
 mod strcomp;
 mod string;
-mod tads;
 mod trace;
 mod tz;
 mod value;

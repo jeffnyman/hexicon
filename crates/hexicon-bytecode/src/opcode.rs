@@ -1,8 +1,8 @@
 //! The T3 VM instruction set.
 //!
 //! The opcode numbers and operand layouts follow the T3 VM "Byte-Code
-//! Instruction Set" document and the reference interpreter's `vmop.h` and
-//! `vmrun.cpp`. A few instructions are in the interpreter but not in the
+//! Instruction Set" document and the reference interpreter. A few
+//! instructions are in the interpreter but not in the
 //! document (`iternext`, `getsetlcl1`, `getsetlcl1r0`, `dupr0`, and
 //! `getlcln0` through `getlcln5`); their layouts are taken from the
 //! interpreter.

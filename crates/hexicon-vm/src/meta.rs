@@ -47,7 +47,7 @@ macro_rules! metaclasses {
 // its parent only to fit the table; `parent()` reports that it has none.
 metaclasses! {
     Root "root-object" "030004" Root;
-    TadsObject "tads-object" "030005" Root;
+    ProgramObject "tads-object" "030005" Root;
     IntClassMod "int-class-mod" "030000" Root;
     IntrinsicClass "intrinsic-class" "030001" Root;
     String "string" "030008" Root;

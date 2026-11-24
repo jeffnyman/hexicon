@@ -8,18 +8,18 @@ use hexicon_image::Image;
 use crate::console::{Formatter, Newline};
 use crate::error::{ErrParam, VmError, code, format_message};
 use crate::object::{Object, ObjectTable};
-use crate::tads::{self, TadsObject};
+use crate::program_object::{self, ProgramObject};
 use crate::value::{ObjId, Value, type_code};
 use crate::vm::Vm;
 
 // ---- building images ----
 
 /// Index of each intrinsic class in the test images' dependency list.
-const META_TADS_OBJECT: u8 = 0;
+const META_PROGRAM_OBJECT: u8 = 0;
 
 /// Index of each function set in the test images' dependency list.
-const SET_TADS_GEN: u8 = 1;
-const SET_TADS_IO: u8 = 2;
+const SET_GEN: u8 = 1;
+const SET_IO: u8 = 2;
 
 /// Property IDs the test images use.
 const PROP_CONSTRUCT: u16 = 1;
@@ -89,9 +89,9 @@ impl Code {
         self.bytes.len()
     }
 
-    /// Display the value on top of the stack with `tadsSay`.
+    /// Display the value on top of the stack with `print`.
     fn say(&mut self) -> &mut Self {
-        self.op(Op::Builtin1).u8(1).u8(0).u8(SET_TADS_IO)
+        self.op(Op::Builtin1).u8(1).u8(0).u8(SET_IO)
     }
 
     /// Push a string constant and display it.
@@ -133,7 +133,7 @@ fn holder(type_code: i32, value: u32) -> [u8; 5] {
 }
 
 /// The image data of a program-defined object.
-fn tads_object_data(superclasses: &[u32], is_class: bool, props: &[(u16, [u8; 5])]) -> Vec<u8> {
+fn program_object_data(superclasses: &[u32], is_class: bool, props: &[(u16, [u8; 5])]) -> Vec<u8> {
     let mut data = Vec::new();
     data.extend_from_slice(&(superclasses.len() as u16).to_le_bytes());
     data.extend_from_slice(&(props.len() as u16).to_le_bytes());
@@ -258,7 +258,7 @@ impl ImageBuilder {
 
         if !self.objects.is_empty() {
             let mut body = (self.objects.len() as u16).to_le_bytes().to_vec();
-            body.extend_from_slice(&u16::from(META_TADS_OBJECT).to_le_bytes());
+            body.extend_from_slice(&u16::from(META_PROGRAM_OBJECT).to_le_bytes());
             body.extend_from_slice(&0u16.to_le_bytes());
             for (id, object) in &self.objects {
                 body.extend_from_slice(&id.to_le_bytes());
@@ -413,7 +413,7 @@ fn calls_methods_and_inherits() {
     let again = consts.string(" again");
     let mut code = Code::default();
 
-    // Base.greet() { tadsSay('hello from ' + name); }
+    // Base.greet() { print('hello from ' + name); }
     let base_greet = code.function(0, 0);
     code.op(Op::PushStr).u32(hello);
     code.op(Op::GetPropSelf)
@@ -422,7 +422,7 @@ fn calls_methods_and_inherits() {
         .op(Op::Add);
     code.say().op(Op::RetNil);
 
-    // Derived.greet() { inherited(); tadsSay(' again'); }
+    // Derived.greet() { inherited(); print(' again'); }
     let derived_greet = code.function(0, 0);
     code.op(Op::Inherit).u8(0).u16(PROP_GREET);
     code.say_str(again).op(Op::RetNil);
@@ -434,7 +434,7 @@ fn calls_methods_and_inherits() {
     let image = ImageBuilder::default()
         .object(
             1,
-            tads_object_data(
+            program_object_data(
                 &[],
                 true,
                 &[
@@ -445,7 +445,7 @@ fn calls_methods_and_inherits() {
         )
         .object(
             2,
-            tads_object_data(
+            program_object_data(
                 &[1],
                 false,
                 &[
@@ -469,10 +469,10 @@ fn creates_objects_and_runs_constructors() {
     code.op(Op::GetArgN0).op(Op::SetPropSelf).u16(PROP_NAME);
     code.op(Op::PushSelf).op(Op::RetVal);
 
-    // local t = new Thing(7); tadsSay('made ' + t.name);
+    // local t = new Thing(7); print('made ' + t.name);
     let main = code.function(1, 1);
     code.op(Op::PushInt8).u8(7).op(Op::PushObj).u32(1);
-    code.op(Op::New1).u8(2).u8(META_TADS_OBJECT);
+    code.op(Op::New1).u8(2).u8(META_PROGRAM_OBJECT);
     code.op(Op::SetLcl1R0).u8(0);
     code.op(Op::PushStr).u32(made);
     code.op(Op::GetPropLcl1)
@@ -485,7 +485,7 @@ fn creates_objects_and_runs_constructors() {
     let image = ImageBuilder::default()
         .object(
             1,
-            tads_object_data(
+            program_object_data(
                 &[],
                 true,
                 &[(PROP_CONSTRUCT, holder(type_code::CODEOFS, construct))],
@@ -509,7 +509,7 @@ fn undefined_property_is_nil() {
     code.op(Op::RetNil);
 
     let image = ImageBuilder::default()
-        .object(1, tads_object_data(&[], false, &[]))
+        .object(1, program_object_data(&[], false, &[]))
         .build(main, &code, &consts);
     assert_eq!(run(&image).0, "nil");
 }
@@ -539,7 +539,7 @@ fn catches_a_thrown_exception() {
     let thrower = code.function(0, 0);
     code.op(Op::PushObj).u32(1).op(Op::Throw);
 
-    // main() { try { thrower(); } catch (object 1 e) { tadsSay('caught'); } }
+    // main() { try { thrower(); } catch (object 1 e) { print('caught'); } }
     let main = code.function(1, 1);
     // The protected range has to include the instruction after the call,
     // because that is where the function is when the exception arrives.
@@ -561,7 +561,7 @@ fn catches_a_thrown_exception() {
     code.bytes[main as usize + 6..main as usize + 8].copy_from_slice(&table_offset.to_le_bytes());
 
     let image = ImageBuilder::default()
-        .object(1, tads_object_data(&[], false, &[]))
+        .object(1, program_object_data(&[], false, &[]))
         .build(main, &code, &consts);
     assert_eq!(run(&image), ("caught".to_owned(), Ok(())));
 }
@@ -687,11 +687,7 @@ fn intrinsic_functions_check_their_arguments() {
     let mut code = Code::default();
     let main = code.function(1, 0);
     // dataType() with no arguments.
-    code.op(Op::Builtin1)
-        .u8(0)
-        .u8(0)
-        .u8(SET_TADS_GEN)
-        .op(Op::RetNil);
+    code.op(Op::Builtin1).u8(0).u8(0).u8(SET_GEN).op(Op::RetNil);
 
     let image = ImageBuilder::default().build(main, &code, &consts);
     assert_eq!(
@@ -721,7 +717,7 @@ fn identifies_itself_as_hexicon() {
     let consts = Consts::default();
     let mut code = Code::default();
     let main = code.function(1, 0);
-    // tadsSay(t3GetVMID()); tadsSay(t3GetVMVsn()); tadsSay(t3GetVMBanner());
+    // print(vmId()); print(vmVersion()); print(vmBanner());
     for function in [3u8, 2, 4] {
         code.op(Op::BuiltinA).u8(0).u8(function).op(Op::GetR0).say();
         code.op(Op::PushInt8).u8(b' ').op(Op::Disc);
@@ -764,7 +760,7 @@ fn free_ids_are_handed_out_from_the_top_of_a_page() {
 
 #[test]
 fn properties_keep_their_order() {
-    let mut object = TadsObject::new(Vec::new());
+    let mut object = ProgramObject::new(Vec::new());
     for prop in [30u16, 10, 20, 4, 8, 15, 16, 23, 42] {
         object.set(prop, Value::Int(prop.into()));
     }
@@ -780,15 +776,15 @@ fn properties_keep_their_order() {
 fn class_table(classes: &[(u32, &[u32])]) -> ObjectTable {
     let mut table = ObjectTable::new();
     for (id, superclasses) in classes {
-        let mut object = TadsObject::new(superclasses.iter().map(|&s| ObjId(s)).collect());
+        let mut object = ProgramObject::new(superclasses.iter().map(|&s| ObjId(s)).collect());
         object.set(1, Value::Int(*id as i32));
-        table.alloc_with_id(ObjId(*id), Object::Tads(object), false);
+        table.alloc_with_id(ObjId(*id), Object::Program(object), false);
     }
     table
 }
 
 fn search_order(table: &ObjectTable, start: u32) -> Vec<u32> {
-    let mut search = tads::Search::new(table, ObjId(start));
+    let mut search = program_object::Search::new(table, ObjId(start));
     let mut order = Vec::new();
     while search.advance() {
         order.push(search.current.0);
@@ -800,9 +796,9 @@ fn search_order(table: &ObjectTable, start: u32) -> Vec<u32> {
 fn single_inheritance_searches_up_the_chain() {
     let table = class_table(&[(1, &[]), (2, &[1]), (3, &[2])]);
     assert_eq!(search_order(&table, 3), [2, 1]);
-    assert!(tads::inherits_from(&table, ObjId(3), ObjId(1)));
-    assert!(!tads::inherits_from(&table, ObjId(1), ObjId(3)));
-    assert!(!tads::inherits_from(&table, ObjId(3), ObjId(3)));
+    assert!(program_object::inherits_from(&table, ObjId(3), ObjId(1)));
+    assert!(!program_object::inherits_from(&table, ObjId(1), ObjId(3)));
+    assert!(!program_object::inherits_from(&table, ObjId(3), ObjId(3)));
 }
 
 #[test]
@@ -811,16 +807,16 @@ fn a_shared_base_class_is_searched_last() {
     let table = class_table(&[(1, &[]), (2, &[1]), (3, &[1]), (4, &[2, 3])]);
     assert_eq!(search_order(&table, 4), [2, 3, 1]);
     assert_eq!(
-        tads::find_prop(&table, ObjId(4), 1),
+        program_object::find_prop(&table, ObjId(4), 1),
         Some((Value::Int(4), ObjId(4)))
     );
     // What B's definition overrides, from D's point of view, is C's.
     assert_eq!(
-        tads::find_inherited_prop(&table, ObjId(4), ObjId(2), 1),
+        program_object::find_inherited_prop(&table, ObjId(4), ObjId(2), 1),
         Some((Value::Int(3), ObjId(3)))
     );
     assert_eq!(
-        tads::find_inherited_prop(&table, ObjId(4), ObjId(1), 1),
+        program_object::find_inherited_prop(&table, ObjId(4), ObjId(1), 1),
         None
     );
 }
@@ -1410,7 +1406,7 @@ fn vm_with_one_object() -> Vm {
     let image = ImageBuilder::default()
         .object(
             1,
-            tads_object_data(&[], false, &[(PROP_GREET, holder(type_code::INT, 1))]),
+            program_object_data(&[], false, &[(PROP_GREET, holder(type_code::INT, 1))]),
         )
         .build(main, &code, &Consts::default());
     Vm::new(&image, Box::new(BufferHost::new())).expect("the image loads")
@@ -1418,7 +1414,7 @@ fn vm_with_one_object() -> Vm {
 
 fn prop_of(vm: &Vm, id: u32, prop: u16) -> Option<Value> {
     vm.objects
-        .tads(ObjId(id))
+        .program_object(ObjId(id))
         .and_then(|object| object.get(prop))
 }
 
@@ -2414,7 +2410,7 @@ fn characters_are_the_kinds_the_reference_says() {
 
 #[test]
 fn a_run_before_the_image_is_written_is_kept_in_it() {
-    // _main() { obj1.name = obj1.name + '!'; tadsSay(obj1.name); }
+    // _main() { obj1.name = obj1.name + '!'; print(obj1.name); }
     let mut consts = Consts::default();
     let base = consts.string("base");
     let mut code = Code::default();
@@ -2430,7 +2426,7 @@ fn a_run_before_the_image_is_written_is_kept_in_it() {
     let bytes = ImageBuilder::default()
         .object(
             1,
-            tads_object_data(&[], false, &[(PROP_NAME, holder(type_code::SSTRING, base))]),
+            program_object_data(&[], false, &[(PROP_NAME, holder(type_code::SSTRING, base))]),
         )
         .build_bytes(main, &code, &consts);
 
@@ -2599,7 +2595,7 @@ fn an_object_id_far_past_the_others_is_refused() {
     let main = code.function(1, 0);
     code.op(Op::RetNil);
     let image = ImageBuilder::default()
-        .object(0x4000_0000, tads_object_data(&[], false, &[]))
+        .object(0x4000_0000, program_object_data(&[], false, &[]))
         .build(main, &code, &consts);
     let loaded = Vm::new(&image, Box::new(BufferHost::new()));
     assert!(matches!(

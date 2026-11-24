@@ -4,7 +4,7 @@ use hexicon_bytecode::Opcode;
 
 use crate::error::{ErrParam, RuntimeError, VmError, VmResult, code};
 use crate::object::Object;
-use crate::tads;
+use crate::program_object;
 use crate::value::{INVALID_PROP, ObjId, PropId, Value};
 use crate::vm::{Frame, MethodContext, NativeCall, Return, STACK_RESERVE, Vm};
 
@@ -686,7 +686,10 @@ impl Vm {
                 _ => return Err(VmError::new(code::EXCEPTION_OBJ_REQD)),
             }
         } else {
-            self.alloc_obj(Object::Tads(tads::TadsObject::with_room(Vec::new(), 1)))
+            self.alloc_obj(Object::Program(program_object::ProgramObject::with_room(
+                Vec::new(),
+                1,
+            )))
         };
         if self.predef.exception_message != INVALID_PROP {
             let message = match code::message(error.code) {

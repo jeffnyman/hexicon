@@ -3309,7 +3309,7 @@ fn code_is_compiled_while_a_program_runs() {
                 b"test1".to_vec(),
                 DynSymbol::Object {
                     id: 7,
-                    kind: DynObjKind::TadsObject,
+                    kind: DynObjKind::ProgramObject,
                 },
             ),
             (b"m1".to_vec(), DynSymbol::Property(42)),
@@ -3611,7 +3611,7 @@ fn hexicons_names_call_the_same_functions_as_the_tads_names() {
         intrinsic 'tads-io/030007' { print(val, ...); }\n\
         _main(args) { print('VM <<vmId()>>'); collectGarbage(); \
         local p = newProperty(); print(stackTrace(1, 0x0002)); }\n";
-    let tads = "intrinsic 't3vm/010006' { t3RunGC(); t3SetSay(val); t3GetVMVsn(); \
+    let obj = "intrinsic 't3vm/010006' { t3RunGC(); t3SetSay(val); t3GetVMVsn(); \
         t3GetVMID(); t3GetVMBanner(); t3GetVMPreinitMode(); t3DebugTrace(mode, ...); \
         t3GetGlobalSymbols(which?); t3AllocProp(); t3GetStackTrace(level?, flags?); }\n\
         intrinsic 'tads-io/030007' { tadsSay(val, ...); }\n\
@@ -3619,7 +3619,7 @@ fn hexicons_names_call_the_same_functions_as_the_tads_names() {
         local p = t3AllocProp(); tadsSay(t3GetStackTrace(1, 0x0002)); }\n";
     let mut files = stub_system_headers()
         .with("names.hxn", hexicon)
-        .with("names.t", tads);
+        .with("names.t", obj);
     let a = compile(&mut files, "names.hxn", &options_with_inc());
     let b = compile(&mut files, "names.t", &options_with_inc());
     // Each has a warning: p is never used.
@@ -4496,11 +4496,12 @@ mod hexicon_messages {
             )),
             "{shown:?}"
         );
-        let tads = diagnostics("game.t", text);
+        let in_tads_3 = diagnostics("game.t", text);
         assert!(
-            tads.iter()
+            in_tads_3
+                .iter()
                 .any(|d| d.message.starts_with("undefined symbol")),
-            "{tads:?}"
+            "{in_tads_3:?}"
         );
     }
 }

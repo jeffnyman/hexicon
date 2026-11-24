@@ -24,7 +24,7 @@ fn opcode_table_is_consistent() {
 #[test]
 fn fixed_lengths_match_the_reference_table() {
     // Total instruction lengths, including the opcode byte, spot-checked
-    // against the reference interpreter's own length table (vmop.cpp).
+    // against the reference interpreter's own length table.
     let len = |opcode: Opcode| match opcode.layout() {
         Layout::Fixed(kinds) => 1 + kinds.iter().map(|k| k.size()).sum::<usize>(),
         _ => 0,

@@ -1,4 +1,4 @@
-//! Banner windows: the `banner` functions of the `tads-io` function set.
+//! Banner windows: the `banner` functions of the `hexicon-io` function set.
 //!
 //! Each banner has a formatter of its own, as each has a console of its
 //! own in the reference VM (`CVmConsoleBanner`), and the host is handed
@@ -31,7 +31,7 @@ fn bad_value() -> VmError {
 }
 
 impl Vm {
-    /// Run a banner function, by its index in the `tads-io` set.
+    /// Run a banner function, by its index in the `hexicon-io` set.
     pub(crate) fn bif_banner(&mut self, index: u16, argc: u32) -> VmResult<()> {
         match index {
             // bannerCreate(parent?, where, other, windowType, align, size,

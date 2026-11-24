@@ -5,8 +5,8 @@
 //! lines, applies capitalization requests, expands tabs, interprets the
 //! HTML it understands, and wraps lines to the console width.
 //!
-//! This is a port of the reference VM's text-only formatter
-//! (`vmconsol.cpp` and `vmconhmp.cpp`). Transcripts must match the
+//! This is a port of the reference VM's text-only formatter.
+//! Transcripts must match the
 //! reference byte for byte, so the logic follows the original closely,
 //! quirks included. Colors and text attributes are parsed and ignored.
 

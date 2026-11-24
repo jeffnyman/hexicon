@@ -5387,7 +5387,7 @@ impl Gen<'_> {
         let class = [b"TadsObject".as_slice(), b"ProgramObject"]
             .into_iter()
             .find_map(|name| self.prog.globals.get(name).copied());
-        let Some(Global::Meta(tads_object)) = class else {
+        let Some(Global::Meta(program_object)) = class else {
             self.error("\"TadsObject\" is not defined or is not an intrinsic class");
             return;
         };
@@ -5396,7 +5396,7 @@ impl Gen<'_> {
         };
         self.cg.write_op(Op::ObjCallProp);
         self.cg.write(superclasses.len() as u8);
-        self.write_obj_id(self.prog.metas[tads_object].obj_id);
+        self.write_obj_id(self.prog.metas[program_object].obj_id);
         self.write_prop_id(create);
         self.cg.note_pops(superclasses.len() as i32);
         self.cg.write_op(Op::GetR0);

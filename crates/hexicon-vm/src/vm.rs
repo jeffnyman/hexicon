@@ -373,7 +373,7 @@ pub struct Vm {
     pub(crate) debug: DebugInfo,
     /// Whether the program is running under pre-initialization.
     pub(crate) preinit_mode: bool,
-    /// The tables `t3GetGlobalSymbols` returns, once built.
+    /// The tables `globalSymbols` returns, once built.
     pub(crate) symbol_table: Option<ObjId>,
     pub(crate) macro_table: Option<ObjId>,
     /// Mathematical constants BigNumber has computed so far.
@@ -536,7 +536,7 @@ impl Vm {
     /// The intrinsic class an object belongs to.
     pub(crate) fn kind_of(&self, id: ObjId) -> Option<MetaKind> {
         Some(match self.objects.get(id)? {
-            Object::Tads(_) => MetaKind::TadsObject,
+            Object::Program(_) => MetaKind::ProgramObject,
             Object::IntClassMod(_) => MetaKind::IntClassMod,
             Object::String(_) => MetaKind::String,
             Object::List(_) => MetaKind::List,

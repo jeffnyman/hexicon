@@ -65,7 +65,7 @@ pub enum DynSymbol {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DynObjKind {
     /// An object the program defines.
-    TadsObject,
+    ProgramObject,
     /// An object that can be called like a function.
     Invokable,
     /// A grammar production.

@@ -1,5 +1,5 @@
 //! The symbol tables a program compiled for debugging can look itself up
-//! in: `t3GetGlobalSymbols`.
+//! in: `globalSymbols`.
 
 use hexicon_image::GlobalSymbolKind;
 

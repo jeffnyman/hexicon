@@ -8,9 +8,9 @@ use crate::lookup::LookupTable;
 use crate::value::Value;
 use crate::vm::{NativeCall, Return, Vm};
 
-/// `t3GetStackTrace` flag: include local variables.
+/// `stackTrace` flag: include local variables.
 const GST_LOCALS: i32 = 0x0001;
-/// `t3GetStackTrace` flag: include frame references.
+/// `stackTrace` flag: include frame references.
 const GST_FREFS: i32 = 0x0002;
 
 /// One level of the call stack as a stack trace reports it.
@@ -91,9 +91,9 @@ impl Vm {
         levels
     }
 
-    /// `t3GetStackTrace(level?, flags?)`: describe the call stack as a
-    /// list of `T3StackInfo` objects, or one level of it as one object.
-    pub(crate) fn t3_get_stack_trace(&mut self, argc: u32) -> VmResult<()> {
+    /// `stackTrace(level?, flags?)`: describe the call stack as a
+    /// list of `StackInfo` objects, or one level of it as one object.
+    pub(crate) fn stack_trace(&mut self, argc: u32) -> VmResult<()> {
         if argc > 2 {
             return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
         }
@@ -102,7 +102,7 @@ impl Vm {
             self.r0 = Value::Nil;
             return Ok(());
         }
-        // The more arguments the program's T3StackInfo constructor takes,
+        // The more arguments the program's StackInfo constructor takes,
         // the more detail it is given.
         let (mut want_named_args, mut want_locals, mut want_frefs) = (false, false, false);
         if let Some((min, opt, varargs)) = self.prop_interface(class, self.predef.construct)? {
@@ -147,7 +147,7 @@ impl Vm {
         Ok(())
     }
 
-    /// Build the `T3StackInfo` object for one level of the stack.
+    /// Build the `StackInfo` object for one level of the stack.
     fn stack_info(
         &mut self,
         level: &Level,
@@ -459,9 +459,9 @@ impl Vm {
         Some(args)
     }
 
-    /// `t3GetNamedArg(name, default?)`: the value of a named argument
+    /// `namedArg(name, default?)`: the value of a named argument
     /// passed to any function on the call stack.
-    pub(crate) fn t3_get_named_arg(&mut self, argc: u32) -> VmResult<()> {
+    pub(crate) fn named_arg(&mut self, argc: u32) -> VmResult<()> {
         if !(1..=2).contains(&argc) {
             return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
         }
@@ -488,8 +488,8 @@ impl Vm {
         }
     }
 
-    /// `t3GetNamedArgList()`: the names of all named arguments in effect.
-    pub(crate) fn t3_get_named_arg_list(&mut self, argc: u32) -> VmResult<()> {
+    /// `namedArgList()`: the names of all named arguments in effect.
+    pub(crate) fn named_arg_list(&mut self, argc: u32) -> VmResult<()> {
         if argc != 0 {
             return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
         }

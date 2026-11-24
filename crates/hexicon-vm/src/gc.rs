@@ -12,7 +12,7 @@
 //! them (see [`crate::heap`]), and Hexicon collects at the same moments.
 
 use crate::object::Object;
-use crate::tads;
+use crate::program_object;
 use crate::value::{INVALID_PROP, ObjId, Value};
 use crate::vm::{NativeCall, Vm};
 
@@ -60,8 +60,8 @@ impl Vm {
     fn has_finalizer(&self, id: ObjId) -> bool {
         let destruct = self.predef.destruct;
         destruct != INVALID_PROP
-            && matches!(self.objects.get(id), Some(Object::Tads(_)))
-            && tads::find_prop(&self.objects, id, destruct).is_some_and(|(value, _)| {
+            && matches!(self.objects.get(id), Some(Object::Program(_)))
+            && program_object::find_prop(&self.objects, id, destruct).is_some_and(|(value, _)| {
                 matches!(
                     value,
                     Value::CodeOfs(_)

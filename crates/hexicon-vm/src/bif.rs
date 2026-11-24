@@ -1,7 +1,7 @@
 //! Intrinsic function sets: the functions the VM provides to programs.
 //!
-//! Each function follows the reference VM's implementation (`vmbift3.cpp`,
-//! `vmbiftad.cpp`, `vmbiftio.cpp`). A function receives its arguments on
+//! Each function follows the reference VM's implementation. A function
+//! receives its arguments on
 //! top of the stack, first argument uppermost, and leaves its result, if
 //! it has one, in register 0. The caller removes the arguments.
 
@@ -16,18 +16,18 @@ use crate::vm::Vm;
 /// A function set the VM knows about.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FunctionSet {
-    /// `t3vm`: access to the VM itself.
-    T3Vm,
-    /// `t3vmTEST`: hooks for the VM's own test suite.
-    T3Test,
-    /// `tads-gen`: general-purpose functions.
-    TadsGen,
-    /// `tads-io`: console input and output.
-    TadsIo,
-    /// `tads-io-ext`: extended console functions. Not implemented.
-    TadsIoExt,
-    /// `tads-net`: networking. Not implemented.
-    TadsNet,
+    /// `hexicon-vm`: access to the VM itself.
+    Machine,
+    /// `hexicon-vm-test`: hooks for the VM's own test suite.
+    MachineTest,
+    /// `hexicon-gen`: general-purpose functions.
+    Gen,
+    /// `hexicon-io`: console input and output.
+    Io,
+    /// `hexicon-io-ext`: extended console functions. Not implemented.
+    IoExt,
+    /// `hexicon-net`: networking. Not implemented.
+    Net,
 }
 
 /// The entries of a function set: name and calling interface.
@@ -43,7 +43,7 @@ const fn var(min: u8) -> NativeDesc {
     NativeDesc::variable(min)
 }
 
-const T3VM: Table = &[
+const MACHINE: Table = &[
     ("t3RunGC", fixed(0)),
     ("t3SetSay", fixed(1)),
     ("t3GetVMVsn", fixed(0)),
@@ -58,13 +58,13 @@ const T3VM: Table = &[
     ("t3GetNamedArgList", fixed(0)),
 ];
 
-const T3TEST: Table = &[
+const MACHINE_TEST: Table = &[
     ("t3test_get_obj_id", fixed(1)),
     ("t3test_get_obj_gc_state", fixed(1)),
     ("t3test_get_charcode", fixed(1)),
 ];
 
-const TADS_GEN: Table = &[
+const GEN: Table = &[
     ("dataType", fixed(1)),
     ("getArg", fixed(1)),
     ("firstObj", opt(0, 2)),
@@ -96,7 +96,7 @@ const TADS_GEN: Table = &[
     ("rexSearchLast", opt(2, 1)),
 ];
 
-const TADS_IO: Table = &[
+const IO: Table = &[
     ("tadsSay", var(1)),
     ("setLogFile", opt(1, 1)),
     ("clearScreen", fixed(0)),
@@ -140,12 +140,12 @@ impl FunctionSet {
         let (name, version) = image_name.split_once('/').unwrap_or((image_name, "000000"));
         let (set, provided) = match name {
             // Hexicon's names, and then a T3 image's for the same sets.
-            "hexicon-vm" | "t3vm" => (Self::T3Vm, "010006"),
-            "hexicon-vm-test" | "t3vmTEST" => (Self::T3Test, "010000"),
-            "hexicon-gen" | "tads-gen" => (Self::TadsGen, "030008"),
-            "hexicon-io" | "tads-io" => (Self::TadsIo, "030007"),
-            "hexicon-io-ext" | "tads-io-ext" => (Self::TadsIoExt, "030000"),
-            "hexicon-net" | "tads-net" => (Self::TadsNet, "030001"),
+            "hexicon-vm" | "t3vm" => (Self::Machine, "010006"),
+            "hexicon-vm-test" | "t3vmTEST" => (Self::MachineTest, "010000"),
+            "hexicon-gen" | "tads-gen" => (Self::Gen, "030008"),
+            "hexicon-io" | "tads-io" => (Self::Io, "030007"),
+            "hexicon-io-ext" | "tads-io-ext" => (Self::IoExt, "030000"),
+            "hexicon-net" | "tads-net" => (Self::Net, "030001"),
             _ => {
                 return Err(VmError::with(
                     code::UNKNOWN_FUNC_SET,
@@ -167,11 +167,11 @@ impl FunctionSet {
 
     fn table(self) -> Table {
         match self {
-            Self::T3Vm => T3VM,
-            Self::T3Test => T3TEST,
-            Self::TadsGen => TADS_GEN,
-            Self::TadsIo => TADS_IO,
-            Self::TadsIoExt | Self::TadsNet => &[],
+            Self::Machine => MACHINE,
+            Self::MachineTest => MACHINE_TEST,
+            Self::Gen => GEN,
+            Self::Io => IO,
+            Self::IoExt | Self::Net => &[],
         }
     }
 }
@@ -180,7 +180,7 @@ impl FunctionSet {
 const ENUM_INSTANCES: i32 = 1;
 const ENUM_CLASSES: i32 = 2;
 
-// `t3SetSay` arguments that clear a setting.
+// `setSay` arguments that clear a setting.
 const SETSAY_NO_FUNC: i32 = 1;
 const SETSAY_NO_METHOD: i32 = 2;
 
@@ -209,11 +209,11 @@ impl Vm {
         }
         let base = self.stack.len() - argc as usize;
         match function_set {
-            FunctionSet::T3Vm => self.bif_t3vm(index, argc)?,
-            FunctionSet::T3Test => self.bif_t3test(index, argc)?,
-            FunctionSet::TadsGen => self.bif_tads_gen(index, argc)?,
-            FunctionSet::TadsIo => self.bif_tads_io(index, argc)?,
-            FunctionSet::TadsIoExt | FunctionSet::TadsNet => {
+            FunctionSet::Machine => self.call_machine(index, argc)?,
+            FunctionSet::MachineTest => self.call_machine_test(index, argc)?,
+            FunctionSet::Gen => self.call_gen(index, argc)?,
+            FunctionSet::Io => self.call_io(index, argc)?,
+            FunctionSet::IoExt | FunctionSet::Net => {
                 return Err(self.unimplemented_bif(function_set, index));
             }
         }
@@ -240,16 +240,16 @@ impl Vm {
         }
     }
 
-    // ---- t3vm ----
+    // ---- hexicon-vm ----
 
-    fn bif_t3vm(&mut self, index: u16, argc: u32) -> VmResult<()> {
+    fn call_machine(&mut self, index: u16, argc: u32) -> VmResult<()> {
         match index {
-            // t3RunGC()
+            // collectGarbage()
             0 => {
                 Self::check_argc(argc, 0)?;
                 self.collect_garbage(false);
             }
-            1 => self.t3_set_say(argc)?,
+            1 => self.set_say(argc)?,
             2 => {
                 Self::check_argc(argc, 0)?;
                 self.r0 = Value::Int(identity::version_number());
@@ -266,7 +266,7 @@ impl Vm {
                 Self::check_argc(argc, 0)?;
                 self.r0 = Value::Int(self.preinit_mode.into());
             }
-            // t3DebugTrace(mode, ...): there is no debugger.
+            // debugTrace(mode, ...): there is no debugger.
             6 => {
                 if argc < 1 {
                     return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
@@ -274,7 +274,7 @@ impl Vm {
                 self.int_arg(self.arg(0))?;
                 self.r0 = Value::Nil;
             }
-            // t3GetGlobalSymbols(which?): the table of global symbols, or
+            // globalSymbols(which?): the table of global symbols, or
             // of macros. Only a program compiled for debugging has them.
             7 => {
                 Self::check_argc_range(argc, 0, 1)?;
@@ -294,17 +294,17 @@ impl Vm {
                 Self::check_argc(argc, 0)?;
                 self.r0 = Value::Prop(self.alloc_prop()?);
             }
-            9 => self.t3_get_stack_trace(argc)?,
-            10 => self.t3_get_named_arg(argc)?,
-            11 => self.t3_get_named_arg_list(argc)?,
-            _ => return Err(self.unimplemented_bif(FunctionSet::T3Vm, index)),
+            9 => self.stack_trace(argc)?,
+            10 => self.named_arg(argc)?,
+            11 => self.named_arg_list(argc)?,
+            _ => return Err(self.unimplemented_bif(FunctionSet::Machine, index)),
         }
         Ok(())
     }
 
-    /// `t3SetSay(val)`: set the default output function or method, and
+    /// `setSay(val)`: set the default output function or method, and
     /// return the previous setting.
-    fn t3_set_say(&mut self, argc: u32) -> VmResult<()> {
+    fn set_say(&mut self, argc: u32) -> VmResult<()> {
         Self::check_argc(argc, 1)?;
         match self.arg(0) {
             arg @ (Value::Prop(_) | Value::Int(SETSAY_NO_METHOD)) => {
@@ -355,9 +355,9 @@ impl Vm {
         Ok(last + 1)
     }
 
-    // ---- t3vmTEST ----
+    // ---- hexicon-vm-test ----
 
-    fn bif_t3test(&mut self, index: u16, argc: u32) -> VmResult<()> {
+    fn call_machine_test(&mut self, index: u16, argc: u32) -> VmResult<()> {
         match index {
             0 => {
                 Self::check_argc(argc, 1)?;
@@ -375,14 +375,14 @@ impl Vm {
                     None => Value::Nil,
                 };
             }
-            _ => return Err(self.unimplemented_bif(FunctionSet::T3Test, index)),
+            _ => return Err(self.unimplemented_bif(FunctionSet::MachineTest, index)),
         }
         Ok(())
     }
 
-    // ---- tads-gen ----
+    // ---- hexicon-gen ----
 
-    fn bif_tads_gen(&mut self, index: u16, argc: u32) -> VmResult<()> {
+    fn call_gen(&mut self, index: u16, argc: u32) -> VmResult<()> {
         match index {
             // dataType(val)
             0 => {
@@ -574,7 +574,7 @@ impl Vm {
                 };
                 self.r0 = self.get_time(kind)?;
             }
-            _ => return Err(self.unimplemented_bif(FunctionSet::TadsGen, index)),
+            _ => return Err(self.unimplemented_bif(FunctionSet::Gen, index)),
         }
         Ok(())
     }
@@ -601,7 +601,7 @@ impl Vm {
         for id in (start..self.objects.id_limit()).map(ObjId) {
             let is_class = match self.objects.get(id) {
                 None | Some(Object::IntClassMod(_)) => continue,
-                Some(Object::Tads(object)) => object.is_class(),
+                Some(Object::Program(object)) => object.is_class(),
                 Some(Object::Class(_)) => true,
                 Some(_) => false,
             };
@@ -870,11 +870,11 @@ impl Vm {
         }
     }
 
-    // ---- tads-io ----
+    // ---- hexicon-io ----
 
-    fn bif_tads_io(&mut self, index: u16, argc: u32) -> VmResult<()> {
+    fn call_io(&mut self, index: u16, argc: u32) -> VmResult<()> {
         match index {
-            // tadsSay(...): display each argument.
+            // print(...): display each argument.
             0 => {
                 for index in 0..argc as usize {
                     if let Some(text) = self.say_text(self.arg(index))? {
@@ -884,7 +884,7 @@ impl Vm {
             }
             _ => {
                 if !self.bif_io(index, argc)? {
-                    return Err(self.unimplemented_bif(FunctionSet::TadsIo, index));
+                    return Err(self.unimplemented_bif(FunctionSet::Io, index));
                 }
             }
         }

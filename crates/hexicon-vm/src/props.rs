@@ -4,7 +4,7 @@
 use crate::error::{VmError, VmResult, code};
 use crate::meta::MetaKind;
 use crate::object::Object;
-use crate::tads::{self, TadsObject};
+use crate::program_object::{self, ProgramObject};
 use crate::value::{INVALID_PROP, NativeDesc, ObjId, PropId, Value, type_code};
 use crate::vm::{NativeCall, Return, Vm};
 
@@ -59,13 +59,15 @@ impl Vm {
         prof_scope!(crate::prof::GET_PROP);
         let kind = match self.objects.get(id) {
             None => return Err(VmError::new(code::NIL_DEREF)),
-            Some(Object::Tads(_)) => MetaKind::TadsObject,
-            Some(Object::IntClassMod(_)) => return Ok(tads::find_prop(&self.objects, id, prop)),
+            Some(Object::Program(_)) => MetaKind::ProgramObject,
+            Some(Object::IntClassMod(_)) => {
+                return Ok(program_object::find_prop(&self.objects, id, prop));
+            }
             Some(Object::Class(_)) => return self.class_get_prop(id, prop, argc),
             Some(_) => self.kind_of(id).unwrap_or(MetaKind::Root),
         };
-        if kind == MetaKind::TadsObject
-            && let Some(found) = tads::find_prop(&self.objects, id, prop)
+        if kind == MetaKind::ProgramObject
+            && let Some(found) = program_object::find_prop(&self.objects, id, prop)
         {
             return Ok(Some(found));
         }
@@ -114,7 +116,7 @@ impl Vm {
     ) -> VmResult<Option<Value>> {
         prof_scope!(crate::prof::NATIVE + ((kind as u32) << 8) + u32::from(index));
         match kind {
-            MetaKind::TadsObject => self.tads_method(self_value.obj_id(), index, argc),
+            MetaKind::ProgramObject => self.program_method(self_value.obj_id(), index, argc),
             MetaKind::String => self.string_method(self_value, index, argc),
             MetaKind::List => self.list_method(self_value, index, argc),
             MetaKind::Vector => self.vector_method(self_value.obj_id(), index, argc),
@@ -220,7 +222,7 @@ impl Vm {
             if !skip
                 && modifier.is_valid()
                 && let Some(found) =
-                    tads::find_inherited_prop(&self.objects, modifier, definer, prop)
+                    program_object::find_inherited_prop(&self.objects, modifier, definer, prop)
             {
                 return Ok(Some(found));
             }
@@ -246,29 +248,29 @@ impl Vm {
         match self.objects.get(id) {
             None => return Err(VmError::new(code::NIL_DEREF)),
             Some(Object::IntClassMod(_)) => {
-                return Ok(tads::find_inherited_prop(
+                return Ok(program_object::find_inherited_prop(
                     &self.objects,
                     target,
                     definer,
                     prop,
                 ));
             }
-            Some(Object::Tads(_)) => {
+            Some(Object::Program(_)) => {
                 let outside_program = matches!(
                     self.objects.get(definer),
                     Some(Object::IntClassMod(_) | Object::Class(_))
                 );
                 if !outside_program {
                     if let Some(found) =
-                        tads::find_inherited_prop(&self.objects, target, definer, prop)
+                        program_object::find_inherited_prop(&self.objects, target, definer, prop)
                     {
                         return Ok(Some(found));
                     }
-                    let index = self.meta.method_index(MetaKind::TadsObject, prop);
+                    let index = self.meta.method_index(MetaKind::ProgramObject, prop);
                     if index != 0
-                        && let Some(value) = self.tads_method(id, index, argc.as_deref_mut())?
+                        && let Some(value) = self.program_method(id, index, argc.as_deref_mut())?
                     {
-                        return Ok(Some((value, self.meta.class_obj(MetaKind::TadsObject))));
+                        return Ok(Some((value, self.meta.class_obj(MetaKind::ProgramObject))));
                     }
                     definer = ObjId::INVALID;
                 }
@@ -305,7 +307,7 @@ impl Vm {
             if let Some(Object::Class(class)) = self.objects.get(class_obj) {
                 let modifier = class.modifier;
                 if modifier.is_valid()
-                    && let Some(found) = tads::find_prop(&self.objects, modifier, prop)
+                    && let Some(found) = program_object::find_prop(&self.objects, modifier, prop)
                 {
                     return Ok(Some(found));
                 }
@@ -333,17 +335,17 @@ impl Vm {
     ) -> VmResult<Option<Value>> {
         let index = self.meta.method_index(kind, prop);
         match (kind, index) {
-            // TadsObject.createInstance() and createTransientInstance()
-            (MetaKind::TadsObject, 1 | 3) => self
+            // ProgramObject.createInstance() and createTransientInstance()
+            (MetaKind::ProgramObject, 1 | 3) => self
                 .native_method(argc, NativeDesc::fixed(0), |vm, _| {
-                    let (id, _) = vm.create_tads_object(0, index == 3, None)?;
+                    let (id, _) = vm.create_program_object(0, index == 3, None)?;
                     Ok(Value::Obj(id))
                 })
                 .map(Some),
-            // TadsObject.createInstanceOf() and createTransientInstanceOf()
-            (MetaKind::TadsObject, 4 | 5) => self
+            // ProgramObject.createInstanceOf() and createTransientInstanceOf()
+            (MetaKind::ProgramObject, 4 | 5) => self
                 .native_method(argc, NativeDesc::variable(0), |vm, argc| {
-                    vm.create_tads_object_multi(argc, index == 5)
+                    vm.create_program_object_multi(argc, index == 5)
                         .map(Value::Obj)
                 })
                 .map(Some),
@@ -373,7 +375,7 @@ impl Vm {
                     && !matches!(
                         other,
                         MetaKind::Root
-                            | MetaKind::TadsObject
+                            | MetaKind::ProgramObject
                             | MetaKind::IntClassMod
                             | MetaKind::IntrinsicClass
                             | MetaKind::String
@@ -417,7 +419,7 @@ impl Vm {
         prof_scope!(crate::prof::SET_PROP);
         match self.objects.get_mut_for_prop(id, prop) {
             None => Err(VmError::new(code::NIL_DEREF)),
-            Some(Object::Tads(object) | Object::IntClassMod(object)) => {
+            Some(Object::Program(object) | Object::IntClassMod(object)) => {
                 object.set(prop, value);
                 Ok(())
             }
@@ -442,8 +444,8 @@ impl Vm {
     pub(crate) fn is_instance_of(&self, id: ObjId, class: ObjId) -> bool {
         match self.objects.get(id) {
             None => false,
-            Some(Object::Tads(_) | Object::IntClassMod(_)) => {
-                tads::inherits_from(&self.objects, id, class)
+            Some(Object::Program(_) | Object::IntClassMod(_)) => {
+                program_object::inherits_from(&self.objects, id, class)
                     || self.is_intrinsic_instance(id, class)
             }
             Some(Object::Class(_)) => {
@@ -478,7 +480,7 @@ impl Vm {
     /// An object's direct superclasses, as programs see them.
     pub(crate) fn superclasses_of(&self, id: ObjId) -> Vec<ObjId> {
         match self.objects.get(id) {
-            Some(Object::Tads(object) | Object::IntClassMod(object))
+            Some(Object::Program(object) | Object::IntClassMod(object))
                 if !object.superclasses.is_empty() =>
             {
                 object.superclasses.clone()
@@ -499,7 +501,7 @@ impl Vm {
     /// Whether an object is a class.
     fn is_class_object(&self, id: ObjId) -> bool {
         match self.objects.get(id) {
-            Some(Object::Tads(object) | Object::IntClassMod(object)) => object.is_class(),
+            Some(Object::Program(object) | Object::IntClassMod(object)) => object.is_class(),
             Some(Object::Class(_)) => true,
             _ => false,
         }
@@ -508,7 +510,7 @@ impl Vm {
     /// The properties an object defines directly, as `getPropList` reports
     /// them.
     fn prop_list(&self, id: ObjId) -> Vec<Value> {
-        let own = |object: &TadsObject| -> Vec<Value> {
+        let own = |object: &ProgramObject| -> Vec<Value> {
             object
                 .props()
                 .iter()
@@ -516,7 +518,7 @@ impl Vm {
                 .collect()
         };
         match self.objects.get(id) {
-            Some(Object::Tads(object)) => own(object),
+            Some(Object::Program(object)) => own(object),
             Some(Object::IntClassMod(object)) => {
                 // A modifier's list includes the modifiers it replaced.
                 let mut props = own(object);
@@ -745,7 +747,7 @@ impl Vm {
     /// The new object is left in register 0.
     pub(crate) fn create_instance(&mut self, class: ObjId, argc: u32) -> VmResult<()> {
         self.push(Value::Obj(class));
-        let (id, _) = self.create_tads_object(argc + 1, false, None)?;
+        let (id, _) = self.create_program_object(argc + 1, false, None)?;
         // The constructor leaves the object in register 0 by returning
         // `self`; an object with no constructor needs it set.
         let _ = id;
@@ -759,7 +761,7 @@ impl Vm {
     /// With a `return_pc`, the constructor's frame is pushed and the
     /// address of its first instruction returned for the interpreter loop
     /// to continue at. Without one, the constructor runs to completion.
-    pub(crate) fn create_tads_object(
+    pub(crate) fn create_program_object(
         &mut self,
         argc: u32,
         transient: bool,
@@ -780,7 +782,7 @@ impl Vm {
             }
             argc -= 1;
         }
-        let id = self.alloc_obj(Object::Tads(TadsObject::new(superclasses)));
+        let id = self.alloc_obj(Object::Program(ProgramObject::new(superclasses)));
         if transient {
             self.objects.set_transient(id);
         }
@@ -819,7 +821,7 @@ impl Vm {
     /// Create an object with several superclasses, for `createInstanceOf`.
     /// Each argument is a class, or a list of a class followed by the
     /// arguments for that class's constructor.
-    fn create_tads_object_multi(&mut self, argc: u32, transient: bool) -> VmResult<ObjId> {
+    fn create_program_object_multi(&mut self, argc: u32, transient: bool) -> VmResult<ObjId> {
         let args: Vec<Value> = (0..argc as usize).map(|i| self.arg(i)).collect();
         let mut superclasses = Vec::new();
         for &arg in &args {
@@ -831,7 +833,7 @@ impl Vm {
             let Value::Obj(class) = class else {
                 return Err(VmError::new(code::BAD_TYPE_BIF));
             };
-            if !matches!(self.objects.get(class), Some(Object::Tads(_))) {
+            if !matches!(self.objects.get(class), Some(Object::Program(_))) {
                 return Err(VmError::new(code::BAD_TYPE_BIF));
             }
             if self.objects.is_transient(class) {
@@ -839,7 +841,7 @@ impl Vm {
             }
             superclasses.push(class);
         }
-        let id = self.alloc_obj(Object::Tads(TadsObject::new(superclasses.clone())));
+        let id = self.alloc_obj(Object::Program(ProgramObject::new(superclasses.clone())));
         if transient {
             self.objects.set_transient(id);
         }
@@ -869,8 +871,8 @@ impl Vm {
         Ok(id)
     }
 
-    /// Call one of the methods of the `TadsObject` intrinsic class.
-    fn tads_method(
+    /// Call one of the methods of the `ProgramObject` intrinsic class.
+    fn program_method(
         &mut self,
         id: ObjId,
         index: u16,
@@ -881,24 +883,24 @@ impl Vm {
             1 | 3 => self.native_method(argc, NativeDesc::variable(0), |vm, argc| {
                 // The constructor consumes the arguments.
                 vm.push(Value::Obj(id));
-                let (new, _) = vm.create_tads_object(argc + 1, index == 3, None)?;
+                let (new, _) = vm.create_program_object(argc + 1, index == 3, None)?;
                 Ok(Value::Obj(new))
             })?,
             // createClone()
             2 => self.native_method(argc, NativeDesc::fixed(0), |vm, _| {
-                let Some(original) = vm.objects.tads(id) else {
+                let Some(original) = vm.objects.program_object(id) else {
                     return Err(VmError::new(code::OBJ_VAL_REQD));
                 };
                 let mut clone =
-                    TadsObject::with_room(original.superclasses.clone(), original.props().len());
+                    ProgramObject::with_room(original.superclasses.clone(), original.props().len());
                 for entry in original.props() {
                     clone.set(entry.prop, entry.value);
                 }
-                Ok(Value::Obj(vm.alloc_obj(Object::Tads(clone))))
+                Ok(Value::Obj(vm.alloc_obj(Object::Program(clone))))
             })?,
             // createInstanceOf(...) and createTransientInstanceOf(...)
             4 | 5 => self.native_method(argc, NativeDesc::variable(0), |vm, argc| {
-                vm.create_tads_object_multi(argc, index == 5)
+                vm.create_program_object_multi(argc, index == 5)
                     .map(Value::Obj)
             })?,
             // setSuperclassList(lst)
@@ -909,7 +911,7 @@ impl Vm {
             // getMethod(prop)
             7 => self.native_method(argc, NativeDesc::fixed(1), |vm, _| {
                 let prop = vm.prop_arg(vm.arg(0))?;
-                Ok(match tads::find_prop(&vm.objects, id, prop) {
+                Ok(match program_object::find_prop(&vm.objects, id, prop) {
                     Some((Value::CodeOfs(func), _)) => Value::FuncPtr(func),
                     Some((Value::DString(offset), _)) => Value::SString(offset),
                     Some((Value::ObjX(object), _)) => Value::Obj(object),
@@ -950,16 +952,16 @@ impl Vm {
         }
         let mut superclasses = Vec::new();
         let first = self.list_like_get(list, 1)?;
-        // A list of just `TadsObject` means no superclasses at all.
+        // A list of just `ProgramObject` means no superclasses at all.
         let root_only = count == 1
-            && first == Value::Obj(self.meta.class_obj(MetaKind::TadsObject))
+            && first == Value::Obj(self.meta.class_obj(MetaKind::ProgramObject))
             && first.obj_id().is_valid();
         if !root_only {
             for index in 1..=count {
                 let Value::Obj(class) = self.list_like_get(list, index)? else {
                     return Err(VmError::new(code::BAD_VAL_BIF));
                 };
-                if !matches!(self.objects.get(class), Some(Object::Tads(_)))
+                if !matches!(self.objects.get(class), Some(Object::Program(_)))
                     || self.is_instance_of(class, id)
                 {
                     return Err(VmError::new(code::BAD_VAL_BIF));
@@ -967,7 +969,7 @@ impl Vm {
                 superclasses.push(class);
             }
         }
-        match self.objects.tads_mut(id) {
+        match self.objects.program_object_mut(id) {
             Some(object) => {
                 object.modified = true;
                 object.set_superclasses(superclasses);
@@ -977,7 +979,7 @@ impl Vm {
         // Any object that inherits from this one may have a search order
         // that is now out of date.
         for other in self.objects.ids() {
-            if let Some(object) = self.objects.tads(other)
+            if let Some(object) = self.objects.program_object(other)
                 && object.search_path_contains(id)
             {
                 object.invalidate_search_path();

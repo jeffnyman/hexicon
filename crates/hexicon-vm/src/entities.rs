@@ -1,7 +1,7 @@
 //! Named character entities the console understands in program output,
 //! such as `&amp;` and `&mdash;`.
 //!
-//! The table is the reference VM's (`vmconhmp.cpp`), sorted by name in
+//! The table is the reference VM's, sorted by name in
 //! byte order.
 
 /// Entity names and the characters they stand for.

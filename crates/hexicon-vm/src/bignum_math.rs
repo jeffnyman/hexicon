@@ -1,7 +1,7 @@
 //! The mathematical functions of BigNumber: roots, logarithms,
 //! exponentials, and trigonometry.
 //!
-//! Each follows the reference VM's method (`vmbignum.cpp`): the same
+//! Each follows the reference VM's method: the same
 //! series, the same working precision of three extra digits, the same
 //! stopping tests. The last digit of a result depends on all of that, so
 //! a cleverer algorithm would give different answers.

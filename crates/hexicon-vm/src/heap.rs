@@ -85,7 +85,7 @@ pub(crate) fn reset() {
 /// A program-defined object's header: the fixed part, an entry for each
 /// superclass, a slot for each hash bucket, and an entry for each
 /// property there is room for.
-pub(crate) fn tads_bytes(superclasses: usize, hash: usize, room: usize) -> i64 {
+pub(crate) fn program_object_bytes(superclasses: usize, hash: usize, room: usize) -> i64 {
     (40 + 16 * superclasses + 8 * hash + 40 * room) as i64
 }
 
@@ -109,7 +109,7 @@ pub(crate) fn strbuf_bytes(buffer: &StrBuf) -> i64 {
 /// one, with room for `vector_room` elements if it is a vector.
 pub(crate) fn object_bytes(object: &Object, vector_room: usize) -> i64 {
     match object {
-        Object::Tads(tads) | Object::IntClassMod(tads) => tads.heap_bytes(),
+        Object::Program(obj) | Object::IntClassMod(obj) => obj.heap_bytes(),
         Object::String(text) => text.len() as i64 + 2,
         Object::List(items) => 2 + 5 * items.len() as i64,
         Object::Vector(_) | Object::AnonFn(_) => vector_bytes(vector_room),

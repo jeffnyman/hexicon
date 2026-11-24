@@ -1090,7 +1090,9 @@ impl Vm {
         };
         let source = source.to_vec();
         let class = match self.arg(1) {
-            Value::Obj(class) if matches!(self.objects.get(class), Some(Object::Tads(_))) => class,
+            Value::Obj(class) if matches!(self.objects.get(class), Some(Object::Program(_))) => {
+                class
+            }
             _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
         };
         let dict = match if argc >= 3 { self.arg(2) } else { Value::Nil } {

@@ -1,10 +1,10 @@
-//! TADS regular expressions.
+//! Regular expressions, as the language writes them.
 //!
-//! The dialect is TADS's own: `%` is the escape character, character
+//! The dialect is the language's own: `%` is the escape character, character
 //! classes are written `<alpha|digit>`, and flags such as `<nocase>` and
 //! `<min>` appear in the pattern text. Which of several possible matches
 //! wins is defined by how the matcher explores the pattern, so this is a
-//! port of the reference VM's engine (`vmregex.cpp`): the same state
+//! port of the reference VM's engine: the same state
 //! machine, built the same way, and searched the same way. Hexicon does
 //! not use a general-purpose regex library for that reason.
 //!

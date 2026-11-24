@@ -1,6 +1,6 @@
 //! The interpreter loop: one arm per instruction.
 //!
-//! The semantics follow the reference interpreter (`vmrun.cpp`) closely,
+//! The semantics follow the reference interpreter closely,
 //! including behavior the instruction set document leaves open.
 
 use std::cmp::Ordering;
@@ -1473,8 +1473,8 @@ impl Vm {
         let Some(kind) = self.meta.get(class).map(|entry| entry.kind) else {
             return Err(VmError::new(code::BAD_METACLASS_INDEX));
         };
-        if kind == MetaKind::TadsObject {
-            let (_, next) = self.create_tads_object(argc, transient, Some(return_pc))?;
+        if kind == MetaKind::ProgramObject {
+            let (_, next) = self.create_program_object(argc, transient, Some(return_pc))?;
             return Ok(next);
         }
         let id = self.create_intrinsic(kind, argc)?;

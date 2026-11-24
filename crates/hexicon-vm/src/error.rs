@@ -1,7 +1,7 @@
 //! Run-time errors.
 //!
-//! The error numbers and message texts are the reference VM's
-//! (`vmerrnum.h` and `vmerrmsg.cpp`). Programs see both: the number as the
+//! The error numbers and message texts are the reference VM's. Programs
+//! see both: the number as the
 //! `errno_` of a `RuntimeError`, and the text as its `exceptionMessage`.
 
 use std::fmt;

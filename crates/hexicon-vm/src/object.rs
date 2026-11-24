@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use crate::bignum::Big;
 use crate::lookup::LookupTable;
+use crate::program_object::ProgramObject;
 use crate::regex::Pattern;
-use crate::tads::TadsObject;
 use crate::value::{ObjId, Value};
 
 /// An intrinsic class object: the object that represents one of the VM's
@@ -26,10 +26,10 @@ pub struct IntrinsicClass {
 #[derive(Debug, Clone)]
 pub enum Object {
     /// A program-defined object or class.
-    Tads(TadsObject),
+    Program(ProgramObject),
     /// The program's extensions to an intrinsic class. It has the same
     /// structure as a program-defined object.
-    IntClassMod(TadsObject),
+    IntClassMod(ProgramObject),
     /// A string, as UTF-8 text.
     String(Rc<[u8]>),
     /// A list. Lists never change; operations that alter one make a new list.
@@ -305,7 +305,7 @@ impl ObjectTable {
             return found;
         }
         let found = look();
-        for dep in crate::tads::lookup_deps(self, object) {
+        for dep in crate::program_object::lookup_deps(self, object) {
             if let Some(slot) = self.slots.get(dep.0 as usize)
                 && !slot.lookup_dep.replace(true)
             {
@@ -605,18 +605,18 @@ impl ObjectTable {
     }
 
     /// The program-defined object (or intrinsic class modifier) with an ID.
-    pub fn tads(&self, id: ObjId) -> Option<&TadsObject> {
+    pub fn program_object(&self, id: ObjId) -> Option<&ProgramObject> {
         match self.get(id)? {
-            Object::Tads(object) | Object::IntClassMod(object) => Some(object),
+            Object::Program(object) | Object::IntClassMod(object) => Some(object),
             _ => None,
         }
     }
 
     /// The program-defined object (or intrinsic class modifier) with an
     /// ID, for modification.
-    pub fn tads_mut(&mut self, id: ObjId) -> Option<&mut TadsObject> {
+    pub fn program_object_mut(&mut self, id: ObjId) -> Option<&mut ProgramObject> {
         match self.get_mut(id)? {
-            Object::Tads(object) | Object::IntClassMod(object) => Some(object),
+            Object::Program(object) | Object::IntClassMod(object) => Some(object),
             _ => None,
         }
     }
@@ -706,7 +706,7 @@ pub(crate) fn trace_alloc() -> bool {
 /// Count the bytes the reference allocates for a new object.
 fn count_object(object: &Object, vector_room: u32) {
     let kind = match object {
-        Object::Tads(_) => "tads-object",
+        Object::Program(_) => "tads-object",
         Object::IntClassMod(_) => "int-class-mod",
         Object::String(_) => "string",
         Object::List(_) => "list",
@@ -788,9 +788,9 @@ fn uncount(counts: &mut std::collections::HashMap<u32, u32>, value: Value) {
 /// as referring to its values.
 fn references(object: &Object, out: &mut Vec<Value>) {
     match object {
-        Object::Tads(tads) | Object::IntClassMod(tads) => {
-            out.extend(tads.superclasses.iter().map(|&id| Value::Obj(id)));
-            out.extend(tads.props().iter().map(|entry| entry.value));
+        Object::Program(obj) | Object::IntClassMod(obj) => {
+            out.extend(obj.superclasses.iter().map(|&id| Value::Obj(id)));
+            out.extend(obj.props().iter().map(|entry| entry.value));
         }
         Object::List(items) => out.extend(items.iter().copied()),
         Object::Vector(items) | Object::AnonFn(items) => out.extend(items.iter().copied()),

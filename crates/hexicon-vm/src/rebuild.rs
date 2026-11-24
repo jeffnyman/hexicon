@@ -9,7 +9,7 @@
 //! had are kept, but for the code that only ran before the program
 //! started, which is gone with the list of what it was for.
 //!
-//! This follows the reference's rewriter (`vmimgrb.cpp`) step by step,
+//! This follows the reference's rewriter step by step,
 //! so that the image is the same, byte for byte, for the same state.
 
 use std::collections::HashMap;
@@ -225,7 +225,7 @@ fn blocks(image: &[u8]) -> VmResult<Vec<Block<'_>>> {
 
 impl Vm {
     /// Give the program the compiler's table of global symbols and of
-    /// macros, for `t3GetGlobalSymbols`, as the compiler does for a
+    /// macros, for `globalSymbols`, as the compiler does for a
     /// program it runs before writing the image. The order is the
     /// order of the tables the program sees.
     pub fn set_runtime_symbols(
@@ -238,7 +238,7 @@ impl Vm {
     }
 
     /// Run the program as it is run before its image is written: with
-    /// `t3GetVMPreinitMode()` true, and with the arguments given.
+    /// `inPreinit()` true, and with the arguments given.
     pub fn run_preinit(&mut self, args: &[String]) -> VmResult<()> {
         self.preinit_mode = true;
         let result = self.run(args);
@@ -427,8 +427,8 @@ impl Vm {
         // The new values, worked out first, as the table is borrowed.
         let mut store: Option<Data> = None;
         let replacement: Option<Object> = match self.objects.get(id) {
-            Some(Object::Tads(tads) | Object::IntClassMod(tads)) => {
-                let changes: Vec<(u16, Value)> = tads
+            Some(Object::Program(obj) | Object::IntClassMod(obj)) => {
+                let changes: Vec<(u16, Value)> = obj
                     .props()
                     .iter()
                     .filter(|entry| entry.modified && !matches!(entry.value, Value::Empty))
@@ -439,9 +439,9 @@ impl Vm {
                     .collect();
                 if !changes.is_empty() {
                     let mut object = self.objects.get(id).cloned().expect("the object");
-                    if let Object::Tads(tads) | Object::IntClassMod(tads) = &mut object {
+                    if let Object::Program(obj) | Object::IntClassMod(obj) = &mut object {
                         for (prop, value) in changes {
-                            tads.set_value_in_place(prop, value);
+                            obj.set_value_in_place(prop, value);
                         }
                     }
                     Some(object)
@@ -621,20 +621,20 @@ impl Vm {
             return Ok(d);
         };
         match object {
-            Object::Tads(tads) | Object::IntClassMod(tads) => {
+            Object::Program(obj) | Object::IntClassMod(obj) => {
                 // The superclasses, then the properties with values, in
                 // the order of their IDs.
-                let mut props: Vec<(u16, Value)> = tads
+                let mut props: Vec<(u16, Value)> = obj
                     .props()
                     .iter()
                     .filter(|entry| !matches!(entry.value, Value::Empty))
                     .map(|entry| (entry.prop, entry.value))
                     .collect();
                 props.sort_by_key(|(prop, _)| *prop);
-                d.u16(tads.superclasses.len());
+                d.u16(obj.superclasses.len());
                 d.u16(props.len());
-                d.u16(tads.load_flags.into());
-                for superclass in &tads.superclasses {
+                d.u16(obj.load_flags.into());
+                for superclass in &obj.superclasses {
                     d.u32(superclass.0);
                 }
                 for (prop, value) in props {

@@ -8,7 +8,7 @@
 //! corresponds to a list, and `count/item` stores a count before a
 //! repeated item.
 //!
-//! This follows the reference VM (`vmpack.cpp`) step for step, since the
+//! This follows the reference VM step for step, since the
 //! exact handling of counts, padding, and running out of arguments is
 //! what programs depend on.
 

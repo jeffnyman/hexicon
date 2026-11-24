@@ -23,7 +23,7 @@ use crate::error::{VmError, VmResult, code};
 use crate::lookup::LookupTable;
 use crate::meta::MetaKind;
 use crate::object::{IntrinsicClass, Object};
-use crate::tads::TadsObject;
+use crate::program_object::ProgramObject;
 use crate::value::{ObjId, PropId, Value};
 use crate::vm::Vm;
 
@@ -181,7 +181,7 @@ impl Vm {
     /// have changed since it was loaded.
     fn changed_since_load(&self, id: ObjId) -> bool {
         match self.objects.get(id) {
-            Some(Object::Tads(object) | Object::IntClassMod(object)) => object.modified,
+            Some(Object::Program(object) | Object::IntClassMod(object)) => object.modified,
             Some(
                 Object::Vector(_)
                 | Object::AnonFn(_)
@@ -213,12 +213,12 @@ impl Vm {
             return Ok(());
         };
         match object {
-            Object::Tads(tads) | Object::IntClassMod(tads) => {
+            Object::Program(obj) | Object::IntClassMod(obj) => {
                 // The superclasses, and the properties that have changed.
-                let changed: Vec<_> = tads.props().iter().filter(|p| p.modified).collect();
+                let changed: Vec<_> = obj.props().iter().filter(|p| p.modified).collect();
                 w.u16(changed.len());
-                w.u16(tads.superclasses.len());
-                for superclass in &tads.superclasses {
+                w.u16(obj.superclasses.len());
+                for superclass in &obj.superclasses {
                     w.u32(superclass.0);
                 }
                 for entry in changed {
@@ -556,28 +556,28 @@ impl Vm {
     ) -> VmResult<Object> {
         let bad = || VmError::new(code::BAD_SAVED_META_DATA);
         Ok(match kind {
-            MetaKind::TadsObject | MetaKind::IntClassMod => {
+            MetaKind::ProgramObject | MetaKind::IntClassMod => {
                 let changed = r.u16()?;
                 let superclass_count = r.u16()?;
-                let mut tads = match existing {
-                    Some(Object::Tads(tads) | Object::IntClassMod(tads)) => tads.clone(),
-                    _ => TadsObject::default(),
+                let mut obj = match existing {
+                    Some(Object::Program(obj) | Object::IntClassMod(obj)) => obj.clone(),
+                    _ => ProgramObject::default(),
                 };
                 let mut superclasses = Vec::with_capacity(superclass_count);
                 for _ in 0..superclass_count {
                     superclasses.push(fixups.id(ObjId(r.u32()?)));
                 }
-                tads.set_superclasses(superclasses);
+                obj.set_superclasses(superclasses);
                 for _ in 0..changed {
                     let prop = r.u16()? as PropId;
                     let value = fixups.read_value(r)?;
-                    tads.set(prop, value);
+                    obj.set(prop, value);
                 }
-                tads.modified = true;
-                if kind == MetaKind::TadsObject {
-                    Object::Tads(tads)
+                obj.modified = true;
+                if kind == MetaKind::ProgramObject {
+                    Object::Program(obj)
                 } else {
-                    Object::IntClassMod(tads)
+                    Object::IntClassMod(obj)
                 }
             }
             MetaKind::String => Object::String(r.counted()?.into()),

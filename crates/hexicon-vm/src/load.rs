@@ -10,7 +10,7 @@ use crate::error::{ErrParam, VmError, VmResult, code};
 use crate::lookup::LookupTable;
 use crate::meta::{MetaKind, MetaTable};
 use crate::object::{IntrinsicClass, Object, ObjectTable};
-use crate::tads::TadsObject;
+use crate::program_object::ProgramObject;
 use crate::value::{INVALID_PROP, ObjId, PropId, Value};
 use crate::vm::{Layout, MethodContext, NativeCall, Predef, Return, RunState, STACK_LIMIT, Vm};
 
@@ -78,8 +78,12 @@ fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object>
         Ok(u16::from_le_bytes([b[0], b[1]]))
     };
     Ok(match kind {
-        MetaKind::TadsObject => Object::Tads(TadsObject::from_image(data).ok_or_else(bad)?),
-        MetaKind::IntClassMod => Object::IntClassMod(TadsObject::from_image(data).ok_or_else(bad)?),
+        MetaKind::ProgramObject => {
+            Object::Program(ProgramObject::from_image(data).ok_or_else(bad)?)
+        }
+        MetaKind::IntClassMod => {
+            Object::IntClassMod(ProgramObject::from_image(data).ok_or_else(bad)?)
+        }
         MetaKind::String => {
             let len = u16_at(0)? as usize;
             Object::String(data.get(2..2 + len).ok_or_else(bad)?.into())

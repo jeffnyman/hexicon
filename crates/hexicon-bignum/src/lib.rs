@@ -10,7 +10,7 @@
 //! operation has the larger of its operands' precisions.
 //!
 //! Programs see every digit of every result, so the arithmetic here is a
-//! port of the reference VM's (`vmbignumlib.cpp`), operation by operation:
+//! port of the reference VM's, operation by operation:
 //! the same alignment, the same handling of digits that do not fit, and
 //! the same rounding, which is to the nearest value with ties going to
 //! the even digit.
