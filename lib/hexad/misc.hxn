@@ -433,8 +433,8 @@ cls()
 overrides(obj, base, prop)
 {
     return (obj.ofKind(base)
-            && (obj.propDefined(prop, PropDefGetClass)
-                != base.propDefined(prop, PropDefGetClass)));
+            && (obj.hasProp(prop, PropDefGetClass)
+                != base.hasProp(prop, PropDefGetClass)));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1030,13 +1030,13 @@ finishGameMsg(msg, extra)
     }
 
     /* translate the message, if specified */
-    if (dataType(msg) == TypeObject)
+    if (typeOf(msg) == TypeObject)
     {
         /* it's a FinishType object - get its message property or string */
         msg = msg.finishMsg;
 
         /* if it's a library message property, look it up */
-        if (dataType(msg) == TypeProp)
+        if (typeOf(msg) == TypeProp)
             msg = gLibMessages.(msg);
     }
 
@@ -1466,8 +1466,8 @@ tryInt(val)
      *   nor a Decimal, return nil, since there can be no valid integer
      *   representation of it.
      */    
-    if(dataType(val) not in (TypeInt, TypeSString, TypeObject)
-       || (dataType(val) == TypeObject && !(val.ofKind(Decimal))))
+    if(typeOf(val) not in (TypeInt, TypeString, TypeObject)
+       || (typeOf(val) == TypeObject && !(val.ofKind(Decimal))))
         return nil;
     
     /* Try converting val to an integer. */
@@ -1478,7 +1478,7 @@ tryInt(val)
      *   contains one or more zeroes perhaps preceded by + or -.
      */
     
-    if(dataType(val) == TypeSString)    
+    if(typeOf(val) == TypeString)    
     {
         /* 
          *   Strip out all the spaces from val.         
@@ -1497,7 +1497,7 @@ tryInt(val)
      *   since if it was any other kind of object than a Decimal, this
      *   function would have returned nil at the first test.
      */     
-    if(dataType(val) is in (TypeInt, TypeObject))
+    if(typeOf(val) is in (TypeInt, TypeObject))
         return res;
     
    
@@ -1519,12 +1519,12 @@ tryNum(val)
      *   nor a Decimal, return nil, since there can be no valid numerical
      *   representation of it.
      */    
-    if(dataType(val) not in (TypeInt, TypeSString, TypeObject)
-       || (dataType(val) == TypeObject && !val.ofKind(Decimal)))
+    if(typeOf(val) not in (TypeInt, TypeString, TypeObject)
+       || (typeOf(val) == TypeObject && !val.ofKind(Decimal)))
         return nil;
     
     /* If val is already a Decimal, return it unchanged. */
-    if(dataType(val) == TypeObject && val.ofKind(Decimal))
+    if(typeOf(val) == TypeObject && val.ofKind(Decimal))
         return val;
     
    
@@ -1533,7 +1533,7 @@ tryNum(val)
      *   If val is a string then test whether it matches a valid numerical
      *   pattern.
      */
-    if(dataType(val) == TypeSString)
+    if(typeOf(val) == TypeString)
     {
         val = stripQuotesFrom(val.findReplace(' ',''));
         
@@ -1562,7 +1562,7 @@ tryNum(val)
 str(val, radix?, isSigned?)
 {
     
-    if(dataType(val) == TypeEnum)
+    if(typeOf(val) == TypeEnum)
        return enumTabObj.enumTab[val];
     
     return toString(val, radix, isSigned);
@@ -1589,7 +1589,7 @@ nilToList(val)
  */
 valToList(val)
 {
-    switch (dataType(val))
+    switch (typeOf(val))
     {
     case TypeNil:
         return [];
@@ -1824,13 +1824,13 @@ modify Object
              *   If prop is a single-quoted string or an integer, simply display
              *   it.
              */
-        case TypeSString:
+        case TypeString:
         case TypeInt:    
             say(self.(prop));
             break;
             
             /* If prop is a double-quoted string, display it by executing it. */
-        case TypeDString:
+        case TypePrintString:
             self.(prop);
             break;
             
@@ -1843,7 +1843,7 @@ modify Object
             str = self.(prop);
             
             /* If it's a string, display it. */
-            if(dataType(str) == TypeSString && str > '')
+            if(typeOf(str) == TypeString && str > '')
                 say(str);
             break;
         default:
@@ -1877,14 +1877,14 @@ modify Object
          *   If we reach this point, prop failed to produce any output, so if
          *   altMsg has been provided as a single-quoted string, display it.
          */
-        if(dataType(altMsg) == TypeSString)
+        if(typeOf(altMsg) == TypeString)
             say(altMsg);
         
         /*  
          *   Otherwise, if altMsg has been provided as a property pointer,
          *   display it using the display() method.
          */        
-        if(dataType(altMsg) == TypeProp)
+        if(typeOf(altMsg) == TypeProp)
             display(altMsg);
         
         /* 
@@ -1900,7 +1900,7 @@ modify Object
      */
     checkDisplay(prop)    
     {          
-        return propDefined(prop) && propType(prop) != TypeNil;
+        return hasProp(prop) && propType(prop) != TypeNil;
     }
  ;
 
@@ -1914,9 +1914,9 @@ modify ProgramObject
      */
     copyMethod(obj, prop, newProp = prop)
     {
-        if(propDefined(prop))            
+        if(hasProp(prop))            
         {            
-            if(propType(prop) is in (TypeDString, TypeCode))
+            if(propType(prop) is in (TypePrintString, TypeCode))
             {
                 local meth = getMethod(prop);
                 obj.setMethod(newProp, meth);
@@ -1938,7 +1938,7 @@ modify ProgramObject
      */
     moveMethod(obj, prop, newProp = prop)
     {
-        if(propDefined(prop))
+        if(hasProp(prop))
         {
             copyMethod(obj, prop, newProp);
             
@@ -1983,7 +1983,7 @@ class SingletonIterator: object
     }
 
     /* is another item available? */
-    isNextAvailable() { return more_; }
+    hasNext() { return more_; }
 
     /* reset: restore the flag that says the value is available */
     resetIterator() { more_ = true; }
@@ -2254,7 +2254,7 @@ modify List
             {
                 /* 'any' matches any value, so this one is a match */
             }
-            else if (dataType(t) == TypeInt)
+            else if (typeOf(t) == TypeInt)
             {
                 /* check that we match the given native type */
                 if (dataTypeXlat(v) != t)
@@ -2263,7 +2263,7 @@ modify List
             else
             {
                 /* otherwise, we have to match the object class */
-                if (dataType(v) not in (TypeObject, TypeList, TypeSString)
+                if (typeOf(v) not in (TypeObject, TypeList, TypeString)
                     || !v.ofKind(t))
                     return nil;
             }
@@ -2523,13 +2523,13 @@ matchCase(newTok, oldTok)
      *   capitals - for something like "I" we can't assume we want an
      *   all-caps word. 
      */
-    if (rexMatch(R'<^upper>*<lower>+<^upper>*', oldTok) != nil)
+    if (regexMatch(R'<^upper>*<lower>+<^upper>*', oldTok) != nil)
         return newTok.toLower();
-    if (rexMatch(R'<^lower>*<upper>+<^lower>*<upper>+<^lower>*', oldTok) != nil)
+    if (regexMatch(R'<^lower>*<upper>+<^lower>*<upper>+<^lower>*', oldTok) != nil)
         return newTok.toUpper();
     
     /* another common and easy pattern is title case (initial cap) */
-    if (rexMatch(R'<upper><^upper>*<lower>+<^upper>*', oldTok) != nil)
+    if (regexMatch(R'<upper><^upper>*<lower>+<^upper>*', oldTok) != nil)
         return newTok.firstChar().toUpper() + newTok.delFirst().toLower();
     
     /* do everything else letter by letter */
@@ -2539,9 +2539,9 @@ matchCase(newTok, oldTok)
         local cn = newTok.substr(i, 1);
         local co = oldTok.substr(i, 1);
         
-        if (rexMatch(R'<upper>', co) != nil)
+        if (regexMatch(R'<upper>', co) != nil)
             ret += cn.toUpper();
-        else if (rexMatch(R'<lower>', co) != nil)
+        else if (regexMatch(R'<lower>', co) != nil)
             ret += cn.toUpper();
         else
             ret += cn;
@@ -2616,7 +2616,7 @@ libObjectInitializer: PreinitObject
              o = nextObj(o, ProgramObject, ObjClasses))
         {
             /* if this class directly defines a classInit() method, call it */
-            if (o.propDefined(&classInit, PropDefGetClass) == o)
+            if (o.hasProp(&classInit, PropDefGetClass) == o)
                 callConstructor(o, &classInit, &classInitFirst);
         }
 
@@ -2637,7 +2637,7 @@ libObjectInitializer: PreinitObject
              *   the original modified object, and the instance is the
              *   modifier.  
              */
-            local cl = o.propDefined(&sourceTextOrder, PropDefGetClass);
+            local cl = o.hasProp(&sourceTextOrder, PropDefGetClass);
             if (cl == o || cl != nil && cl.isClass())
             {
                 /* 
@@ -2645,12 +2645,12 @@ libObjectInitializer: PreinitObject
                  *   method, call that.  Otherwise, if it has a construct()
                  *   method, call that.
                  */
-                if (o.propDefined(&constructStatic))
+                if (o.hasProp(&constructStatic))
                 {
                     /* it has constructStatic() */
                     callConstructor(o, &constructStatic, &constructFirst);
                 }
-                else if (o.propDefined(&construct))
+                else if (o.hasProp(&construct))
                 {
                     /* call construct() */
                     callConstructor(o, &construct, &constructFirst);
@@ -2684,7 +2684,7 @@ libObjectInitializer: PreinitObject
         _initedTab[obj] = true;
 
         /* call constructors on any prerequisites */
-        if (obj.propDefined(preProp))
+        if (obj.hasProp(preProp))
         {
             foreach (local p in obj.(preProp))
                 callConstructor(p, conProp, preProp);
@@ -2694,7 +2694,7 @@ libObjectInitializer: PreinitObject
          *   if the given constructor is zero-argument constructor, call it
          *   directly; otherwise, look for an inherited constructor 
          */
-        if (obj.getPropParams(conProp) == [0, 0, nil])
+        if (obj.propParams(conProp) == [0, 0, nil])
         {
             /* call the constructor */
             obj.(conProp)();
@@ -2705,12 +2705,12 @@ libObjectInitializer: PreinitObject
              *   Search the class tree for an inherited version of the
              *   constructor that takes zero arguments.  
              */
-            for (local cl = obj.propDefined(conProp, PropDefGetClass) ;
+            for (local cl = obj.hasProp(conProp, PropDefGetClass) ;
                  cl != nil ;
                  cl = obj.propInherited(conProp, obj, cl, PropDefGetClass))
             {
                 /* if this is a zero-argument version, call it */
-                if (cl.getPropParams(conProp) == [0, 0, nil])
+                if (cl.propParams(conProp) == [0, 0, nil])
                 {
                     /* invoke it */
                     obj.callInherited(cl, conProp);
@@ -2752,7 +2752,7 @@ emumTabInitializer: PreinitObject
         foreach(local key in lst)
         {
             local value = gTab[key];
-            if(dataType(value) == TypeEnum && enumTabObj.enumTab[value] == nil)
+            if(typeOf(value) == TypeEnum && enumTabObj.enumTab[value] == nil)
                 enumTabObj.enumTab[value] = key;
         }
     }   
@@ -2910,7 +2910,7 @@ decimalStr(val, decimalPlaces = 2)
      *   pre-decimal point zero plus as many zeros as we need after the decimal point.
      */
     if(dv.length <= decimalPlaces)        
-        dv = '0.' + makeString ('0', decimalPlaces - dv.length) + dv;        
+        dv = '0.' + repeatString ('0', decimalPlaces - dv.length) + dv;        
     
     /* Otherwise insert a decimal point before the final decimalPlaces characters. */
     else

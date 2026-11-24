@@ -897,7 +897,7 @@ modify Thing
                  *   If this Thing defines the remoteDesc() property, display
                  *   our remoteDesc() from the pov of the examining actor.
                  */
-                if(propDefined(&remoteDesc))
+                if(hasProp(&remoteDesc))
                 {
                     remoteDesc(gActor);
                     "<.p>";
@@ -952,7 +952,7 @@ modify Thing
                  *   display our remoteListenDesc() from the pov of the
                  *   examining actor.
                  */
-                if(propDefined(&remoteListenDesc))
+                if(hasProp(&remoteListenDesc))
                 {
                     remoteListenDesc(gActor);
                     "<.p>";                   
@@ -1026,7 +1026,7 @@ modify Thing
                  *   display our remoteSmellDesc() from the pov of the
                  *   examining actor.
                  */                
-                if(propDefined(&remoteSmellDesc))
+                if(hasProp(&remoteSmellDesc))
                 {
                     remoteSmellDesc(gActor);
                     "<.p>";
@@ -1227,7 +1227,7 @@ modify Smell
              */
             vec.appendUnique(sList.subset({o: ((o.smellSize == large &&
                                             o.checkDisplay(&smellDesc) != nil) ||
-                                       o.propDefined(&remoteSmellDesc))
+                                       o.hasProp(&remoteSmellDesc))
                                        && o.isProminentSmell
                                           && !o.isOrIsIn(loc)} ));
         }
@@ -1247,7 +1247,7 @@ modify Smell
         foreach(local cur in lst)
         {
             /* If the item defined a remoteSmellDesc property, display it */
-            if(cur.propDefined(&remoteSmellDesc))
+            if(cur.hasProp(&remoteSmellDesc))
             {
                 remoteDisplayed = gOutStream.watchForOutput(
                     {:
@@ -1333,7 +1333,7 @@ modify Listen
              */
             vec.appendUnique(sList.subset({o: ((o.soundSize == large &&
                                        o.checkDisplay(&listenDesc) != nil) ||
-                                       o.propDefined(&remoteListenDesc))
+                                       o.hasProp(&remoteListenDesc))
                                        && o.isProminentNoise
                                           && !o.isOrIsIn(loc)} ));
         }
@@ -1355,7 +1355,7 @@ modify Listen
         foreach(local cur in lst)
         {
             /* If the item defined a remoteListenDesc property, display it */
-            if(cur.propDefined(&remoteListenDesc))
+            if(cur.hasProp(&remoteListenDesc))
             {
                 remoteDisplayed = gOutStream.watchForOutput(
                     {:

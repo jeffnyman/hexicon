@@ -62,7 +62,7 @@ Signal: Relation
              *   property pointer, and the second is the value to assign to that
              *   property.
              */
-            if(dataType(arg) == TypeList)
+            if(typeOf(arg) == TypeList)
             {
                prop = arg[1];
                val = arg[2];
@@ -181,13 +181,13 @@ modify ProgramObject
         if(signal.dispatchTab != nil && signal.dispatchTab[[sender, self]] != nil)
             prop = signal.dispatchTab[[sender, self]];
         
-        else if(signal.propDefined(&handleProp) 
+        else if(signal.hasProp(&handleProp) 
                 && signal.propType(&handleProp) == TypeProp)
             prop = signal.handleProp;
         else
             prop = &handle;
         
-        if(propDefined(prop))
+        if(hasProp(prop))
             self.(prop)(sender, signal);
         else
             handle(sender, signal);
@@ -329,7 +329,7 @@ unconnect(sender, signal, receiver)
     signal = relationTable.getRelation(signal)[1];
     unrelate(sender, signal, receiver);
     
-    if(receiver.propDefined(&removeSenderHandler))
+    if(receiver.hasProp(&removeSenderHandler))
        signal.removeHandler(sender, receiver);
 }
 

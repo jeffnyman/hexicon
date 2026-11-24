@@ -299,26 +299,26 @@ class Rule: object
         local p = 0;
        
         /* a 'when' has priority over no 'when' */
-        if(propDefined(&when))
+        if(hasProp(&when))
             p += 10;
         
         /* 
          *   a 'where' has priority over no 'where', and a where property that
          *   specifies a Room is more specific than one that specifies a Region.
          */
-        if(propDefined(&where))
+        if(hasProp(&where))
             p += valToList(where).indexWhich({r: r.ofKind(Room)}) ? 10 : 5;
         
         /* a 'during' has priority over no 'during' */
-        if(propDefined(&during))
+        if(hasProp(&during))
             p += 10;
         
         /* a 'who' has priority over no 'who' */
-        if(propDefined(&who))
+        if(hasProp(&who))
             p += 10;
         
         /* an 'action' has prioity over no 'action' */
-        if(propDefined(&action))
+        if(hasProp(&action))
         {
             p += 5;
         }
@@ -330,7 +330,7 @@ class Rule: object
          */
         for(local prop in [&dobj, &iobj, &aobj])
         {
-            if(propDefined(prop))
+            if(hasProp(prop))
             {
                 p += valToList(self.(prop)).indexWhich( {x: !x.isClass()} ) !=
                 nil ? 2 : 1;
@@ -341,7 +341,7 @@ class Rule: object
          *   If matchObj is defined, then what we do with it depends on the type
          *   of value(s) it contains.
          */
-        if(propDefined(&matchObj))
+        if(hasProp(&matchObj))
         {
             switch(propType(&matchObj))
             {
@@ -368,7 +368,7 @@ class Rule: object
                  *   by 10 if any of those objects is not a class, and by 5
                  *   otherwise (classes are less specific than objects).
                  */
-                if(matchObj.length > 0 && dataType(matchObj[1]) == TypeObject)
+                if(matchObj.length > 0 && typeOf(matchObj[1]) == TypeObject)
                 {
                     if(matchObj.indexWhich({o: !o.isClass}))
                         p += 10;
@@ -395,9 +395,9 @@ class Rule: object
         }
         
         /* Check if our present property is defined. */
-        if(propDefined(&present))
+        if(hasProp(&present))
         {
-            if(dataType(&present) == TypeObject && present.isClass)
+            if(typeOf(&present) == TypeObject && present.isClass)
                 p += 5;
             else
                 p += 10;
@@ -468,7 +468,7 @@ class Rule: object
             return nil;
         
         /* first check the where condition, if there is one. */
-        if(propDefined(&where))
+        if(hasProp(&where))
         {
             local whereLst = valToList(where);
                                     
@@ -486,11 +486,11 @@ class Rule: object
          *   aocording to some condition defined by the author; so we simply
          *   test whether when returns nil if the property is defined.
          */        
-        if(propDefined(&when) && when() == nil)
+        if(hasProp(&when) && when() == nil)
             return nil;       
         
          /* check the who condition, if there is one. */
-        if(propDefined(&who))
+        if(hasProp(&who))
         {
             local whoLst = valToList(who);
                         
@@ -508,7 +508,7 @@ class Rule: object
          *   if we're using the scene manager and a during condition is
          *   specified, test whether the scene is currently happening.
          */        
-        if(defined(sceneManager) && propDefined(&during))
+        if(defined(sceneManager) && hasProp(&during))
         {
             local duringList = valToList(during);
             
@@ -520,7 +520,7 @@ class Rule: object
          *   If we've specified an action to match, test whether gAction (the
          *   current action) matches it.
          */
-        if(propDefined(&action) 
+        if(hasProp(&action) 
            && valToList(action).indexWhich({a: gAction.ofKind(a)}) == nil)
             return nil;
         
@@ -538,7 +538,7 @@ class Rule: object
                 local prop = objs[1];
                 local obj = objs[2];
                 
-                if(propDefined(prop) 
+                if(hasProp(prop) 
                    && valToList(self.(prop)).indexWhich({o: obj.ofKind(o)}) == nil)
                     return nil;          
                 
@@ -549,7 +549,7 @@ class Rule: object
          *   If we have a matchObj defined, test whether it matches our current
          *   rulebook's matchjObj.
          */
-        if(propDefined(&matchObj))
+        if(hasProp(&matchObj))
         {
             local mList = valToList(matchObj);
             local mo = rulebook.matchObj;
@@ -564,7 +564,7 @@ class Rule: object
                  *   whether it belongs to one of the classes in our matchObh
                  *   list.
                  */
-                if(dataType(mList[1]) == TypeObject)
+                if(typeOf(mList[1]) == TypeObject)
                 {
                     if(mList.indexWhich({o: mo.ofKind(o) } ) == nil)
                         return nil;
@@ -584,7 +584,7 @@ class Rule: object
          *   If present is defined, check whether at least one of the items in
          *   the list is in the same room, or can be sensed.
          */
-        if(propDefined(&present))
+        if(hasProp(&present))
         {
             local pList = valToList(present);
             
@@ -593,7 +593,7 @@ class Rule: object
              *   specifies a single class. In which case whether anything in the
              *   location of actor matches that class.
              */            
-            if(pList.length == 1 && dataType(pList[1]) == TypeObject &&
+            if(pList.length == 1 && typeOf(pList[1]) == TypeObject &&
                pList[1].isClass())                
             {
                 if(actor.getOutermostRoom.allContents.indexWhich(
@@ -606,7 +606,7 @@ class Rule: object
              *   it is we want to use it as a property of the Q object to test
              *   for a sense connection.
              */
-            else if(pList.length > 0 && dataType(pList[1]) == TypeProp)
+            else if(pList.length > 0 && typeOf(pList[1]) == TypeProp)
             {
                 /* The first item in the list is a property pointer. */
                 local prop = pList[1];

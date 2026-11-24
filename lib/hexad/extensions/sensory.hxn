@@ -201,7 +201,7 @@ modify Odor
         else
         {
             if(!location.isIn(gPlayerChar.getOutermostRoom) 
-               && location.propDefined(&remoteSmellDesc))
+               && location.hasProp(&remoteSmellDesc))
                 location.remoteSmellDesc(gPlayerChar);
             else
                 location.smellDesc;
@@ -251,7 +251,7 @@ class SimpleOdor: Odor
     emanationDesc()
     { 
         
-        if(!isIn(gRoom) && propDefined(&remoteSmellDesc))
+        if(!isIn(gRoom) && hasProp(&remoteSmellDesc))
             remoteSmellDesc(gPlayerChar);
         else
             smellDesc;        
@@ -285,7 +285,7 @@ modify Noise
         else
         {
             if(!location.isIn(gPlayerChar.getOutermostRoom) 
-               && location.propDefined(&remoteListenDesc))
+               && location.hasProp(&remoteListenDesc))
                 location.remoteListenDesc(gPlayerChar);
             else
                 location.listenDesc;
@@ -335,7 +335,7 @@ class SimpleNoise: Noise
     emanationDesc()
     { 
         
-        if(!isIn(gRoom) && propDefined(&remoteListenDesc))
+        if(!isIn(gRoom) && hasProp(&remoteListenDesc))
             remoteListenDesc(gPlayerChar);
         else
             listenDesc;        

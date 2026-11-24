@@ -64,26 +64,26 @@ class BannerWindow: OutputStreamWindow
      *   
      *   'where' and 'other' give the position of the banner among the
      *   children of the given parent.  'where' is one of the constants
-     *   BannerFirst, BannerLast, BannerBefore, or BannerAfter.  If
-     *   'where' is BannerBefore or BannerAfter, 'other' gives the
+     *   PaneFirst, PaneLast, PaneBefore, or PaneAfter.  If
+     *   'where' is PaneBefore or PaneAfter, 'other' gives the
      *   BannerWindow object to be used as the reference point in the
      *   parent's child list; 'other' is ignored in other cases.  Note
      *   that 'other' must always be another child of the same parent; if
-     *   it's not, then we act as though 'where' were given as BannerLast.
+     *   it's not, then we act as though 'where' were given as PaneLast.
      *   
-     *   'windowType' is a BannerTypeXxx constant giving the new window's
+     *   'windowType' is a PaneTypeXxx constant giving the new window's
      *   type.
      *   
-     *   'align' is a BannerAlignXxx constant giving the alignment of the
+     *   'align' is a PaneAlignXxx constant giving the alignment of the
      *   new window.  'size' is an integer giving the size of the banner,
-     *   in units specified by 'sizeUnits', which is a BannerSizeXxx
+     *   in units specified by 'sizeUnits', which is a PaneSizeXxx
      *   constant.  If 'size' is nil, it indicates that the caller doesn't
      *   care about the size, usually because the caller will be resizing
      *   the banner soon anyway; the banner will initially have zero size
      *   in this case if we create a new window, or will retain the
      *   existing size if there's already a system window.
      *   
-     *   'styleFlags' is a combination of BannerStyleXxx constants
+     *   'styleFlags' is a combination of PaneStyleXxx constants
      *   (combined with the bitwise OR operator, '|'), giving the requested
      *   display style of the new banner window.
      *   
@@ -114,7 +114,7 @@ class BannerWindow: OutputStreamWindow
         if (other != nil && other.parentID_ != parentID)
         {
             other = nil;
-            where = BannerLast;
+            where = PaneLast;
         }
 
         /* if we already have an existing banner window, check for a match */
@@ -179,7 +179,7 @@ class BannerWindow: OutputStreamWindow
              *   as it is for now.  
              */
             if (size != nil && (size != size_ || sizeUnits != sizeUnits_))
-                bannerSetSize(handle_, size, sizeUnits, nil);
+                paneSetSize(handle_, size, sizeUnits, nil);
         }
 
         /* 
@@ -236,7 +236,7 @@ class BannerWindow: OutputStreamWindow
             return;
 
         /* remove my system-level banner window */
-        bannerDelete(handle_);
+        paneDelete(handle_);
 
         /* our system-level window is gone, so forget its handle */
         handle_ = nil;
@@ -259,11 +259,11 @@ class BannerWindow: OutputStreamWindow
     }
 
     /* flush any pending output to the banner */
-    flushBanner() { bannerFlush(handle_); }
+    flushBanner() { paneFlush(handle_); }
 
     /*
      *   Set the banner window to a specific size.  'size' is the new
-     *   size, in units given by 'sizeUnits', which is a BannerSizeXxx
+     *   size, in units given by 'sizeUnits', which is a PaneSizeXxx
      *   constant.
      *   
      *   'isAdvisory' is true or nil; if true, it indicates that the size
@@ -275,7 +275,7 @@ class BannerWindow: OutputStreamWindow
     setSize(size, sizeUnits, isAdvisory)
     {
         /* set the underlying system window size */
-        bannerSetSize(handle_, size, sizeUnits, isAdvisory);
+        paneSetSize(handle_, size, sizeUnits, isAdvisory);
 
         /* 
          *   remember my new size in case we have to re-create the banner
@@ -294,7 +294,7 @@ class BannerWindow: OutputStreamWindow
     sizeToContents()
     {
         /* size our system-level window to our contents */
-        bannerSizeToContents(handle_);
+        paneSizeToContents(handle_);
     }
 
     /*
@@ -304,21 +304,21 @@ class BannerWindow: OutputStreamWindow
     clearWindow()
     {
         /* clear our system-level window */
-        bannerClear(handle_);
+        paneClear(handle_);
     }
 
     /* set the text color in the banner */
-    setTextColor(fg, bg) { bannerSetTextColor(handle_, fg, bg); }
+    setTextColor(fg, bg) { paneSetTextColor(handle_, fg, bg); }
 
     /* set the screen color in the banner window */
-    setScreenColor(color) { bannerSetScreenColor(handle_, color); }
+    setScreenColor(color) { paneSetScreenColor(handle_, color); }
 
     /* 
      *   Move the cursor to the given row/column position.  This can only
      *   be used with text-grid banners; for ordinary text banners, this
      *   has no effect. 
      */
-    cursorTo(row, col) { bannerGoTo(handle_, row, col); }
+    cursorTo(row, col) { paneGoTo(handle_, row, col); }
 
     /*
      *   Get the banner identifier.  If our 'id_' property is set to nil,
@@ -357,7 +357,7 @@ class BannerWindow: OutputStreamWindow
                        size, sizeUnits, styleFlags)
     {
         /* create the system-level window */
-        handle_ = bannerCreate(parent != nil ? parent.handle_ : nil,
+        handle_ = paneCreate(parent != nil ? parent.handle_ : nil,
                                where, other != nil ? other.handle_ : nil,
                                windowType, align, size, sizeUnits,
                                styleFlags);
@@ -480,7 +480,7 @@ class BannerOutputStream: OutputStream
     writeFromStream(txt)
     {
         /* write the text to the underlying system banner window */
-        bannerSay(handle_, txt);
+        paneSay(handle_, txt);
     }
 
     /* our system-level banner window handle */
@@ -519,7 +519,7 @@ transient bannerUITracker: object
         /* insert the banner at the proper point in our list */
         switch(where)
         {
-        case BannerFirst:
+        case PaneFirst:
             /* 
              *   insert as the first child of the parent - put it
              *   immediately after the parent in the list 
@@ -527,7 +527,7 @@ transient bannerUITracker: object
             activeBanners_.insertAt(parIdx + 1, uiWin);
             break;
 
-        case BannerLast:
+        case PaneLast:
         ins_last:
             /* 
              *   Insert as the last child of the parent: insert
@@ -537,8 +537,8 @@ transient bannerUITracker: object
             activeBanners_.insertAt(skipDescendants(parIdx), uiWin);
             break;
 
-        case BannerBefore:
-        case BannerAfter:
+        case PaneBefore:
+        case PaneAfter:
             /* find the reference point ID in our list */
             idx = activeBanners_.indexWhich(
                 {x: x.id_ == other.getBannerID()});
@@ -556,7 +556,7 @@ transient bannerUITracker: object
              *   if inserting after, skip the reference item and all
              *   of its descendants 
              */
-            if (where == BannerAfter)
+            if (where == PaneAfter)
                 idx = skipDescendants(idx);
 
             /* insert at the position we found */
@@ -697,11 +697,11 @@ transient bannerUITracker: object
         /* check the requested layout order */
         switch (where)
         {
-        case BannerFirst:
+        case PaneFirst:
             /* make sure it's immediately after the parent */
             return idx == parIdx + 1;
 
-        case BannerLast:
+        case PaneLast:
             /* 
              *   Make sure it's the last child of the parent.  To do this,
              *   make sure that the next item after this item's last
@@ -710,7 +710,7 @@ transient bannerUITracker: object
              */
             return skipDescendants(idx) == skipDescendants(parIdx);
 
-        case BannerBefore:
+        case PaneBefore:
             /* 
              *   we want this item to come before 'other', so make sure
              *   the next item after all of this item's descendants is
@@ -718,7 +718,7 @@ transient bannerUITracker: object
              */
             return skipDescendants(idx) == otherIdx;
 
-        case BannerAfter:
+        case PaneAfter:
             /* 
              *   we want this item to come just after 'other', so make
              *   sure that the next item after all of the descendants of
@@ -828,19 +828,19 @@ bannerTracker: PostRestoreObject, PostUndoObject
         /* insert the banner at the proper point in our list */
         switch(where)
         {
-        case BannerFirst:
+        case PaneFirst:
             /* insert immediately after the parent */
             activeBanners_.insertAt(parIdx + 1, win);
             break;
 
-        case BannerLast:
+        case PaneLast:
         ins_last:
             /* insert after the parent's last descendant */
             activeBanners_.insertAt(skipDescendants(parIdx), win);
             break;
 
-        case BannerBefore:
-        case BannerAfter:
+        case PaneBefore:
+        case PaneAfter:
             /* 
              *   if we didn't find the reference point, insert at the end
              *   of the parent's child list 
@@ -852,7 +852,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
              *   if inserting after, skip the reference item and all of
              *   its descendants 
              */
-            if (where == BannerAfter)
+            if (where == PaneAfter)
                 otherIdx = skipDescendants(otherIdx);
 
             /* insert at the position we found */
@@ -1026,7 +1026,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
                 else
                 {
                     /* there's no BannerWindow - close the system window */
-                    bannerDelete(uiCur.handle_);
+                    paneDelete(uiCur.handle_);
 
                     /* remove the UI tracker object */
                     uiVec.removeElement(uiCur);
@@ -1127,7 +1127,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
                  *   that we'll fail to find a prior sibling, then search
                  *   for it and search for our parent.  
                  */
-                where = BannerFirst;
+                where = PaneFirst;
                 other = nil;
                 for (prvIdx = curIdx - 1 ; prvIdx > 0 ; --prvIdx)
                 {
@@ -1141,11 +1141,11 @@ bannerTracker: PostRestoreObject, PostUndoObject
                      *   already found a prior sibling, this is our most
                      *   recent prior sibling, so note it.  
                      */
-                    if (where == BannerFirst
+                    if (where == PaneFirst
                         && prv.parentID_ == cur.parentID_)
                     {
                         /* insert after this prior sibling */
-                        where = BannerAfter;
+                        where = PaneAfter;
                         other = prv;
                     }
 

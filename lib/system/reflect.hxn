@@ -30,8 +30,8 @@ reflectionServices: PreinitObject
              *   the same size as the original table, so create it using
              *   the same statistics 
              */
-            reverseSymtab_ = new Map(symtab_.getBucketCount(),
-                                             symtab_.getEntryCount());
+            reverseSymtab_ = new Map(symtab_.bucketCount(),
+                                             symtab_.entryCount());
 
             /* 
              *   for each entry in the main table, create an entry in the
@@ -52,7 +52,7 @@ reflectionServices: PreinitObject
         local sym;
 
         /* the representation depends on the type */
-        switch(dataType(val))
+        switch(typeOf(val))
         {
         case TypeNil:
             return 'nil';
@@ -63,7 +63,7 @@ reflectionServices: PreinitObject
         case TypeInt:
             return toString(val);
 
-        case TypeSString:
+        case TypeString:
         case TypeList:
         case TypeObject:
             /* 
@@ -94,7 +94,7 @@ reflectionServices: PreinitObject
             sym = reverseSymtab_[val];
             return (sym != nil ? sym : '{prop}');
 
-        case TypeFuncPtr:
+        case TypeFunction:
             /* 
              *   look for a name; if it doesn't have one, it must be an
              *   anonymous function 
@@ -107,7 +107,7 @@ reflectionServices: PreinitObject
             sym = reverseSymtab_[val];
             return (sym != nil ? sym : '{enum}');
 
-        case TypeBifPtr:
+        case TypeBuiltin:
             /* these should always convert directly to symbols */
             sym = reverseSymtab_[val];
             return (sym != nil ? sym : '{intrinsicFunc}');
@@ -171,7 +171,7 @@ reflectionServices: PreinitObject
                     ret.append(', ');
 
                 /* add this value */
-                ret.append(valToSymbol(fr.argList_[i]).htmlify());
+                ret.append(valToSymbol(fr.argList_[i]).escapeHtml());
             }
 
             /* add any named arguments */
@@ -242,7 +242,7 @@ modify Object
          */
         sym = '{obj:';
         local found = nil;
-        foreach (local sc in getSuperclassList())
+        foreach (local sc in superclasses())
         {
             local scSym;
 

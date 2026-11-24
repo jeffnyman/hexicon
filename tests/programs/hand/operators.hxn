@@ -79,8 +79,8 @@ _main(args)
     line((~a).show());
 
     // An operator's method is a property like any other, with a name.
-    line(a.propDefined(&operator +) ? 'pairs can be added' : 'pairs cannot be added');
-    line(a.propDefined(&operator /) ? 'pairs can be divided' : 'pairs cannot be divided');
+    line(a.hasProp(&operator +) ? 'pairs can be added' : 'pairs cannot be added');
+    line(a.hasProp(&operator /) ? 'pairs can be divided' : 'pairs cannot be divided');
     line(a.(&operator -)(b).show());
 
     line(guest.greet());

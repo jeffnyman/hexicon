@@ -36,7 +36,7 @@ class EventListItem: PreinitObject
          *   location.(whichList)
          */
         else if(location && 
-                location.propDefined(whichList) && 
+                location.hasProp(whichList) && 
                 location.(whichList)!=nil && 
                 location.(whichList).ofKind(Collection)) 
         {

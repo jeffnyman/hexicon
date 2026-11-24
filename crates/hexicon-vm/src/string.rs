@@ -21,7 +21,7 @@ const METHODS: &[(&str, NativeDesc)] = &[
     ("toLower", NativeDesc::fixed(0)),
     ("find", NativeDesc::optional(1, 1)),
     ("toUnicode", NativeDesc::optional(0, 1)),
-    ("htmlify", NativeDesc::optional(0, 1)),
+    ("escapeHtml", NativeDesc::optional(0, 1)),
     ("startsWith", NativeDesc::fixed(1)),
     ("endsWith", NativeDesc::fixed(1)),
     ("mapToByteArray", NativeDesc::optional(0, 1)),
@@ -942,7 +942,7 @@ impl Vm {
             });
         }
         let native = if is_rex {
-            let mut native = NativeCall::named("rexReplace");
+            let mut native = NativeCall::named("regexReplace");
             native.function = self.function_set_index("hexicon-gen").map(|set| (set, 12));
             native.args = (0..argc).map(|i| self.arg(i)).collect();
             native.caller_pc = self.pc;

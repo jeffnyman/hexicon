@@ -288,7 +288,7 @@ class FactAgendaItem: ConvAgendaItem
              *   If our target is an object (Topic or Thing used as a topic) we need to find the
              *   appropriate fact to start from.
              */
-            if(dataType(target) == TypeObject)                
+            if(typeOf(target) == TypeObject)                
                 path = getPathToTopic(startFact);            
             
             /* 
@@ -305,7 +305,7 @@ class FactAgendaItem: ConvAgendaItem
          */
         fullPath = path;
         /* If our path contains a list of lists, transform it into a simple list of facts. */
-        if(path && dataType(path[1]) == TypeList)
+        if(path && typeOf(path[1]) == TypeList)
             path = path.mapAll({x: x[2]});
         
         /* Either way, return the path we've just found. */
@@ -722,7 +722,7 @@ modify Actor
         local top = topic;
         
         /* topic has probably been passed as a list. */
-        if(dataType(topic) == TypeList)
+        if(typeOf(topic) == TypeList)
         {
             /* If so prefer an element of the list that hasn't just been created by the parser. */
             top = topic.valWhich({t:!t.newlyCreated});

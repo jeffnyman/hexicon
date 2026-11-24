@@ -1,4 +1,4 @@
-intrinsic 'hexicon-gen/030001' { dataType(val); }
+intrinsic 'hexicon-gen/030001' { typeOf(val); }
 intrinsic 'hexicon-gen/030008' { dataType2(val); second(a?); }
 intrinsic 'hexicon-gen/030005' { third(a, b?, c?); }
 intrinsic 'five' { f0(); }
@@ -7,6 +7,6 @@ intrinsic 'seven/123456789' { h0(); }
 intrinsic 'seven/2' { h1(); }
 _main(args)
 {
-    return dataType(1) + dataType2(2) + second() + second(1) + third(1) + third(1, 2, 3)
+    return typeOf(1) + dataType2(2) + second() + second(1) + third(1) + third(1, 2, 3)
         + f0() + g0() + h0() + h1();
 }

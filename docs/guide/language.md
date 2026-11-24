@@ -354,7 +354,7 @@ modify Dog
 
 ### Properties as values
 
-`&sound` is the property `sound` itself. `rex.(prop)` reads whichever property `prop` points to, and `propDefined()` asks whether an object has one:
+`&sound` is the property `sound` itself. `rex.(prop)` reads whichever property `prop` points to, and `hasProp()` asks whether an object has one:
 
 ```hexicon
     // A property named by a pointer to it, &prop, and read with .(...).

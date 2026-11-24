@@ -107,7 +107,7 @@ timeManager: InitObject
          *   time it will be interpreted as a time on the current in-game date,
          *   rather than the real-world date.
          */
-        if(args.length == 1 && dataType(args[1] == TypeSString))
+        if(args.length == 1 && typeOf(args[1] == TypeString))
             currentTime = new Date(args[1], nil, currentTime);
         /* 
          *   Otherwise just pass all the arguments straight through to the Date
@@ -133,14 +133,14 @@ timeManager: InitObject
          *   If the interval is specified as a Decimal, take that to be the
          *   number of hours.
          */
-        if(dataType(interval) == TypeObject && interval.ofKind(Decimal))
+        if(typeOf(interval) == TypeObject && interval.ofKind(Decimal))
            interval = [0, 0, 0, interval];
         
         /* 
          *   If the interval is specified as an integer, take that to be the
          *   number of hours.
          */
-        if(dataType(interval) == TypeInt)
+        if(typeOf(interval) == TypeInt)
             interval = [0, 0, 0, 0, interval];
            
         
@@ -262,7 +262,7 @@ class TimeFuse: Fuse
     {
         inherited Event(obj, prop);
         
-        switch(dataType(interval))
+        switch(typeOf(interval))
         {
         case TypeInt:
             interval = [0, 0, 0, 0, interval];
@@ -270,7 +270,7 @@ class TimeFuse: Fuse
         case TypeList:
             eventTime = timeManager.currentTime.addInterval(interval);
             break;
-        case TypeSString:
+        case TypeString:
             eventTime = Date.parseDate(interval, nil,
                                        timeManager.currentTime)[1];
             break;

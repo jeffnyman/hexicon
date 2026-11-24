@@ -122,7 +122,7 @@ aioInputEvent(timeout)
 aioMorePrompt()
 {
     /* call the interpreter's console More prompt generator */
-    morePrompt();
+    pausePrompt();
 }
 
 
@@ -236,7 +236,7 @@ aHrefFmt(fmt, href, txt?, title?, flags = 0)
      *   Provided fmt is a string, split it into an array of strings delimited by the | characer.
      *   Otherwise set fmts to the empty string ''.
      */
-    local fmts = dataType(fmt) == TypeSString ? fmt.split('|') : '';
+    local fmts = typeOf(fmt) == TypeString ? fmt.split('|') : '';
     
     /* Set up local variables to hold the opening and closing text. */
     local openText = '', closeText = '';

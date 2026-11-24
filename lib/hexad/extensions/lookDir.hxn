@@ -105,7 +105,7 @@ modify Room
              *   can't travel that way and the string will probably include a description of why not
              *   that might well serve as a description of what lies that way.
              */
-        case TypeSString:
+        case TypeString:
             display(prop);
             break;
             
@@ -116,7 +116,7 @@ modify Room
              *   looking, since we can't generate anything more detailed. If we do, fall through to
              *   the next case, which handles objects.
              */
-        case TypeDString:
+        case TypePrintString:
         case TypeCode:
             obj = libGlobal.extraDestInfo[[self, dir]];
             if(obj is in (nil, unknownDest_))
@@ -155,7 +155,7 @@ modify Room
              *   Othewise if obj is a TravelConnector that defines a non-nil lookDirDesc, display
              *   that lookDirDesc and stop there.
              */
-            else if(obj.ofKind(TravelConnector) && obj.propDefined(&lookDirDesc) 
+            else if(obj.ofKind(TravelConnector) && obj.hasProp(&lookDirDesc) 
                     && obj.propType(&lookDirDesc) != TypeNil)
             {
                 introLookDirDesc(dir);
@@ -341,7 +341,7 @@ modify Thing
         do
         {                      
             /* If our location defines this property and it's not nil, display it. */
-            if(loc.propDefined(prop) && loc.propType(prop) != TypeNil)
+            if(loc.hasProp(prop) && loc.propType(prop) != TypeNil)
             {
                 loc.display(prop);
                 viewDescribed = true;

@@ -522,10 +522,10 @@ inputManager: PostRestoreObject
         switch(dataTypeXlat(promptFunc))
         {
             /* if we have a prompt, display it */
-        case TypeSString:
+        case TypeString:
             say(promptFunc);
             break;
-        case TypeFuncPtr:         
+        case TypeFunction:         
             (promptFunc)();
             break;
         default:
@@ -745,7 +745,7 @@ commentPreParser: StringPreParser
     doParsing(str, which)
     {
         /* get the amount of leading whitespace, so we can ignore it */
-        local sp = rexMatch(leadPat, str);
+        local sp = regexMatch(leadPat, str);
         
         /* 
          *   if the command line starts with the comment prefix, treat it

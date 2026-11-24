@@ -82,7 +82,7 @@ _mainCommon(args, restoreFile)
                  *   effect but keep going.  
                  */
                 if (restoreFile != nil
-                    && dataType(mainGlobal.mainRestoreFunc) == TypeFuncPtr)
+                    && typeOf(mainGlobal.mainRestoreFunc) == TypeFunction)
                 {
                     /* 
                      *   Call the user's main startup-and-restore
@@ -182,14 +182,14 @@ _mainCommon(args, restoreFile)
 flexcall(func, [args])
 {
     /* get the function's desired argument list */
-    local paramDesc = getFuncParams(func);
+    local paramDesc = functionParams(func);
 
     /* add or remove arguments as needed to fit the limits */
     local n = args.length();
     if (n < paramDesc[1])
     {
         /* we need more to satisfy the minimum - add nil values */
-        args += makeList(nil, paramDesc[1] - n);
+        args += repeatList(nil, paramDesc[1] - n);
     }
     else if (n > paramDesc[1] + paramDesc[2] && !paramDesc[3])
     {
@@ -621,22 +621,22 @@ class BreakLoopSignal: Exception
 /* ------------------------------------------------------------------------ */
 /*
  *   Get the "translated" datatype of a value.  This is essentially the
- *   same as dataType(), except that anonymous function objects and dynamic
+ *   same as typeOf(), except that anonymous function objects and dynamic
  *   function objects are treated as being "function pointer" types
- *   (TypeFuncPtr).  
+ *   (TypeFunction).  
  */
 dataTypeXlat(val)
 {
     local t;
 
     /* get the base type */
-    t = dataType(val);
+    t = typeOf(val);
     
-    /* if it's an anonymous function, return TypeFuncPtr */
+    /* if it's an anonymous function, return TypeFunction */
     if (t == TypeObject
         && (val.ofKind(Function)
             || (defined(CompiledCode) && val.ofKind(CompiledCode))))
-        return TypeFuncPtr;
+        return TypeFunction;
 
     /* otherwise, just return the base type */
     return t;
@@ -867,7 +867,7 @@ export UnknownCharSetException 'CharacterSet.UnknownCharSetException';
  *   (such as "unhandled exception: <your message>").
  */
 class ProgramException: Exception
-    construct(msg) { exceptionMessage = msg.htmlify(); }
+    construct(msg) { exceptionMessage = msg.escapeHtml(); }
     displayException() { "<<exceptionMessage>> "; }
 ;
 
@@ -1035,7 +1035,7 @@ class StackInfo: object
          *   information is available.  
          */
         return ((func_ == nil && obj_ == nil)
-                || dataType(func_) == TypeBifPtr
+                || typeOf(func_) == TypeBuiltin
                 || (obj_ != nil && BuiltinClass.isBuiltinClass(obj_)));
     }
 

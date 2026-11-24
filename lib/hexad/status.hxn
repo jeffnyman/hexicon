@@ -411,7 +411,7 @@ transient statusLine: object
              *   interpreter by setting the is-advisory flag to true.  
              */
             statuslineBanner.setSize(getEstimatedHeightHtml(),
-                                     BannerSizeAbsolute, true);
+                                     PaneSizeAbsolute, true);
 
             /* switch to the banner's output stream */
             oldStr = statuslineBanner.setOutputStream();
@@ -525,9 +525,9 @@ transient statusLine: object
          *   window if there is one.  This will avoid unnecessary redrawing
          *   on RESTART.  
          */
-        if (win.showBanner(nil, BannerFirst, nil, BannerTypeText,
-                           BannerAlignTop, nil, nil,
-                           BannerStyleBorder | BannerStyleTabAlign))
+        if (win.showBanner(nil, PaneFirst, nil, PaneTypeText,
+                           PaneAlignTop, nil, nil,
+                           PaneStyleBorder | PaneStyleTabAlign))
         {
             /* 
              *   we successfully created the banner window - use the banner

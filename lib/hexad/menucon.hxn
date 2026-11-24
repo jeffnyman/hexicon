@@ -81,17 +81,17 @@ modify MenuItem
         {
         case StatusModeApi:
             /* use a border, unless we're taking over the whole screen */
-            flags = (fullScreenMode ? 0 : BannerStyleBorder);
+            flags = (fullScreenMode ? 0 : PaneStyleBorder);
 
             /* 
              *   use a scrollbar if possible; keep the text scrolled into
              *   view as we show it 
              */
-            flags |= BannerStyleVScroll | BannerStyleAutoVScroll;
+            flags |= PaneStyleVScroll | PaneStyleAutoVScroll;
 
             /* banner API mode - show our banner window */
-            contentsMenuBanner.showBanner(nil, BannerLast, nil,
-                                          BannerTypeText, BannerAlignTop,
+            contentsMenuBanner.showBanner(nil, PaneLast, nil,
+                                          PaneTypeText, PaneAlignTop,
                                           nil, nil, flags);
 
             /* make the banner window the default output stream */
@@ -304,9 +304,9 @@ modify MenuItem
 
                 /* advise the interpreter of our best guess for our size */
                 if (fullScreenMode)
-                    contentsMenuBanner.setSize(100, BannerSizePercent, nil);
+                    contentsMenuBanner.setSize(100, PaneSizePercent, nil);
                 else
-                    contentsMenuBanner.setSize(len + 1, BannerSizeAbsolute,
+                    contentsMenuBanner.setSize(len + 1, PaneSizeAbsolute,
                                                true);
 
                 /* set up our desired color scheme */
@@ -481,12 +481,12 @@ modify MenuItem
         if (statusLine.statusDispMode == StatusModeApi)
         {
             /* banner API mode - show our banner window */
-            topMenuBanner.showBanner(nil, BannerFirst, nil, BannerTypeText,
-                                     BannerAlignTop, nil, nil,
-                                     BannerStyleBorder | BannerStyleTabAlign);
+            topMenuBanner.showBanner(nil, PaneFirst, nil, PaneTypeText,
+                                     PaneAlignTop, nil, nil,
+                                     PaneStyleBorder | PaneStyleTabAlign);
             
             /* advise the terp that we need two lines */
-            topMenuBanner.setSize(2, BannerSizeAbsolute, true);
+            topMenuBanner.setSize(2, PaneSizeAbsolute, true);
         }
 
         /* show our contents */
@@ -579,7 +579,7 @@ modify MenuItem
              *   banner API mode - simply set the banner window to zero
              *   size, which will effectively make it invisible 
              */
-            statuslineBanner.setSize(0, BannerSizeAbsolute, nil);
+            statuslineBanner.setSize(0, PaneSizeAbsolute, nil);
             break;
 
         case StatusModeTag:
@@ -814,10 +814,10 @@ modify MenuTopicItem
              *   the available space.  
              */
             if (fullScreenMode)
-                contentsMenuBanner.setSize(100, BannerSizePercent, nil);
+                contentsMenuBanner.setSize(100, PaneSizePercent, nil);
             else
                 contentsMenuBanner.setSize(chunkSize < len ? chunkSize : len,
-                                           BannerSizeAbsolute, true);
+                                           PaneSizeAbsolute, true);
 
             /* set up our color scheme */
             "<body bgcolor=<<bgcolor>> text=<<fgcolor>> >";
@@ -898,7 +898,7 @@ modify MenuTopicItem
          *   method to get its text (and possibly trigger any needed
          *   side-effects) 
          */
-        say(dataType(item) == TypeSString ? item : item.getItemText());
+        say(typeOf(item) == TypeString ? item : item.getItemText());
 
         /* add the [n/m] indicator */
         gLibMessages.menuTopicProgress(idx, menuContents.length());
@@ -978,19 +978,19 @@ modify MenuLongTopicItem
             else
             {
                 /* hide the top menu banner */
-                topMenuBanner.setSize(0, BannerSizeAbsolute, nil);
+                topMenuBanner.setSize(0, PaneSizeAbsolute, nil);
 
                 /* figure our flags */
-                flags = (fullScreenMode ? 0 : BannerStyleBorder)
-                    | BannerStyleVScroll
-                    | BannerStyleMoreMode
-                    | BannerStyleAutoVScroll;
+                flags = (fullScreenMode ? 0 : PaneStyleBorder)
+                    | PaneStyleVScroll
+                    | PaneStyleMoreMode
+                    | PaneStyleAutoVScroll;
             
                 /* banner API mode - show the long-topic banner */
-                longTopicBanner.showBanner(contentsMenuBanner, BannerLast,
-                                           nil, BannerTypeText,
-                                           BannerAlignTop,
-                                           100, BannerSizePercent, flags);
+                longTopicBanner.showBanner(contentsMenuBanner, PaneLast,
+                                           nil, PaneTypeText,
+                                           PaneAlignTop,
+                                           100, PaneSizePercent, flags);
             }
 
             /* use its output stream */

@@ -739,7 +739,7 @@ class Room: TravelConnector, Thing
          *   If prop has been supplied as a Direction instead of a direction property, replace it
          *   with the corresponding direction property.
          */
-        if(dataType(prop) == TypeObject && prop.ofKind(Direction))        
+        if(typeOf(prop) == TypeObject && prop.ofKind(Direction))        
             prop = prop.dirProp;                   
         
         if(propType(prop) == TypeObject)            
@@ -1787,7 +1787,7 @@ class TravelConnector: object
          *   First check if we have a checkReach method that might prevent the traveler from
          *   accessing this connector.
          */
-        if(propDefined(&checkReach))
+        if(hasProp(&checkReach))
         {    
             if(gOutStream.watchForOutput({: checkReach(traveler)}))
                return nil;
@@ -2846,7 +2846,7 @@ nonTravel(loc, dir)
          *   the illumination is right, we display the string or execute the method. Otherwise show
          *   the message saying we can't travel that way in the dark.
          */            
-    case TypeDString:
+    case TypePrintString:
     case TypeCode:                
         if(illum)
         {
@@ -2905,7 +2905,7 @@ nonTravel(loc, dir)
              *   If the method has returned a single-quoted string and the actor is the player
              *   character, display the string.
              */
-            if(dataType(conn) == TypeSString 
+            if(typeOf(conn) == TypeString 
                && TravelAction.displayStrRet(loc, dir, dest, conn, gActor))
                 say(conn);
             
@@ -2933,7 +2933,7 @@ nonTravel(loc, dir)
          *   if the illumination is sufficient, otherwise display the message saying we can't go
          *   that way in the dark. If the actor isn't the player character, do nothing.
          */
-    case TypeSString:
+    case TypeString:
         if(gActor == gPlayerChar)
         {
             conn = loc.(dir.dirProp);
@@ -2989,7 +2989,7 @@ class ProxyExit: MultiLoc, Decoration
         
     /* Place an instance of this object in every Room that defines out exitProp */
     initialLocationClass = Room
-    isInitiallyIn(obj) { return obj.propDefined(exitProp); }      
+    isInitiallyIn(obj) { return obj.hasProp(exitProp); }      
     
 ;
 

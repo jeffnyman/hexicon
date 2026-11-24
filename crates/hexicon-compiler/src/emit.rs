@@ -6092,7 +6092,7 @@ impl Gen<'_> {
         self.cg.write_jump(Op::Jgt, not_found);
         self.cg.note_pops(2);
         self.gen_int(number);
-        self.call_internal_bif(b"getArg", "optional parameters", 1);
+        self.call_internal_bif(b"arg", "optional parameters", 1);
         if has_defval {
             let assign = self.cg.new_label();
             self.cg.write_jump(Op::Jmp, assign);

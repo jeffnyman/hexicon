@@ -295,11 +295,11 @@ exitLister: PreinitObject
             {
             case TypeNil:
                 break;
-            case TypeSString:
+            case TypeString:
                 if(showSQSExits && locIsLit && dest != nil)
                     destList.append(new DestInfo(dir, dest));
                 break;
-            case TypeDString:
+            case TypePrintString:
                 if(showDQSExits && locIsLit && dest != nil)
                     destList.append(new DestInfo(dir, dest));
                 break;
@@ -354,7 +354,7 @@ ExitLister: Lister
         
         local showlist = true;
         
-        if(loc.propDefined(roomProp) && loc.propType(roomProp) == TypeCode)
+        if(loc.hasProp(roomProp) && loc.propType(roomProp) == TypeCode)
             showlist = loc.(roomProp)(lst, cnt);
         if(showlist)
             showListItems(lst, cnt);
@@ -415,7 +415,7 @@ statuslineExitLister: ExitLister
 //    showListItems(lst, cnt)
 //    {
 //        local loc = gRoom;
-//        if(loc.propDefined(&listStatusExits) && loc.propType(&listStatusExits) == TypeCode)
+//        if(loc.hasProp(&listStatusExits) && loc.propType(&listStatusExits) == TypeCode)
 //            loc.listStatusExits(lst, cnt);
 //        else 
 //            inherited(lst, cnt);
@@ -431,7 +431,7 @@ statuslineExitLister: ExitLister
     noExits()
     {
         local loc = gRoom;
-        if(loc.propDefined(&noExits) && loc.propType(&noExits) is in (TypeSString, TypeCode))
+        if(loc.hasProp(&noExits) && loc.propType(&noExits) is in (TypeString, TypeCode))
             return loc.noExits;
         else
             return BMsg(status line noexits, '<i>None</i>');           
@@ -510,7 +510,7 @@ explicitExitLister: ExitLister
     {
         local loc = gRoom;
         
-        if(loc.propDefined(&exitListPrefix) && loc.propType(&exitListPrefix) == TypeCode)
+        if(loc.hasProp(&exitListPrefix) && loc.propType(&exitListPrefix) == TypeCode)
             loc.exitListPrefix(cnt);
         else               
             DMsg(exits from here, 'From {here} {i} could go ');
@@ -609,12 +609,12 @@ exitsMode: object
     settingFromText(str)
     {
         /* parse out our format */
-        if (rexMatch('<space>*(<alpha>+)<space>*,<space>*(<alpha>+)',
+        if (regexMatch('<space>*(<alpha>+)<space>*,<space>*(<alpha>+)',
                      str.toLower()) != nil)
         {
             /* pull out the two variables from the regexp groups */
-            inStatusLine = (rexGroup(1)[3] == 'on');
-            inRoomDesc = (rexGroup(2)[3] == 'on');
+            inStatusLine = (regexGroup(1)[3] == 'on');
+            inRoomDesc = (regexGroup(2)[3] == 'on');
         }
     }
 

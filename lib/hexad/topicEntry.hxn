@@ -53,11 +53,11 @@ class TopicEntry: object
              *   mechanism is testing whether this TopicEntry is reachable, in which case we
              *   consider it a match if top is our matchPattern.
              */
-            if(dataType(top) == TypeSString)
+            if(typeOf(top) == TypeString)
             {
                 return matchPattern == top ? matchScore + scoreBoost : nil;
             }
-            else if(dataType(top) == TypeObject && top.ofKind(Topic))
+            else if(typeOf(top) == TypeObject && top.ofKind(Topic))
             {                
                 /*                  
                  *   Otherwise, try matching our regular expression to the actual topic text.  Get
@@ -72,7 +72,7 @@ class TopicEntry: object
                 local caseHandling = matchExactCase ? '<Case>' : '<NoCase>';
                 
                 /* if the regular expression matches, we match */
-                if (rexMatch('<<caseHandling>><<matchPattern>>', txt) != nil)
+                if (regexMatch('<<caseHandling>><<matchPattern>>', txt) != nil)
                     return matchScore + scoreBoost;
             }
         }
@@ -155,7 +155,7 @@ class TopicEntry: object
         local sb;
         
         /* Add any boost from our location */
-        sb = location.propDefined(&scoreBooster) ? location.scoreBooster() : 0;
+        sb = location.hasProp(&scoreBooster) ? location.scoreBooster() : 0;
         
         /* Add our own scoreBoost. */
         return sb + scoreBoost;
@@ -216,7 +216,7 @@ modify TopicDatabase
          *   have a property pointer here and if so convert it to the
          *   corresponding list.
          */
-        if(dataType(myList) == TypeProp)
+        if(typeOf(myList) == TypeProp)
             myList = self.(myList);
         
         /* Remove any inactive topic entries from the list to search */
@@ -493,7 +493,7 @@ class Consultable: TopicDatabase, Thing
          *   Assign our matchObj or match pattern to the appropriate property of our new
          *   ConsultTopic.
          */
-        switch(dataType(topkey))
+        switch(typeOf(topkey))
         {
             /*If it's an object or list, assign it to the matcchObj property. */
         case TypeObject:
@@ -501,7 +501,7 @@ class Consultable: TopicDatabase, Thing
             top.matchObj = topkey;
             break;
             /* If it's a single-quoted string, assign it to the matchPattern property. */
-        case TypeSString:
+        case TypeString:
             top.matchPattern = topkey;
             break;
             /* If it's nil (as it will be for a DefaultConsultTopic) do nothing */
@@ -524,7 +524,7 @@ class Consultable: TopicDatabase, Thing
         }
         
         /* Should we have a third item, assign it to the new ConsultTopic's matchScore */
-        if(item.length > 2 && dataType(item[3]) == TypeInt)           
+        if(item.length > 2 && typeOf(item[3]) == TypeInt)           
             top.matchScore = item[3];         
         
         

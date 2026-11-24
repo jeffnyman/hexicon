@@ -178,8 +178,8 @@ modify Room
              *   We're only interested in SymPassages (and subclasses thereof) that define both
              *   their room1Vocab and room2Vocab properties as single-quoted strings.
              */
-            if(obj.ofKind(SymPassage) && obj.propType(&room1Vocab) == TypeSString 
-               && obj.propType(&room2Vocab) == TypeSString)
+            if(obj.ofKind(SymPassage) && obj.propType(&room1Vocab) == TypeString 
+               && obj.propType(&room2Vocab) == TypeString)
             {
                 /* 
                  *   The new vocab we want to update this obj with is is room1Vocab if we're in its
@@ -343,9 +343,9 @@ class PhysicalAutoConnector: AutoConnector
          *   object in game code) if either room2Vocab or room1Vocab respectively has been
          *   overridden to contain a single quoted string.
          */
-        if(propType(&room2Vocab) == TypeSString)
+        if(propType(&room2Vocab) == TypeString)
             room1Vocab = vocab;
-        else if(propType(&room1Vocab) == TypeSString)
+        else if(propType(&room1Vocab) == TypeString)
             room2Vocab = vocab;
         
     }

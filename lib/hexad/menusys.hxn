@@ -89,11 +89,11 @@ transient menuOutputStream: OutputStream
         outputManager.withOutputStream(menuOutputStream, function()
         {
             /* if it's a function, invoke it */
-            if (dataType(val) != TypeSString)
+            if (typeOf(val) != TypeString)
                 val = val();
 
             /* if we have a string, run it through my filters */
-            if (dataType(val) == TypeSString)
+            if (typeOf(val) == TypeString)
                 writeToStream(val);
         });
 

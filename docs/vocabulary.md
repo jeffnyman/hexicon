@@ -1,6 +1,6 @@
 # Hexicon Vocabulary
 
-Status: decided, 2026-11-24. Messages and built-in classes done; the rest to come in the order below.
+Status: decided, 2026-11-24. Messages, built-in classes, and built-in functions done; the rest to come in the order below.
 
 ## Goal
 
@@ -69,30 +69,59 @@ The identifiers in the image (`'lookuptable/030003'`, `'bignumber/030001'`) are 
 
 ## 3. Built-in functions
 
-Functions of `hexicon-gen` and `hexicon-io`, and methods of the built-in classes. The `vm` functions were renamed in milestone 0 (`collectGarbage`, `namedArg`, and the rest).
+Done (2026-11-24), in the same places as section 2. The `vm` functions were renamed earlier, in milestone 0 (`collectGarbage`, `namedArg`, and the rest).
 
-| Now | Proposed | Uses | Notes | Status |
-|---|---|---|---|---|
-| `dataType(x)` | `typeOf(x)` | 195 | and `TypeSString`/`TypeDString`/`TypeFuncPtr`/`TypeBifPtr` become `TypeString`/`TypePrintString`/`TypeFunction`/`TypeBuiltin` | decided |
-| `firstObj`, `nextObj` | keep for now | 88 each | an `objects(cls)` loop may come later, as a language change rather than a rename | keep |
-| `rexMatch`, `rexSearch`, `rexSearchLast`, `rexGroup`, `rexReplace` | `regexMatch`, `regexSearch`, `regexSearchLast`, `regexGroup`, `regexReplace` | 320 | | decided |
-| `toString`, `toInteger`, `toNumber` | keep | | | keep |
-| `makeString`, `makeList` | `repeatString`, `repeatList` | few | they repeat a value | decided |
-| `sgn` | `sign` | few | | decided |
-| `getTime` | keep | | | keep |
-| `savepoint`, `undo` | keep | | | keep |
-| `getFuncParams` | `functionParams` | few | | decided |
-| `ofKind` | keep | 368 | `obj.ofKind(Door)` reads as a sentence, and in Hexad an `is` name is a true-or-false property (`isOpen`), which `isA` would look like | keep |
-| `propDefined`, `propType`, `getPropList`, `getPropParams`, `propInherited` | `hasProp`, `propType`, `propList`, `propParams`, `propInherited` | 110 | | decided |
-| `getSuperclassList`, `setSuperclassList` | `superclasses`, `setSuperclasses` | few | | decided |
-| `createInstance`, `createClone`, `createTransientInstance` | keep | | `new X` is the usual way; these are for code that builds objects by class | keep |
-| `getNext`, `isNextAvailable`, `resetIterator`, `getCurKey`, `getCurVal` | `next`, `hasNext`, `reset`, `key`, `value` | few | | decided |
-| `htmlify` | `escapeHtml` | 15 | | decided |
-| `specialsToHtml`, `specialsToText` | keep | | | keep |
-| `inputLine`, `inputKey`, `inputEvent` | keep | | | keep |
-| `banner*` (16 functions) | `pane*` | 69 | they split the display into panes, such as the status line; "window" would clash with the browser's window | decided |
-| `morePrompt` | `pausePrompt` | few | | decided |
-| `get` and `getX` generally | drop `get` where what follows is a noun (`getArg` becomes `arg`, `getLocalCharSet` becomes `localCharSet`); a setter keeps `set` | | for every built-in; Hexad's own `get` methods are decided with Hexad | decided |
+### What a name costs
+
+A built-in function, or a method of a built-in class, takes its name for the whole program. A game cannot have an object called `length` or `abs`:
+
+```
+error: "length" is already the name of something else, so it cannot also name an object
+```
+
+So a short noun is a poor name for a built-in: dropping `get` everywhere, as first decided, would have taken `key`, `path`, `floor`, `scale`, `body`, `cookie`, `date`, `name`, `value`, and `next` from authors, and `sgn` to `sign` would have taken the most common object in interactive fiction. Part of what `get` does is keep the built-ins out of the way. The rule became:
+
+- **A class drops `get` only if none of its names would become one a game might want for an object.** A class keeps `get` throughout otherwise, so that no class is half one way and half the other.
+- **No new name is a keyword** (`getSelf` and `getMethod` would have been `self` and `method`) **or an existing name** (`getAbs` would have been the function `abs`; `getGrammarInfo` the property `grammarInfo`, which grammar matches already define).
+- **An `Object` method is checked against Hexad's own properties too,** since every object has them: Hexad's signals extension has a `propList` property, which would have hidden the method on its objects, so `getPropList` became `properties`.
+
+### Renamed
+
+| Was | Now | Status |
+|---|---|---|
+| `dataType(x)` | `typeOf(x)` | done |
+| `TypeSString`, `TypeDString`, `TypeFuncPtr`, `TypeBifPtr` | `TypeString`, `TypePrintString`, `TypeFunction`, `TypeBuiltin` | done |
+| `rexMatch`, `rexSearch`, `rexSearchLast`, `rexGroup`, `rexReplace` | `regexMatch`, `regexSearch`, `regexSearchLast`, `regexGroup`, `regexReplace` | done |
+| `makeString`, `makeList` | `repeatString`, `repeatList` | done |
+| `getArg`, `getFuncParams`, `getLocalCharSet` | `arg`, `functionParams`, `localCharSet` | done |
+| `getHostName`, `getLocalIP`, `getLaunchHostAddr`, `getNetStorageURL`, `getNetEvent` | `hostName`, `localIP`, `launchHostAddr`, `netStorageURL`, `netEvent` | done |
+| `morePrompt` | `pausePrompt` | done |
+| `banner*` (`bannerCreate`, `bannerSay`, `bannerGetInfo`, ...) and the `Banner*` constants | `pane*` (`paneCreate`, `paneSay`, `paneInfo`, ...) and `Pane*` | done |
+| `propDefined`, `getPropList`, `getPropParams` | `hasProp`, `properties`, `propParams` | done |
+| `getSuperclassList`, `setSuperclassList` | `superclasses`, `setSuperclasses` | done |
+| `isNextAvailable` | `hasNext` | done |
+| `htmlify` and the `Htmlify*` flags | `escapeHtml` and `EscapeHtml*` | done |
+| `Map`'s `getBucketCount`, `getEntryCount`, `getDefaultValue` | `bucketCount`, `entryCount`, `defaultValue` | done |
+| `Regex`'s `getPatternString` | `patternString` | done |
+
+Hexad's `BannerWindow` and its other banner classes are Hexad's own names, decided with Hexad (section 5).
+
+### Kept
+
+| Name | Why |
+|---|---|
+| `sgn` | `sign` would take the sign |
+| `Iterator`'s `getNext`, `getCurKey`, `getCurVal`, `resetIterator` | `next`, `key`, `value`, `reset` |
+| `Decimal`'s `get*` (`getAbs`, `getFloor`, `getPi`, ...) | `abs` is a function; `floor`, `scale`, `whole` are objects |
+| `Date`'s and `TimeZone`'s `get*` | `date`, `location`, `history`, `rules` |
+| `File`'s and `FileName`'s `get*` | `path`, `name`, `pos` |
+| `HTTPRequest`'s and `HTTPServer`'s `get*` | `body`, `cookie`, `server`, `address` |
+| `StackFrameRef`'s `get*` | `getSelf` cannot be `self` |
+| `ProgramObject`'s `getMethod`, `setMethod` | `method` is a keyword |
+| `getUnique`, `CharacterSet`'s `getName`, `CompiledCode`'s `getSource`, `GrammarRule`'s `getGrammarInfo` | `unique` is an adjective; `name`, `source`; `grammarInfo` is taken |
+| `getTime`, `firstObj`, `nextObj`, `toString`, `toInteger`, `toNumber`, `savepoint`, `undo`, `ofKind`, `propType`, `propInherited`, `createInstance`, `createClone`, `createTransientInstance`, `specialsToHtml`, `specialsToText`, `inputLine`, `inputKey`, `inputEvent` | already plain, as decided |
+
+A change to the language could remove the cost itself: if an object's name and a method's name did not share one namespace, as in most languages, the short names would be free to use. That is not planned; it is noted here so that a later change does not close it off.
 
 ## 4. The language's own words
 
@@ -126,4 +155,4 @@ Hexad's vocabulary is adv3Lite's, and it is what authors write most. Its words a
 
 1. `nil` and `local` stay (2026-11-24).
 2. `BigNumber` becomes `Decimal`, the `banner` functions become `pane` functions, and `ofKind` stays.
-3. The `get` rule applies to every built-in function and method. Hexad's own methods wait for Hexad's design.
+3. The `get` rule applies to every built-in function and method, class by class, where it takes no name a game would want (section 3). Hexad's own methods wait for Hexad's design.

@@ -1568,7 +1568,7 @@ const PARAM_SUPPORT: &str = "intrinsic 'hexicon-vm/010006' { collectGarbage(); s
     vmId(); vmBanner(); inPreinit(); debugTrace(mode, ...); \
     globalSymbols(which?); newProperty(); stackTrace(level?, flags?); \
     namedArg(name, defval?); namedArgList(); }\n\
-    intrinsic 'hexicon-gen/030008' { dataType(val); getArg(idx); }\n";
+    intrinsic 'hexicon-gen/030008' { typeOf(val); arg(idx); }\n";
 
 #[test]
 fn an_optional_parameter_is_a_local_filled_in_at_the_start() {
@@ -1649,7 +1649,7 @@ fn optional_and_named_parameters_have_their_own_mistakes() {
     // statement has been come to, so the message has no place.
     assert_eq!(
         compile_messages("f(a?) { }\n_main(args) { }\n"),
-        ["0: error: optional parameters require support function \"getArg\", which is undefined"]
+        ["0: error: optional parameters require support function \"arg\", which is undefined"]
     );
 }
 
@@ -3738,11 +3738,11 @@ mod checked_names {
         ))
     }
 
-    const LIBRARY: &str = "property propDefined, checkDobjTake;\n\
+    const LIBRARY: &str = "property hasProp, checkDobjTake;\n\
                            class Thing: object isTakeable = true;\n\
                            _main(args) {\n\
                            \x20   local t = new Thing;\n\
-                           \x20   if (t.isTakeable && t.propDefined(&verifyDobjTake)) t.checkDobjTake();\n\
+                           \x20   if (t.isTakeable && t.hasProp(&verifyDobjTake)) t.checkDobjTake();\n\
                            }\n";
 
     fn messages(game_name: &str, game: &str) -> Vec<String> {
@@ -4217,10 +4217,10 @@ mod image_names {
     #[test]
     fn a_program_on_hexicons_names_is_a_hexicon_image() {
         let image = image(
-            "intrinsic 'hexicon-gen/030008' { dataType(val); }\n\
+            "intrinsic 'hexicon-gen/030008' { typeOf(val); }\n\
              intrinsic class ProgramObject 'hexicon-object/030005' { }\n\
              rock: object;\n\
-             _main(args) { return dataType(rock); }\n",
+             _main(args) { return typeOf(rock); }\n",
         );
         assert!(image.starts_with(b"HX-image\r\n\x1a"));
         assert!(has(&image, b"hexicon-object/030005"));

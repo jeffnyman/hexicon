@@ -396,11 +396,11 @@ QDefaults: Special
          *   object.
          */
         
-        if(b.propDefined(&verifyReach))
+        if(b.hasProp(&verifyReach))
         {
-            local tabCount = gAction.verifyTab.getEntryCount();
+            local tabCount = gAction.verifyTab.entryCount();
             b.verifyReach(a);
-            if(gAction.verifyTab.getEntryCount > tabCount)
+            if(gAction.verifyTab.entryCount > tabCount)
                issues += new ReachProblemVerifyReach(a, b);
         }
        
@@ -753,7 +753,7 @@ class Special: object
         local idx = slst.indexOf(stk.self_);
 
         /* get the next Special that defines the method */
-        while (!slst[++idx].propDefined(prop)) ;
+        while (!slst[++idx].hasProp(prop)) ;
         
         /* call the query method in the next Special, returning the result */
         return slst[idx].(prop)(stk.argList_...);
@@ -780,7 +780,7 @@ class Special: object
 
         /* find the first definer of the method */
         local idx = 0;
-        while (!slst[++idx].propDefined(prop)) ;
+        while (!slst[++idx].hasProp(prop)) ;
 
         /* return the one we found */
         return slst[idx];

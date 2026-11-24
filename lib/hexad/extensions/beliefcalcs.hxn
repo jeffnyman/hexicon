@@ -51,7 +51,7 @@ beliefManager: PreinitObject
 //    /* Function to convert arg from a belief type to an integer or vice versa */
 //    convert(arg)
 //    {
-//        switch(dataType(arg))
+//        switch(typeOf(arg))
 //        {
 //        case TypeObject:
 //            if(arg.ofKind(BelVal))

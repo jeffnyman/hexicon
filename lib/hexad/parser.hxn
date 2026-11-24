@@ -869,7 +869,7 @@ class CommandList: object
     construct([args])
     {
         /* check which argument list we have */        
-        if (args.matchProto([GrammarRule, Collection, Dictionary, TypeFuncPtr]))
+        if (args.matchProto([GrammarRule, Collection, Dictionary, TypeFunction]))
         {
             /* retrieve the arguments */
             local prod = args[1], toks = args[2], dict = args[3],
@@ -1211,7 +1211,7 @@ class RexQuestion: Question
         local str = cmdTokenizer.buildOrigText(toks);
 
         /* check for a match to our pattern */
-        if (rexMatch(answerPat, str,) != nil)
+        if (regexMatch(answerPat, str,) != nil)
         {
             /* set up a single-entry command list for the answer */
             return new CommandList(new FuncCommand(
@@ -1705,7 +1705,7 @@ class NounPhrase: object
         local cl = createClone();
 
         /* make safe copies of any vectors */
-        foreach (local p in cl.getPropList())
+        foreach (local p in cl.properties())
         {
             local v;
             if (cl.propType(p) == TypeObject && (v = cl.(p)).ofKind(Vector))
@@ -3411,9 +3411,9 @@ class Production: object
             local cur = info[i];
 
             /* process it based on its type */
-            switch (dataType(cur))
+            switch (typeOf(cur))
             {
-            case TypeSString:
+            case TypeString:
                 /* it's a literal token match item */
                 visitLiteral(cmd, np, cur);
                 break;
@@ -4740,7 +4740,7 @@ class Pronoun: object
     construct()
     {
         /* get the nearest class that has a master list */
-        local cl = propDefined(&all, PropDefGetClass);
+        local cl = hasProp(&all, PropDefGetClass);
 
         /* add me to my class's master list */
         cl.all += self;
@@ -5142,7 +5142,7 @@ class NotUnderstoodError: ParseError
         /* okay, no predicate; how about any other GrammarRule word? */
         w = dict.findWord(txt);
         if (w.indexWhich(
-            { x: dataType(x) == TypeObject && x.ofKind(GrammarRule) }) != nil)
+            { x: typeOf(x) == TypeObject && x.ofKind(GrammarRule) }) != nil)
             return 100;
 
         /* 
@@ -5353,7 +5353,7 @@ class ResolutionError: ParseError
 
         /* check for non-predicate grammar words */
         local w = dict.findWord(getTokVal(toks[idx]))
-            .subset({ x: dataType(x) == TypeObject });
+            .subset({ x: typeOf(x) == TypeObject });
 
         if (w.indexWhich({ x: x.ofKind(GrammarRule) && !x.ofKind(predicate) })
             != nil)

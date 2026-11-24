@@ -206,7 +206,7 @@ objects()
     "<<rex.speak()>>\n";
     "<<fido.speak()>>\n";
     "<<tweety.speak()>>\n";
-    "<<toString(rex.ofKind(Animal))>> <<rex.legs>> <<toString(rex.propDefined(&sound))>>\n";
+    "<<toString(rex.ofKind(Animal))>> <<rex.legs>> <<toString(rex.hasProp(&sound))>>\n";
 
     // An object made while the program runs.
     local cat = new Animal();

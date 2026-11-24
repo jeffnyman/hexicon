@@ -353,7 +353,7 @@ libScore: PreinitObject
          *   if the description is a string, encapsulate it in a
          *   SimpleAchievement object 
          */
-        if (dataType(desc) == TypeSString)
+        if (typeOf(desc) == TypeString)
         {
             local newDesc;
             

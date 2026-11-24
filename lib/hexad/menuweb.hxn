@@ -104,7 +104,7 @@ modify MenuItem
         updateContents();
 
         /* start with the menu title */
-        s.append('<title><<title.htmlify()>></title>');
+        s.append('<title><<title.escapeHtml()>></title>');
     
         /* note if we're the top-level menu */
         if (location == nil || MenuItem.topMenu == self)
@@ -112,7 +112,7 @@ modify MenuItem
 
         /* run through the contents */
         for (local item in contents)
-            s.append('<menuItem><<item.title.htmlify()>></menuItem>');
+            s.append('<menuItem><<item.title.escapeHtml()>></menuItem>');
 
         /* if the 'from' menu is a child, initially select it */
         local idx = contents.indexOf(from);
@@ -160,7 +160,7 @@ modify MenuItem
         local txt = menuOutputStream.captureOutput(func);
 
         /* convert special characters and html-escape the result */
-        return txt.specialsToHtml().htmlify();
+        return txt.specialsToHtml().escapeHtml();
     }
 ;
 
@@ -259,7 +259,7 @@ modify MenuTopicItem
         updateContents();
 
         /* add the title and total number of items in the menu */
-        s.append('<title><<title.htmlify()>></title>'
+        s.append('<title><<title.escapeHtml()>></title>'
                  + '<numItems><<menuContents.length()>></numItems>');
 
         /* note if we're the top-level menu */
@@ -295,7 +295,7 @@ modify MenuTopicItem
         local item = menuContents[i];
 
         /* get the item's text, and format as XML */
-        item = formatXML(dataType(item) == TypeObject
+        item = formatXML(typeOf(item) == TypeObject
                          ? {: item.getItemText() } : item);
 
         /* format the item text */
@@ -319,7 +319,7 @@ modify MenuLongTopicItem
 
         /* add my title (heading) */
         local t = heading != nil && heading != '' ? heading : title;
-        s.append('<title><<t.htmlify()>></title>');
+        s.append('<title><<t.escapeHtml()>></title>');
 
         /* add our contents */
         s.append('<longTopic><<formatXML({: menuContents })>></longTopic>');
@@ -333,10 +333,10 @@ modify MenuLongTopicItem
             local m;
             
             if ((m = location.getNextMenu(self)) != nil)
-                s.append('<nextChapter><<m.title.htmlify()>></nextChapter>');
+                s.append('<nextChapter><<m.title.escapeHtml()>></nextChapter>');
 
             if ((m = location.getPrevMenu(self)) != nil)
-                s.append('<prevChapter><<m.title.htmlify()>></prevChapter>');
+                s.append('<prevChapter><<m.title.escapeHtml()>></prevChapter>');
         }
 
         /* add the keys */

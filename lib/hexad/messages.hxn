@@ -152,7 +152,7 @@ buildMessage(id, txt, [args])
         txt = cm.msgTab[id];
     
     /* if txt is a function pointer, retrieve the value it returns */
-    if(dataTypeXlat(txt) == TypeFuncPtr)
+    if(dataTypeXlat(txt) == TypeFunction)
         txt = txt();
     
     /* 
@@ -160,7 +160,7 @@ buildMessage(id, txt, [args])
      *   list to be the text proper and the remaining items to be our new arguments (this allows
      *   CustomMessages to define their own set of positional parameter through {1}. {2} etc.)
      */         
-    if(dataType(txt) == TypeList)
+    if(typeOf(txt) == TypeList)
     {
         /* Get the tail of the txt list. */
         local newArgs = txt.cdr(), tempArgs = [];
@@ -172,7 +172,7 @@ buildMessage(id, txt, [args])
         foreach(local cur in newArgs)
         {
             /* If an item is a function pointer, evaluate it before copying */
-            if(dataTypeXlat(cur) == TypeFuncPtr)
+            if(dataTypeXlat(cur) == TypeFunction)
                 cur = cur();
             tempArgs += cur;            
         }
@@ -410,7 +410,7 @@ debugMessage(id, txt, cm, args)
             local a = args[i];
             if (i > 1)
                 oSay(', ');
-            if (dataType(a) == TypeSString)
+            if (typeOf(a) == TypeString)
                 oSay(''''<<args[i]>>'''');
             else
                 oSay('object(name=<<a.name>>)');
@@ -526,9 +526,9 @@ class MessageCtx: object
      */
     paramToString(val)
     {
-        switch (dataType(val))
+        switch (typeOf(val))
         {
-        case TypeSString:
+        case TypeString:
             return val;
             
         case TypeInt:
@@ -564,9 +564,9 @@ class MessageCtx: object
      */
     paramToNum(val)
     {
-        switch (dataType(val))
+        switch (typeOf(val))
         {
-        case TypeSString:
+        case TypeString:
             return toInteger(val);
 
         case TypeInt:
@@ -725,7 +725,7 @@ class MessageCtx: object
      */
     lastParamPlural()
     {
-        switch (dataType(lastParam))
+        switch (typeOf(lastParam))
         {
         case TypeInt:
             return lastParam != 1;
@@ -1004,7 +1004,7 @@ class MessageParams: object
              */
             if(forcePresentTense)
             {
-                if(dataType(&oldTense) == TypeObject)
+                if(typeOf(&oldTense) == TypeObject)
                     Narrator.tense = Present;
                 else
                     gameMain.usePastTense = nil;               
@@ -1021,7 +1021,7 @@ class MessageParams: object
              */
             if(forcePresentTense)
             {
-                if(dataType(&oldTense) == TypeObject)
+                if(typeOf(&oldTense) == TypeObject)
                     Narrator.tense = oldTense;
                 else
                     gameMain.usePastTense = oldTense;               
@@ -1032,7 +1032,7 @@ class MessageParams: object
              *   if this isn't a pre-scan, and the parameter name starts
              *   with a capital, mimic that pattern in the result 
              */
-            if (txt != nil && !ctx.prescan && rexMatch(R'<upper>', pname) != nil)
+            if (txt != nil && !ctx.prescan && regexMatch(R'<upper>', pname) != nil)
                 txt = txt.firstChar().toUpper() + txt.delFirst();
         }
 
@@ -1113,10 +1113,10 @@ class MessageParams: object
             local srcObj = nil;
             
             /* if the source is a role name, get the corresponding property */
-            if (dataType(src) == TypeSString)
+            if (typeOf(src) == TypeString)
             {
                 /* check for a number */
-                if (rexMatch(R'<digit>+', src) != nil)
+                if (regexMatch(R'<digit>+', src) != nil)
                 {
                     /* it's an argument index */
                     src = ctx.args[toInteger(src)];
@@ -1139,9 +1139,9 @@ class MessageParams: object
             }
 
             /* retrieve the source object from the command */
-            if (dataType(src) == TypeProp)
+            if (typeOf(src) == TypeProp)
                 srcObj = ctx.cmd.(src);
-            else if (dataType(src) == TypeObject 
+            else if (typeOf(src) == TypeObject 
                      && (src.ofKind(Mentionable) || src.ofKind(Pronoun)
                          || src.ofKind(LiteralObject) ||
                          src.ofKind(ResolvedTopic)))
@@ -1203,7 +1203,7 @@ class MessageParams: object
              *   if we found it, and the result is a function pointer or an
              *   anonymous function, invoke the function to get the result
              */
-            if (dataTypeXlat(targetObj) == TypeFuncPtr)
+            if (dataTypeXlat(targetObj) == TypeFunction)
             {
                 /* evaluate the function */
                 targetObj = (targetObj)();

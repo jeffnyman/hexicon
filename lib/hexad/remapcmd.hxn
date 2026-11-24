@@ -547,7 +547,7 @@ modify Parser
                         if(remapCmdTokCnt == toks.length())
                             remapCmdTokCnt = 0;
                         remapCmdItem = remapCmdDicts.processCmd(toks,remapCmdTokCnt);
-                        if(dataType(remapCmdItem) == TypeSString) {
+                        if(typeOf(remapCmdItem) == TypeString) {
                             local remaptoks = parseToksOnly(remapCmdItem);
                             if(remaptoks == nil)
                                 return;
@@ -1079,7 +1079,7 @@ dumpList(lst) {
         foreach(local item in lst) {
             "<<prefix>>";
             prefix = ',';
-            if(dataType(item) == TypeList)
+            if(typeOf(item) == TypeList)
                 dumpList(item);
             else if(item == ',')
                 "(comma)";
@@ -1095,12 +1095,12 @@ dumpList(lst) {
 
 getDataType(data) {
     local s = '?';
-    switch(dataType(data)) {
+    switch(typeOf(data)) {
         case TypeObject: s='object'; break;
         case TypeList: s='list'; break;
-        case TypeSString: s='single-string'; break;
+        case TypeString: s='single-string'; break;
         case TypeInt: s='integer'; break;
-        case TypeFuncPtr: s='func-ptr'; break;
+        case TypeFunction: s='func-ptr'; break;
         case TypeProp: s='property'; break;
         case TypeNil: s='nil'; break;
         case TypeTrue: s='true'; break;

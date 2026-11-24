@@ -27,7 +27,7 @@ show(val)
 {
     if (val == nil)
         return 'nil';
-    if (dataType(val) == TypeList)
+    if (typeOf(val) == TypeList)
     {
         local text = '[';
         for (local i = 1 ; i <= val.length() ; ++i)

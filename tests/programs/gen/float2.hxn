@@ -25,5 +25,5 @@ _main(args)
     for (local i in 1..2 step 0.5) show(i);
     for (local i in 2..1 step -0.5) show(i);
     switch (1.5) { case 1.5: show('case'); break; default: show('default'); }
-    show(rexMatch(obj.pat, 'aaab')); show(rexMatch(R'%d+', '123x')); show(rexMatch(obj.pats[1], 'xxxy')); print('\n');
+    show(regexMatch(obj.pat, 'aaab')); show(regexMatch(R'%d+', '123x')); show(regexMatch(obj.pats[1], 'xxxy')); print('\n');
 }

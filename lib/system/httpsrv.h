@@ -29,7 +29,7 @@
  *   and accepts incoming connection requests from clients, and then handles
  *   HTTP protocol transactions with connected clients.  Client requests are
  *   routed to the byte code program via network events, which the program
- *   can retrieve via the getNetEvent() function.
+ *   can retrieve via the netEvent() function.
  *   
  *   Construction: to set up an HTTP server, simply create an HTTPServer
  *   object with 'new':

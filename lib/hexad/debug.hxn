@@ -127,7 +127,7 @@ actionTab: PreinitObject
          */
         globalSymbols().forEachAssoc( new function(key, value)
         {
-            if(dataType(value) == TypeObject && value.ofKind(Action))
+            if(typeOf(value) == TypeObject && value.ofKind(Action))
                 ctab[value] = key;
         });
     }
@@ -220,7 +220,7 @@ action Evaluate: LiteralAction
             else           
                res = Compiler.eval(str);
             
-            if(dataType(res) == TypeEnum)
+            if(typeOf(res) == TypeEnum)
             {
                 local str = enumTabObj.enumTab[res];
                 if(str) res = str;
@@ -271,13 +271,13 @@ symTab: PreinitObject
     {
         globalSymbols().forEachAssoc( new function(key, value)
         {
-//            if(dataType(value) == TypeObject && value.isClass)
+//            if(typeOf(value) == TypeObject && value.isClass)
 //                ctab[value] = key;
 //            
-//            if(dataType(value) == TypeObject && (value.ofKind(Region)))               
+//            if(typeOf(value) == TypeObject && (value.ofKind(Region)))               
 //                ctab[value] = key;
 //            
-//            if(defined(Actor) && dataType(value) == TypeObject &&
+//            if(defined(Actor) && typeOf(value) == TypeObject &&
 //               (value.ofKind(ActorState) || value.ofKind(AgendaItem)))
 //                ctab[value] = key;
             ctab[value] = key;
@@ -296,15 +296,15 @@ symToVal(val)
 valToSym(val)
 {
     local str;
-    switch(dataType(val))
+    switch(typeOf(val))
     {
-    case TypeSString:        
+    case TypeString:        
         return val;
     case TypeInt:
         return toString(val);
     case TypeObject:
         str = symTab.ctab[val]; 
-        if(str == '???' && val.propDefined(&name)) str = val.name;
+        if(str == '???' && val.hasProp(&name)) str = val.name;
         return str;
         
     case TypeEnum:
@@ -363,7 +363,7 @@ modify ProgramObject
             str = symTab.symbolToVal(self) + ' ';
         
         /*  Append this object's superclass list in parentheses*/
-        str  += '(' + getSuperclassList + ')';
+        str  += '(' + superclasses + ')';
         
         /*  Return the result */
         return str;

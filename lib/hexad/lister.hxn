@@ -139,7 +139,7 @@ class ItemLister: Lister
          *   If our groupTab table is empty, there are no ListGroups involved in our list, so we can
          *   just show a simple list of items.
          */
-        if(groupTab.getEntryCount() == 0)
+        if(groupTab.entryCount() == 0)
             showSimpleList(lst);
         
         /* Otherwise we'll need to use the more commplex list handling. */
@@ -189,7 +189,7 @@ class ItemLister: Lister
          *   If there's nothing left in the list group table, there's nothing more to do here, so
          *   simply return our list of items unchanged.
          */
-        if(groupTab.getEntryCount() == 0)
+        if(groupTab.entryCount() == 0)
             return lst;
         
         /* 

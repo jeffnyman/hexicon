@@ -189,7 +189,7 @@ class EventList: Script
         /* check what kind of event we have */
         switch (dataTypeXlat(evt))
         {
-        case TypeSString:
+        case TypeString:
             /* it's a string - display it */
             say(evt);
             break;
@@ -199,7 +199,7 @@ class EventList: Script
             evt.doScript();
             break;
             
-        case TypeFuncPtr:
+        case TypeFunction:
             /* it's a function pointer - invoke it */
             (evt)();
             break;

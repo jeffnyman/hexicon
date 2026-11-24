@@ -23,7 +23,7 @@ versions: object
 // How far down from the top a class is.
 depth(cls)
 {
-    local sc = cls.getSuperclassList();
+    local sc = cls.superclasses();
     return sc.length() == 0 ? 1 : depth(sc[1]) + 1;
 }
 
@@ -48,7 +48,7 @@ fits(params, args)
     for (local i = 1 ; i <= params.length() ; ++i)
     {
         if (params[i] != nil
-            && !(dataType(args[i]) == TypeObject && args[i].ofKind(params[i])))
+            && !(typeOf(args[i]) == TypeObject && args[i].ofKind(params[i])))
             return nil;
     }
     return true;

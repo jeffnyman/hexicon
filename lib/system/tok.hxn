@@ -96,7 +96,7 @@ class Tokenizer: object
      *   
      *   If the value computation rule is nil, we'll just use the matching
      *   text as the token value.  If the value rule is a string, we'll use
-     *   the string as a replacement pattern (with rexReplace).  If it's a
+     *   the string as a replacement pattern (with regexReplace).  If it's a
      *   property ID, we'll invoke the property of self with the following
      *   arguments:
      *   
@@ -267,7 +267,7 @@ class Tokenizer: object
                 cur = rules_[i];
 
                 /* check for a match to the rule's pattern */
-                match = rexMatch(tokRulePat(cur), str, startIdx);
+                match = regexMatch(tokRulePat(cur), str, startIdx);
                 if (match != nil && match > 0)
                 {
                     local test;
@@ -286,9 +286,9 @@ class Tokenizer: object
                         local accept;
 
                         /* check what kind of test function we have */
-                        switch (dataType(test))
+                        switch (typeOf(test))
                         {
-                        case TypeFuncPtr:
+                        case TypeFunction:
                         case TypeObject:
                             /* it's a function or anonymous function */
                             accept = (test)(txt);
@@ -338,15 +338,15 @@ class Tokenizer: object
                         self.(val)(txt, typ, toks);
                         break;
                         
-                    case TypeSString:
+                    case TypeString:
                         /* it's a regular expression replacement */
                         toks.append(
-                            [rexReplace(tokRulePat(cur),
+                            [regexReplace(tokRulePat(cur),
                                         txt, val, ReplaceOnce),
                              typ, txt]);
                         break;
 
-                    case TypeFuncPtr:
+                    case TypeFunction:
                         /* invoke the function */
                         (val)(txt, typ, toks);
                         break;

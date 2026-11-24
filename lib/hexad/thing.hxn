@@ -366,7 +366,7 @@ class Mentionable: LMentionable
              *   tokens and the matchPhrases, so the matchPhrases should have no
              *   effect on the match.
              */
-            if(dataType(phraseMatch) != TypeInt)
+            if(typeOf(phraseMatch) != TypeInt)
                 phraseMatch = 0;
         }
         
@@ -748,7 +748,7 @@ class Mentionable: LMentionable
              *   if altVocab is defined as a list we change vocab to the appropriate item
              *   in the list.
              */
-            if(dataType(altVocab) == TypeList)
+            if(typeOf(altVocab) == TypeList)
             {
                 /* 
                  *   A return value of less that 1 means we want to change the vocab to
@@ -979,7 +979,7 @@ class State: LState
      *   consider any object that defines the state property to exhibit the
      *   state.  
      */
-    appliesTo(obj) { return obj.propDefined(stateProp); }
+    appliesTo(obj) { return obj.hasProp(stateProp); }
 
     /*
      *   Match a token from the object name for the given state value.
@@ -3981,12 +3981,12 @@ class Thing:  ReplaceRedirector, Mentionable
     /*  Mark this Thing as knowing about obj. */
     setKnowsAbout(obj, val?) 
     { 
-        switch(dataType(obj))
+        switch(typeOf(obj))
         {
         case TypeObject:
             obj.(knownProp) = true; 
             break;
-        case TypeSString:
+        case TypeString:
             setInformed(obj, val);
             break;
         default:
@@ -4013,7 +4013,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */   
     knowsAbout(obj)
     {
-        switch(dataType(obj))
+        switch(typeOf(obj))
         { 
         
         /* 
@@ -4027,7 +4027,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   If obj is a single-quoted string, assume it's a knowledge tag and test for our
              *   being informed abnout it.
              */
-        case TypeSString:
+        case TypeString:
             return informedAbout(obj);
             
         default:
@@ -4603,14 +4603,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check()
         {
-            if(dataType(&checkFeelMsg) != TypeNil)
+            if(typeOf(&checkFeelMsg) != TypeNil)
                 display(&checkFeelMsg);
         
         }
         
         action()
         {
-            if(gActionIs(Touch) && propDefined(&touchDesc) && propType(&touchDesc) != TypeNil)
+            if(gActionIs(Touch) && hasProp(&touchDesc) && propType(&touchDesc) != TypeNil)
                 display(&touchDesc);
             
             else if(propType(&feelDesc) == TypeNil)            
@@ -4995,7 +4995,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check()
         {
-            if(dataType(&checkAttackMsg) != TypeNil)
+            if(typeOf(&checkAttackMsg) != TypeNil)
                 display(&checkAttackMsg);
         }
         
@@ -8493,13 +8493,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check()
         {
-            if(dataType(&checkKissMsg) != TypeNil)
+            if(typeOf(&checkKissMsg) != TypeNil)
                 display(&checkKissMsg);
         }
         
         action()
         {
-            if(dataType(&futileToKissMsg) != TypeNil)
+            if(typeOf(&futileToKissMsg) != TypeNil)
                 display(&futileToKissMsg);
         }
         
@@ -9048,7 +9048,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 }                                 
                 
                 /* If the connector we want to use is an object then check its travel barriers. */
-                if(dataType(conn) == TypeObject)
+                if(typeOf(conn) == TypeObject)
                 {                    
                     if(!conn.setTravelPosture())
                         exit;
@@ -9147,7 +9147,7 @@ class Thing:  ReplaceRedirector, Mentionable
         local oldLoc = gActor.getOutermostRoom;
         try
         {
-            wasHidden = propType(&isHidden) is in (TypeCode, TypeFuncPtr) ?
+            wasHidden = propType(&isHidden) is in (TypeCode, TypeFunction) ?
                     getMethod(&isHidden) : isHidden;
             
             isHidden = true;
@@ -9156,7 +9156,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
         finally
         {
-            if(dataTypeXlat(wasHidden) is in (TypeCode, TypeFuncPtr))
+            if(dataTypeXlat(wasHidden) is in (TypeCode, TypeFunction))
                 setMethod(&isHidden, wasHidden);
             else
                 isHidden = wasHidden;
@@ -9219,7 +9219,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   have been done, but if game code has overridden that we need to carry out the
          *   beforeTravelNotifications now.
          */         
-        if(conn && dataType(conn == TypeObject))
+        if(conn && typeOf(conn == TypeObject))
             conn.beforeTravelNotifications(self);        
         
        /*  If we have an indirect object, describe our PushTravel via it */

@@ -7,8 +7,8 @@ intrinsic 'hexicon-vm/010006'
 }
 intrinsic 'hexicon-gen/030008'
 {
-    dataType(val);
-    getArg(idx);
+    typeOf(val);
+    arg(idx);
     firstObj(cls?, flags?);
     nextObj(obj, cls?, flags?);
     randomize(...);

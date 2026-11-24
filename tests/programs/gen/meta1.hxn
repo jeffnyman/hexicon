@@ -1,8 +1,8 @@
 intrinsic class Object 'root-object/030004'
 {
     ofKind(cls);
-    getSuperclassList();
-    propDefined(prop, flags?);
+    superclasses();
+    hasProp(prop, flags?);
 }
 intrinsic class Collection 'collection/030000': Object
 {

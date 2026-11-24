@@ -76,7 +76,7 @@ show()
     local total = 0;
     foreach (local it in holder.items)
     {
-        if (dataType(it) == TypeObject && it.ofKind(Item))
+        if (typeOf(it) == TypeObject && it.ofKind(Item))
             total += it.count;
     }
     "total: <<total>>\n";
@@ -86,7 +86,7 @@ show()
     "buf: <<toString(holder.buf)>>\n";
     "big: <<holder.big * 2>>\n";
     "bytes: <<holder.bytes.length()>>\n";
-    "match: <<rexMatch(holder.pat, 'abc123')>>\n";
+    "match: <<regexMatch(holder.pat, 'abc123')>>\n";
     "fn: <<(holder.fn)(1)>>\n";
     "dyn: <<(holder.dyn)(4)[2]>>\n";
     "when: <<holder.when.formatDate('%Y-%m-%d')>>\n";

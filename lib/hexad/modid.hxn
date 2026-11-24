@@ -459,7 +459,7 @@ class GameInfoModuleID: MetadataModuleID
         f.closeFile();
 
         /* remember the primary IFID in the globals */
-        libGlobal.IFID = rexReplace([',.*$', '<space>+'], IFID, '');
+        libGlobal.IFID = regexReplace([',.*$', '<space>+'], IFID, '');
     }
 
     /* 

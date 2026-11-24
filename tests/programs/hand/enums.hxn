@@ -67,8 +67,8 @@ _main(args)
     line(c == green ? 'same' : 'different');
     line(c == red ? 'same' : 'different');
     line(c != blue ? 'not blue' : 'blue');
-    line(dataType(c) == TypeEnum ? 'an enum' : 'something else');
-    line(dataType(later()) == TypeEnum ? 'an enum' : 'something else');
+    line(typeOf(c) == TypeEnum ? 'an enum' : 'something else');
+    line(typeOf(later()) == TypeEnum ? 'an enum' : 'something else');
     line(later() == afterward ? 'same' : 'different');
 
     // Values of an enumeration in lists.

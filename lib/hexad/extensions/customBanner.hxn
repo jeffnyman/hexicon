@@ -16,8 +16,8 @@ import hexad;
    *
    *     pictureWindow: CustomBannerWindow
    *       canDisplay = (systemInfo(SysInfoJpeg))
-   *       bannerArgs = [nil, BannerAfter,  statuslineBanner, BannerTypeText, 
-   *             BannerAlignTop, 10, BannerSizeAbsolute, BannerStyleBorder]
+   *       bannerArgs = [nil, PaneAfter,  statuslineBanner, PaneTypeText, 
+   *             PaneAlignTop, 10, PaneSizeAbsolute, PaneStyleBorder]
    *       currentContents = '<img src="pic1.jpg">'
    *    ;
    *
@@ -103,7 +103,7 @@ class CustomBannerWindow: BannerWindow
  /*
   *  The list of any banner windows that must be set up before me,
   *  either one of them is my parent, or because I'm going
-  *  to be placed before or after them with BannerBefore or BannerAfter.
+  *  to be placed before or after them with PaneBefore or PaneAfter.
   *
   *  If bannerArgs has been set up with the list of showBanner arguments, 
   *  then we can derive this information automatically
@@ -208,9 +208,9 @@ class CustomBannerWindow: BannerWindow
    *
    *     initBannerLayout()
    *     {
-   *         return showBanner(nil, BannerAfter,  statuslineBanner,
-   *           BannerTypeText, BannerAlignTop, 1, BannerSizeAbsolute,
-   *           BannerStyleBorder); 
+   *         return showBanner(nil, PaneAfter,  statuslineBanner,
+   *           PaneTypeText, PaneAlignTop, 1, PaneSizeAbsolute,
+   *           PaneStyleBorder); 
    *     }
    *
    *    By default we simply call initBannerLayout() using our bannerArgs.
@@ -232,9 +232,9 @@ class CustomBannerWindow: BannerWindow
    *  bannerArgs = [parent, where, other, windowType, align, size, sizeUnits, styleFlags]
    *
    *  e.g.
-   *    bannerArgs = [nil, BannerAfter,  statuslineBanner,
-   *           BannerTypeText, BannerAlignTop, 1, BannerSizeAbsolute,
-   *           BannerStyleBorder]
+   *    bannerArgs = [nil, PaneAfter,  statuslineBanner,
+   *           PaneTypeText, PaneAlignTop, 1, PaneSizeAbsolute,
+   *           PaneStyleBorder]
    *   
    */
     
@@ -277,12 +277,12 @@ class CustomBannerWindow: BannerWindow
      if(args.length > 0)
      {
         local arg = args[1];
-        switch(dataType(arg))
+        switch(typeOf(arg))
         {
            case TypeTrue:
              currentContents = '';
              break;
-           case TypeSString:
+           case TypeString:
              currentContents = arg;
              break;
         }
@@ -306,7 +306,7 @@ class CustomBannerWindow: BannerWindow
       
       if(args.length() > 0 && args[1] != nil)
       {
-         if(dataType(args[1]) == TypeSString)
+         if(typeOf(args[1]) == TypeString)
             updateContents(args...);
          else  
             showCurrentContents();
@@ -489,7 +489,7 @@ class CustomBannerWindow: BannerWindow
   {
         /* size our system-level window to our contents */
        if(shouldDisplay)  
-         bannerSizeToContents(handle_);
+         paneSizeToContents(handle_);
   }
 
   captureOutput(func)

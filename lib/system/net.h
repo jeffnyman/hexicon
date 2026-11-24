@@ -66,7 +66,7 @@ intrinsic 'hexicon-net/030001'
      *   
      *   The return value is a NetEvent instance describing the event.  
      */
-    getNetEvent(timeout?);
+    netEvent(timeout?);
 
     /*
      *   Get the local network host name.  This is the name (or a name) that
@@ -90,7 +90,7 @@ intrinsic 'hexicon-net/030001'
      *   network adapter to use when opening a listening port.  For example,
      *   you can use this name in the HTTPServer constructor.  
      */
-    getHostName();
+    hostName();
 
     /*
      *   Get the local host's IP address.  This is the IP address (or an IP
@@ -106,7 +106,7 @@ intrinsic 'hexicon-net/030001'
      *   If the IP address can't be retrieved (for example, because the
      *   machine has no network adapter installed), this returns nil.
      */
-    getLocalIP();
+    localIP();
 
     /*
      *   Get the URL to the storage server.  When running in Web mode, the
@@ -120,7 +120,7 @@ intrinsic 'hexicon-net/030001'
      *   (introduced by a "?"  symbol), if desired.  The return value is the
      *   full URL to the requested page on the server.
      */
-    getNetStorageURL(resource);
+    netStorageURL(resource);
 
     /*
      *   Get the host address that the user used to launch the game.  For
@@ -143,7 +143,7 @@ intrinsic 'hexicon-net/030001'
      *   the game locally, rather than from a remote client machine.  Simply
      *   use "localhost" as the networking binding address in this case.  
      */
-    getLaunchHostAddr();
+    launchHostAddr();
 
     /*
      *   Send a network request to a remote server.  This initiates

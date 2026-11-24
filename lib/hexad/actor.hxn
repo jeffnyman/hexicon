@@ -352,7 +352,7 @@ modify Actor
          *   If prop has been supplied as a property pointer, get the list
          *   defined on that property
          */
-        if(dataType(prop) == TypeProp)
+        if(typeOf(prop) == TypeProp)
             myList = self.(prop);
         
         /*  
@@ -454,10 +454,10 @@ modify Actor
         {
             switch(curState.propType(&noResponse))
             {
-            case TypeDString:
+            case TypePrintString:
                 curState.noResponse();
                 return nil;
-            case TypeSString:
+            case TypeString:
                 say(curState.noResponse);
                 return nil;
             case TypeCode:
@@ -1666,7 +1666,7 @@ modify Actor
         
         
         /* If ele is a list, assume we have a path in routefinder format */
-        if(dataType(ele) == TypeList)
+        if(typeOf(ele) == TypeList)
         {
             /* 
              *   If the list is in the right format ele should be a two-element list whose second
@@ -1783,7 +1783,7 @@ modify Actor
          *   want the actor to take on their travels and so store it directly in our currentRoute
          *   property.
          */
-        if(dataType(dest) == TypeList)
+        if(typeOf(dest) == TypeList)
             currentRoute = dest;
         
         /* 
@@ -1860,7 +1860,7 @@ modify Actor
          *   intersect of all the listable TopicEntries with those that match
          *   all the tags.
          */
-        if(dataType(tag) == TypeList)
+        if(typeOf(tag) == TypeList)
         {
             /* Create a new empty Vector */
             local vec = new Vector(10);
@@ -2594,7 +2594,7 @@ modify Actor
         action()
         {
             local prop;
-            if(gActionIs(Touch) && propDefined(&touchDesc) && dataType(&touchDesc) != TypeNil)
+            if(gActionIs(Touch) && hasProp(&touchDesc) && typeOf(&touchDesc) != TypeNil)
                 prop = &touchDesc;
             else
                 prop = &feelDesc;               
@@ -3182,7 +3182,7 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
          *   If prop has been passed as a property pointer, get our list from
          *   the corresponding property.
          */        
-        if(dataType(prop) == TypeProp)        
+        if(typeOf(prop) == TypeProp)        
             myList = self.(prop);
         
         /*  Otherwise get our list directely from the prop parameter. */
@@ -3226,7 +3226,7 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
              *   anything else). Note we can only do this is prop has been
              *   passed as a property pointer, as the method expects.
              */            
-            if(dataType(prop) == TypeProp)
+            if(typeOf(prop) == TypeProp)
             {
                 /* 
                  *   If prop was passed as a property pointer, obtain the list
@@ -3541,7 +3541,7 @@ class TopicGroup: object
     {
         local sb = scoreBoost;
         
-        if(location.propDefined(&scoreBooster))
+        if(location.hasProp(&scoreBooster))
             sb += location.scoreBooster();
         
         return sb;
@@ -3607,8 +3607,8 @@ class ConvNode: TopicGroup
          *   object for this ConvNode and moved all the sayBlockXXX methods over to our newly
          *   created NodeEndCheck.
          */
-        if(propDefined(&sayBlockLeave) || propDefined(&sayBlockBye) 
-           || propDefined(&sayBlockBoredom) || propDefined(&sayBlockActor))
+        if(hasProp(&sayBlockLeave) || hasProp(&sayBlockBye) 
+           || hasProp(&sayBlockBoredom) || hasProp(&sayBlockActor))
         {
             /* Create our NodeEndCheck object. */
             local nec = new NodeEndCheck;
@@ -3635,7 +3635,7 @@ class ConvNode: TopicGroup
          *   for this ConvNode and move our nodeContinuationMsg over to our newly created
          *   NodeContinuationTopic.
          */
-        if(propDefined(&nodeContinuationMsg))
+        if(hasProp(&nodeContinuationMsg))
         {
             /* Create our NodeContinuationTopic object. */
             local nct = new NodeContinuationTopic;
@@ -3659,7 +3659,7 @@ class ConvNode: TopicGroup
          *   DefaultConvstayTopic.
          */
         
-        if(propDefined(&convstayMsg))
+        if(hasProp(&convstayMsg))
         {
             /* Create our DefaultConvstayTopic object. */
             local dct = new DefaultConvstayTopic;
@@ -5931,7 +5931,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
              *   BYE. If we define a sayBlockBye property call it and return the result.
              */
         case endConvBye:
-            if(propDefined(&sayBlockBye))
+            if(hasProp(&sayBlockBye))
                 return block(&sayBlockBye);
             break;
             
@@ -5941,7 +5941,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
              *   result.
              */
         case endConvLeave:
-            if(propDefined(&sayBlockLeave))
+            if(hasProp(&sayBlockLeave))
                return block(&sayBlockLeave);
             break;
             
@@ -5951,7 +5951,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
              *   property call it and return the result.
              */
         case endConvBoredom:
-            if(propDefined(&sayBlockBoredom))
+            if(hasProp(&sayBlockBoredom))
                return block(&sayBlockBoredom);
             break;
             
@@ -5962,7 +5962,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
              *   property call it and return the result.
              */
         case endConvActor:    
-            if(propDefined(&sayBlockActor))
+            if(hasProp(&sayBlockActor))
                return block(&sayBlockActor);
             break;
             
@@ -6013,15 +6013,15 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
     {
         switch(propType(prop))
         {
-        case TypeSString:
+        case TypeString:
             say(self.(prop));
             return nil;
         case TypeCode:
             return self.(prop);
-        case TypeDString:
+        case TypePrintString:
             self.(prop);
             return blockEndConv;
-        case TypeFuncPtr:
+        case TypeFunction:
             local f = self.(prop);
             (f)();
             return blockEndConv;
@@ -6034,7 +6034,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
             }
             
             /* This is provided to handle cases not handled by any other mechanism. */
-            if(obj.propDefined(&block))
+            if(obj.hasProp(&block))
                 return obj.block();
             
             return defaultVal;
@@ -6278,7 +6278,7 @@ modify conversationManager
             local args;
             
             /* scan for the next tag */
-            match = rexSearch(tagPat, txt, start);
+            match = regexSearch(tagPat, txt, start);
 
             /* if we didn't find it, we're done */
             if (match == nil)
@@ -6288,12 +6288,12 @@ modify conversationManager
             nxtOfs = match[1] + match[2];
 
             /* get the argument (the third group from the match) */
-            arg = rexGroup(3);
+            arg = regexGroup(3);
             if (arg != nil)
                 arg = arg[3];
 
             /* pick out the tag */
-            tag = rexGroup(1)[3].toLower(); 
+            tag = regexGroup(1)[3].toLower(); 
 
                        
             /* check which tag we have */
@@ -6653,7 +6653,7 @@ modify conversationManager
          *   remove the tags from the text by replacing every occurrence
          *   with an empty string, and return the result 
          */
-        return rexReplace(tagPat, txt, '', ReplaceAll);
+        return regexReplace(tagPat, txt, '', ReplaceAll);
     }
 
     
@@ -7799,7 +7799,7 @@ objTablePreinit: PreinitObject
     {
         globalSymbols().forEachAssoc( new function(key, value)
         {
-            if(dataType(value) == TypeObject && (value.ofKind(Mentionable) ||
+            if(typeOf(value) == TypeObject && (value.ofKind(Mentionable) ||
                                                  value.ofKind(AgendaItem) ||
                                                  value.ofKind(ActorState)))
                 

@@ -124,7 +124,7 @@ class DefaultThought: Thought
          *   If the topic we matched defines a thinkDesc property, use that thinkDesc property to
          *   preovide our response. Otherwise use our topicResponse.
          */
-        if(!((topicMatched.propDefined(&thinkDesc) && topicMatched.propType(&hinkDesc) != TypeNil)
+        if(!((topicMatched.hasProp(&thinkDesc) && topicMatched.propType(&hinkDesc) != TypeNil)
             && topicMatched.displayAlt(&thinkDesc, location.noThoughtMsg)))        
             topicResponse();
     }

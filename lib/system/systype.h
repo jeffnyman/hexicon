@@ -16,14 +16,14 @@
 #define TypeObject      5
 #define TypeProp        6
 #define TypeInt         7
-#define TypeSString     8
-#define TypeDString     9
+#define TypeString     8
+#define TypePrintString     9
 #define TypeList        10
 #define TypeCode        11
-#define TypeFuncPtr     12
+#define TypeFunction     12
 #define TypeNativeCode  14
 #define TypeEnum        15
-#define TypeBifPtr      16
+#define TypeBuiltin      16
 
 
 /* ------------------------------------------------------------------------ */
@@ -39,10 +39,10 @@ intrinsic class Object 'root-object/030004'
     ofKind(cls);
 
     /* get the list of direct superclasses of this object */
-    getSuperclassList();
+    superclasses();
 
     /* determine if a property is defined or inherited by this object */
-    propDefined(prop, flags?);
+    hasProp(prop, flags?);
 
     /* get the type of a property defined for this object */
     propType(prop);
@@ -53,7 +53,7 @@ intrinsic class Object 'root-object/030004'
      *   for instances of the class, as well as static properties of the
      *   class.  
      */
-    getPropList();
+    properties();
 
     /* 
      *   get parameter list information for the given method - returns a
@@ -63,7 +63,7 @@ intrinsic class Object 'root-object/030004'
      *   takes a varying number of arguments greater than or equal to the
      *   minimum, nil if not.  
      */
-    getPropParams(prop);
+    propParams(prop);
 
     /* 
      *   determine if I'm a "class" object - returns true if the object was
@@ -84,7 +84,7 @@ intrinsic class Object 'root-object/030004'
 }
 
 /*
- *   propDefined() flags 
+ *   hasProp() flags 
  */
 #define PropDefAny           1
 #define PropDefDirectly      2
@@ -108,7 +108,7 @@ intrinsic class BuiltinClass 'intrinsic-class/030001': Object
      *   returns true if so, nil if not.  
      *   
      *   It's not possible to determine if an object is a BuiltinClass
-     *   object using x.ofKind(BuiltinClass) or via x.getSuperclassList().
+     *   object using x.ofKind(BuiltinClass) or via x.superclasses().
      *   This is because those methods traverse the nominal class tree:
      *   [1,2,3] is a List, and List is an Object.  However, List and Object
      *   themselves are represented by BuiltinClass instances, and it's
@@ -183,7 +183,7 @@ intrinsic class Iterator 'iterator/030001': Object
      *   getNext() will return a valid item, nil if no more items are
      *   available.  
      */
-    isNextAvailable();
+    hasNext();
 
     /*
      *   Reset to the first item.  After calling this routine, the next call
@@ -310,7 +310,7 @@ intrinsic class ProgramObject 'hexicon-object/030005': Object
      *   be used in the list, and objects of other types cannot be used in
      *   the list.  
      */
-    setSuperclassList(scList);
+    setSuperclasses(scList);
 
     /* 
      *   Get a method value.  If the property is a method, this returns a
@@ -396,8 +396,8 @@ intrinsic class String 'string/030008': Object
      */
     toUnicode(idx?);
 
-    /* htmlify a string */
-    htmlify(flags?);
+    /* escapeHtml a string */
+    escapeHtml(flags?);
 
     /* determine if we start with the given string */
     startsWith(str);
@@ -881,20 +881,20 @@ intrinsic class String 'string/030008': Object
 }
 
 /*
- *   Flags for String.htmlify 
+ *   Flags for String.escapeHtml 
  */
 
 /* 
  *   translate spaces - each space in a run of multiple spaces is converted
  *   to an &nbsp; sequence 
  */
-#define HtmlifyTranslateSpaces    0x0001
+#define EscapeHtmlTranslateSpaces    0x0001
 
 /* translate newlines - converts each \n character to a <br> tag */
-#define HtmlifyTranslateNewlines  0x0002
+#define EscapeHtmlTranslateNewlines  0x0002
 
 /* translate tabs - converts each \t character to a <tab> tag */
-#define HtmlifyTranslateTabs      0x0004
+#define EscapeHtmlTranslateTabs      0x0004
 
 /* 
  *   Translate all whitespace characters - translate all spaces, tabs, and
@@ -902,8 +902,8 @@ intrinsic class String 'string/030008': Object
  *   '&nbsp sequence;', each '\n' character becomes a <br> tag; and each
  *   '\t' character becomes a <tab> tag.  
  */
-#define HtmlifyTranslateWhitespace \
-    (HtmlifyTranslateSpaces | HtmlifyTranslateNewlines | HtmlifyTranslateTabs)
+#define EscapeHtmlTranslateWhitespace \
+    (EscapeHtmlTranslateSpaces | EscapeHtmlTranslateNewlines | EscapeHtmlTranslateTabs)
 
 
 /*
@@ -1196,7 +1196,7 @@ export length 'length';
  *   regular expression pattern.
  *   
  *   A Regex object can be passed to the regular expression functions
- *   (rexMatch, rexSearch, rexReplace) in place of a string pattern.  Since
+ *   (regexMatch, regexSearch, regexReplace) in place of a string pattern.  Since
  *   compiling a regular expression takes a non-trivial amount of time, it's
  *   more efficient to compile a pattern to a Regex object if the same
  *   pattern will be used in multiple searches.  
@@ -1211,7 +1211,7 @@ intrinsic class Regex 'regex-pattern/030000': Object
      */
 
     /* retrieve the original pattern string used to construct the object */
-    getPatternString();
+    patternString();
 }
 
 /* ------------------------------------------------------------------------ */

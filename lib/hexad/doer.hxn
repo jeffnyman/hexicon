@@ -57,11 +57,11 @@ class Redirector: object
         if(altAction.ofKind(LiteralAction) || altAction.ofKind(LiteralTAction)
            || aobj != nil)
         {
-            if(dataType(dobj) == TypeSString)
+            if(typeOf(dobj) == TypeString)
                 dobj = new LiteralObject(dobj);
-            if(dataType(iobj) == TypeSString)
+            if(typeOf(iobj) == TypeString)
                 iobj = new LiteralObject(iobj);
-            if(dataType(aobj) == TypeSString)
+            if(typeOf(aobj) == TypeString)
                 aobj = new LiteralObject(aobj);
         }
         
@@ -73,11 +73,11 @@ class Redirector: object
         if(altAction.ofKind(TopicAction) || altAction.ofKind(TopicTAction)
            || aobj != nil)
         {
-            if(dataType(dobj) == TypeSString)
+            if(typeOf(dobj) == TypeString)
                 dobj = new Topic(dobj);
-            if(dataType(iobj) == TypeSString)
+            if(typeOf(iobj) == TypeString)
                 iobj = new Topic(iobj);
-            if(dataType(aobj) == TypeSString)
+            if(typeOf(aobj) == TypeString)
                 aobj = new Topic(aobj);
         }
         
@@ -676,23 +676,23 @@ class DoerCmd: object
             return doer.priority - other.doer.priority;
 
         /* a 'when' has priority over no 'when' */
-        p = doer.propDefined(&when);
-        if (p != other.doer.propDefined(&when))
+        p = doer.hasProp(&when);
+        if (p != other.doer.hasProp(&when))
             return p ? 1 : -1;
 
         /* a 'where' has priority over no 'where' */
-        p = doer.propDefined(&where);
-        if (p != other.doer.propDefined(&where))
+        p = doer.hasProp(&where);
+        if (p != other.doer.hasProp(&where))
             return p ? 1 : -1;
 
          /* a 'who' has priority over no 'where' */
-        p = doer.propDefined(&who);
-        if (p != other.doer.propDefined(&who))
+        p = doer.hasProp(&who);
+        if (p != other.doer.hasProp(&who))
             return p ? 1 : -1;
         
         /* a 'during' has priority over no 'during' */
-        p = doer.propDefined(&during);
-            if (p != other.doer.propDefined(&during))
+        p = doer.hasProp(&during);
+            if (p != other.doer.hasProp(&during))
             return p ? 1 : -1;
         
         /* get each command's Action */
@@ -705,8 +705,8 @@ class DoerCmd: object
          */        
         if(a == Travel)
         {
-            p = doer.propDefined(&direction);
-            if (p != other.doer.propDefined(&direction))
+            p = doer.hasProp(&direction);
+            if (p != other.doer.hasProp(&direction))
                 return p ? 1 : -1;
         }
 
@@ -774,7 +774,7 @@ class DoerCmd: object
     matchConditions()    
     {
         /* first check the where condition, if there is one. */
-        if(doer.propDefined(&where))
+        if(doer.hasProp(&where))
         {
             local whereLst = valToList(doer.where);
                                     
@@ -792,11 +792,11 @@ class DoerCmd: object
          *   aocording to some condition defined by the author; so we simply
          *   test whether doer.when returns nil if the property is defined.
          */        
-        if(doer.propDefined(&when) && doer.when() == nil)
+        if(doer.hasProp(&when) && doer.when() == nil)
             return nil;       
         
          /* check the who condition, if there is one. */
-        if(doer.propDefined(&who))
+        if(doer.hasProp(&who))
         {
             local whoLst = valToList(doer.who);
                         
@@ -814,7 +814,7 @@ class DoerCmd: object
          *   if we're using the scene manager and a during condition is
          *   specified, test whether the scene is currently happening.
          */        
-        if(defined(sceneManager) && doer.propDefined(&during))
+        if(defined(sceneManager) && doer.hasProp(&during))
         {
             local duringList = valToList(doer.during);
             
@@ -826,7 +826,7 @@ class DoerCmd: object
          *   If the command is a travel action and a direction has been
          *   specified, check that we match the direction.
          */
-        if(doer.propDefined(&direction) && cmd[1] is in (Travel,
+        if(doer.hasProp(&direction) && cmd[1] is in (Travel,
             PushTravelDir, ThrowDir))
             return valToList(doer.direction).indexOf(
                 gCommand.verbProd.dirMatch.dir) != nil;
@@ -1001,14 +1001,14 @@ doerPreinit: PreinitObject
                 }
                 
                 /* pull out the first word of the command */
-                rexMatch(R'<space>*(<alphanum|star>+)', c);
+                regexMatch(R'<space>*(<alphanum|star>+)', c);
 
                 /* match it against each template with the same first word */
                 local found = nil;
-                foreach (local p in ptab.getParsers(rexGroup(1)[3]))
+                foreach (local p in ptab.getParsers(regexGroup(1)[3]))
                 {
                     /* if we match this item's template, this is the one */
-                    if (rexMatch(p.pat_, c))
+                    if (regexMatch(p.pat_, c))
                     {
                         /* 
                          *   It matches.  Set up the initial action template
@@ -1051,7 +1051,7 @@ doerPreinit: PreinitObject
                                 break;
                             
                             /* get the regular expression match */
-                            local n = rexGroup(idx)[3];
+                            local n = regexGroup(idx)[3];
 
                             /* add it to the template list */
                             tpl += n;

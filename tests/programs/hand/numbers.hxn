@@ -48,6 +48,6 @@ _main(args)
     for (local i in 1..2 step 0.5)
         line(i);
 
-    line(rexMatch(shelf.label, 'shelf  42'));
-    line(rexReplace(R'<space>+', 'one   two  three', ' ', ReplaceAll));
+    line(regexMatch(shelf.label, 'shelf  42'));
+    line(regexReplace(R'<space>+', 'one   two  three', ' ', ReplaceAll));
 }

@@ -308,7 +308,7 @@ class LMentionable: object
                  local len = lst.length() ; i <= len ; ++i)
             {
                 /* parse the entry */
-                rexMatch(aAnPat, lst[i]);
+                regexMatch(aAnPat, lst[i]);
 
                 /* 
                  *   Set up its table entry - 1 for 'a', 2 for 'an'.  (We
@@ -319,7 +319,7 @@ class LMentionable: object
                  *   possibilities, it's easy to store an integer instead,
                  *   and it saves a bit of space.)  
                  */
-                anTab[rexGroup(2)[3]] = rexGroup(1)[3] == 'a' ? 1 : 2;
+                anTab[regexGroup(2)[3]] = regexGroup(1)[3] == 'a' ? 1 : 2;
             }
 
             /* we're done with these lists - to save space, forget them */
@@ -607,8 +607,8 @@ class LMentionable: object
          *   if the short name is all in title case, and 'proper' isn't
          *   explicitly set or we're repacing vocab, mark it as a proper name 
          */
-        if ((propDefined(&proper, PropDefGetClass) == Mentionable || replacingVocab)
-            && rexMatch(properNamePat, shortName) != nil)
+        if ((hasProp(&proper, PropDefGetClass) == Mentionable || replacingVocab)
+            && regexMatch(properNamePat, shortName) != nil)
             proper = true;
 
         /* note the tentative name value */
@@ -694,7 +694,7 @@ class LMentionable: object
              *   Otherwise, enter it as an adjective.  
              */
             local pos;
-            if (rexMatch(prepWordPat, w) != nil)
+            if (regexMatch(prepWordPat, w) != nil)
             {
                 /* it's a preposition */
                 pos = MatchPrep;
@@ -712,14 +712,14 @@ class LMentionable: object
                 if (wnxt is in ('a', 'an', 'the', 'some'))
                     ++i;
             }
-            else if (rexMatch(weakWordPat, w) != nil)
+            else if (regexMatch(weakWordPat, w) != nil)
             {
                 /* It's a weak token */
                 pos = MatchWeak;
             }
             
             else if (firstPhrase
-                     && (wnxt == nil || rexMatch(prepWordPat, wnxt) != nil))
+                     && (wnxt == nil || regexMatch(prepWordPat, wnxt) != nil))
             {
                 /* it's the last word in the first phrase - it's a noun */
                 pos = MatchNoun;
@@ -888,7 +888,7 @@ class LMentionable: object
             return;
         
         
-        foreach(local cls in getSuperclassList)
+        foreach(local cls in superclasses)
         {   
             /* 
              *   If the superclass doesn't have any vocab, there's nothing more
@@ -907,8 +907,8 @@ class LMentionable: object
          *   work to do; it's all been done on our parent classes. There's also
          *   no more work to do if none of our parent classes defines any vocab.
          */
-        if(!propDefined(&vocab, PropDefDirectly) 
-           || getSuperclassList.indexWhich({c: c.vocab not in (nil, '')}) == nil)
+        if(!hasProp(&vocab, PropDefDirectly) 
+           || superclasses.indexWhich({c: c.vocab not in (nil, '')}) == nil)
             return;
         
         /* Our list of vocab, split into parts. */
@@ -918,7 +918,7 @@ class LMentionable: object
         for(local i = vlist.length; i < 4; i++)
             vlist += '';
         
-        foreach(local cls in getSuperclassList)
+        foreach(local cls in superclasses)
         {  
             /* 
              *   If this class doesn't specify any vocab, we don't need to
@@ -1006,7 +1006,7 @@ class LMentionable: object
             matchFlags &= ~(MatchPrep | MatchAdj | MatchNoun | MatchPlural |
                             MatchWeak);
             
-            local ann = rexGroup(1)[3];
+            local ann = regexGroup(1)[3];
             
             /* note the new part of speech */
             switch (ann)
@@ -1060,7 +1060,7 @@ class LMentionable: object
          *   if this is an adjective ending in apostrophe-S, use that form
          *   of the word 
          */
-//        if (rexMatch(apostSPat, w))
+//        if (regexMatch(apostSPat, w))
 //        {
 //            /* note the existing value of w*/
 //            local wOld = w;
@@ -1069,7 +1069,7 @@ class LMentionable: object
 //             *   strip off the apostrophe-S, since the tokenizer will do
 //             *   this when parsing the input 
 //             */
-//            w = rexGroup(1)[3];
+//            w = regexGroup(1)[3];
 //
 //            /* mark it as an apostrophe-S word in the dictionary */
 //            partOfSpeech = &nounApostS;
@@ -1079,7 +1079,7 @@ class LMentionable: object
 //            apostropheSPreParser.addEntry(wOld, w);
 //        }
         
-        if (rexMatch(apostSPat, w))
+        if (regexMatch(apostSPat, w))
         {
             /* mark it as an apostrophe-S word in the dictionary */
             partOfSpeech = &nounApostS;
@@ -1093,7 +1093,7 @@ class LMentionable: object
              *   full token with the apostrophe-S for the actual noun phrase
              *   matching.
              */
-            cmdDict.addWord(dictionaryPlaceholder, rexGroup(1)[3],
+            cmdDict.addWord(dictionaryPlaceholder, regexGroup(1)[3],
                             partOfSpeech);
         }
         
@@ -1112,7 +1112,7 @@ class LMentionable: object
         else if (w.find(pluralPat) != nil)
         {
             /* there's an explicit plural - retrieve it */
-            local pl = rexGroup(1)[3];
+            local pl = regexGroup(1)[3];
 
             /* strip it out of the string */
             w = w.findReplace(pluralPat, '', ReplaceOnce);
@@ -1126,7 +1126,7 @@ class LMentionable: object
             /* add each plural; assume truncation isn't allowed */
             pl.forEach({x: initVocabWord(x, MatchPlural | MatchNoTrunc)});
         }
-        else if (matchFlags == MatchNoun && rexMatch(properPat, w) == nil)
+        else if (matchFlags == MatchNoun && regexMatch(properPat, w) == nil)
         {
             /* 
              *   it's a noun, it's not a proper noun, and no plural form
@@ -1138,7 +1138,7 @@ class LMentionable: object
              *   if it's an acronym or number, add the apostrophe-s plural
              *   as an alternative (1990's, LCD's) 
              */
-            if (rexMatch(acronymPluralPat, w) != nil
+            if (regexMatch(acronymPluralPat, w) != nil
                 || w.length() == 1)
                 pl += ['<<w>>\'s'];
 
@@ -1618,15 +1618,15 @@ class LMentionable: object
              *   case handling 
              */
             local sc;
-            if (rexMatch(firstWordPat, str)
-                && (sc = specialAOrAn[rexGroup(1)[3]]) != nil)
+            if (regexMatch(firstWordPat, str)
+                && (sc = specialAOrAn[regexGroup(1)[3]]) != nil)
                 return (sc == 1 ? 'a ' : 'an ') + str;
 
             /* get the first character of the name */
             firstChar = inStr.substr(1, 1);
 
             /* skip any leading HTML tags */
-            if (rexMatch(tagOrQuotePat, firstChar) != nil)
+            if (regexMatch(tagOrQuotePat, firstChar) != nil)
             {
                 /*
                  *   Scan for tags.  Note that this pattern isn't quite
@@ -1636,7 +1636,7 @@ class LMentionable: object
                  *   complex for this pattern, the object will simply have
                  *   to override aDesc.
                  */
-                local len = rexMatch(leadingTagOrQuotePat, inStr);
+                local len = regexMatch(leadingTagOrQuotePat, inStr);
                 
                 /* if we got a match, strip out the leading tags */
                 if (len != nil)
@@ -1656,14 +1656,14 @@ class LMentionable: object
              *   if the first word of the name is only one letter long,
              *   treat it specially
              */
-            if (rexMatch(oneLetterWordPat, inStr) != nil)
+            if (regexMatch(oneLetterWordPat, inStr) != nil)
             {
                 /*
                  *   We have a one-letter first word, such as "I-beam" or
                  *   "M-ray sensor", or just "A".  Choose the article based
                  *   on the pronunciation of the letter as a letter.
                  */
-                return (rexMatch(oneLetterAnWordPat, inStr) != nil
+                return (regexMatch(oneLetterAnWordPat, inStr) != nil
                         ? 'an ' : 'a ') + str;
             }
 
@@ -1695,7 +1695,7 @@ class LMentionable: object
                  *   Y-connector".
                  */
                 if (secondChar == ''
-                    || rexMatch(alphaCharPat, secondChar) == nil
+                    || regexMatch(alphaCharPat, secondChar) == nil
                     || vowels.find(secondChar.toLower()) != nil
                     || vowelsUpperOnly.find(secondChar) != nil)
                 {
@@ -1712,7 +1712,7 @@ class LMentionable: object
                     return 'an <<str>>';
                 }
             }
-            else if (rexMatch(elevenEighteenPat, inStr) != nil)
+            else if (regexMatch(elevenEighteenPat, inStr) != nil)
             {
                 /*
                  *   it starts with '11' or '18', so it takes 'an' ('an
@@ -1795,8 +1795,8 @@ class LMentionable: object
              *   part we'll actually pluralize, and the rest is a suffix 
              *   we'll stick on the end of the pluralized part. 
              */
-            str = rexGroup(1)[3];
-            str2 = rexGroup(2)[3];
+            str = regexGroup(1)[3];
+            str2 = regexGroup(2)[3];
 
             /*
              *   now pluralize the part up to the 'of' using the normal
@@ -1806,11 +1806,11 @@ class LMentionable: object
         }
 
         /* parse out the last word */
-        rexMatch(lastWordPat, str);
+        regexMatch(lastWordPat, str);
 
         /* pluralize the last word */
-        str = rexGroup(1)[3];
-        str2 = rexGroup(2)[3];
+        str = regexGroup(1)[3];
+        str2 = regexGroup(2)[3];
         return str + pluralWordFrom(str2, '&rsquo;');
     }
 
@@ -1847,8 +1847,8 @@ class LMentionable: object
             return irr[1];
 
         /* check for words ending in 'man' */
-        if (rexMatch(menPluralPat, str))
-            return '<<rexGroup(1)[3]>>men';
+        if (regexMatch(menPluralPat, str))
+            return '<<regexGroup(1)[3]>>men';
 
         /* if the string is empty, return empty */
         len = str.length();
@@ -1863,7 +1863,7 @@ class LMentionable: object
          *   Ms, Us, Vs); and words made up of initials with periods
          *   between each letter.  
          */
-        if (rexMatch(apostPluralPat, str) != nil)
+        if (regexMatch(apostPluralPat, str) != nil)
             return '<<str>><<apost>>s';
 
         /* for any other single letter, return the letter + 's' */
@@ -1871,16 +1871,16 @@ class LMentionable: object
             return '<<str>>s';
 
         /* for all-capital words (CPA, PC) or numbers, just add -s */
-        if (rexMatch(acronymPluralPat, str) != nil)
+        if (regexMatch(acronymPluralPat, str) != nil)
             return '<<str>>s';
 
         /* check for -es plurals */
-        if (rexMatch(esPluralPat, str) != nil)
+        if (regexMatch(esPluralPat, str) != nil)
             return '<<str>>es';
 
         /* check for 'y' -> 'ies' plurals */
-        if (rexMatch(iesPluralPat, str) != nil)
-            return '<<rexGroup(1)[3]>>ies';
+        if (regexMatch(iesPluralPat, str) != nil)
+            return '<<regexGroup(1)[3]>>ies';
 
         /* for anything else, just add -s */
         return '<<str>>s';
@@ -1946,7 +1946,7 @@ class LMentionable: object
      */
     usedPluralToken()
     {
-        return propDefined(&pluralTokens) && 
+        return hasProp(&pluralTokens) && 
             valToList(pluralTokens).overlapsWith(gCommand.verbProd.tokenList.mapAll({x:
                 getTokVal(x)}));
     } 
@@ -2986,7 +2986,7 @@ spellNumber(n)
     local comma = englishOptions.numGroupMark;
     
     /* if it's a Decimal with a fractional part, write as digits */
-    if (dataType(n) == TypeObject
+    if (typeOf(n) == TypeObject
         && n.ofKind(Decimal)
         && n.getFraction() != 0)
     {
@@ -3609,7 +3609,7 @@ makeListStr(objList, nameProp = &aName, conjunction = 'and', suppressStateInfo =
      *   items in the list have the same sortOrder, we don't want to shuffle
      *   them out of their original order by performing an unnecessary sort.
      */       
-    if(objList.length > 0 && objList[1].propDefined(&listOrder) &&
+    if(objList.length > 0 && objList[1].hasProp(&listOrder) &&
        objList.indexWhich({x: x.listOrder != objList[1].listOrder}))
         objList = objList.sort(SortAsc, {a, b: a.listOrder - b.listOrder});
     
@@ -4130,9 +4130,9 @@ nounRoleQuestion(cmd, role)
 
         /* get the explicit or implied other-object role */
         local r;
-        if (rexGroup(3) != nil)
+        if (regexGroup(3) != nil)
         {
-            r = rexGroup(3)[3];
+            r = regexGroup(3)[3];
             r = (r == 'dobj' ? DirectObject :
                  r == 'iobj' ? IndirectObject :
                  AccessoryObject);
@@ -4147,10 +4147,10 @@ nounRoleQuestion(cmd, role)
         }
 
         /* get the preposition, if supplied */
-        local prep = (rexGroup(1) != nil ? rexGroup(1)[3].substr(2) : '');
+        local prep = (regexGroup(1) != nil ? regexGroup(1)[3].substr(2) : '');
 
         /* return the noun phrase */
-        return npListPronoun(rexGroup(2)[3], cmd.(r.npListProp), prep);
+        return npListPronoun(regexGroup(2)[3], cmd.(r.npListProp), prep);
     };
 
     /* substitute each other-object phrase and return the result */    
@@ -4211,7 +4211,7 @@ announceBestChoice(action, obj, role)
     local pat = R'(<lparen>.*?<rparen>)';
     
     /* Pull out the first parenthesised section */
-    local rm = rexSearch(pat, vp);
+    local rm = regexSearch(pat, vp);
     
     /* 
      *   Some VerbRules (notably VerbRule(LookUp) for the ConsultAbout action) reverse the dobj and
@@ -4228,7 +4228,7 @@ announceBestChoice(action, obj, role)
      *   parenthesized section
      */
     if(role == IndirectObject)
-        rm = rexSearch(pat, vp, rm[1] + rm[2]);
+        rm = regexSearch(pat, vp, rm[1] + rm[2]);
     
     /*  Replace 'what' with the object name */
     ann = rm[3].findReplace('what', obj.abcName(action, role));
@@ -4450,7 +4450,7 @@ libMessages: object
  */
 makeSentence(msg)
 {
-    return rexReplace(
+    return regexReplace(
         ['^<space>*[a-z]', '(?<=[^.?! ])<space>*$'], msg,
         [{m: m.toUpper()}, '.']);
 }
@@ -5104,7 +5104,7 @@ langAdjust(txt)
     
     for(;;)
     {
-        local rf = rexSearch(
+        local rf = regexSearch(
                    R'<lbrace>(s/d|s/ed|es/ed|ies/ied|s/<question>ed)<rbrace>',
             txt);
     
@@ -5729,7 +5729,7 @@ modify Action
          *   parse the verbPhrase into the parts before and after the
          *   slash, and any additional text following the slash part
          */
-        rexMatch('(.*)/(<alphanum|-|squote>+)(.*)', verbRule.verbPhrase);
+        regexMatch('(.*)/(<alphanum|-|squote>+)(.*)', verbRule.verbPhrase);
 
         /* return the appropriate parts */
         if (inf)
@@ -5738,12 +5738,12 @@ modify Action
              *   infinitive - we want the part before the slash, plus the
              *   extra prepositions (or whatever) after the switched part
              */
-            return rexGroup(1)[3] + rexGroup(3)[3];
+            return regexGroup(1)[3] + regexGroup(3)[3];
         }
         else
         {
             /* participle - it's the part after the slash */
-            return rexGroup(2)[3] + rexGroup(3)[3];
+            return regexGroup(2)[3] + regexGroup(3)[3];
         }
     }
   
@@ -5945,21 +5945,21 @@ modify TAction
          *   object placeholder, and any preposition within the '(what)'
          *   specifier
          */
-        rexMatch('(.*)/(<alphanum|-|squote>+)(.*) '
+        regexMatch('(.*)/(<alphanum|-|squote>+)(.*) '
                  + '<lparen>(.*?)<space>*?<alpha>+<rparen>(.*)',
                  vp);
 
         /* start off with the infinitive or participle, as desired */
         if (inf)
-            ret = rexGroup(1)[3];
+            ret = regexGroup(1)[3];
         else
-            ret = rexGroup(2)[3];
+            ret = regexGroup(2)[3];
 
         /* get the prepositional complementizer */
-        vcomp = rexGroup(3)[3];
+        vcomp = regexGroup(3)[3];
 
         /* get the direct object preposition */
-        dprep = rexGroup(4)[3];
+        dprep = regexGroup(4)[3];
 
         /*
          *   if the direct object is not a pronoun, put the complementizer
@@ -5985,7 +5985,7 @@ modify TAction
          *   if there's any suffix following the direct object
          *   placeholder, add it at the end of the phrase
          */
-        ret += rexGroup(5)[3];
+        ret += regexGroup(5)[3];
 
         /* return the complete phrase string */
         return ret;
@@ -6036,23 +6036,23 @@ modify TIAction
         local dprep, iprep;
 
         /* parse the verbPhrase into its component parts */
-        rexMatch('(.*)/(<alphanum|-|squote>+)(?:<space>+(<^lparen>*))?'
+        regexMatch('(.*)/(<alphanum|-|squote>+)(?:<space>+(<^lparen>*))?'
                  + '<space>+<lparen>(.*?)<space>*<alpha>+<rparen>'
                  + '<space>+<lparen>(.*?)<space>*<alpha>+<rparen>',
                  vp);
 
         /* start off with the infinitive or participle, as desired */
         if (inf)
-            ret = rexGroup(1)[3];
+            ret = regexGroup(1)[3];
         else
-            ret = rexGroup(2)[3];
+            ret = regexGroup(2)[3];
 
         /* get the complementizer */
-        vcomp = (rexGroup(3) == nil ? '' : rexGroup(3)[3]);
+        vcomp = (regexGroup(3) == nil ? '' : regexGroup(3)[3]);
 
         /* get the direct and indirect object prepositions */
-        dprep = rexGroup(4)[3];
-        iprep = rexGroup(5)[3];
+        dprep = regexGroup(4)[3];
+        iprep = regexGroup(5)[3];
 
         /*
          *   add the complementizer BEFORE the direct object, if the
@@ -6272,7 +6272,7 @@ yesOrNo()
      *   affirmative, otherwise it's negative.  In reading the response,
      *   ignore any leading whitespace.
      */
-    return rexMatch('<space>*[yY]', str) != nil;
+    return regexMatch('<space>*[yY]', str) != nil;
 }
 
 
@@ -6499,9 +6499,9 @@ enumTabObj: object
     /* Convert enum to corresponding string value or vice versa. */
     getEnum(arg)
     {
-        switch(dataType(arg))
+        switch(typeOf(arg))
         {
-        case TypeSString:
+        case TypeString:
             return reverseEnumTab[arg];
         case TypeEnum:
             return enumTab[arg];

@@ -38,7 +38,7 @@ class Fact: object
     qualifiedDesc(source, topic, sender)
     {       
         /* Start by searhing for an expression in square brackets */
-        local rexS = rexSearch(sourcepat, desc);
+        local rexS = regexSearch(sourcepat, desc);
         
         /* 
          *   This will be a string containing the gobalParamName of the subject of the sentence we
@@ -126,7 +126,7 @@ class Fact: object
             qDesc = qDesc.findReplace(rm, repstr);
             
             /* Then search for the next [*] match in our qDesc string. */
-            rexS = rexSearch(sourcepat, qDesc);
+            rexS = regexSearch(sourcepat, qDesc);
             
         }
         
@@ -189,7 +189,7 @@ class Fact: object
              *   If actor is given as an list, the first element should be the actor and the second
              *   a value (such as likely or dubious) to associate with this fact on this actor)
              */
-            if(dataType(actor) == TypeList)
+            if(typeOf(actor) == TypeList)
             {
                 /* Provided we have a second element, set val to it. */
                 if(actor.length() > 1)                    
@@ -1096,7 +1096,7 @@ modify TopicEntry
      *   The optionsl msg parameter works the same way as for revealFact. The optional actor
      *   parameter defines the actor who is being informed of this fact, and defaults to getActor,
      *   who will usually be the conversational partner here. The actor parameter can be omitted and
-     *   the msg parameter placed second and will still be interpreted correctly via its dataType.
+     *   the msg parameter placed second and will still be interpreted correctly via its typeOf.
      */
     informFact(tag, actor = getActor(), msg?)
     {
@@ -1107,7 +1107,7 @@ modify TopicEntry
          *   If the secong parameter has been supplied as integer or single-quoted string, treat it
          *   as the third (msg) parameter and set the actor parameter to the default getActor.
          */
-        if(dataType(actor) is in (TypeInt, TypeSString, TypeProp, TypeFuncPtr))
+        if(typeOf(actor) is in (TypeInt, TypeString, TypeProp, TypeFunction))
         {
             msg = actor;
             actor = getActor();
@@ -1190,10 +1190,10 @@ modify TopicEntry
     interpret(fact, msg)
     {
         /* The interpretation depends on the data type of the msg parameter */
-        switch(dataType(msg))
+        switch(typeOf(msg))
         {
             /* If it's already a single-quoted string, return msg unchanged. */
-        case TypeSString:
+        case TypeString:
             return msg;
             
             /* 
@@ -1209,7 +1209,7 @@ modify TopicEntry
             return fact.(msg)(self);
             
             /* If it's a function pointer, call the function with self as an argument. */
-        case TypeFuncPtr:
+        case TypeFunction:
             local f = msg;
             return f(self);                    
         }
@@ -1590,9 +1590,9 @@ action FactInfo: SystemAction
         "[";
         foreach(local obj in lst)
         {
-            if(dataType(obj) == TypeSString) "'";
+            if(typeOf(obj) == TypeString) "'";
             "<<valToSym(obj)>>";
-            if(dataType(obj) == TypeSString) "'";
+            if(typeOf(obj) == TypeString) "'";
             if(++i < lst.length)
                 ", ";
         }

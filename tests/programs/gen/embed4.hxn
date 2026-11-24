@@ -1,11 +1,11 @@
 intrinsic 'hexicon-gen/030008'
 {
-    dataType(val); getArg(idx); firstObj(cls?, flags?); nextObj(obj, cls?, flags?);
+    typeOf(val); arg(idx); firstObj(cls?, flags?); nextObj(obj, cls?, flags?);
     randomize(...); rand(x, ...); toString(val, radix?, isSigned?); toInteger(val, radix?);
-    getTime(typ?); rexMatch(pat, str, idx?); rexSearch(pat, str, idx?); rexGroup(n);
-    rexReplace(pat, str, repl, flags?, idx?); savepoint(); undo(); saveGame(fname, metaTab?);
-    restoreGame(fname); restartGame(); max(val, ...); min(val, ...); makeString(val, rpt?);
-    getFuncParams(func); toNumber(val, radix?); sprintf(fmt, ...);
+    getTime(typ?); regexMatch(pat, str, idx?); regexSearch(pat, str, idx?); regexGroup(n);
+    regexReplace(pat, str, repl, flags?, idx?); savepoint(); undo(); saveGame(fname, metaTab?);
+    restoreGame(fname); restartGame(); max(val, ...); min(val, ...); repeatString(val, rpt?);
+    functionParams(func); toNumber(val, radix?); sprintf(fmt, ...);
 }
 
 _main(args)

@@ -18,13 +18,13 @@ intrinsic 'hexicon-gen/030008'
     /*
      *   Get the type of the given value.  This returns a TypeXxx value.
      */
-    dataType(val);
+    typeOf(val);
 
     /*
      *   Get the given parameter to the current function.  'idx' is 1 for the
      *   first argument in left-to-right order, 2 for the second, and so on. 
      */
-    getArg(idx);
+    arg(idx);
 
     /*
      *   Get the first object in memory.  If 'cls' is provided, we return the
@@ -326,7 +326,7 @@ intrinsic 'hexicon-gen/030008'
      *   possible for a pattern with a zero-or-more closure, such as 'x*' or
      *   'x?'.)  
      */
-    rexMatch(pat, str, index?);
+    regexMatch(pat, str, index?);
 
     /*
      *   Search the given string for the given regular expression pattern.
@@ -340,11 +340,11 @@ intrinsic 'hexicon-gen/030008'
      *   starting character index of the match, length is the length in
      *   characters of the match, and string is the text of the match.  
      */
-    rexSearch(pat, str, index?);
+    regexSearch(pat, str, index?);
 
     /*
      *   Get the given regular expression group.  This can be called after a
-     *   successful rexMatch() or rexSearch() call to retrieve information on
+     *   successful regexMatch() or regexSearch() call to retrieve information on
      *   the substring that matched the given "group" within the regular
      *   expression.  A group is a parenthesized sub-pattern within the
      *   regular expression; groups are numbered left to right by the open
@@ -358,7 +358,7 @@ intrinsic 'hexicon-gen/030008'
      *   match, length is the character length of the group match, and string
      *   is the text of the group match.  
      */
-    rexGroup(groupNum);
+    regexGroup(groupNum);
 
     /*
      *   Search for the given regular expression pattern (which can be given
@@ -438,7 +438,7 @@ intrinsic 'hexicon-gen/030008'
      *   entire matched input.  (Because of the special meaning of "%", you
      *   must use "%%" to include a percent sign in the replacement text.)  
      */
-    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    regexReplace(pat, str, replacement, flags?, index?, limit?);
 
     /*
      *   Create an UNDO savepoint.  This adds a marker to the VM's internal
@@ -525,7 +525,7 @@ intrinsic 'hexicon-gen/030008'
      *   sometimes a more convenient or efficient way to do certain types of
      *   string handling than using the actual string type.  
      */
-    makeString(val, repeatCount?);
+    repeatString(val, repeatCount?);
 
     /*
      *   Get a description of the parameters to the given function.  'func'
@@ -536,7 +536,7 @@ intrinsic 'hexicon-gen/030008'
      *   and isVarargs is true if the function takes any number of additional
      *   ("varying") arguments, nil if not.  
      */
-    getFuncParams(func);
+    functionParams(func);
 
     /*
      *   Convert the given value to a number.  This is similar to
@@ -601,7 +601,7 @@ intrinsic 'hexicon-gen/030008'
      *   repeat count less than zero throws an error.  'val' can be any
      *   value; it's simply repeated in each element of the list.
      */
-    makeList(val, repeatCount?);
+    repeatList(val, repeatCount?);
 
     /*
      *   Get the absolute value of a number.  The argument can be an integer
@@ -652,7 +652,7 @@ intrinsic 'hexicon-gen/030008'
      *   length is the length in characters of the match, and string is the
      *   text of the match.
      *   
-     *   This does the same work as rexSearch(), but searches the string
+     *   This does the same work as regexSearch(), but searches the string
      *   backwards, from the end to the start.  The match must end before the
      *   starting index, which allows for repeated searches: simply pass the
      *   match index from the previous search as the 'index' value for the
@@ -674,7 +674,7 @@ intrinsic 'hexicon-gen/030008'
      *   <FirstEnd> means that the winner is the one whose starting index is
      *   highest.
      */
-    rexSearchLast(pat, str, index?);
+    regexSearchLast(pat, str, index?);
 }
 
 /*
@@ -685,7 +685,7 @@ intrinsic 'hexicon-gen/030008'
 #define ObjAll        (ObjInstances | ObjClasses)
 
 /*
- *   rexReplace() flags 
+ *   regexReplace() flags 
  */
 #define ReplaceAll         0x0001
 #define ReplaceIgnoreCase  0x0002

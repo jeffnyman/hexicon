@@ -111,7 +111,7 @@ _main(args)
     line(dog.legs);
     line(new Animal().describe());
     line(cat.name);
-    line(cat.propDefined(&sound) ? 'still an animal' : 'no longer an animal');
+    line(cat.hasProp(&sound) ? 'still an animal' : 'no longer an animal');
     line(dog.ofKind(Animal) ? 'a kind of animal' : 'not an animal');
 
     local list = ['a', 'b', 'c'];

@@ -71,7 +71,7 @@ class Scenery: PreinitObject
             switch(dataTypeXlat(des))
             {
                 /* If it's a single-quoted string, copy it to our new object's descStr property. */
-            case TypeSString:
+            case TypeString:
                 obj.descStr = des;
                 break;
                 
@@ -79,7 +79,7 @@ class Scenery: PreinitObject
                  *   If it's an anonymous method or function, assign it to our new objects desc
                  *   method.
                  */
-            case TypeFuncPtr:
+            case TypeFunction:
                 obj.setMethod(&desc, des);
                 break;
                 
@@ -125,7 +125,7 @@ class Scenery: PreinitObject
                 
                 switch(dataTypeXlat(notImp))
                 {
-                case TypeSString:
+                case TypeString:
                     /* If the notImportantMsg is a single-quoted string, copy it across to obj. */
                     obj.notImportantMsg = notImp;
                     break;
@@ -168,7 +168,7 @@ class Scenery: PreinitObject
              *   Otherwise, take our notImportantMsg from des (the second item in the current list)
              *   provided its notImportantMsg is non-nil
              */
-            else if(dataType(des) == TypeObject && des.propType(&notImportantMsg) != TypeNil)
+            else if(typeOf(des) == TypeObject && des.propType(&notImportantMsg) != TypeNil)
             {
                 local m = des.getMethod(&notImportantMsg);
                 

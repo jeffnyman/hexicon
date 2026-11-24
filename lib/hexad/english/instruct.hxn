@@ -360,7 +360,7 @@ action Instructions: SystemAction
             str = inputManager.getInputLine(nil);
 
             /* if they want to capture them to a file, set up scripting */
-            if (rexMatch('<nocase><space>*s(c(r(i(pt?)?)?)?)?<space>*', str)
+            if (regexMatch('<nocase><space>*s(c(r(i(pt?)?)?)?)?<space>*', str)
                 == str.length())
             {
                 /* try setting up a scripting file */
@@ -373,7 +373,7 @@ action Instructions: SystemAction
                 /* note that we've started a script file */
                 startedScript = true;
             }
-            else if (rexMatch('<nocase><space>*y.*', str) != str.length())
+            else if (regexMatch('<nocase><space>*y.*', str) != str.length())
             {
                 "Canceled. ";
                 return;

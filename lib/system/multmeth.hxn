@@ -210,7 +210,7 @@ _multiMethodSelect(prop, args)
      *   bindings.  
      */
     local orig = args[1];
-    if (dataType(orig) not in (TypeObject, TypeList, TypeSString))
+    if (typeOf(orig) not in (TypeObject, TypeList, TypeString))
         orig = _multiMethodNonObjectBindings;
 
     /* get the remaining arguments */
@@ -228,7 +228,7 @@ _multiMethodSelect(prop, args)
      *   we can immediately return nil to indicate that we don't have a
      *   binding.  
      */
-    if ((obj = orig.propDefined(prop, PropDefGetClass)) == nil
+    if ((obj = orig.hasProp(prop, PropDefGetClass)) == nil
         || (binding = obj.(prop)) == nil)
         return nil;
 
@@ -237,7 +237,7 @@ _multiMethodSelect(prop, args)
      *   function binding, we don't have enough arguments to match the
      *   current multi-method path.  Return failure.  
      */
-    if (args.length() == 0 && dataType(binding) != TypeFuncPtr)
+    if (args.length() == 0 && typeOf(binding) != TypeFunction)
         return nil;
 
     /* 
@@ -249,7 +249,7 @@ _multiMethodSelect(prop, args)
         local ret;
 
         /* if we have a function pointer, we've found our binding */
-        if (dataType(binding) == TypeFuncPtr)
+        if (typeOf(binding) == TypeFunction)
             return binding;
 
         /* 
@@ -306,7 +306,7 @@ _multiMethodInheritMain(ctx, fromFunc, prop, args)
      *   bindings.  
      */
     local orig = args[1];
-    if (dataType(orig) not in (TypeObject, TypeList, TypeSString))
+    if (typeOf(orig) not in (TypeObject, TypeList, TypeString))
         orig = _multiMethodNonObjectBindings;
 
     /* get the remaining arguments */
@@ -324,7 +324,7 @@ _multiMethodInheritMain(ctx, fromFunc, prop, args)
      *   we can immediately return nil to indicate that we don't have a
      *   binding.  
      */
-    if ((obj = orig.propDefined(prop, PropDefGetClass)) == nil
+    if ((obj = orig.hasProp(prop, PropDefGetClass)) == nil
         || (binding = obj.(prop)) == nil)
         return nil;
 
@@ -333,7 +333,7 @@ _multiMethodInheritMain(ctx, fromFunc, prop, args)
      *   function binding, we don't have enough arguments to match the
      *   current multi-method path.  Return failure.  
      */
-    if (args.length() == 0 && dataType(binding) != TypeFuncPtr)
+    if (args.length() == 0 && typeOf(binding) != TypeFunction)
         return nil;
 
     /* 
@@ -350,7 +350,7 @@ _multiMethodInheritMain(ctx, fromFunc, prop, args)
          *   actual binding, or a property, in which case it's the next
          *   binding level 
          */
-        if (dataType(binding) == TypeFuncPtr)
+        if (typeOf(binding) == TypeFunction)
         {
             /* this is the binding */
             ret = binding;
@@ -526,7 +526,7 @@ _multiMethodBuildBindings()
     globalSymbols().forEachAssoc(function(key, val)
     {
         /* if it's a function, store a value-to-name association */
-        if (dataType(val) == TypeFuncPtr)
+        if (typeOf(val) == TypeFunction)
             nameTab[val] = key;
     });
 
@@ -659,14 +659,14 @@ _multiMethodBuildBindings()
                      *   definition for this function, we have a
                      *   conflicting definition 
                      */
-                    if (typ.propDefined(prop, PropDefDirectly)
+                    if (typ.hasProp(prop, PropDefDirectly)
                         && typ.(prop) != binding)
                         errs += [baseFunc, func, params, name];
                 }
                 else
                 {
                     /* check for an existing binding property here */
-                    if (typ.propDefined(prop, PropDefDirectly))
+                    if (typ.hasProp(prop, PropDefDirectly))
                     {
                         /* we already have a forward binding here - use it */
                         binding = typ.(prop);

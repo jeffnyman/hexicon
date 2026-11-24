@@ -18,7 +18,7 @@
  *   HTTP Request object.  This object represents an HTTP protocol request
  *   from a client to one of our servers.  HTTPRequest objects are created by
  *   the HTTPServer object as requests arrive, and are passed to the byte
- *   code program as network events, via the getNetEvent() function.  The
+ *   code program as network events, via the netEvent() function.  The
  *   program uses the object to get information on the request and to send
  *   back the reply.  
  */

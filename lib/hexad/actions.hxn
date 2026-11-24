@@ -872,7 +872,7 @@ Go: TravelAction
          *   Otherwise, if our location doesn't define our travelProp property or that property is
          *   nil, call our fsllback() method and stop there.
          */     
-        if(!loc.propDefined(travelProp) || loc.propType(travelProp) == nil)
+        if(!loc.hasProp(travelProp) || loc.propType(travelProp) == nil)
         {
             fallback(loc);
             return;
@@ -900,7 +900,7 @@ Go: TravelAction
              *   If we're pointing to a double quoted string or method, call the methor or display
              *   the string.
              */
-        case TypeDString:
+        case TypePrintString:
         case TypeCode:
             /* Execute the method and store its return value. */
             conn = loc.(travelProp);
@@ -919,7 +919,7 @@ Go: TravelAction
                 noteRetval(loc, conn);                                
             break;
             /* If we're pointing to a aingle-quoted string, simply display the string */
-        case TypeSString:
+        case TypeString:
             say(loc.travelProp);
             break;
             /* Otherwise, just display our noGoodHereMsg */
@@ -960,7 +960,7 @@ Go: TravelAction
      */
     noteRetval(loc, val)
     {
-        if(dataType(val) == TypeSString)
+        if(typeOf(val) == TypeString)
            say(val);
     }
     
@@ -2258,7 +2258,7 @@ action PushTravelDir(dobj): TAction
              *   Maybe conn looks like an object but is actually an anonymous or dynamic function,
              *   in which case we can try to execute it.
              */
-            if(dataTypeXlat(conn) == TypeFuncPtr)
+            if(dataTypeXlat(conn) == TypeFunction)
             {
                 try
                 {
@@ -2673,7 +2673,7 @@ ThinkAbout: TopicAction
                 local top = tList[1];
                 
                 /* If that topic defines a thinkDesc property, attempt to display it. */
-                if(top.propDefined(&thinkDesc))
+                if(top.hasProp(&thinkDesc))
                     top.displayAlt(&thinkDesc, &noThought);
                 
                 /* If all else fails, display out noThought message. */
@@ -3344,7 +3344,7 @@ action Replay: FileOpAction
     inputScriptOkay(fname)
     {
         DMsg(input script okay, '<.parser>Reading commands from <q><<
-          File.getRootName(fname).htmlify()>></q>...<./parser>\n ');
+          File.getRootName(fname).escapeHtml()>></q>...<./parser>\n ');
     }
 
     

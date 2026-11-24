@@ -39,7 +39,7 @@ helpMessage: object
         if(defined(extraHintManager))
            extraHintManager.explainExtraHints();
         
-        if(versionInfo.propDefined(&showAbout, PropDefDirectly))
+        if(versionInfo.hasProp(&showAbout, PropDefDirectly))
            "For more information specific to this game, type <<aHref('ABOUT',
                'ABOUT', 'Show information about this game')>>. ";
     }
@@ -386,7 +386,7 @@ bodyParts: MultiLoc, Unthing 'body; (my) (your) (his) (her) (this) (left)
 somethingPreParser: StringPreParser
     doParsing(str, which)
     {
-        local ret = rexSearch(pat, str);
+        local ret = regexSearch(pat, str);
         if(ret != nil)
         {
             /* first check whether the word occurs in the dictionary */
@@ -442,7 +442,7 @@ verb LookHere ('l' | 'look' | 'search') ('here'->placeName|'there'->placeName):
 pleasePreParser: StringPreParser
     doParsing(str, which)
     {
-        if(rexMatch(pat, str) && gPlayerChar.currentInterlocutor == nil)
+        if(regexMatch(pat, str) && gPlayerChar.currentInterlocutor == nil)
         {
             "That's very polite of you, but there's really no need to use words
             like <q>please</q> and <q>kindly</q>; you'll find the game
@@ -513,10 +513,10 @@ verb KeepGoing
 pronounUsePreParser: StringPreParser
     doParsing(str, which)
     {
-        if(rexMatch(pat3, str) || gPlayerChar.currentInterlocutor != nil)
+        if(regexMatch(pat3, str) || gPlayerChar.currentInterlocutor != nil)
             return str;
         
-        if(rexMatch(pat, str) || rexMatch(pat2, str))
+        if(regexMatch(pat, str) || regexMatch(pat2, str))
         {
             "If the game is not understanding you, try issuing your commands in
             the imperative: e.g., THROW THE KNIFE, but not I WOULD REALLY LIKE
@@ -869,8 +869,8 @@ seekPreParser: StringPreParser
             doReplacement = nil; 
         }
         
-        if(doReplacement && rexMatch(pat, str))  
-           str = rexReplace(pat, str, 'seek', ReplaceOnce); 
+        if(doReplacement && regexMatch(pat, str))  
+           str = regexReplace(pat, str, 'seek', ReplaceOnce); 
         
         return str;
     }

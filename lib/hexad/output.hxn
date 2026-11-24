@@ -19,9 +19,9 @@ say(val)
      *   filter and the enumTabObj to translate an enum into its string equivalent, otherwise output
      *   the value directly.
      */
-    switch(dataType(val))
+    switch(typeOf(val))
     {
-    case TypeSString:
+    case TypeString:
         dmsg(val);
         break;
     case TypeEnum:
@@ -39,7 +39,7 @@ say(val)
            
     
     
-//    if(dataType(val) == TypeSString)   
+//    if(typeOf(val) == TypeString)   
 //    {       
 //        dmsg(val);           
 //    }    
@@ -209,9 +209,9 @@ class OutputStream: PreinitObject
         }
         
         /* convert the value to a string */
-        switch(dataType(val))
+        switch(typeOf(val))
         {
-        case TypeSString:
+        case TypeString:
             /* 
              *   it's a string - no conversion is needed, but if it's
              *   empty, it doesn't count as real output (so don't notify
@@ -690,7 +690,7 @@ class ParagraphManager: OutputFilter
             if (ostr.justDidPara)
             {
                 /* check for any consecutive paragraph markers */
-                if ((len = rexMatch(leadingMultiPat, txt)) != nil)
+                if ((len = regexMatch(leadingMultiPat, txt)) != nil)
                 {
                     /* discard the consecutive <.P>'s, and keep going */
                     txt = txt.substr(len + 1);
@@ -698,7 +698,7 @@ class ParagraphManager: OutputFilter
                 }
 
                 /* check for a match to the suppressAfter pattern */
-                if (rexMatch(suppressAfter, txt) != nil)
+                if (regexMatch(suppressAfter, txt) != nil)
                 {
                     /* discard the suppressed character and keep going */
                     txt = txt.substr(2);
@@ -717,7 +717,7 @@ class ParagraphManager: OutputFilter
              *   leading paragraph markers 
              */
             if (ostr.justDidParaSuppressor
-                && (len = rexMatch(leadingMultiPat, txt)) != nil)
+                && (len = regexMatch(leadingMultiPat, txt)) != nil)
             {
                 /* remove the paragraph markers */
                 txt = txt.substr(len + 1);
@@ -736,7 +736,7 @@ class ParagraphManager: OutputFilter
             p0 = unp0 = nil;
 
             /* find the next paragraph marker */
-            match = rexSearch(leadingSinglePat, txt);
+            match = regexSearch(leadingSinglePat, txt);
             if (match == nil)
             {
                 /* 
@@ -775,7 +775,7 @@ class ParagraphManager: OutputFilter
              *   <.p>, this counts as a suppressor.  
              */
             ostr.justDidParaSuppressor =
-                (p0 || rexMatch(suppressBefore,
+                (p0 || regexMatch(suppressBefore,
                                 ret.substr(ret.length(), 1)) != nil);
 
             /* 
@@ -1117,7 +1117,7 @@ styleTagFilter: OutputFilter, PreinitObject
         local idx;
         
         /* search for our special '<.xxx>' tags, and expand any we find */
-        idx = rexSearch(tagPattern, val);
+        idx = regexSearch(tagPattern, val);
         while (idx != nil)
         {
             local xlat;
@@ -1125,7 +1125,7 @@ styleTagFilter: OutputFilter, PreinitObject
             local afterStr;
             
             /* ask the formatter to translate it */
-            xlat = translateTag(rexGroup(1)[3]);
+            xlat = translateTag(regexGroup(1)[3]);
 
             /* get the part of the string that follows the tag */
             afterOfs = idx[1] + idx[2];
@@ -1154,7 +1154,7 @@ styleTagFilter: OutputFilter, PreinitObject
              *   the string following the replacement text - we do not
              *   want to re-scan the replacement text for tags 
              */
-            idx = rexSearch(tagPattern, afterStr);
+            idx = regexSearch(tagPattern, afterStr);
                 
             /* 
              *   If we found it, adjust the starting index of the match to
@@ -1310,7 +1310,7 @@ transient commandSequencer: OutputFilter
             local tag;
             
             /* search for our next special tag sequence */
-            match = rexSearch(patNextTag, txt);
+            match = regexSearch(patNextTag, txt);
 
             /* check to see if we found a tag */
             if (match == nil)
@@ -1327,7 +1327,7 @@ transient commandSequencer: OutputFilter
                 txt = txt.substr(match[1] + match[2]);
 
                 /* get the tag name */
-                tag = rexGroup(1)[3];
+                tag = regexGroup(1)[3];
             }
 
             /* process the plain text up to the tag, if any */
@@ -1589,7 +1589,7 @@ quoteFilter: OutputFilter, InitObject
         do
         {
             /* Look for <q> and </q> in the output */
-            quoteRes = rexSearch(quotePat, txt);
+            quoteRes = regexSearch(quotePat, txt);
             
             /* If we found <q> or </q>...*/
             if(quoteRes)
@@ -1916,10 +1916,10 @@ typographicalOutputFilter: OutputFilter
          *   don't do this if sentenceSpacer has been overridden to a single normal space.
          */
         if(sentenceSpacer != ' ')
-            val = rexReplace(eosPattern, val, '%1'+sentenceSpacer, ReplaceAll);
+            val = regexReplace(eosPattern, val, '%1'+sentenceSpacer, ReplaceAll);
 
         /* undo any abbreviations we mistook for sentence endings */
-        val = rexReplace(abbrevPat, val, '%1. ', ReplaceAll);
+        val = regexReplace(abbrevPat, val, '%1. ', ReplaceAll);
 
         /*
          *   Replace dashes with typographical hyphens.  Three hyphens in a
@@ -2017,7 +2017,7 @@ typographicalOutputFilter: OutputFilter
 showPreformatted(lst)
 {
     /* If lst is supplied as a single-quoted string, convert it to a single-element list. */
-    if(dataType(lst) == TypeSString)
+    if(typeOf(lst) == TypeString)
         lst = [lst];
     
     
@@ -2054,10 +2054,10 @@ cquoteOutputFilter: OutputFilter
 
 	// Look for an HTML tag. We only need to find the first one,
 	// because we'll be recursing through the string
-	ret = rexSearch(patIsHTMLTag, val);
+	ret = regexSearch(patIsHTMLTag, val);
 	if (ret == nil) {
 	    // Look for a formatting tag
-	    ret = rexSearch(patIsFormatTag, val);
+	    ret = regexSearch(patIsFormatTag, val);
 	}
             
         
@@ -2076,7 +2076,7 @@ cquoteOutputFilter: OutputFilter
 
 	// Do the appropriate replacements. First, aggressive
 	if (aggressive) {
-	    val = rexReplace(patAggressive, val, '%1&rsquo;',
+	    val = regexReplace(patAggressive, val, '%1&rsquo;',
 			     ReplaceAll);
             
             /* Also replace double quotes with curly quotes */
@@ -2088,11 +2088,11 @@ cquoteOutputFilter: OutputFilter
 	    // 'll, and n't, as well as the plural possessive s'.
 	    // (Possessive 's is handled by the contraction.) All
 	    // must be preceeded by a letter.
-	    val = rexReplace(patIsCont1Tag,
+	    val = regexReplace(patIsCont1Tag,
 			     val, '%1&rsquo;%2', ReplaceAll);
-	    val = rexReplace(patIsCont2Tag, val, '%1n&rsquo;t',
+	    val = regexReplace(patIsCont2Tag, val, '%1n&rsquo;t',
 			     ReplaceAll);
-	    val = rexReplace(patIsPossTag, val, '%1s&rsquo;',
+	    val = regexReplace(patIsPossTag, val, '%1s&rsquo;',
 			     ReplaceAll);
 	}
 
@@ -2134,7 +2134,7 @@ withTense(usePastTense, callback)
     finally         
     { 
         /* if useOldPastTense is an object, it was taken from Narrator.tense. */
-        if(dataType(oldUsePastTense == TypeObject))
+        if(typeOf(oldUsePastTense == TypeObject))
             Narrator.tense = oldUsePastTense;
         /* Otherwise we needs to restore the value on gameMain, */
         else            
@@ -2207,7 +2207,7 @@ conversationManager: OutputFilter, PreinitObject
             local args;
             
             /* scan for the next tag */
-            match = rexSearch(tagPat, txt, start);
+            match = regexSearch(tagPat, txt, start);
             
             /* if we didn't find it, we're done */
             if (match == nil)
@@ -2217,12 +2217,12 @@ conversationManager: OutputFilter, PreinitObject
             nxtOfs = match[1] + match[2];
             
             /* get the argument (the third group from the match) */
-            arg = rexGroup(3);
+            arg = regexGroup(3);
             if (arg != nil)
                 arg = arg[3];
             
             /* pick out the tag */
-            tag = rexGroup(1)[3].toLower(); 
+            tag = regexGroup(1)[3].toLower(); 
             
             
             /* check which tag we have */
@@ -2264,7 +2264,7 @@ conversationManager: OutputFilter, PreinitObject
          *   remove the tags from the text by replacing every occurrence with an empty string, and
          *   return the result
          */
-        return rexReplace(tagPat, txt, '', ReplaceAll);
+        return regexReplace(tagPat, txt, '', ReplaceAll);
     }
     
     tagPat = static new Regex(

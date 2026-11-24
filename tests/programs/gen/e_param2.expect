@@ -1,13 +1,13 @@
 image: none
 --- messages
-error: optional parameters require support function "getArg", which is undefined
+error: optional parameters require support function "arg", which is undefined
 error: named parameters require support function "namedArg", which is undefined
   --> e_param2.hxn:6
   |
 6 |     return x;
   |
 
-error: optional parameters require support function "getArg", which is undefined
+error: optional parameters require support function "arg", which is undefined
   --> e_param2.hxn:10
    |
 10 |   m(a?) { }
@@ -26,7 +26,7 @@ error: named parameters require support function "namedArg", which is undefined
 13 |      print(1);
    |
 
-error: optional parameters require support function "getArg", which is undefined
+error: optional parameters require support function "arg", which is undefined
   --> e_param2.hxn:15
    |
 15 |   q(b?) { }

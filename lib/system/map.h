@@ -56,7 +56,7 @@ intrinsic class Map 'lookuptable/030003': Collection
      *   constructor when the table was created.  This can be used to create
      *   a new table with the same parameters as an existing table.  
      */
-    getBucketCount();
+    bucketCount();
 
     /*
      *   Get the number of entries.  This returns the number of key/value
@@ -65,7 +65,7 @@ intrinsic class Map 'lookuptable/030003': Collection
      *   created; this is the number of entries actually stored in the
      *   table.  
      */
-    getEntryCount();
+    entryCount();
 
     /*
      *   Invoke the given function with each entry in the table, passing the
@@ -92,7 +92,7 @@ intrinsic class Map 'lookuptable/030003': Collection
      *   setDefaultValue(), or nil if no explicit default has been set on
      *   this table.  
      */
-    getDefaultValue();
+    defaultValue();
 
     /*
      *   Set the default value.  This changes the value returned by the index

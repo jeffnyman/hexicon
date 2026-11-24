@@ -50,7 +50,7 @@ intrinsic 'hexicon-io/030007'
      *   conventions, as though consecutive text output had exceeded the
      *   screen/window height.  
      */
-    morePrompt();
+    pausePrompt();
 
     /* 
      *   Read a line of text from the keyboard.  Pauses to let the user edit
@@ -252,7 +252,7 @@ intrinsic 'hexicon-io/030007'
      *   giving which local character set to retrieve.  Returns a string
      *   giving the name of the given local character set.  
      */
-    getLocalCharSet(which);
+    localCharSet(which);
     
     /* 
      *   Flush text output and update the main display window.  This ensures
@@ -313,56 +313,56 @@ intrinsic 'hexicon-io/030007'
     
     /* 
      *   Create a banner window.  Returns the "handle" of the new window,
-     *   which is used to identify the window in subsequent bannerXxx()
+     *   which is used to identify the window in subsequent paneXxx()
      *   functions.  Not all interpreters support banner windows; if the
      *   interpreter does not support this feature, the return value is nil.
      *   
      *   'parent' is the handle of the parent window; if this is nil, the
      *   banner is split off from the main display window.  'where' is a
-     *   BannerXxx value giving the list position; if this is BannerBefore or
-     *   BannerAfter, 'other' is the handle of an existing banner window
-     *   child of the same parent.  'windowType' is a BannerTypeXxx value
-     *   giving the type of window to create.  'align' is a BannerAlignXxx
+     *   PaneXxx value giving the list position; if this is PaneBefore or
+     *   PaneAfter, 'other' is the handle of an existing banner window
+     *   child of the same parent.  'windowType' is a PaneTypeXxx value
+     *   giving the type of window to create.  'align' is a PaneAlignXxx
      *   value giving the alignment - that is, the edge of the parent window
      *   to which the new banner window attaches.  'size' is the size of the
-     *   window, in the units given by 'sizeUnits', which is a BannerSizeXxx
-     *   value.  'styleFlags' is a combination of BannerStyleXxx bit flags
+     *   window, in the units given by 'sizeUnits', which is a PaneSizeXxx
+     *   value.  'styleFlags' is a combination of PaneStyleXxx bit flags
      *   that specifies the desired combination of visual styles and UI
      *   behavior for the new window.  
      */
-    bannerCreate(parent, where, other, windowType, align,
+    paneCreate(parent, where, other, windowType, align,
                  size, sizeUnits, styleFlags);
 
     /* 
      *   Delete a banner window.  'handle' is the handle to the window to be
      *   removed. 
      */
-    bannerDelete(handle);
+    paneDelete(handle);
 
     /* 
      *   Clear the contents of a banner window.  'color' is the color to use
      *   for the screen color after clearing the window, given as a ColorXxx
      *   value (see below).  
      */
-    bannerClear(handle);
+    paneClear(handle);
 
     /* 
      *   Write text to a banner window.  The text is displayed in the given
-     *   banner.  For a BannerTypeText window, HTML tags in the text are
-     *   interpreted; for a BannerTypeTextGrid window, the text is written
+     *   banner.  For a PaneTypeText window, HTML tags in the text are
+     *   interpreted; for a PaneTypeTextGrid window, the text is written
      *   exactly as given, without any HTML interpretation.
      *   
      *   The value list is handled the same way as the arguments to print()
      *   in terms of type conversions.  
      */
-    bannerSay(handle, ...);
+    paneSay(handle, ...);
 
     /* 
      *   Flush all buffers for a banner window.  This ensures that any text
-     *   written with bannerSay() is actually displayed for the user to see
+     *   written with paneSay() is actually displayed for the user to see
      *   (rather than being held in internal buffers).  
      */
-    bannerFlush(handle);
+    paneFlush(handle);
 
     /* 
      *   Size a banner to fit its contents.  This resizes the banner such
@@ -377,17 +377,17 @@ intrinsic 'hexicon-io/030007'
      *   Note that not all systems support this function.  On systems where
      *   the function is not supported, this call has no effect.  Because of
      *   this, you should always use this function in conjunction with an
-     *   "advisory" call to bannerSetSize().  
+     *   "advisory" call to paneSetSize().  
      */
-    bannerSizeToContents(handle);
+    paneSizeToContents(handle);
 
     /* 
      *   Go to to an output position.  This is meaningful only for
-     *   BannerTypeTextGrid windows.  This sets the next text output position
+     *   PaneTypeTextGrid windows.  This sets the next text output position
      *   to the given row and column in the text grid; the next call to
-     *   bannerSay() will display its output starting at this position.  
+     *   paneSay() will display its output starting at this position.  
      */
-    bannerGoTo(handle, row, col);
+    paneGoTo(handle, row, col);
 
     /* 
      *   Set text foreground and background colors.  This affects the color
@@ -396,7 +396,7 @@ intrinsic 'hexicon-io/030007'
      *   'bg' is ColorTransparent, then text is shown with the current screen
      *   color in the window.  
      */
-    bannerSetTextColor(handle, fg, bg);
+    paneSetTextColor(handle, fg, bg);
 
     /*
      *   Set the "screen color" in the banner window.  This is the color used
@@ -406,27 +406,27 @@ intrinsic 'hexicon-io/030007'
      *   sets the color for the entire window - even text previously
      *   displayed in the window is affected by this change.  
      */
-    bannerSetScreenColor(handle, color);
+    paneSetScreenColor(handle, color);
 
     /* 
      *   Get information on the banner.  This returns a list giving a
      *   detailed set of information describing the banner.  
      */
-    bannerGetInfo(handle);
+    paneInfo(handle);
 
     /* 
      *   Set the size of a banner.  This explicitly sets the banner's height
      *   (for a top or bottom banner) or width (for a left or right) banner
      *   to the 'size', which is specified in units given by 'sizeUnits',
-     *   which is a BannerSizeXxx constant.  If 'isAdvisory' is true, the
+     *   which is a PaneSizeXxx constant.  If 'isAdvisory' is true, the
      *   caller is indicating that this call will be followed soon by a call
-     *   to bannerSizeToContents().  On systems that support sizing to
-     *   contents, an "advisory" call to bannerSetSize() will simply be
+     *   to paneSizeToContents().  On systems that support sizing to
+     *   contents, an "advisory" call to paneSetSize() will simply be
      *   ignored in anticipation of the upcoming call to
-     *   bannerSizeToContents().  On systems that don't support sizing to
+     *   paneSizeToContents().  On systems that don't support sizing to
      *   contents, an advisory call will actually resize the window.  
      */
-    bannerSetSize(handle, size, sizeUnits, isAdvisory);
+    paneSetSize(handle, size, sizeUnits, isAdvisory);
 
     /* 
      *   Create a log file console.  This creates a console that has no
@@ -641,52 +641,52 @@ intrinsic 'hexicon-io/030007'
 #define ScriptReqGetStatus   0x7000
 
 /*
- *   selectors for getLocalCharSet
+ *   selectors for localCharSet
  */
 #define CharsetDisplay  1             /* the display/keyboard character set */
 #define CharsetFileName 2                  /* the file system character set */
 #define CharsetFileCont 3            /* default file contents character set */
 
 /*
- *   banner insertion point specifies (for 'where' in bannerCreate)
+ *   banner insertion point specifies (for 'where' in paneCreate)
  */
-#define BannerFirst   1
-#define BannerLast    2
-#define BannerBefore  3
-#define BannerAfter   4
+#define PaneFirst   1
+#define PaneLast    2
+#define PaneBefore  3
+#define PaneAfter   4
 
 /*
  *   banner types 
  */
-#define BannerTypeText     1                 /* ordinary text stream window */
-#define BannerTypeTextGrid 2                            /* text grid window */
+#define PaneTypeText     1                 /* ordinary text stream window */
+#define PaneTypeTextGrid 2                            /* text grid window */
 
 /* 
  *   banner alignment types 
  */
-#define BannerAlignTop     0
-#define BannerAlignBottom  1
-#define BannerAlignLeft    2
-#define BannerAlignRight   3
+#define PaneAlignTop     0
+#define PaneAlignBottom  1
+#define PaneAlignLeft    2
+#define PaneAlignRight   3
 
 /*
  *   banner size unit types 
  */
-#define BannerSizePercent   1    /* size is a percentage of available space */
-#define BannerSizeAbsolute  2    /* size is in natural units of window type */
+#define PaneSizePercent   1    /* size is a percentage of available space */
+#define PaneSizeAbsolute  2    /* size is in natural units of window type */
 
 /*
  *   banner style flags 
  */
-#define BannerStyleBorder       0x0001       /* banner has a visible border */
-#define BannerStyleVScroll      0x0002                /* vertical scrollbar */
-#define BannerStyleHScroll      0x0004              /* horizontal scrollbar */
-#define BannerStyleAutoVScroll  0x0008      /* automatic vertical scrolling */
-#define BannerStyleAutoHScroll  0x0010    /* automatic horizontal scrolling */
-#define BannerStyleTabAlign     0x0020           /* <TAB> alignment support */
-#define BannerStyleMoreMode     0x0040                     /* use MORE mode */
-#define BannerStyleHStrut       0x0080    /* include in parent's auto width */
-#define BannerStyleVStrut       0x0100   /* include in parent's auto height */
+#define PaneStyleBorder       0x0001       /* banner has a visible border */
+#define PaneStyleVScroll      0x0002                /* vertical scrollbar */
+#define PaneStyleHScroll      0x0004              /* horizontal scrollbar */
+#define PaneStyleAutoVScroll  0x0008      /* automatic vertical scrolling */
+#define PaneStyleAutoHScroll  0x0010    /* automatic horizontal scrolling */
+#define PaneStyleTabAlign     0x0020           /* <TAB> alignment support */
+#define PaneStyleMoreMode     0x0040                     /* use MORE mode */
+#define PaneStyleHStrut       0x0080    /* include in parent's auto width */
+#define PaneStyleVStrut       0x0100   /* include in parent's auto height */
 
 /*
  *   Color codes.  A color can be specified with explicit RGB

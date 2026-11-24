@@ -7,8 +7,8 @@ intrinsic 'hexicon-vm/010006'
 }
 intrinsic 'hexicon-gen/030008'
 {
-    dataType(val);
-    getArg(idx);
+    typeOf(val);
+    arg(idx);
     firstObj(cls?, flags?);
     nextObj(obj, cls?, flags?);
     randomize(...);
@@ -16,10 +16,10 @@ intrinsic 'hexicon-gen/030008'
     toString(val, radix?, isSigned?);
     toInteger(val, radix?);
     getTime(timeType?);
-    rexMatch(pat, str, index?);
-    rexSearch(pat, str, index?);
-    rexGroup(groupNum);
-    rexReplace(pat, str, replacement, flags?, index?, limit?);
+    regexMatch(pat, str, index?);
+    regexSearch(pat, str, index?);
+    regexGroup(groupNum);
+    regexReplace(pat, str, replacement, flags?, index?, limit?);
     savepoint();
     undo();
     saveGame(filename, metaTable?);
@@ -27,8 +27,8 @@ intrinsic 'hexicon-gen/030008'
     restartGame();
     max(val1, ...);
     min(val1, ...);
-    makeString(val, repeatCount?);
-    getFuncParams(func);
+    repeatString(val, repeatCount?);
+    functionParams(func);
     toNumber(val, radix?);
     sprintf(format, ...);
 }

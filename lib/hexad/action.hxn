@@ -465,7 +465,7 @@ class Action: ReplaceRedirector
          *   remapped action instead, but not while we're using this routine to score the objects
          *   for the purpose of resolving the command.
          */        
-        switch(dataType(remapResult))
+        switch(typeOf(remapResult))
         {
         case TypeObject:
             obj = remapResult;
@@ -552,7 +552,7 @@ class Action: ReplaceRedirector
              *   it now. Note that this means that the same mmVerify routine will be called for
              *   every object role (dobj && iob on a TIAction), but this is what we want.
              */
-            if(propDefined(&mmVerify))
+            if(hasProp(&mmVerify))
                 mmVerify(gVerifyDobj, gVerifyIobj, verifyObj);
             
             
@@ -1042,7 +1042,7 @@ class Action: ReplaceRedirector
         local rep = '';
         foreach(local prp in gCommand.postImplicitReports)
         {
-            if(dataType(prp) == TypeSString && prp.length > 0)
+            if(typeOf(prp) == TypeString && prp.length > 0)
                 rep += ('\n' + prp);
         }
         
@@ -1801,7 +1801,7 @@ class TAction: Action
         local checkMsg = nil;
         
         /* Note which object is the current object of the command. */
-        curObj = (dataType(obj) == TypeList ? obj[1] : obj);
+        curObj = (typeOf(obj) == TypeList ? obj[1] : obj);
         
         /* Run the check method on the object and capture its output */
         try
@@ -1813,13 +1813,13 @@ class TAction: Action
              *   If the obj Parameter has been passed as a list [dobj, iobj] we want to use a
              *   multimethod to  do the checking.
              */
-            if(dataType(obj) == TypeList)
+            if(typeOf(obj) == TypeList)
                 checkMsg = gOutStream.captureOutputIgnoreExit({: self.(checkProp)(obj[1], obj[2])});
             
             else
                 checkMsg = gOutStream.captureOutputIgnoreExit({: obj.(checkProp)});
             
-            if(dataType(checkMsg) == TypeInt)
+            if(typeOf(checkMsg) == TypeInt)
                 return checkMsg;
         }
             
@@ -1859,7 +1859,7 @@ class TAction: Action
              *   If we passed obj as a list for use with a multi-method, replace it with the first
              *   elemeent in the list in case we need to call announceObj(obj).
              */
-            if(dataType(obj) == TypeList)
+            if(typeOf(obj) == TypeList)
                 obj = obj[1];
             
             /* 
@@ -2312,7 +2312,7 @@ class TIAction: TAction
          *   If mmCheckResult is an integer (probablly 2) skip the other checks and deemed us to
          *   have passed the check stage.
          */
-        if(dataType(mmCheckResult) == TypeInt)
+        if(typeOf(mmCheckResult) == TypeInt)
             return true;
    
         /* 

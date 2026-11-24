@@ -447,7 +447,7 @@ DerivedRelation: Relation
          *   If this relation defines its own inverselyRelatedTo property, check whether b occurs in
          *   the list of things related to a.
          */
-        if(propDefined(&inverselyRelatedTo, PropDefDirectly)) 
+        if(hasProp(&inverselyRelatedTo, PropDefDirectly)) 
             return inverselyRelatedTo(a).find(b);
         
         /* Otherwise if we're reciprocal check whether b is related to a. */
@@ -470,7 +470,7 @@ DerivedRelation: Relation
          *   generate its own list of items that are related, in which case use the inherited
          *   handling, which checks whether b is in the list of items to which a is related.
          */
-        if(propDefined(&relatedTo, PropDefDirectly))          
+        if(hasProp(&relatedTo, PropDefDirectly))          
             return inherited(a, b);
         
         /* 
@@ -553,7 +553,7 @@ relationTable: PreinitObject
      */
     getRelation(rel)
     {
-        if(dataType(rel) == TypeSString)
+        if(typeOf(rel) == TypeString)
             return nameTab[rel];
         /*
          *   If the rel argument is not supplied as a string, it's presumably
@@ -729,11 +729,11 @@ relationPathfinder: Pathfinder
         foreach(local cur in valToList(rel))
         {
             /* If it's an object, add it to our Vector as a normal relation. */
-            if(dataType(cur) == TypeObject)
+            if(typeOf(cur) == TypeObject)
                 vec.append([cur, normalRelation]);
             
             /* If it's a string, look it up in the relationTable. */
-            if(dataType(cur) == TypeSString)
+            if(typeOf(cur) == TypeString)
             {
                 relation = relationTable.getRelation(cur);
                 
@@ -779,7 +779,7 @@ relationPathfinder: Pathfinder
          *   [johh, mark, alan].
          */
         return res == nil ? nil : 
-        (dataType(rel) == TypeList ? res : res.mapAll({e: e[2]})).toList(); 
+        (typeOf(rel) == TypeList ? res : res.mapAll({e: e[2]})).toList(); 
     }
     
     findDestinations(cur)
@@ -947,7 +947,7 @@ action RelationDetails: SystemAction
              *   If we didn't find anything, or what we found wasn't a Relation,
              *   say there's no such relation and exit.
              */
-            if(rel == nil || dataType(rel) != TypeObject ||
+            if(rel == nil || typeOf(rel) != TypeObject ||
                !rel.ofKind(Relation))
             {
                 DMsg(no such relation, 'There is no such relation in the game as

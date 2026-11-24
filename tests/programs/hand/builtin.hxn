@@ -86,8 +86,8 @@ _main(args)
     "<<'Hello'.toUpper()>>, <<'Hello'.length()>> letters, from the second: <<'Hello'.substr(2)>>.\n";
     "Sorted: <<[3, 1, 2].sort().join(' ')>>. Found at <<[5, 6, 7].indexOf(6)>>.\n";
     "The box is <<box.ofKind(Thing) ? 'a thing' : 'not a thing'>>,
-    and <<box.propDefined(&parts) ? 'has' : 'lacks'>> parts of its own;
-    the pebble <<pebble.propDefined(&parts, PropDefDirectly) ? 'has' : 'lacks'>> them.\n";
-    "A list is <<dataType([]) == TypeList ? 'a list' : 'something else'>>,
+    and <<box.hasProp(&parts) ? 'has' : 'lacks'>> parts of its own;
+    the pebble <<pebble.hasProp(&parts, PropDefDirectly) ? 'has' : 'lacks'>> them.\n";
+    "A list is <<typeOf([]) == TypeList ? 'a list' : 'something else'>>,
     and <<[1].ofKind(List) ? 'of' : 'not of'>> the class List.\n";
 }

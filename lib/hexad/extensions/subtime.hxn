@@ -232,7 +232,7 @@ clockManager: PreinitObject
          *   If t has been supplied as a list in the [d, h ,m] format we first
          *   need to convert it into a Date object
          */
-        if(dataType(t) == TypeList)           
+        if(typeOf(t) == TypeList)           
             t = eventDate(t);       
             
         return t.formatDate(fmt);
@@ -248,14 +248,14 @@ clockManager: PreinitObject
          *   If the gameMain object defines a gameStartTime, use it to set our
          *   baseDate.
          */
-        if(gameMain.propDefined(&gameStartTime))
+        if(gameMain.hasProp(&gameStartTime))
         {
             local gst = gameMain.gameStartTime;
             
-            if(dataType(gst) == TypeList)
+            if(typeOf(gst) == TypeList)
                 baseDate = new Date(gst[1], gst[2], gst[3]);
             
-            if(dataType(gst) == TypeObject && gst.ofKind(Date))
+            if(typeOf(gst) == TypeObject && gst.ofKind(Date))
                 baseDate = gst;
         }
         
