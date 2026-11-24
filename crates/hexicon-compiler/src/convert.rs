@@ -5,8 +5,9 @@
 //! system library gives the built-in functions, classes, and headers
 //! ([`RENAMES`], [`HEADERS`]) replace the TADS names, in code and in
 //! comments but never in the text of a string. In a file that includes
-//! adv3Lite's header (`advlite.h`), its macros for actions and their
-//! handlers become Hexicon's declarations ([`FORMS`]). A project file
+//! adv3Lite's header (`advlite.h`) or Hexad's, or imports Hexad, its
+//! macros for actions, their handlers, and verb rules become Hexicon's
+//! declarations ([`FORMS`], [`verb_edit`]). A project file
 //! (`.t3m`) becomes a game's manifest and a library (`.tl`) a library's,
 //! each saying what the original said.
 //!
@@ -393,24 +394,29 @@ pub struct ConvertedSource {
     pub text: Vec<u8>,
     /// How many names were renamed, in code and in comments.
     pub renamed: usize,
-    /// How many actions and handlers were written as Hexicon's
+    /// How many actions, handlers, and verb rules were written as Hexicon's
     /// declarations.
     pub declarations: usize,
 }
 
-/// Whether a file includes adv3Lite's header, whose macros for actions
-/// and handlers it may then use.
+/// Whether a file has adv3Lite's macros for actions, handlers, and verb
+/// rules: it includes adv3Lite's header or Hexad's, or imports Hexad.
 fn includes_advlite(text: &[u8]) -> bool {
     text.split(|&c| c == b'\n').any(|line| {
         let line = line.trim_ascii_start();
-        line.strip_prefix(b"#").is_some_and(|rest| {
-            let rest = rest.trim_ascii_start();
-            rest.starts_with(b"include")
-                && rest
-                    .to_ascii_lowercase()
-                    .windows(9)
-                    .any(|w| w == b"advlite.h")
-        })
+        let imports = line
+            .strip_prefix(b"import")
+            .map(<[u8]>::trim_ascii_start)
+            .is_some_and(|rest| {
+                rest.starts_with(b"hexad") && rest[5..].trim_ascii_start().starts_with(b";")
+            });
+        imports
+            || line.strip_prefix(b"#").is_some_and(|rest| {
+                let rest = rest.trim_ascii_start().to_ascii_lowercase();
+                rest.starts_with(b"include")
+                    && (rest.windows(9).any(|w| w == b"advlite.h")
+                        || rest.windows(7).any(|w| w == b"hexad.h"))
+            })
     })
 }
 
@@ -447,18 +453,118 @@ fn call_args(text: &[u8], mut pos: usize) -> Option<(Vec<&[u8]>, usize)> {
     }
 }
 
-/// The edits that make adv3Lite's macros for actions and handlers
+/// A verb rule as Hexicon's declaration: `VerbRule(Ring) 'ring'
+/// singleDobj : VerbProduction action = Ring ...` is `verb Ring 'ring'
+/// singleDobj: ...`, and `for` names an action that is not the rule's
+/// name. `at` is the rule's name in `names`. The rule's words end at
+/// `: VerbProduction`, and its `action = X` is a line of its own among
+/// the simple properties before any method. A rule that is not like
+/// that, or follows `modify` or `replace`, is left as it is.
+fn verb_edit(text: &[u8], names: &[Name], at: usize) -> Option<(usize, usize, Vec<u8>)> {
+    let name = &names[at];
+    let before = text[..name.start].trim_ascii_end();
+    if before.ends_with(b"modify") || before.ends_with(b"replace") {
+        return None;
+    }
+    let (args, call_end) = call_args(text, name.end)?;
+    let [tag] = args[..] else {
+        return None;
+    };
+    // `: VerbProduction`, in code, ends the words.
+    let class = names[at + 1..]
+        .iter()
+        .find(|n| n.in_code && &text[n.start..n.end] == b"VerbProduction")?;
+    let colon = text[..class.start].trim_ascii_end();
+    if !colon.ends_with(b":") || colon.len() <= call_end {
+        return None;
+    }
+    let words = text[call_end..colon.len() - 1].trim_ascii_end();
+    if words.contains(&b';') {
+        return None;
+    }
+    // The line `action = X`.
+    let found = names
+        .iter()
+        .position(|n| n.start > class.end && n.in_code && &text[n.start..n.end] == b"action")?;
+    let action_name = &names[found];
+    let line_start = text[..action_name.start]
+        .iter()
+        .rposition(|&c| c == b'\n')
+        .map_or(0, |at| at + 1);
+    if !text[line_start..action_name.start]
+        .iter()
+        .all(|c| matches!(c, b' ' | b'\t'))
+    {
+        return None;
+    }
+    let between = &text[class.end..line_start];
+    if between.iter().any(|c| matches!(c, b';' | b'{')) {
+        return None;
+    }
+    let rest = &text[action_name.end..];
+    let eq = rest.iter().position(|&c| !matches!(c, b' ' | b'\t'))?;
+    if rest[eq] != b'=' {
+        return None;
+    }
+    let value_start = rest[eq + 1..]
+        .iter()
+        .position(|&c| !matches!(c, b' ' | b'\t'))?
+        + eq
+        + 1;
+    let value_len = rest[value_start..]
+        .iter()
+        .position(|&c| !is_name_char(c))
+        .unwrap_or(rest.len() - value_start);
+    let action = &rest[value_start..value_start + value_len];
+    if action.is_empty() || !is_name_start(action[0]) {
+        return None;
+    }
+    let after_value = &rest[value_start + value_len..];
+    let line_end = after_value.iter().position(|&c| c == b'\n')?;
+    if !after_value[..line_end]
+        .iter()
+        .all(|c| matches!(c, b' ' | b'\t' | b'\r'))
+    {
+        return None;
+    }
+    let stop = action_name.end + value_start + value_len + line_end + 1;
+    let mut new = [b"verb ", tag].concat();
+    if action != tag {
+        new.extend_from_slice(b" for ");
+        new.extend_from_slice(action);
+    }
+    // Words on one line go on the declaration's.
+    let trimmed = words.trim_ascii_start();
+    if trimmed.contains(&b'\n') {
+        new.extend_from_slice(words);
+    } else {
+        new.push(b' ');
+        new.extend_from_slice(trimmed);
+    }
+    new.push(b':');
+    new.extend_from_slice(between);
+    Some((name.start, stop, new))
+}
+
+/// The edits that make adv3Lite's macros for actions, handlers, and verb rules
 /// Hexicon's declarations: each the span of text replaced, and what
 /// replaces it.
 fn declaration_edits(text: &[u8], names: &[Name]) -> Vec<(usize, usize, Vec<u8>)> {
     let mut edits = Vec::new();
     let mut next_free = 0;
-    for name in names {
+    for (index, name) in names.iter().enumerate() {
         if !name.in_code || name.in_directive || name.start < next_free {
             continue;
         }
         let word = &text[name.start..name.end];
-        if let Some(&(_, redirect, role)) = HANDLERS.iter().find(|(m, _, _)| m.as_bytes() == word) {
+        if word == b"VerbRule" {
+            if let Some(edit) = verb_edit(text, names, index) {
+                next_free = edit.1;
+                edits.push(edit);
+            }
+        } else if let Some(&(_, redirect, role)) =
+            HANDLERS.iter().find(|(m, _, _)| m.as_bytes() == word)
+        {
             let Some((args, end)) = call_args(text, name.end) else {
                 continue;
             };
@@ -516,7 +622,7 @@ fn declaration_edits(text: &[u8], names: &[Name]) -> Vec<(usize, usize, Vec<u8>)
 /// Convert a source file or a header: the names in `renames` replaced in
 /// its code and comments, the system headers it includes given
 /// Hexicon's names ([`HEADERS`]), and in a file that includes adv3Lite's
-/// header, its macros for actions and handlers written as Hexicon's
+/// header, its macros for actions, handlers, and verb rules written as Hexicon's
 /// declarations.
 pub fn convert_source(text: &[u8], renames: &[(&str, &str)]) -> ConvertedSource {
     let names = scan(text);

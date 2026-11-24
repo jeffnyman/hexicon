@@ -4547,3 +4547,167 @@ mod image_names {
         assert!(!has(&image, b"hexicon-"));
     }
 }
+
+mod verb_declarations {
+    use super::{CompileOptions, Compiled, Files};
+
+    fn build(library_name: &str, game_name: &str, game: &str) -> Compiled {
+        let mut files = Files::default()
+            .with("macros.h", MACROS)
+            .with(library_name, LIBRARY)
+            .with(game_name, game);
+        crate::compile_program(
+            &mut files,
+            &[library_name, game_name],
+            &CompileOptions::default(),
+        )
+    }
+
+    /// Hexad's macros for verb rules.
+    const MACROS: &str = "#define VerbRule(tag) grammar predicate(tag):\n\
+                          #define singleDobj singleNoun->dobjMatch\n";
+
+    const LIBRARY: &str = r#"#include "macros.h"
+class VerbProduction: object;
+class Action: object;
+Ring: Action;
+Sing: Action;
+Examine: Action;
+grammar singleNoun: 'it' : object;
+property dobjMatch, verbPhrase, missingQ, priority;
+_main(args) { return predicate; }
+"#;
+
+    const WITH_MACROS: &str = r#"#include "macros.h"
+VerbRule(Ring)
+    'ring' singleDobj
+    : VerbProduction
+    action = Ring
+    verbPhrase = 'ring/ringing (what)'
+    missingQ = 'what do you want to ring'
+;
+VerbRule(Sing) 'sing' : VerbProduction action = Sing verbPhrase = 'sing/singing';
+VerbRule(LookAtWhat)
+    ('look' | 'l') 'at' singleDobj
+    | 'examine' singleDobj
+    : VerbProduction
+    action = Examine
+    verbPhrase = 'examine/examining (what)'
+;
+modify VerbRule(Ring) ('ring' | 'toll') singleDobj : ;
+modify VerbRule(Sing) : priority = 3;
+replace VerbRule(LookAtWhat) 'look' singleDobj : VerbProduction action = Examine;
+"#;
+
+    const IN_HEXICON: &str = r#"#include "macros.h"
+verb Ring 'ring' singleDobj:
+    verbPhrase = 'ring/ringing (what)'
+    missingQ = 'what do you want to ring'
+;
+verb Sing 'sing': verbPhrase = 'sing/singing';
+verb LookAtWhat for Examine
+    ('look' | 'l') 'at' singleDobj
+    | 'examine' singleDobj:
+    verbPhrase = 'examine/examining (what)'
+;
+modify verb Ring ('ring' | 'toll') singleDobj: ;
+modify verb Sing: priority = 3;
+replace verb LookAtWhat for Examine 'look' singleDobj: ;
+"#;
+
+    fn image(game: &str) -> Vec<u8> {
+        let compiled = build("lib.hxn", "game.hxn", game);
+        let errors: Vec<_> = compiled
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity != crate::pp::Severity::Warning)
+            .map(|d| format!("{}({}): {}", d.file, d.line, d.message))
+            .collect();
+        assert_eq!(errors, Vec::<String>::new());
+        compiled.image.expect("an image")
+    }
+
+    #[test]
+    fn verb_rules_are_what_the_macro_makes() {
+        assert_eq!(image(IN_HEXICON), image(WITH_MACROS));
+    }
+
+    #[test]
+    fn a_tads_3_source_has_no_verb_declarations() {
+        let compiled = build("lib.t", "game.t", IN_HEXICON);
+        assert!(compiled.image.is_none());
+    }
+
+    #[test]
+    fn a_name_called_verb_is_still_a_name() {
+        // An object called verb; and, apart, a property and a local.
+        for extra in [
+            "verb: object size = 1;\nbell: object size = verb.size;\n",
+            "bell: object verb = 1 ring() { local verb = self.verb; return verb; } ;\n",
+        ] {
+            let game = format!("{IN_HEXICON}{extra}");
+            let compiled = build("lib.hxn", "game.hxn", &game);
+            assert!(compiled.image.is_some(), "{:?}", compiled.diagnostics);
+        }
+    }
+
+    #[test]
+    fn a_verbs_words_end_with_a_colon() {
+        let compiled = build("lib.hxn", "game.hxn", "verb Ring 'ring' singleDobj;\n");
+        assert!(
+            compiled
+                .diagnostics
+                .iter()
+                .any(|d| d.message == "expected ':' at the end of a verb's words, but found \";\""),
+            "{:?}",
+            compiled.diagnostics
+        );
+    }
+}
+
+mod verb_conversion {
+    use crate::convert::{RENAMES, convert_source};
+
+    fn converted(text: &str) -> String {
+        String::from_utf8(convert_source(text.as_bytes(), RENAMES).text).unwrap()
+    }
+
+    #[test]
+    fn a_verb_rule_becomes_a_verb_declaration() {
+        let rules = "import hexad;\n\
+                     VerbRule(Ring)\n    'ring' singleDobj\n    : VerbProduction\n    action = Ring\n    \
+                     verbPhrase = 'ring/ringing (what)'\n;\n\
+                     VerbRule(SetDownWhat)\n    'set' 'down'\n    : VerbProduction\n    action = Drop\n;\n\
+                     VerbRule(Take)\n    ('take' | 'get') multiDobj\n    | 'pick' multiDobj 'up'\n    \
+                     : VerbProduction\n    action = Take\n;\n\
+                     VerbRule(Assert)\n    'assert' singleDobj\n    : VerbProduction\n    \
+                     verbPhrase = 'assert (what)'\n    action = Assert\n    missingQ = 'what'\n;\n";
+        assert_eq!(
+            converted(rules),
+            "import hexad;\n\
+             verb Ring 'ring' singleDobj:\n    verbPhrase = 'ring/ringing (what)'\n;\n\
+             verb SetDownWhat for Drop 'set' 'down':\n;\n\
+             verb Take\n    ('take' | 'get') multiDobj\n    | 'pick' multiDobj 'up':\n;\n\
+             verb Assert 'assert' singleDobj:\n    verbPhrase = 'assert (what)'\n    \
+             missingQ = 'what'\n;\n"
+        );
+    }
+
+    #[test]
+    fn verb_rules_it_cannot_say_as_declarations_are_left() {
+        for text in [
+            // Not on adv3Lite or Hexad.
+            "VerbRule(Ring) 'ring' : VerbProduction\n    action = Ring\n;\n",
+            // After modify, and in a macro.
+            "import hexad;\nmodify VerbRule(Ring) 'toll' : ;\n",
+            "#include <advlite.h>\n#define V(x) VerbRule(x) 'x' : VerbProduction\n",
+            // The action after a method.
+            "import hexad;\nVerbRule(Ring) 'ring' : VerbProduction\n    \
+             f() { return 1; }\n    action = Ring\n;\n",
+            // The action on the class's line.
+            "import hexad;\nVerbRule(Ring) 'ring' : VerbProduction action = Ring\n;\n",
+        ] {
+            assert_eq!(converted(text), text);
+        }
+    }
+}

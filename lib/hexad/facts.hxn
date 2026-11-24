@@ -1518,10 +1518,7 @@ modify Consultable
 
 #ifdef __DEBUG
 /* Debgugging command to list all the Facts defined in the game. */
-VerbRule(ListFacts)
-    'list' 'facts'
-    :VerbProduction
-    action = ListFacts
+verb ListFacts 'list' 'facts':
     verbPhrase = 'list/listing facts'
 ;
 
@@ -1550,10 +1547,7 @@ action ListFacts: SystemAction
     }
 ;
 
-VerbRule(FactInfo)
-    'fact' 'info' literalDobj
-    : VerbProduction
-    action = FactInfo
+verb FactInfo 'fact' 'info' literalDobj:
     verbPhrase = 'show/showing fact info'
     missingQ = 'which fact do you want info for'
 ;

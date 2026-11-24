@@ -144,16 +144,13 @@ Then its **grammar**, the words that mean it:
 
 ```hexicon
 // The words that mean it.
-VerbRule(Ring)
-    'ring' singleDobj
-    : VerbProduction
-    action = Ring
+verb Ring 'ring' singleDobj:
     verbPhrase = 'ring/ringing (what)'
     missingQ = 'what do you want to ring'
 ;
 ```
 
-The first line after `VerbRule(Ring)` is what the player types: words in quotes, alternatives between `|` in parentheses (`('push' | 'press')`), and where the objects go: `singleDobj` for one direct object, `multiDobj` for one or several, `singleIobj` for the indirect object. `verbPhrase` is how Hexad speaks of the action, and `missingQ` what it asks when the object is left out:
+A `verb` declaration names the action, then says what the player types, up to a colon: words in quotes, alternatives between `|` in parentheses (`('push' | 'press')`), and where the objects go: `singleDobj` for one direct object, `multiDobj` for one or several, `singleIobj` for the indirect object. After the colon come the rule's properties. `verbPhrase` is how Hexad speaks of the action, and `missingQ` what it asks when the object is left out:
 
 ```transcript
 >ring
@@ -193,10 +190,31 @@ action Sing: IAction
     }
 ;
 
-VerbRule(Sing)
-    'sing'
-    : VerbProduction
-    action = Sing
+verb Sing 'sing':
     verbPhrase = 'sing/singing'
 ;
+```
+
+### More words for an action
+
+An action can have more than one rule. Each rule has a name of its own, and `for` says which action it is for when the name is not the action's:
+
+```hexicon
+// Another rule for RING.
+verb Toll for Ring 'toll' singleDobj:
+    verbPhrase = 'toll/tolling (what)'
+    missingQ = 'what do you want to toll'
+;
+```
+
+```transcript
+>toll bell
+BONG.  The note rolls out over the town.
+```
+
+Hexad's own rules are in its English grammar (`english/grammar.hxn` among its sources), each named for its action. `modify verb` changes one. The words given replace the rule's words, and the rest of the rule is kept. `replace verb` replaces the whole rule:
+
+```hexicon
+// Hexad's rule for JUMP, with another word.
+modify verb Jump ('jump' | 'leap'): ;
 ```

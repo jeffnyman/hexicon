@@ -300,39 +300,24 @@ footnotePreinit: PreinitObject
  *  instruct users to include your language-specific file after this one.
  *  [FOOTNOTE EXTENSION]
  */
-VerbRule(Footnote)
-    ('footnote' | 'note') numericDobj
-    : VerbProduction
-    action = FootnoteAction
+verb Footnote for FootnoteAction ('footnote' | 'note') numericDobj:
     verbPhrase = 'show/showing a footnote'
 ;
 
 
-VerbRule(FootnotesFull)
-    'footnotes' 'full'
-    : VerbProduction
-    action = FootnotesFullAction
+verb FootnotesFull for FootnotesFullAction 'footnotes' 'full':
     verbPhrase = 'enable/enabling all footnotes'
 ;
 
-VerbRule(FootnotesMedium)
-    'footnotes' 'medium'
-    : VerbProduction
-    action = FootnotesMediumAction
+verb FootnotesMedium for FootnotesMediumAction 'footnotes' 'medium':
     verbPhrase = 'enable/enabling new footnotes'
 ;
 
-VerbRule(FootnotesOff)
-    'footnotes' 'off'
-    : VerbProduction
-    action = FootnotesOffAction
+verb FootnotesOff for FootnotesOffAction 'footnotes' 'off':
     verbPhrase = 'hide/hiding footnotes'
 ;
 
-VerbRule(FootnotesStatus)
-    'footnotes'
-    : VerbProduction
-    action = FootnotesStatus
+verb FootnotesStatus 'footnotes':
     verbPhrase = 'show/showing footnote status'
 ;
 

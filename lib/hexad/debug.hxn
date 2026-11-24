@@ -44,10 +44,7 @@ DebugCtl: object
  *   debugging operations while running the game.  The Debug Action parses
  *   the options string to carry out the command.  
  */
-VerbRule(Debug)
-    'debug' literalDobj
-    : VerbProduction
-    action = Debug
+verb Debug 'debug' literalDobj:
     verbPhrase = 'debug/debugging'
     missingQ = 'which debug option do you want to set'
 ;
@@ -97,10 +94,7 @@ action DebugI: SystemAction
     }
 ;
 
-VerbRule(DebugI)
-    'debug' 
-    : VerbProduction
-    action = DebugI
+verb DebugI 'debug':
     verbPhrase = 'debug/debugging'
     missingQ = 'which debug option do you want to set'
 ;
@@ -504,11 +498,8 @@ action AssertPlayerInRoom: SystemAction
     }  
 ;
 
-VerbRule(AssertPlayerInRoom)
-	'assertPlayerInRoom' singleDobj
-	: VerbProduction
+verb AssertPlayerInRoom 'assertPlayerInRoom' singleDobj:
 	verbPhrase = 'assertPlayerInRoom (what)'
-    action = AssertPlayerInRoom
     missingQ = 'what room is player supposed to be in'
 ;
 
@@ -535,11 +526,8 @@ action AssertPlayerHasItem: SystemAction
 	}
 ;
 
-VerbRule(AssertPlayerHasItem)
-	'assertPlayerHasItem' singleDobj
-	: VerbProduction
+verb AssertPlayerHasItem 'assertPlayerHasItem' singleDobj:
 	verbPhrase = 'assertPlayerHasItem (what)'
-    action = AssertPlayerHasItem
     missingQ = 'what item is player supposed to have in possession'
 ;
 
@@ -567,11 +555,8 @@ action AssertPlayerLacksItem: SystemAction
 	}
 ;
 
-VerbRule(AssertPlayerLacksItem)
-	'assertPlayerLacksItem' singleDobj
-	: VerbProduction
+verb AssertPlayerLacksItem 'assertPlayerLacksItem' singleDobj:
 	verbPhrase = 'assertPlayerLacksItem (what)'
-    action = AssertPlayerLacksItem
     missingQ = 'what item is player NOT supposed to have in possession'
 ;
 
@@ -597,11 +582,8 @@ action AssertPlayerRoomHasItem: SystemAction
     
 ;
 
-VerbRule(AssertPlayerRoomHasItem)
-	'assertPlayerRoomHasItem' singleDobj
-	: VerbProduction
+verb AssertPlayerRoomHasItem 'assertPlayerRoomHasItem' singleDobj:
 	verbPhrase = 'assertPlayerRoomHasItem (what)'
-    action = AssertPlayerRoomHasItem
     missingQ = 'what item is player\'s room supposed to contain'
 ;
 
@@ -626,11 +608,8 @@ action AssertPlayerRoomLacksItem: SystemAction
     }
 ;
 
-VerbRule(AssertPlayerRoomLacksItem)
-	'assertPlayerRoomLacksItem' singleDobj
-	: VerbProduction
+verb AssertPlayerRoomLacksItem 'assertPlayerRoomLacksItem' singleDobj:
 	verbPhrase = 'assertPlayerRoomLacksItem (what)'
-    action = AssertPlayerRoomLacksItem
     missingQ = 'what item should not be in player\'s room'
 ;
 
@@ -686,10 +665,7 @@ action Assert: SystemAction
 ;
 
 
-VerbRule(Assert)
-    'assert' literalDobj
-    : VerbProduction
-    action = Assert
+verb Assert 'assert' literalDobj:
     verbPhrase = 'assert (expression)'
     missingQ = 'what expression should be true'
 ;
@@ -704,10 +680,7 @@ action AssertMsgClear: SystemAction
     }
 ;
 
-VerbRule(AssertMsgClear)
-    'assertMsgClear'
-    : VerbProduction
-    action = AssertMsgClear
+verb AssertMsgClear 'assertMsgClear':
     verbPhrase = 'assertMsgClear'
 ;
 
@@ -736,10 +709,7 @@ action AssertMsg: SystemAction
     }
 ;
 
-VerbRule(AssertMsg)
-    'assertMsg' literalDobj
-    : VerbProduction
-    action = AssertMsg
+verb AssertMsg 'assertMsg' literalDobj:
     verbPhrase = 'assertMsg (expression)'
     missingQ = 'what expression should be true'
 ;
@@ -993,10 +963,7 @@ action GListTests: SystemAction
     yesNo(bval) { return bval? 'yes' : 'no'; }
 ;
 
-VerbRule(GListTests)
-    ('list' | 'l') 'tests' (| 'fully' -> fully | 'sorted' -> sorted)
-    : VerbProduction
-    action = GListTests
+verb GListTests ('list' | 'l') 'tests' (| 'fully' -> fully | 'sorted' -> sorted):
     verbPhrase = 'list/listing test scripts'
 ;
 
@@ -1029,10 +996,7 @@ action GTest: LiteralAction
     turnSequence() { }
 ;
 
-VerbRule(GTest)
-    'test' literalDobj
-    : VerbProduction
-    action = GTest
+verb GTest 'test' literalDobj:
     verbPhrase = 'test/testing (what)'
     missingQ = 'which sequence do you want to test'
 ;
@@ -1079,10 +1043,7 @@ action TestAll: SystemAction
     }
 ;
 
-VerbRule(TestAll)
-    'testall' (| 'nostop' -> testnostop)
-    : VerbProduction
-    action = TestAll
+verb TestAll 'testall' (| 'nostop' -> testnostop):
     verbPhrase = 'testall test scripts'
 ;
 

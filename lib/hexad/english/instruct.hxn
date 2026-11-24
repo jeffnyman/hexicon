@@ -987,10 +987,7 @@ action Instructions: SystemAction
 /*
  *   define the INSTRUCTIONS command's grammar 
  */
-VerbRule(instructions) 
-    'instructions' 
-    : VerbProduction
-    action = Instructions
+verb instructions for Instructions 'instructions':
     verbPhrase = 'show/showing instructions'
 ;
 

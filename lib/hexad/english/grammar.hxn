@@ -1512,65 +1512,47 @@ grammar yesOrNoPhrase(no): 'no' : YesOrNoProduction
  *   structure.)  
  */
 
-VerbRule(Take)
+verb Take
     ('take' | 'pick' 'up' | 'get') multiDobj
-    | 'pick' multiDobj 'up'
-    : VerbProduction
-    action = Take
+    | 'pick' multiDobj 'up':
     verbPhrase = 'take/taking (what)'
     missingQ = 'what do you want to take'
 ;
 
-VerbRule(TakeFrom)
+verb TakeFrom
     ('take' | 'get') multiDobj
         ('from' | 'out' 'of' | 'off' | 'off' 'of') singleIobj
-    | 'remove' multiDobj 'from' singleIobj
-    : VerbProduction
-    action = TakeFrom
+    | 'remove' multiDobj 'from' singleIobj:
     verbPhrase = 'take/taking (what) (from what)'
     missingQ = 'what do you want to take;what do you want to take it from'
     iobjReply = fromSingleNoun
 ;
 
-VerbRule(Remove)
-    'remove' multiDobj
-    : VerbProduction
-    action = Remove
+verb Remove 'remove' multiDobj:
     verbPhrase = 'remove/removing (what)'
     missingQ = 'what do you want to remove'
 ;
 
-VerbRule(Drop)
+verb Drop
     ('drop' | 'put' 'down' | 'set' 'down') multiDobj
-    | ('put' | 'set') multiDobj 'down'
-    : VerbProduction
-    action = Drop
+    | ('put' | 'set') multiDobj 'down':
     verbPhrase = 'drop/dropping (what)'
     missingQ = 'what do you want to drop'
 ;
 
-VerbRule(SetDownWhat)
-    'set' 'down'
-    : VerbProduction
-    action = Drop
+verb SetDownWhat for Drop 'set' 'down':
     verbPhrase = 'drop/dropping (what)'
     missingQ = 'what do you want to drop'
     missingRole = DirectObject    
 ;
     
 
-VerbRule(Examine)
-    ('examine' | 'inspect' | 'x' |'look' 'at' | 'l' 'at') multiDobj
-    : VerbProduction
-    action = Examine
+verb Examine ('examine' | 'inspect' | 'x' |'look' 'at' | 'l' 'at') multiDobj:
     verbPhrase = 'examine/examining (what)'
     missingQ = 'what do you want to examine'
 ;
 
-VerbRule(LookX)
-    ('look'|'l') multiDobj
-    : VerbProduction
-    action = Examine
+verb LookX for Examine ('look'|'l') multiDobj:
     verbPhrase = 'examine/examining (what)'
     missingQ = 'what do you want to look at'
     
@@ -1581,97 +1563,64 @@ VerbRule(LookX)
     priority = 40
 ;
 
-VerbRule(LookAtWhat)
-    ('look' | 'l') 'at'
-    : VerbProduction
-    action = Examine
+verb LookAtWhat for Examine ('look' | 'l') 'at':
     verbPhrase = 'look/looking (at what)'
     missingQ = 'what do you want to look at'
     missingRole = DirectObject
 ;
 
-VerbRule(Read)
-    'read' singleDobj
-    : VerbProduction
-    action = Read
+verb Read 'read' singleDobj:
     verbPhrase = 'read/reading (what)'
     missingQ = 'what do you want to read'
 ;
 
-VerbRule(LookIn)
-    ('look' | 'l') ('in' | 'inside') multiDobj
-    : VerbProduction
-    action = LookIn
+verb LookIn ('look' | 'l') ('in' | 'inside') multiDobj:
     verbPhrase = 'look/looking (in what)'
     missingQ = 'what do you want to look in'   
     priority = 60
 ;
 
-VerbRule(LookInWhat)
-    ('look' | 'l') ('in' | 'inside') 
-    : VerbProduction
-    action = LookIn
+verb LookInWhat for LookIn ('look' | 'l') ('in' | 'inside'):
     verbPhrase = 'look/looking (in what)'
     missingQ = 'what do you want to look in'   
     priority = 60
     missingRole = DirectObject
 ;
 
-VerbRule(Search)
-    'search' multiDobj
-    : VerbProduction
-    action = Search
+verb Search 'search' multiDobj:
     verbPhrase = 'search/searching (what)'
     missingQ = 'what do you want to search'
 ;
 
-VerbRule(LookThrough)
-    ('look' | 'l' | 'peer') ('through' | 'thru') multiDobj
-    : VerbProduction
-    action = LookThrough
+verb LookThrough ('look' | 'l' | 'peer') ('through' | 'thru') multiDobj:
     verbPhrase = 'look/looking (through what)'
     missingQ = 'what do you want to look through'
 ;
 
-VerbRule(LookThroughWhat)
-    ('look' | 'l' | 'peer') ('through' | 'thru') 
-    : VerbProduction
-    action = LookThrough
+verb LookThroughWhat for LookThrough ('look' | 'l' | 'peer') ('through' | 'thru'):
     verbPhrase = 'look/looking (through what)'
     missingQ = 'what do you want to look through'
     missingRole = DirectObject
 ;
 
-VerbRule(LookUnder)
-    ('search' | 'look' | 'l') 'under' multiDobj
-    : VerbProduction
-    action = LookUnder
+verb LookUnder ('search' | 'look' | 'l') 'under' multiDobj:
     verbPhrase = 'look/looking (under what)'
     missingQ = 'what do you want to look under'   
 ;
 
-VerbRule(LookUnderWhat)
-    ('search' | 'look' | 'l') 'under' 
-    : VerbProduction
-    action = LookUnder
+verb LookUnderWhat for LookUnder ('search' | 'look' | 'l') 'under':
     verbPhrase = 'look/looking (under what)'
     missingQ = 'what do you want to look under'   
     missingRole = DirectObject
 ;
 
 
-VerbRule(LookBehind)
-    ('search' | 'look' | 'l') 'behind' multiDobj
-    : VerbProduction
-    action = LookBehind
+verb LookBehind ('search' | 'look' | 'l') 'behind' multiDobj:
     verbPhrase = 'look/looking (behind what)'
     missingQ = 'what do you want to look behind'
 ;
 
-VerbRule(LookBehindWhat)
-    ('search' | 'look' | 'l') 'behind'
-    : VerbProduction
-    action = LookBehind
+verb LookBehindWhat for LookBehind ('search' | 'look' | 'l') 'behind':
     verbPhrase = 'look/looking (behind what)'
     missingQ = 'what do you want to look behind'
     missingRole = DirectObject
@@ -1681,123 +1630,84 @@ VerbRule(LookBehindWhat)
  *   The grammar for looking in a particular direction. Non-English games can change this by
  *   supplying modify VerbRule(LookDir).
  */
-VerbRule(LookDir)
-    ('look' | 'l') ('to' |) ('the'|) singleDir    
-    : VerbProduction
-    action = LookDir
+verb LookDir ('look' | 'l') ('to' |) ('the'|) singleDir:
     verbPhrase = 'look/looking (where)' 
     priority = 40
 ;
 
-VerbRule(LookDir2)
+verb LookDir2
     ('look' | 'l') ('to' |) ('the'|) singleDir ('and' | 'then' | 'and' 'then')
-    directionName->dirMatch2   
-    : VerbProduction
-    action = LookDir2
+    directionName->dirMatch2:
     verbPhrase = 'look/looking (where)' 
     priority = 40
 ;
 
 
 
-VerbRule(Feel)
-    'feel'  multiDobj
-    : VerbProduction
-    action = Feel
+verb Feel 'feel'  multiDobj:
     verbPhrase = 'feel/feeling (what)'
     missingQ = 'what do you want to feel'
 ;
 
-VerbRule(Touch)
-    'touch' multiDobj
-    : VerbProduction
-    action = Touch
+verb Touch 'touch' multiDobj:
     verbPhrase = 'touch/touching (what)'
     missingQ = 'what do you want to touch'
 ;
 
-VerbRule(Taste)
-    'taste' multiDobj
-    : VerbProduction
-    action = Taste
+verb Taste 'taste' multiDobj:
     verbPhrase = 'taste/tasting (what)'
     missingQ = 'what do you want to taste'
 ;
 
-VerbRule(SmellSomething)
-    ('smell' | 'sniff') multiDobj
-    : VerbProduction
-    action = SmellSomething
+verb SmellSomething ('smell' | 'sniff') multiDobj:
     verbPhrase = 'smell/smelling (what)'
     missingQ = 'what do you want to smell'
 ;
 
-VerbRule(Smell)
-    'smell' | 'sniff'
-    : VerbProduction
-    action = Smell
+verb Smell 'smell' | 'sniff':
     verbPhrase = 'smell/smelling'
 ;
 
-VerbRule(ListenTo)
-    ('hear' | 'listen' 'to' ) multiDobj
-    : VerbProduction
-    action = ListenTo
+verb ListenTo ('hear' | 'listen' 'to' ) multiDobj:
     verbPhrase = 'listen/listening (to what)'
     missingQ = 'what do you want to listen to'
 ;
 
-VerbRule(Listen)
-    'listen' | 'hear'
-    : VerbProduction
-    action = Listen
+verb Listen 'listen' | 'hear':
     verbPhrase = 'listen/listening'
 ;
 
 
-VerbRule(PutIn)
+verb PutIn
     ('put' | 'place' | 'set' | 'insert') multiDobj
-        ('in' | 'into' | 'in' 'to' | 'inside' | 'inside' 'of') singleIobj
-    : VerbProduction
-    action = PutIn
+        ('in' | 'into' | 'in' 'to' | 'inside' | 'inside' 'of') singleIobj:
     verbPhrase = 'put/putting (what) (in what)'
     missingQ = 'what do you want to put (in it);what do you want to put it in'
     iobjReply = inSingleNoun
 ;
 
-VerbRule(PutOn)
+verb PutOn
     ('put' | 'place' | 'drop' | 'set') multiDobj
         ('on' | 'onto' | 'on' 'to' | 'upon') singleIobj
-    | 'put' multiDobj 'down' 'on' singleIobj
-    : VerbProduction
-    action = PutOn
+    | 'put' multiDobj 'down' 'on' singleIobj:
     verbPhrase = 'put/putting (what) (on what)'
     missingQ = 'what do you want to put (on it);what do you want to put it on'
     iobjReply = onSingleNoun
 ;
 
-VerbRule(PutUnder)
-    ('put' | 'place' | 'set') multiDobj 'under' singleIobj
-    : VerbProduction
-    action = PutUnder
+verb PutUnder ('put' | 'place' | 'set') multiDobj 'under' singleIobj:
     verbPhrase = 'put/putting (what) (under what)'
     missingQ = 'what do you want to put (under it);'
              + 'what do you want to put it under'
 ;
 
-VerbRule(PutBehind)
-    ('put' | 'place' | 'set') multiDobj 'behind' singleIobj
-    : VerbProduction
-    action = PutBehind
+verb PutBehind ('put' | 'place' | 'set') multiDobj 'behind' singleIobj:
     verbPhrase = 'put/putting (what) (behind what)'
     missingQ = 'what do you want to put (behind it);'
     + 'what do you want to put it behind'
 ;
 
-VerbRule(PutWhere)
-    [badness 500] ('put' | 'place') multiDobj
-    : VerbProduction
-    action = PutIn
+verb PutWhere for PutIn [badness 500] ('put' | 'place') multiDobj:
     verbPhrase = 'put/putting (what) (in what)'
     missingQ = 'what do you want to put;where do you want to put it'
 
@@ -1837,71 +1747,55 @@ VerbRule(PutWhere)
     priority = 25
 ;
 
-VerbRule(Wear)
+verb Wear
     ('wear' | 'don' | 'put' 'on') multiDobj
-    | 'put' multiDobj 'on'
-    : VerbProduction
-    action = Wear
+    | 'put' multiDobj 'on':
     verbPhrase = 'wear/wearing (what)'
     missingQ = 'what do you want to wear'
 ;
 
-VerbRule(Doff)
+verb Doff
     ('doff' | 'take' 'off') multiDobj
-    | 'take' multiDobj 'off'
-    : VerbProduction
-    action = Doff
+    | 'take' multiDobj 'off':
     verbPhrase = 'take/taking off (what)'
     missingQ = 'what do you want to take off'
 ;
 
-VerbRule(TakeOff)
-    'take' 'off'
-    : VerbProduction
-    action = TakeOff
+verb TakeOff 'take' 'off':
     verbPhrase = 'take/taking off'
     priority = 40
 ;
 
-VerbRule(Kiss)
-    'kiss' singleDobj
-    : VerbProduction
-    action = Kiss
+verb Kiss 'kiss' singleDobj:
     verbPhrase = 'kiss/kissing (whom)'
     missingQ = 'whom do you want to kiss'
     dobjReply = singleNoun
 ;
 
-VerbRule(Query)
+verb Query
     ('a' | 'ask') ('what' ->qtype | 'who' ->qtype | 'where' -> qtype | 'why'
                    ->qtype | 'when' -> qtype| 'how' -> qtype | 'whether' ->
-                    qtype | 'if' -> qtype) topicDobj
-    : VerbProduction
-    action = Query
+                    qtype | 'if' -> qtype) topicDobj:
     verbPhrase = 'ask/asking (what)'
     missingQ = 'what do you want to ask'
     priority = 60
     dobjReply = topicPhrase
 ;
 
-VerbRule(Query2)
+verb Query2 for Query
     ('what' ->qtype | 'who' ->qtype | 'where' -> qtype | 'why'
-                   ->qtype | 'when' -> qtype| 'how' -> qtype) topicDobj
-    : VerbProduction
-    action = Query
+                   ->qtype | 'when' -> qtype| 'how' -> qtype) topicDobj:
     verbPhrase = 'ask/asking (what)'
     missingQ = 'what do you want to ask'
     priority = 60
     dobjReply = topicPhrase
 ;
 
-VerbRule(QueryAbout)
+verb QueryAbout
     ('a' | 'ask') singleDobj ('what' ->qtype | 'who' ->qtype | 
                                'where' -> qtype | 'why'
                    ->qtype | 'when' -> qtype| 'how' -> qtype | 'whether' ->
-                    qtype | 'if' -> qtype)  topicIobj
-    : VerbProduction
-    action = QueryAbout
+                    qtype | 'if' -> qtype)  topicIobj:
     verbPhrase = 'ask/asking (what)'
     missingQ = 'what do you want to ask'
     priority = 60
@@ -1909,23 +1803,19 @@ VerbRule(QueryAbout)
     iobjReply = topicPhrase
 ;
 
-VerbRule(QueryVague)
+verb QueryVague
     ('a' | 'ask'|) ('what' ->qtype | 'who' ->qtype | 'where' -> qtype | 'why'
                    ->qtype | 'when' -> qtype| 'how' -> qtype | 'whether' ->
-                    qtype | 'if' -> qtype) 
-    : VerbProduction
-    action = QueryVague
+                    qtype | 'if' -> qtype):
     verbPhrase = 'ask/asking (what)'
     missingQ = 'what do you want to ask'
     dobjReply = topicPhrase
     priority = 60
 ;
 
-VerbRule(AuxQuery)
+verb AuxQuery for Query
     ('a' | 'ask'|) ('do' | 'does' | 'did' | 'is' | 'are'| 'have' | 'has' |'can' |
-     'could' | 'would' | 'should' | 'were' ) topicDobj
-    :VerbProduction
-    action = Query
+     'could' | 'would' | 'should' | 'were' ) topicDobj:
     missingQ = 'what do you want to ask'
     dobjReply = topicPhrase
     priority = 60
@@ -1958,31 +1848,23 @@ queryPreParser: StringPreParser
     }
 ;
 
-VerbRule(AskFor)
+verb AskFor
     ('ask' | 'a') singleDobj 'for' topicIobj
-    | ('ask' | 'a') 'for' topicIobj 'from' singleDobj
-    : VerbProduction
-    action = AskFor
+    | ('ask' | 'a') 'for' topicIobj 'from' singleDobj:
     verbPhrase = 'ask/asking (whom) (for what)'
     missingQ = 'whom do you want to ask;what do you want to ask it for'
     dobjReply = singleNoun
     iobjReply = forSingleNoun
 ;
 
-VerbRule(AskWhomFor)
-    ('ask' | 'a') 'for' topicIobj
-    : VerbProduction
-    action = AskFor
+verb AskWhomFor for AskFor ('ask' | 'a') 'for' topicIobj:
     verbPhrase = 'ask/asking (whom) (for what)'
     missingQ = 'whom do you want to ask;what do you want to ask it for'
     iobjReply = topicPhrase
     priority = 25
 ;
 
-VerbRule(AskForImplicit)
-    ('a' | 'ask')  'for' topicIobj
-    : VerbProduction
-    action = AskForImplicit
+verb AskForImplicit ('a' | 'ask')  'for' topicIobj:
     verbPhrase = 'ask/asking (whom) (for what)'
     missingQ = 'whom do you want to ask;what do you want to ask it for'
     iobjReply = topicPhrase
@@ -1991,30 +1873,21 @@ VerbRule(AskForImplicit)
 
 
 
-VerbRule(AskAbout)
-    ('ask' | 'a') singleDobj 'about' topicIobj
-    : VerbProduction
-    action = AskAbout
+verb AskAbout ('ask' | 'a') singleDobj 'about' topicIobj:
     verbPhrase = 'ask/asking (whom) (about what)'
     missingQ = 'whom do you want to ask;what do you want to ask it about'
     dobjReply = singleNoun
     iobjReply = aboutTopicPhrase
 ;
 
-VerbRule(AskAboutImplicit)
-    ('a' | ('ask' | 'tell' 'me') ('about')) topicIobj
-    : VerbProduction
-    action = AskAboutImplicit
+verb AskAboutImplicit ('a' | ('ask' | 'tell' 'me') ('about')) topicIobj:
     verbPhrase = 'ask/asking (whom) (about what)'
     missingQ = 'whom do you want to ask;what do you want to ask it about'
     iobjReply = aboutTopicPhrase
     priority = 45
 ;
 
-VerbRule(AskAboutWhat)
-    [badness 500] 'ask' singleDobj
-    : VerbProduction
-    action = AskAbout
+verb AskAboutWhat for AskAbout [badness 500] 'ask' singleDobj:
     verbPhrase = 'ask/asking (whom) (about what)'
     missingQ = 'whom do you want to ask;what do you want to ask it about'
 
@@ -2025,29 +1898,20 @@ VerbRule(AskAboutWhat)
 ;
 
 
-VerbRule(TellAbout)
-    ('tell' | 't') singleDobj 'about' topicIobj
-    : VerbProduction
-    action = TellAbout
+verb TellAbout ('tell' | 't') singleDobj 'about' topicIobj:
     verbPhrase = 'tell/telling (whom) (about what)'
     missingQ = 'whom do you want to tell;what do you want to tell it about'
     dobjReply = singleNoun
     iobjReply = aboutTopicPhrase
 ;
 
-VerbRule(TellAboutImplicit)
-    ('t' | 'tell' 'about') topicIobj
-    : VerbProduction
-    action = TellAboutImplicit
+verb TellAboutImplicit ('t' | 'tell' 'about') topicIobj:
     verbPhrase = 'tell/telling (whom) (about what)'
     missingQ = 'whom do you want to tell;what do you want to tell it about'
     iobjReply = aboutTopicPhrase
 ;
 
-VerbRule(TellAboutWhat)
-    [badness 500] 'tell' singleDobj
-    : VerbProduction
-    action = TellAbout
+verb TellAboutWhat for TellAbout [badness 500] 'tell' singleDobj:
     verbPhrase = 'tell/telling (whom) (about what)'
     missingQ = 'whom do you want to tell;what do you want to tell it about'
 
@@ -2058,48 +1922,33 @@ VerbRule(TellAboutWhat)
     priority = 25    
 ;
 
-VerbRule(TellTo)
-    'tell' singleDobj 'to' literalIobj
-    : VerbProduction
-    action = TellTo
+verb TellTo 'tell' singleDobj 'to' literalIobj:
     verbPhrase = 'tell/telling (whom) (to what)'
     missingQ = 'whom do you want to tell;what do you want to tell it to do'
     iobjReply = literalPhrase
 ;
 
-VerbRule(TalkAbout)
-    'talk' 'to' singleDobj 'about' topicIobj
-    : VerbProduction
-    action = TalkAbout
+verb TalkAbout 'talk' 'to' singleDobj 'about' topicIobj:
     verbPhrase = 'talk/talking (to whom) (about what)'
     missingQ = 'to whom do you want to talk;what do you want to talk to it about'
     dobjReply = toSingleNoun
     iobjReply = aboutTopicPhrase
 ;
 
-VerbRule(TalkAboutImplicit)
-    'talk' 'about' topicIobj
-    : VerbProduction
-    action = TalkAboutImplicit
+verb TalkAboutImplicit 'talk' 'about' topicIobj:
     verbPhrase = 'talk/talking (about what)'
     missingQ = 'what do you want to talk about'
     iobjReply = aboutTopicPhrase
 ;
 
-VerbRule(AskVague)
-    [badness 500] 'ask' singleDobj topicIobj
-    : VerbProduction
-    action = AskAbout
+verb AskVague for AskAbout [badness 500] 'ask' singleDobj topicIobj:
     verbPhrase = 'ask/asking (whom)'
     missingQ = 'whom do you want to ask;what do you want to ask it about'
     dobjReply = singleNoun
     iobjReply = topicPhrase
 ;
 
-VerbRule(TellVague)
-    ('tell'|'t') singleDobj topicIobj
-    : VerbProduction
-    action = TellAbout
+verb TellVague for TellAbout ('tell'|'t') singleDobj topicIobj:
     verbPhrase = 'tell/telling (whom)'
     missingQ = 'whom do you want to tell;what do you want to tell it about'
     priority = 40
@@ -2107,76 +1956,49 @@ VerbRule(TellVague)
     iobjReply = topicPhrase    
 ;
 
-VerbRule(TalkTo)
-    ('greet' | 'say' 'hello' 'to' | 'talk' 'to') singleDobj
-    : VerbProduction
-    action = TalkTo
+verb TalkTo ('greet' | 'say' 'hello' 'to' | 'talk' 'to') singleDobj:
     verbPhrase = 'talk/talking (to whom)'
     missingQ = 'whom do you want to talk to'
     dobjReply = singleNoun
 ;
 
-VerbRule(Topics)
-    'topics'
-    : VerbProduction
-    action = Topics
+verb Topics 'topics':
     verbPhrase = 'show/showing topics'
 ;
 
-VerbRule(Hello)
-    ('say' | ) ('hello' | 'hallo' | 'hi')
-    : VerbProduction
-    action = Hello
+verb Hello ('say' | ) ('hello' | 'hallo' | 'hi'):
     verbPhrase = 'say/saying hello'
      /* Give this priority over SAY TOPIC */
     priority = 60
 ;
 
-VerbRule(Goodbye)
-    ('say' | ()) ('goodbye' | 'good-bye' | 'good' 'bye' | 'bye')
-    : VerbProduction
-    action = Goodbye
+verb Goodbye ('say' | ()) ('goodbye' | 'good-bye' | 'good' 'bye' | 'bye'):
     verbPhrase = 'say/saying goodbye'
 ;
 
-VerbRule(Yes)
-    'yes' | 'affirmative' | 'say' 'yes'
-    : VerbProduction
-    action = SayYes
+verb Yes for SayYes 'yes' | 'affirmative' | 'say' 'yes':
     verbPhrase = 'say/saying yes'
     /* Give this priority over SAY TOPIC */
     priority = 60
 ;
 
-VerbRule(No)
-    'no' | 'negative' | 'say' 'no'
-    : VerbProduction
-    action = SayNo
+verb No for SayNo 'no' | 'negative' | 'say' 'no':
     verbPhrase = 'say/saying no'
     /* Give this priority over SAY TOPIC */
     priority = 60
 ;
 
-VerbRule(Yell)
-    'yell' | 'scream' | 'shout' | 'holler'
-    : VerbProduction
-    action = Yell
+verb Yell 'yell' | 'scream' | 'shout' | 'holler':
     verbPhrase = 'yell/yelling'
 ;
 
-VerbRule(GiveTo)
-    ('give' | 'offer') multiDobj 'to' singleIobj
-    : VerbProduction
-    action = GiveTo
+verb GiveTo ('give' | 'offer') multiDobj 'to' singleIobj:
     verbPhrase = 'give/giving (what) (to whom)'
     missingQ = 'what do you want to give (to it);whom do you want to give it to'
     iobjReply = toSingleNoun
 ;
 
-VerbRule(GiveToType2)
-    ('give' | 'offer') singleIobj multiDobj
-    : VerbProduction
-    action = GiveTo
+verb GiveToType2 for GiveTo ('give' | 'offer') singleIobj multiDobj:
     verbPhrase = 'give/giving (what) (to whom)'
     missingQ = 'what do you want to give (to it);whom do you want to give it to'
     iobjReply = toSingleNoun
@@ -2185,29 +2007,20 @@ VerbRule(GiveToType2)
     isPrepositionalPhrasing = nil
 ;
 
-VerbRule(GiveToImplicit)
-    ('give' | 'offer') multiDobj
-    : VerbProduction
-    action = GiveToImplicit
+verb GiveToImplicit ('give' | 'offer') multiDobj:
     verbPhrase = 'give/giving (what) (to whom)'
     missingQ = 'what do you want to give (to it);whom do you want to give it to'
 
     priority = 25
 ;
 
-VerbRule(ShowTo)
-    'show' multiDobj 'to' singleIobj
-    : VerbProduction
-    action = ShowTo
+verb ShowTo 'show' multiDobj 'to' singleIobj:
     verbPhrase = 'show/showing (what) (to whom)'
     missingQ = 'what do you want to show (to it);whom do you want to show it to'
     iobjReply = toSingleNoun
 ;
 
-VerbRule(ShowToType2)
-    'show' singleIobj multiDobj
-    : VerbProduction
-    action = ShowTo
+verb ShowToType2 for ShowTo 'show' singleIobj multiDobj:
     verbPhrase = 'show/showing (what) (to whom)'
     missingQ = 'what do you want to show (to it);whom do you want to show it to'
     iobjReply = toSingleNoun
@@ -2216,10 +2029,7 @@ VerbRule(ShowToType2)
     isPrepositionalPhrasing = nil
 ;
 
-VerbRule(ShowToImplicit)
-    'show' multiDobj
-    : VerbProduction
-    action = ShowToImplicit
+verb ShowToImplicit 'show' multiDobj:
     verbPhrase = 'show/showing (what) (to whom)'
     missingQ = 'what do you want to show (to it);whom do you want to show it to'
 
@@ -2227,92 +2037,62 @@ VerbRule(ShowToImplicit)
 ;
 
 
-VerbRule(Say)
-    'say' ('that' |) topicDobj
-    : VerbProduction
-    action = SayAction
+verb Say for SayAction 'say' ('that' |) topicDobj:
     verbPhrase = 'say/saying (what)'
     missingQ = 'what do you want to say'
     dobjReply = topicPhrase
 ;
 
-VerbRule(SayTo)
-    'say' ('that' |) topicIobj 'to' singleDobj
-    : VerbProduction
-    action = SayTo
+verb SayTo 'say' ('that' |) topicIobj 'to' singleDobj:
     verbPhrase = 'say/saying (what) (to whom)'
     missingQ = 'what do you want to say it to; what do you want to say'
     dobjReply = topicPhrase
     iobjReply = toSingleNoun
 ;
 
-VerbRule(TellThat)
-    'tell' singleDobj 'that' topicIobj
-    : VerbProduction
-    action = SayTo
+verb TellThat for SayTo 'tell' singleDobj 'that' topicIobj:
     verbPhrase = 'say/saying (what) (to whom)'
     missingQ = 'what do you want to say it to; what do you want to say'
     dobjReply = singleNoun
     iobjReply = topicPhrase
 ;
     
-VerbRule(Think)
-    'think' | 'ponder' | 'cogitate'
-    : VerbProduction
-    action = Think
+verb Think 'think' | 'ponder' | 'cogitate':
     verbPhrase = 'think/thinking'
 ;
 
-VerbRule(ThinkAbout)
-    ('think' | 'ponder' | 'cogitate') 'about' topicDobj
-    : VerbProduction
-    action = ThinkAbout
+verb ThinkAbout ('think' | 'ponder' | 'cogitate') 'about' topicDobj:
     verbPhrase = 'think/thinking (about what)'
     missingQ = 'what do you want to think about'
     dobjReply = aboutTopicPhrase
 ;
     
 
-VerbRule(Throw)
-    [badness 500] ('throw' | 'toss') multiDobj
-    : VerbProduction
-    action = Throw
+verb Throw [badness 500] ('throw' | 'toss') multiDobj:
     verbPhrase = 'throw/throwing (what)'
     missingQ = 'what do you want to throw'
 ;
 
-VerbRule(ThrownDown)
-    ('throw' | 'toss') 'down'
-    : VerbProduction
-    action = Drop
+verb ThrownDown for Drop ('throw' | 'toss') 'down':
     verbPhrase = 'drop/dropping (what)'
     missingQ = 'what do you want to throw down'
     missingRole = DirectObject
 ;
 
 
-VerbRule(ThrowAt)
-    ('throw' | 'toss') multiDobj 'at' singleIobj
-    : VerbProduction
-    action = ThrowAt
+verb ThrowAt ('throw' | 'toss') multiDobj 'at' singleIobj:
     verbPhrase = 'throw/throwing (what) (at what)'
     missingQ = 'what do you want to throw (at it);what do you want to throw it at'
     iobjReply = atSingleNoun
 ;
 
-VerbRule(ThrowTo)
-    ('throw' | 'toss') multiDobj 'to' singleIobj
-    : VerbProduction
-    action = ThrowTo
+verb ThrowTo ('throw' | 'toss') multiDobj 'to' singleIobj:
     verbPhrase = 'throw/throwing (what) (to whom)'
     missingQ = 'what do you want to throw (to it);whom do you want to throw to it'
     iobjReply = toSingleNoun
 ;
 
-VerbRule(ThrowToType2)
-    'throw' singleIobj multiDobj
-    : VerbProduction
-    action = ThrowTo
+verb ThrowToType2 for ThrowTo 'throw' singleIobj multiDobj:
     verbPhrase = 'throw/throwing (what) (to whom)'
     missingQ = 'what do you want to throw (to it);whom do you want to throw it to'
     iobjReply = toSingleNoun
@@ -2321,10 +2101,7 @@ VerbRule(ThrowToType2)
     isPrepositionalPhrasing = nil
 ;
 
-VerbRule(ThrowDir)
-    ('throw' | 'toss') multiDobj ('to' ('the' | ) | ) singleDir
-    : VerbProduction
-    action = ThrowDir
+verb ThrowDir ('throw' | 'toss') multiDobj ('to' ('the' | ) | ) singleDir:
 
     verbPhrase = 'throw/throwing (what)'
     missingQ = 'what do you want to throw'
@@ -2332,326 +2109,205 @@ VerbRule(ThrowDir)
 ;
 
 /* a special rule for THROW DOWN <dobj> */
-VerbRule(ThrowDirDown)
+verb ThrowDirDown for Drop
     ('throw' | 'toss') ('down' | 'd') multiDobj |
-    ('throw' | 'toss') multiDobj ('down' | 'd')
-    : VerbProduction
-    action = Drop
+    ('throw' | 'toss') multiDobj ('down' | 'd'):
     verbPhrase = ('throw/throwing (what) down')
     missingQ = 'what do you want to throw down'
     
     priority = 100
 ;
 
-VerbRule(Follow)
-    'follow' singleDobj
-    : VerbProduction
-    action = Follow
+verb Follow 'follow' singleDobj:
     verbPhrase = 'follow/following (whom)'
     missingQ = 'whom do you want to follow'
     dobjReply = singleNoun
 ;
 
-VerbRule(Attack)
-    ('attack' | 'kill' | 'hit' | 'kick' | 'punch') singleDobj
-    : VerbProduction
-    action = Attack
+verb Attack ('attack' | 'kill' | 'hit' | 'kick' | 'punch') singleDobj:
     verbPhrase = 'attack/attacking (whom)'
     missingQ = 'whom do you want to attack'
     dobjReply = singleNoun
 ;
 
-VerbRule(AttackWith)
+verb AttackWith
     ('attack' | 'kill' | 'hit' | 'strike')
-        singleDobj 'with' singleIobj
-    : VerbProduction
-    action = AttackWith
+        singleDobj 'with' singleIobj:
     verbPhrase = 'attack/attacking (whom) (with what)'
     missingQ = 'whom do you want to attack;what do you want to attack it with'
     dobjReply = singleNoun
     iobjReply = withSingleNoun
 ;
 
-VerbRule(Inventory)
-    'i' | 'inv' | 'inventory' | 'take' 'inventory'
-    : VerbProduction
-    action = Inventory
+verb Inventory 'i' | 'inv' | 'inventory' | 'take' 'inventory':
     verbPhrase = 'take/taking inventory'
 ;
 
-VerbRule(InventoryTall)
-    ('i' | 'inv' | 'inventory') 'tall'
-    : VerbProduction
-    action = InventoryTall
+verb InventoryTall ('i' | 'inv' | 'inventory') 'tall':
     verbPhrase = 'take/making inventory tall'
 ;
 
-VerbRule(InventoryWide)
-    ('i' | 'inv' | 'inventory') 'wide'
-    : VerbProduction
-    action = InventoryWide
+verb InventoryWide ('i' | 'inv' | 'inventory') 'wide':
     verbPhrase = 'make/making inventory wide'
 ;   
 
 
-VerbRule(InventoryHybrid)
-    ('i' | 'inv' | 'inventory') ('hybrid' | 'split')
-    : VerbProduction
-    action = InventoryHybrid
+verb InventoryHybrid ('i' | 'inv' | 'inventory') ('hybrid' | 'split'):
     verbPhrase = 'make/making inventory hybrid'
 ;   
 
 
-VerbRule(Wait)
-    'z' | 'wait'
-    : VerbProduction
-    action = Wait
+verb Wait 'z' | 'wait':
     verbPhrase = 'wait/waiting'
 ;
 
-VerbRule(Look)
-    'look' | 'look' 'around' | 'l' | 'l' 'around'
-    : VerbProduction
-    action = Look
+verb Look 'look' | 'look' 'around' | 'l' | 'l' 'around':
     verbPhrase = 'look/looking around'    
 ;
 
-VerbRule(Quit)
-    'quit' | 'q'
-    : VerbProduction
-    action = Quit
+verb Quit 'quit' | 'q':
     verbPhrase = 'quit/quitting'
 ;
 
-VerbRule(Again)
-    'again' | 'g'
-    : VerbProduction
-    action = Again
+verb Again 'again' | 'g':
     verbPhrase = 'repeat/repeating the last command'
 ;
 
-VerbRule(Score)
-    'score' | 'status'
-    : VerbProduction
-    action = Score
+verb Score 'score' | 'status':
     verbPhrase = 'show/showing score'
 ;
 
-VerbRule(FullScore)
-    'full' 'score' | 'fullscore' | 'full'
-    : VerbProduction
-    action = FullScore
+verb FullScore 'full' 'score' | 'fullscore' | 'full':
     verbPhrase = 'show/showing full score'
 ;
 
-VerbRule(Notify)
-    'notify'
-    : VerbProduction
-    action = Notify
+verb Notify 'notify':
     verbPhrase = 'show/showing notification status'
 ;
 
-VerbRule(NotifyOn)
-    'notify' 'on'
-    : VerbProduction
-    action = NotifyOn
+verb NotifyOn 'notify' 'on':
     verbPhrase = 'turn/turning on score notification'
 ;
 
-VerbRule(NotifyOff)
-    'notify' 'off'
-    : VerbProduction
-    action = NotifyOff
+verb NotifyOff 'notify' 'off':
     verbPhrase = 'turn/turning off score notification'
 ;
 
-VerbRule(Save)
-    'save'
-    : VerbProduction
-    action = Save
+verb Save 'save':
     verbPhrase = 'save/saving'
 ;
 
-VerbRule(SaveString)
-    'save' quotedStringPhrase->fname_
-    : VerbProduction
-    action = Save
+verb SaveString for Save 'save' quotedStringPhrase->fname_:
     verbPhrase = 'save/saving'
 ;
 
-VerbRule(Restore)
-    'restore'
-    : VerbProduction
-    action = Restore
+verb Restore 'restore':
     verbPhrase = 'restore/restoring'
 ;
 
-VerbRule(RestoreString)
-    'restore' quotedStringPhrase->fname_
-    : VerbProduction
-    action = Restore
+verb RestoreString for Restore 'restore' quotedStringPhrase->fname_:
     verbPhrase = 'restore/restoring'
 ;
 
 
-VerbRule(Restart)
-    'restart'
-    : VerbProduction
-    action = Restart
+verb Restart 'restart':
     verbPhrase = 'restart/restarting'
 ;
 
-VerbRule(Undo)
-    'undo'
-    : VerbProduction
-    action = Undo
+verb Undo 'undo':
     verbPhrase = 'undo/undoing'
 ;
 
-VerbRule(Version)
-    'version' | 'ver'
-    : VerbProduction
-    action = Version
+verb Version 'version' | 'ver':
     verbPhrase = 'show/showing version'
 ;
 
-VerbRule(Credits)
-    'credits'
-    : VerbProduction
-    action = Credits
+verb Credits 'credits':
     verbPhrase = 'show/showing credits'
 ;
 
-VerbRule(About)
-    'about'
-    : VerbProduction
-    action = About
+verb About 'about':
     verbPhrase = 'show/showing story information'
 ;
 
-VerbRule(ScriptOn)
-    'script' | 'script' 'on'
-    : VerbProduction
-    action = ScriptOn
+verb ScriptOn 'script' | 'script' 'on':
     verbPhrase = 'start/starting scripting'
 ;
 
-VerbRule(ScriptString)
-    'script' quotedStringPhrase->fname_
-    : VerbProduction
-    action = ScriptOn
+verb ScriptString for ScriptOn 'script' quotedStringPhrase->fname_:
     verbPhrase = 'start/starting scripting'
 ;
 
-VerbRule(ScriptOff)
-    'script' 'off' | 'unscript'
-    : VerbProduction
-    action = ScriptOff
+verb ScriptOff 'script' 'off' | 'unscript':
     verbPhrase = 'end/ending scripting'
 ;
 
-VerbRule(Record)
-    'record' | 'record' 'on'
-    : VerbProduction
-    action = Record
+verb Record 'record' | 'record' 'on':
     verbPhrase = 'start/starting command recording'
 ;
 
-VerbRule(RecordString)
-    'record' quotedStringPhrase->fname_
-    : VerbProduction
-    action = Record
+verb RecordString for Record 'record' quotedStringPhrase->fname_:
     verbPhrase = 'start/starting command recording'
 ;
 
-VerbRule(RecordEvents)
-    'record' 'events' | 'record' 'events' 'on'
-    : VerbProduction
-    action = RecordEvents
+verb RecordEvents 'record' 'events' | 'record' 'events' 'on':
     verbPhrase = 'start/starting event recording'
 ;
 
-VerbRule(RecordEventsString)
-    'record' 'events' quotedStringPhrase->fname_
-    : VerbProduction
-    action = RecordEvents
+verb RecordEventsString for RecordEvents 'record' 'events' quotedStringPhrase->fname_:
     verbPhrase = 'start/starting command recording'
 ;
 
-VerbRule(RecordOff)
-    'record' 'off'
-    : VerbProduction
-    action = RecordOff
+verb RecordOff 'record' 'off':
     verbPhrase = 'end/ending command recording'
 ;
 
-VerbRule(ReplayString)
+verb ReplayString for Replay
     'replay' ('quiet'->quiet_ | 'nonstop'->nonstop_ | )
-        (quotedStringPhrase->fname_ | )
-    : VerbProduction
-    action = Replay
+        (quotedStringPhrase->fname_ | ):
     verbPhrase = 'replay/replaying command recording'
 
     /* set the appropriate option flags */
     scriptOptionFlags = ((quiet_ != nil ? ScriptFileQuiet : 0)
                          | (nonstop_ != nil ? ScriptFileNonstop : 0))
 ;
-VerbRule(ReplayQuiet)
-    'rq' (quotedStringPhrase->fname_ | )
-    : VerbProduction
-    action = Replay
+verb ReplayQuiet for Replay 'rq' (quotedStringPhrase->fname_ | ):
 
     scriptOptionFlags = ScriptFileQuiet
 ;
 
-VerbRule(ToggleDiaambigEnum)
-    ('toggle' |) ('disambig' | 'disambiguation') ('enum' | 'enumeration')
-    : VerbProduction
-    action = ToggleDisambigEnumeration
+verb ToggleDiaambigEnum for ToggleDisambigEnumeration ('toggle' |) ('disambig' | 'disambiguation') ('enum' | 'enumeration'):
     verbPhrase = 'toggle/toggling enumeration of disambiguation options'
 ;
 
-VerbRule(GoToMode)
+verb GoToMode
     ('goto' | 'go' 'to') (|'mode') ('brief' -> brief_| 'fast' -> fast_|
-        'verbose'->normal_|'normal'-> normal_| 'slow'-> normal_ | 'continue' -> normal_)
-    : VerbProduction
-    action = GoToMode
+        'verbose'->normal_|'normal'-> normal_| 'slow'-> normal_ | 'continue' -> normal_):
     verbPhrase = 'switch/switching goto mode'    
 ;
 
 
-VerbRule(GoTo)
+verb GoTo
     ('go' 'to' | 'walk' 'to' | 'goto')
-    singleDobj
-    : VerbProduction
-    action = GoTo
+    singleDobj:
     verbPhrase = 'go/going to (what)'
     missingQ = 'where do you want to go'
     dobjReply = toSingleNoun
     priority = 60
 ;
 
-VerbRule(Continue)
-    'continue' | 'c'
-    : VerbProduction
-    action = Continue
+verb Continue 'continue' | 'c':
     verbPhrase = 'continue/continuing journey'
 ;
 
 
-VerbRule(VagueTravel) 
-    'go' | 'walk' | 'run' 
-    : VerbProduction
-    action = VagueTravel
+verb VagueTravel 'go' | 'walk' | 'run':
     verbPhrase = 'go/going'
 
     priority = 25
 ;
 
-VerbRule(Travel)
-    (('go' | 'walk' | 'run')  singleDir) | singleDir
-    : VerbProduction
-    action = Travel
+verb Travel (('go' | 'walk' | 'run')  singleDir) | singleDir:
     verbPhrase = 'go/going {where)'  
 ;
 
@@ -2664,298 +2320,205 @@ VerbRule(Travel)
  *   merely need to create a regular subclass in order for the verbPhrase
  *   to get found.)  
  */
-VerbRule(TravelVia)
-    'tv#' singleDobj
-    : VerbProduction
-    action = TravelVia
+verb TravelVia 'tv#' singleDobj:
     verbPhrase = 'use/using (what)'
     missingQ = 'which do you want to try'
     dobjReply = singleNoun
 ;
 
-VerbRule(In)
-    'enter'
-    : VerbProduction
-    action = GoIn
+verb In for GoIn 'enter':
     verbPhrase = 'enter/entering'
 ;
 
-VerbRule(Out)
-    'exit' | 'leave'
-    : VerbProduction
-    action = GoOut
+verb Out for GoOut 'exit' | 'leave':
     verbPhrase = 'exit/exiting'
 ;
 
-VerbRule(GoThrough)
+verb GoThrough
     ('walk' | 'go' ) ('through' | 'thru')
-        singleDobj
-    : VerbProduction
-    action = GoThrough
+        singleDobj:
     verbPhrase = 'go/going (through what)'
     missingQ = 'what do you want to go through'
     dobjReply = throughSingleNoun
 ;
 
-VerbRule(GoAlong)
+verb GoAlong
     ('walk' | 'go' ) ('along')
-        singleDobj
-    : VerbProduction
-    action = GoAlong
+        singleDobj:
     verbPhrase = 'go/going (along what)'
     missingQ = 'what do you want to go along'
     dobjReply = singleNoun
 ;
 
 
-VerbRule(GoBack)
-    'back' | 'go' 'back' | 'return'
-    : VerbProduction
-    action = GoBack
+verb GoBack 'back' | 'go' 'back' | 'return':
     verbPhrase = 'go/going back'
 ;
 
-VerbRule(Dig)
-    ([badness 500] 'dig' | 'dig' 'in') singleDobj
-    : VerbProduction
-    action = Dig
+verb Dig ([badness 500] 'dig' | 'dig' 'in') singleDobj:
     verbPhrase = 'dig/digging (in what)'
     missingQ = 'what do you want to dig in'
     dobjReply = inSingleNoun
 ;
 
-VerbRule(DigWith)
-    ('dig' | 'dig' 'in') singleDobj 'with' singleIobj
-    : VerbProduction
-    action = DigWith
+verb DigWith ('dig' | 'dig' 'in') singleDobj 'with' singleIobj:
     verbPhrase = 'dig/digging (in what) (with what)'
     missingQ = 'what do you want to dig in;what do you want to dig with'
     dobjReply = inSingleNoun
     iobjReply = withSingleNoun
 ;
 
-VerbRule(Jump)
-    'jump'
-    : VerbProduction
-    action = Jump
+verb Jump 'jump':
     verbPhrase = 'jump/jumping'
 ;
 
-VerbRule(JumpOffIntransitive)
-    'jump' 'off'
-    : VerbProduction
-    action = JumpOffIntransitive
+verb JumpOffIntransitive 'jump' 'off':
     verbPhrase = 'jump/jumping off'
 ;
 
-VerbRule(JumpOff)
-    'jump' 'off' singleDobj
-    : VerbProduction
-    action = JumpOff
+verb JumpOff 'jump' 'off' singleDobj:
     verbPhrase = 'jump/jumping (off what)'
     missingQ = 'what do you want to jump off'
     dobjReply = singleNoun
 ;
 
-VerbRule(JumpOver)
-    ([badness 500]'jump' | 'jump' 'over') singleDobj
-    : VerbProduction
-    action = JumpOver
+verb JumpOver ([badness 500]'jump' | 'jump' 'over') singleDobj:
     verbPhrase = 'jump/jumping (over what)'
     missingQ = 'what do you want to jump over'
     dobjReply = overSingleNoun
 ;
 
-VerbRule(Push)
-    ('push' | 'press') multiDobj
-    : VerbProduction
-    action = Push
+verb Push ('push' | 'press') multiDobj:
     verbPhrase = 'push/pushing (what)'
     missingQ = 'what do you want to push'
 ;
 
-VerbRule(Pull)
-    'pull' multiDobj
-    : VerbProduction
-    action = Pull
+verb Pull 'pull' multiDobj:
     verbPhrase = 'pull/pulling (what)'
     missingQ = 'what do you want to pull'
 ;
 
-VerbRule(Move)
-    'move' multiDobj
-    : VerbProduction
-    action = Move
+verb Move 'move' multiDobj:
     verbPhrase = 'move/moving (what)'
     missingQ = 'what do you want to move'
 ;
 
-VerbRule(MoveTo)
-    ('push' | 'move') multiDobj ((('over' |) 'to' )| 'under') singleIobj
-    : VerbProduction
-    action = MoveTo
+verb MoveTo ('push' | 'move') multiDobj ((('over' |) 'to' )| 'under') singleIobj:
     verbPhrase = 'move/moving (what) (to what)'
     missingQ = 'what do you want to move;where do you want to move it'
     iobjReply = toSingleNoun
 ;
 
-VerbRule(MoveAwayFrom)
-    ('push' | 'move' | 'pull') multiDobj (('away'|) 'from') singleIobj
-    : VerbProduction
-    action = MoveAwayFrom
+verb MoveAwayFrom ('push' | 'move' | 'pull') multiDobj (('away'|) 'from') singleIobj:
     verbPhrase = 'move/moving (what) (to what)'
     missingQ = 'what do you want to move;where do you want to move it'
     iobjReply = fromSingleNoun
 ;
 
 
-VerbRule(MoveWith)
-    'move' singleDobj 'with' singleIobj
-    : VerbProduction
-    action = MoveWith
+verb MoveWith 'move' singleDobj 'with' singleIobj:
     verbPhrase = 'move/moving (what) (with what)'
     missingQ = 'what do you want to move;what do you want to move it with'
     dobjReply = singleNoun
     iobjReply = withSingleNoun
 ;
 
-VerbRule(Turn)
-    ('turn' | 'twist' | 'rotate') multiDobj
-    : VerbProduction
-    action = Turn
+verb Turn ('turn' | 'twist' | 'rotate') multiDobj:
     verbPhrase = 'turn/turning (what)'
     missingQ = 'what do you want to turn'
 ;
 
-VerbRule(TurnWith)
-    ('turn' | 'twist' | 'rotate') singleDobj 'with' singleIobj
-    : VerbProduction
-    action = TurnWith
+verb TurnWith ('turn' | 'twist' | 'rotate') singleDobj 'with' singleIobj:
     verbPhrase = 'turn/turning (what) (with what)'
     missingQ = 'what do you want to turn;what do you want to turn it with'
     dobjReply = singleNoun
     iobjReply = withSingleNoun
 ;
 
-VerbRule(TurnTo)
+verb TurnTo
     ('turn' | 'twist' | 'rotate') singleDobj
-        'to' literalIobj
-    : VerbProduction
-    action = TurnTo
+        'to' literalIobj:
     verbPhrase = 'turn/turning (what) (to what)'
     missingQ = 'what do you want to turn;what do you want to turn it to'
     dobjReply = singleNoun
 ;
 
-VerbRule(Set)
-    [badness 500] 'set' multiDobj
-    : VerbProduction
-    action = Set
+verb Set [badness 500] 'set' multiDobj:
     verbPhrase = 'set/setting (what)'
     missingQ = 'what do you want to set'
 ;
 
-VerbRule(SetTo)
-    'set' singleDobj 'to' literalIobj
-    : VerbProduction
-    action = SetTo
+verb SetTo 'set' singleDobj 'to' literalIobj:
     verbPhrase = 'set/setting (what) (to what)'
     missingQ = 'what do you want to set;what do you want to set it to'
     dobjReply = singleNoun
     
 ;
 
-VerbRule(TypeOn)
-    'type' 'on' singleDobj
-    : VerbProduction
-    action = TypeOnVague
+verb TypeOn for TypeOnVague 'type' 'on' singleDobj:
     verbPhrase = 'type/typing (on what)'
     missingQ = 'what do you want to type on'
     dobjReply = onSingleNoun
 ;
 
-VerbRule(TypeLiteralOn)
-    'type' literalDobj 'on' singleIobj
-    : VerbProduction
-    action = TypeOn
+verb TypeLiteralOn for TypeOn 'type' literalDobj 'on' singleIobj:
     verbPhrase = 'type/typing (what) (on what)'
     missingQ = 'what do you want to type;what do you want to type that on'
     iobjReply = onSingleNoun
 ;
 
-VerbRule(TypeLiteralOnWhat)
-    [badness 500] 'type' literalDobj
-    : VerbProduction
-    action = Type
+verb TypeLiteralOnWhat for Type [badness 500] 'type' literalDobj:
     verbPhrase = 'type/typing (what) (on what)'
     missingQ = 'what do you want to type;what do you want to type that on'
 ;
 
-VerbRule(TypeVague)
-    'type'
-    : VerbProduction
-    action = TypeVague
+verb TypeVague 'type':
     verbPhrase = 'type/typing'
     missingQ = 'what do you want to type;what do you want to type that on'
     priority = 20
 ;
 
-VerbRule(EnterOn)
+verb EnterOn
     'enter' literalDobj
-        ('on' | 'in' | 'in' 'to' | 'into' | 'with') singleIobj
-    : VerbProduction
-    action = EnterOn
+        ('on' | 'in' | 'in' 'to' | 'into' | 'with') singleIobj:
     verbPhrase = 'enter/entering (what) (on what)'
     missingQ = 'what do you want to enter;what do you want to enter that on'
     dobjReply = singleNoun
 ;
 
 
-VerbRule(WriteOn)
-    'write' literalDobj ('on' | 'in') singleIobj
-    : VerbProduction
-    action = WriteOn
+verb WriteOn 'write' literalDobj ('on' | 'in') singleIobj:
     verbPhrase = 'write/writing (what) (on what)'
     missingQ = 'what do you want to write;what do you want to write that on'
     dobjReply = onSingleNoun
 ;
 
-VerbRule(Write)
-    'write' literalDobj
-    : VerbProduction
-    action = Write
+verb Write 'write' literalDobj:
     verbPhrase = 'write/writing (what) (on what)'
     missingQ = 'what do you want to write;what do you want to write that on'
     priority = 25
 ;
 
-VerbRule(WriteVague)
-    'write' 
-    : VerbProduction
-    action = WriteVague
+verb WriteVague 'write':
     verbPhrase = 'write/writing (what)'
     missingQ = 'what do you want to write'
     priority = 30
 ;
 
 
-VerbRule(ConsultAbout)
+verb ConsultAbout
     'consult' singleDobj ('on' | 'about') topicIobj
-    | 'search' singleDobj 'for' topicIobj
-    : VerbProduction
-    action = ConsultAbout
+    | 'search' singleDobj 'for' topicIobj:
     verbPhrase = 'consult/consulting (what) (about what)'
     missingQ = 'what do you want to consult;what do you want to consult it about'
     dobjReply = singleNoun
     iobjReply = aboutTopicPhrase
 ;
 
-VerbRule(LookUp)
+verb LookUp for ConsultAbout
     (('look' | 'l') ('up' | 'for') | 'find'  | 'search' 'for' | 'read' 'about')
     topicIobj ('in' | 'on') singleDobj
-    | ('look' | 'l') topicIobj 'up' ('in' | 'on') singleDobj
-    : VerbProduction
-    action = ConsultAbout
+    | ('look' | 'l') topicIobj 'up' ('in' | 'on') singleDobj:
     verbPhrase = 'look/looking up (what) (in what)'
     missingQ = 'what do you want to look that up in;what do you want to look up'
     dobjReply = topicPhrase
@@ -2968,15 +2531,13 @@ VerbRule(LookUp)
     rolesReversed = true
 ;
 
-VerbRule(ConsultWhatAbout)
+verb ConsultWhatAbout
     (('look' | 'l') ('up' | 'for')
      | 'find'
      | 'search' 'for'
      | 'read' 'about')
     topicIobj
-    | ('look' | 'l') topicIobj 'up'
-    : VerbProduction
-    action = ConsultWhatAbout
+    | ('look' | 'l') topicIobj 'up':
     verbPhrase = 'look/looking up (what) (in what)'
     missingQ = 'what do you want to look that up in;what do you want to look up'
     priority = 25
@@ -2984,426 +2545,293 @@ VerbRule(ConsultWhatAbout)
     dobjReply = inSingleNoun
 ;
 
-VerbRule(ConsultAboutVague)
-    ('consult' | 'read') 'about'
-    : VerbProduction
-    action = ConsultAboutVague
+verb ConsultAboutVague ('consult' | 'read') 'about':
     verbPhrase = 'consult/consulting about'    
 ;
 
-VerbRule(Switch)
-    [badness 500] 'switch' multiDobj
-    : VerbProduction
-    action = SwitchVague
+verb Switch for SwitchVague [badness 500] 'switch' multiDobj:
     verbPhrase = 'switch/switching (what)'
     missingQ = 'what do you want to switch'
 ;
 
-VerbRule(Flip)
-    [badness 500] 'flip' multiDobj
-    : VerbProduction
-    action = Flip
+verb Flip [badness 500] 'flip' multiDobj:
     verbPhrase = 'flip/flipping (what)'
     missingQ = 'what do you want to flip'
 ;
 
-VerbRule(SwitchOn)
+verb SwitchOn
     ('activate' | ('turn' | 'switch' | 'flip') 'on') multiDobj
-    | ('turn' | 'switch' | 'flip') multiDobj 'on'
-    : VerbProduction
-    action = SwitchOn
+    | ('turn' | 'switch' | 'flip') multiDobj 'on':
     verbPhrase = 'turn/turning on (what)'
     missingQ = 'what do you want to turn on'
     priority = 60
 ;
 
-VerbRule(SwitchOff)
+verb SwitchOff
     ('deactivate' | ('turn' | 'switch' | 'flip') 'off') multiDobj
-    | ('turn' | 'switch' | 'flip') multiDobj 'off'
-    : VerbProduction
-    action = SwitchOff
+    | ('turn' | 'switch' | 'flip') multiDobj 'off':
     verbPhrase = 'turn/turning off (what)'
     missingQ = 'what do you want to turn off'
     priority = 60
 ;
 
-VerbRule(Light)
-    'light' multiDobj
-    : VerbProduction
-    action = Light
+verb Light 'light' multiDobj:
     verbPhrase = 'light/lighting (what)'
     missingQ = 'what do you want to light'
 ;
 
-VerbRule(Strike)
-    'strike' multiDobj
-    : VerbProduction
-    action = Strike
+verb Strike 'strike' multiDobj:
     verbPhrase = 'strike/striking (what)'
     missingQ = 'what do you want to strike'
 ;
 
-VerbRule(Burn)
-    ('burn' | 'ignite' | 'set' 'fire' 'to') multiDobj
-    : VerbProduction
-    action = Burn
+verb Burn ('burn' | 'ignite' | 'set' 'fire' 'to') multiDobj:
     verbPhrase = 'burn/burning (what)'
     missingQ = 'what do you want to burn'
 ;
 
-VerbRule(SetFireToWhat)
-    'set' 'fire' 'to'
-    : VerbProduction
-    action = Burn
+verb SetFireToWhat for Burn 'set' 'fire' 'to':
     verbPhrase = 'burn/burning (what)'
     missingQ = 'what do you want to set fire to'
     missingRole = DirectObject
 ;
 
-VerbRule(BurnWith)
+verb BurnWith
     ('light' | 'burn' | 'ignite' | 'set' 'fire' 'to') singleDobj
-        ('with' | 'from') singleIobj
-    : VerbProduction
-    action = BurnWith
+        ('with' | 'from') singleIobj:
     verbPhrase = 'burn/burning (what) (with what)'
     missingQ = 'what do you want to burn;what do you want to burn it with'
     dobjReply = singleNoun
     iobjReply = withSingleNoun
 ;
 
-VerbRule(Extinguish)
+verb Extinguish
     ('extinguish' | 'douse' | 'put' 'out' | 'blow' 'out') multiDobj
-    | ('blow' | 'put') multiDobj 'out'
-    : VerbProduction
-    action = Extinguish
+    | ('blow' | 'put') multiDobj 'out':
     verbPhrase = 'extinguish/extinguishing (what)'
     missingQ = 'what do you want to extinguish'
 ;
 
-VerbRule(Break)
-    ('break' | 'ruin' | 'destroy' | 'wreck' | 'smash') multiDobj
-    : VerbProduction
-    action = Break
+verb Break ('break' | 'ruin' | 'destroy' | 'wreck' | 'smash') multiDobj:
     verbPhrase = 'break/breaking (what)'
     missingQ = 'what do you want to break'
 ;
 
-VerbRule(Cut)
-    [badness 500] 'cut' singleDobj
-    : VerbProduction
-    action = Cut
+verb Cut [badness 500] 'cut' singleDobj:
     verbPhrase = 'cut/cutting (what) (with what)'
     missingQ = 'what do you want to cut'
     dobjReply = singleNoun
 ;
 
-VerbRule(CutWith)
-    'cut' singleDobj 'with' singleIobj
-    : VerbProduction
-    action = CutWith
+verb CutWith 'cut' singleDobj 'with' singleIobj:
     verbPhrase = 'cut/cutting (what) (with what)'
     missingQ = 'what do you want to cut;what do you want to cut it with'
     dobjReply = singleNoun
     iobjReply = withSingleNoun
 ;
 
-VerbRule(Eat)
-    ('eat' | 'consume') multiDobj
-    : VerbProduction
-    action = Eat
+verb Eat ('eat' | 'consume') multiDobj:
     verbPhrase = 'eat/eating (what)'
     missingQ = 'what do you want to eat'
 ;
 
-VerbRule(Drink)
-    ('drink' | 'quaff' | 'imbibe') multiDobj
-    : VerbProduction
-    action = Drink
+verb Drink ('drink' | 'quaff' | 'imbibe') multiDobj:
     verbPhrase = 'drink/drinking (what)'
     missingQ = 'what do you want to drink'
 ;
 
-VerbRule(Pour)
-    'pour' multiDobj
-    : VerbProduction
-    action = Pour
+verb Pour 'pour' multiDobj:
     verbPhrase = 'pour/pouring (what)'
     missingQ = 'what do you want to pour'
 ;
 
-VerbRule(PourInto)
-    'pour' multiDobj ('in' | 'into' | 'in' 'to') singleIobj
-    : VerbProduction
-    action = PourInto
+verb PourInto 'pour' multiDobj ('in' | 'into' | 'in' 'to') singleIobj:
     verbPhrase = 'pour/pouring (what) (into what)'
     missingQ = 'what do you want to pour;what do you want to pour it into'
     iobjReply = inSingleNoun
 ;
 
-VerbRule(PourOnto)
-    'pour' multiDobj ('on' | 'onto' | 'on' 'to') singleIobj
-    : VerbProduction
-    action = PourOnto
+verb PourOnto 'pour' multiDobj ('on' | 'onto' | 'on' 'to') singleIobj:
     verbPhrase = 'pour/pouring (what) (onto what)'
     missingQ = 'what do you want to pour;what do you want to pour it onto'
     iobjReply = onSingleNoun
 ;
 
 
-VerbRule(ClimbVague)
-    'climb' 
-    : VerbProduction
-    action = ClimbVague
+verb ClimbVague 'climb':
     verbPhrase = 'climb/climbing'   
 ;
 
-VerbRule(Climb)
-    'climb' singleDobj
-    : VerbProduction
-    action = Climb
+verb Climb 'climb' singleDobj:
     verbPhrase = 'climb/climbing (what)'
     missingQ = 'what do you want to climb'
     dobjReply = singleNoun
 ;
 
-VerbRule(ClimbUp)
-    ('climb' | 'go' | 'walk') 'up' singleDobj
-    : VerbProduction
-    action = ClimbUp
+verb ClimbUp ('climb' | 'go' | 'walk') 'up' singleDobj:
     verbPhrase = 'climb/climbing (up what)'
     missingQ = 'what do you want to climb up'
     dobjReply = singleNoun
 ;
 
-VerbRule(ClimbUpWhat)
-    'climb' 'up'
-    : VerbProduction
-    action = ClimbUp
+verb ClimbUpWhat for ClimbUp 'climb' 'up':
     verbPhrase = 'climb/climbing (up what)'
     missingQ = 'what do you want to climb up'
     dobjReply = singleNoun
     missingRole = DirectObject
 ;
 
-VerbRule(ClimbDown)
-    ('climb' | 'go' | 'walk') 'down' singleDobj
-    : VerbProduction
-    action = ClimbDown
+verb ClimbDown ('climb' | 'go' | 'walk') 'down' singleDobj:
     verbPhrase = 'climb/climbing (down what)'
     missingQ = 'what do you want to climb down'
     dobjReply = singleNoun
 ;
 
-VerbRule(ClimbDownWhat)
-    ('climb' | 'go' | 'walk') 'down'
-    : VerbProduction
-    action = ClimbDown
+verb ClimbDownWhat for ClimbDown ('climb' | 'go' | 'walk') 'down':
     verbPhrase = 'climb/climbing (down what)'
     missingQ = 'what do you want to climb down'
     dobjReply = singleNoun
     missingRole = DirectObject
 ;
 
-VerbRule(Clean)
-    'clean' multiDobj
-    : VerbProduction
-    action = Clean
+verb Clean 'clean' multiDobj:
     verbPhrase = 'clean/cleaning (what)'
     missingQ = 'what do you want to clean'
 ;
 
-VerbRule(CleanWith)
-    'clean' singleDobj 'with' singleIobj
-    : VerbProduction
-    action = CleanWith
+verb CleanWith 'clean' singleDobj 'with' singleIobj:
     verbPhrase = 'clean/cleaning (what) (with what)'
     missingQ = 'what do you want to clean (with it);'
               + 'what do you want to clean it with'
     iobjReply = withSingleNoun
 ;
 
-VerbRule(AttachTo)
-    ('attach' | 'connect') multiDobj 'to' singleIobj
-    : VerbProduction
-    action = AttachTo
+verb AttachTo ('attach' | 'connect') multiDobj 'to' singleIobj:
     iobjReply = toSingleNoun
     verbPhrase = 'attach/attaching (what) (to what)'
     missingQ = 'what do you want to attach (to it);'
                + 'what do you want to attach it to'
 ;
 
-VerbRule(Attach)
-    ('attach' | 'connect') multiDobj
-    : VerbProduction
-    action = Attach
+verb Attach ('attach' | 'connect') multiDobj:
     verbPhrase = 'attach/attaching (what)'
     missingQ = 'what do you want to attach'
     
     priority = 40
 ;
 
-VerbRule(DetachFrom)
-    ('detach' | 'disconnect') multiDobj 'from' singleIobj
-    : VerbProduction
-    action = DetachFrom
+verb DetachFrom ('detach' | 'disconnect') multiDobj 'from' singleIobj:
     verbPhrase = 'detach/detaching (what) (from what)'
     missingQ = 'what do you want to detach (from it);'
               + 'what do you want to detach it from'
     iobjReply = fromSingleNoun
 ;
 
-VerbRule(Detach)
-    ('detach' | 'disconnect') multiDobj
-    : VerbProduction
-    action = Detach
+verb Detach ('detach' | 'disconnect') multiDobj:
     verbPhrase = 'detach/detaching (what)'
     missingQ = 'what do you want to detach'
 ;
 
-VerbRule(Open)
-    'open' multiDobj
-    : VerbProduction
-    action = Open
+verb Open 'open' multiDobj:
     verbPhrase = 'open/opening (what)'
     missingQ = 'what do you want to open'
 ;
 
-VerbRule(Close)
-    ('close' | 'shut') multiDobj
-    : VerbProduction
-    action = Close
+verb Close ('close' | 'shut') multiDobj:
     verbPhrase = 'close/closing (what)'
     missingQ = 'what do you want to close'
 ;
 
-VerbRule(Lock)
-    'lock' multiDobj
-    : VerbProduction
-    action = Lock
+verb Lock 'lock' multiDobj:
     verbPhrase = 'lock/locking (what)'
     missingQ = 'what do you want to lock'
 ;
 
-VerbRule(Unlock)
-    'unlock' multiDobj
-    : VerbProduction
-    action = Unlock
+verb Unlock 'unlock' multiDobj:
     verbPhrase = 'unlock/unlocking (what)'
     missingQ = 'what do you want to unlock'
 ;
 
-VerbRule(LockWith)
-    'lock' singleDobj 'with' singleIobj
-    : VerbProduction
-    action = LockWith
+verb LockWith 'lock' singleDobj 'with' singleIobj:
     verbPhrase = 'lock/locking (what) (with what)'
     missingQ = 'what do you want to lock;what do you want to lock it with'
     dobjReply = singleNoun
     iobjReply = withSingleNoun
 ;
 
-VerbRule(UnlockWith)
-    'unlock' singleDobj 'with' singleIobj
-    : VerbProduction
-    action = UnlockWith
+verb UnlockWith 'unlock' singleDobj 'with' singleIobj:
     verbPhrase = 'unlock/unlocking (what) (with what)'
     missingQ = 'what do you want to unlock;what do you want to unlock it with'
     dobjReply = singleNoun
     iobjReply = withSingleNoun
 ;
 
-VerbRule(SitOn)
+verb SitOn
     'sit' ('on' | 'down' 'on' )
-        singleDobj
-    : VerbProduction
-    action = SitOn
+        singleDobj:
     verbPhrase = 'sit/sitting (on what)'
     missingQ = 'what do you want to sit on'
     dobjReply = onSingleNoun
 ;
 
-VerbRule(SitIn)
+verb SitIn
     'sit' ('in' | 'down' 'in')
-        singleDobj
-    : VerbProduction
-    action = SitIn
+        singleDobj:
     verbPhrase = 'sit/sitting (on what)'
     missingQ = 'what do you want to sit on'
     dobjReply = inSingleNoun
 ;
 
-VerbRule(Sit)
-    'sit' ( | 'down') : VerbProduction
-    action = Sit
+verb Sit 'sit' ( | 'down'):
     verbPhrase = 'sit/sitting down'
 ;
 
-VerbRule(LieOn)
+verb LieOn
     'lie' ('on' | 'down' 'on' )
-        singleDobj
-    : VerbProduction
-    action = LieOn
+        singleDobj:
     verbPhrase = 'lie/lying (on what)'
     missingQ = 'what do you want to lie on'
     dobjReply = onSingleNoun
 ;
 
-VerbRule(LieIn)
+verb LieIn
     'lie' ('in' | 'down' 'in')
-        singleDobj
-    : VerbProduction
-    action = LieIn
+        singleDobj:
     verbPhrase = 'lie/lying (on what)'
     missingQ = 'what do you want to lie on'
     dobjReply = inSingleNoun
 ;
 
 
-VerbRule(Lie)
-    'lie' 'down' : VerbProduction
-    action = Lie
+verb Lie 'lie' 'down':
     verbPhrase = 'lie/lying down'
 ;
 
-VerbRule(StandOn)
-    'stand' ('on' | 'onto' | 'on' 'to' ) singleDobj
-    : VerbProduction
-    action = StandOn
+verb StandOn 'stand' ('on' | 'onto' | 'on' 'to' ) singleDobj:
     verbPhrase = 'stand/standing (on what)'
     missingQ = 'what do you want to stand on'
     dobjReply = onSingleNoun
 ;
 
-VerbRule(StandIn)
-    'stand' ('in' | 'into' | 'in' 'to')  singleDobj
-    : VerbProduction
-    action = StandIn
+verb StandIn 'stand' ('in' | 'into' | 'in' 'to')  singleDobj:
     verbPhrase = 'stand/standing (on what)'
     missingQ = 'what do you want to stand on'
     dobjReply = inSingleNoun
 ;
 
-VerbRule(Stand)
-    'stand' | 'stand' 'up' | 'get' 'up'
-    : VerbProduction
-    action = Stand
+verb Stand 'stand' | 'stand' 'up' | 'get' 'up':
     verbPhrase = 'stand/standing up'
 ;
 
-VerbRule(GetOutOf)
+verb GetOutOf
     ('out' 'of' | 'get' 'out' 'of' | 'climb' 'out' 'of' | 'leave' | 'exit')
-    singleDobj
-    : VerbProduction
-    action = GetOutOf
+    singleDobj:
     verbPhrase = 'get/getting (out of what)'
     missingQ = 'what do you want to get out of'
     dobjReply = outOfSingleNoun
 ;
 
-VerbRule(GetOutOfWhat)
-    ('get' | 'climb') 'out' 'of'     
-    : VerbProduction
-    action = GetOutOf
+verb GetOutOfWhat for GetOutOf ('get' | 'climb') 'out' 'of':
     verbPhrase = 'get/getting (out of what)'
     missingQ = 'what do you want to get out of'
     dobjReply = outOfSingleNoun
@@ -3411,43 +2839,33 @@ VerbRule(GetOutOfWhat)
 ;
 
 
-VerbRule(GetOff)
-    'get' ('off' | 'off' 'of' | 'down' 'from') singleDobj
-    : VerbProduction
-    action = GetOff
+verb GetOff 'get' ('off' | 'off' 'of' | 'down' 'from') singleDobj:
     verbPhrase = 'get/getting (off what)'
     missingQ = 'what do you want to get off'
     dobjReply = singleNoun
 ;
 
-VerbRule(GetOut)
+verb GetOut
     'get' 'out'
     | 'get' 'off'
     | 'get' 'down' ('from' |)   
     | 'disembark'
-    | 'climb' 'out'
-    : VerbProduction
-    action = GetOut
+    | 'climb' 'out':
     verbPhrase = 'get/getting out'
     priority = 60
 ;
 
-VerbRule(Board)
+verb Board
     ('board'
      | ('get' ('on' | 'onto' | 'on' 'to'))
      | ('climb' ('on' | 'onto' | 'on' 'to')))
-    singleDobj
-    : VerbProduction
-    action = Board
+    singleDobj:
     verbPhrase = 'get/getting (on what)'
     missingQ = 'what do you want to get on'
     dobjReply = onSingleNoun
 ;
 
-VerbRule(BoardWhat)
-    ('get' | 'climb') ('on' | 'onto' | 'on' 'to')
-    : VerbProduction
-    action = Board
+verb BoardWhat for Board ('get' | 'climb') ('on' | 'onto' | 'on' 'to'):
     verbPhrase = 'get/getting (on what)'
     missingQ = 'what do you want to get on'    
     dobjReply = onSingleNoun
@@ -3455,84 +2873,58 @@ VerbRule(BoardWhat)
 ;
 
 
-VerbRule(Enter)
+verb Enter
     'enter' singleDobj  |
     ('walk' | 'go' | 'get' | 'climb') ( 'in' | 'in' 'to' | 'into' | 'inside')
-    singleDobj
-    : VerbProduction
-    action = Enter
+    singleDobj:
     verbPhrase = 'enter/entering (what)'
     missingQ = 'what do you want to enter'
     dobjReply = singleNoun
 ;
 
-VerbRule(GetInWhat)
-    'enter' |  (('get' | 'climb') ( 'in' | 'in' 'to' | 'into' | 'inside'))
-    : VerbProduction
-    action = Enter
+verb GetInWhat for Enter 'enter' |  (('get' | 'climb') ( 'in' | 'in' 'to' | 'into' | 'inside')):
     verbPhrase = 'enter/entering (what)'
     missingQ = 'what do you want to enter'
     dobjReply = singleNoun
     missingRole = DirectObject
 ;
 
-VerbRule(Sleep)
-    'sleep'
-    : VerbProduction
-    action = Sleep
+verb Sleep 'sleep':
     verbPhrase = 'sleep/sleeping'
 ;
 
-VerbRule(Fasten)
-    ('fasten' | [badness 500] 'buckle' | 'buckle' 'up') multiDobj
-    : VerbProduction
-    action = Fasten
+verb Fasten ('fasten' | [badness 500] 'buckle' | 'buckle' 'up') multiDobj:
     verbPhrase = 'fasten/fastening (what)'
     missingQ = 'what do you want to fasten'
 ;
 
-VerbRule(FastenTo)
-    ('fasten' | 'buckle') multiDobj 'to' singleIobj
-    : VerbProduction
-    action = FastenTo
+verb FastenTo ('fasten' | 'buckle') multiDobj 'to' singleIobj:
     verbPhrase = 'fasten/fastening (what) (to what)'
     missingQ = 'what do you want to fasten (to it);'
                + 'what do you want to fasten it to'
     iobjReply = toSingleNoun
 ;
 
-VerbRule(Unfasten)
-    ('unfasten' | 'unbuckle') multiDobj
-    : VerbProduction
-    action = Unfasten
+verb Unfasten ('unfasten' | 'unbuckle') multiDobj:
     verbPhrase = 'unfasten/unfastening (what)'
     missingQ = 'what do you want to unfasten'
 ;
 
-VerbRule(UnfastenFrom)
-    ('unfasten' | 'unbuckle') multiDobj 'from' singleIobj
-    : VerbProduction
-    action = UnfastenFrom
+verb UnfastenFrom ('unfasten' | 'unbuckle') multiDobj 'from' singleIobj:
     verbPhrase = 'unfasten/unfastening (what) (from what)'
     missingQ = 'what do you want to unfasten;'
                + 'what do you want to unfasten it from'
     iobjReply = fromSingleNoun
 ;
 
-VerbRule(PlugInto)
-    'plug' multiDobj ('in' | 'into' | 'in' 'to') singleIobj
-    : VerbProduction
-    action = PlugInto
+verb PlugInto 'plug' multiDobj ('in' | 'into' | 'in' 'to') singleIobj:
     verbPhrase = 'plug/plugging (what) (into what)'
     missingQ = 'what do you want to plug (into it);'
              + 'what do you want to plug it into'
     iobjReply = inSingleNoun
 ;
 
-VerbRule(PlugIntoWhat)
-    [badness 500] 'plug' multiDobj
-    : VerbProduction
-    action = PlugInto
+verb PlugIntoWhat for PlugInto [badness 500] 'plug' multiDobj:
     verbPhrase = 'plug/plugging (what) (into what)'
     missingQ = 'what do you want to plug (into it);'
               + 'what do you want to plug it into'
@@ -3541,103 +2933,74 @@ VerbRule(PlugIntoWhat)
     iobjReply = inSingleNoun
 ;
 
-VerbRule(PlugIn)
+verb PlugIn
     'plug' multiDobj 'in'
-    | 'plug' 'in' multiDobj
-    : VerbProduction
-    action = PlugIn
+    | 'plug' 'in' multiDobj:
     verbPhrase = 'plug/plugging (what) in'
     missingQ = 'what do you want to plug in'
 ;
 
-VerbRule(UnplugFrom)
-    'unplug' multiDobj 'from' singleIobj
-    : VerbProduction
-    action = UnplugFrom
+verb UnplugFrom 'unplug' multiDobj 'from' singleIobj:
     verbPhrase = 'unplug/unplugging (what) (from what)'
     missingQ = 'what do you want to unplug;what do you want to unplug it from'
     iobjReply = fromSingleNoun
 ;
 
-VerbRule(Unplug)
-    'unplug' multiDobj
-    : VerbProduction
-    action = Unplug
+verb Unplug 'unplug' multiDobj:
     verbPhrase = 'unplug/unplugging (what)'
     missingQ = 'what do you want to unplug'
 ;
 
-VerbRule(Screw)
-    'screw' multiDobj
-    : VerbProduction
-    action = Screw
+verb Screw 'screw' multiDobj:
     verbPhrase = 'screw/screwing (what)'
     missingQ = 'what do you want to screw'
 ;
 
-VerbRule(ScrewWith)
-    'screw' multiDobj 'with' singleIobj
-    : VerbProduction
-    action = ScrewWith
+verb ScrewWith 'screw' multiDobj 'with' singleIobj:
     verbPhrase = 'screw/screwing (what) (with what)'
     missingQ = 'what do you want to screw;'
                + 'what do you want to screw it with'
     iobjReply = withSingleNoun
 ;
 
-VerbRule(Unscrew)
-    'unscrew' multiDobj
-    : VerbProduction
-    action = Unscrew
+verb Unscrew 'unscrew' multiDobj:
     verbPhrase = 'unscrew/unscrewing (what)'
     missingQ = 'what do you want to unscrew'
 ;
 
-VerbRule(UnscrewWith)
-    'unscrew' multiDobj 'with' singleIobj
-    : VerbProduction
-    action = UnscrewWith
+verb UnscrewWith 'unscrew' multiDobj 'with' singleIobj:
     verbPhrase = 'unscrew/unscrewing (what) (with what)'
     missingQ = 'what do you want to unscrew;'
                + 'what do you want to unscrew it with'
     iobjReply = withSingleNoun
 ;
 
-VerbRule(PushTravelDir)
-    ('push' | 'pull' | 'drag' | 'move') singleDobj singleDir
-    : VerbProduction
-    action = PushTravelDir
+verb PushTravelDir ('push' | 'pull' | 'drag' | 'move') singleDobj singleDir:
     dobjReply = singleNoun
     iobjReply = directionName
 ;
 
-VerbRule(PushTravelThrough)
+verb PushTravelThrough
     ('push' | 'pull' | 'drag' | 'move') singleDobj
-    ('through' | 'thru') singleIobj
-    : VerbProduction
-    action = PushTravelThrough
+    ('through' | 'thru') singleIobj:
     verbPhrase = 'push/pushing (what) (through what)'
     missingQ = 'what do you want to push;what do you want to push it through'
     dobjReply = singleNoun
     iobjReply = throughSingleNoun
 ;
 
-VerbRule(PushTravelEnter)
+verb PushTravelEnter
     ('push' | 'pull' | 'drag' | 'move') singleDobj
-    ('in' | 'into' | 'in' 'to') singleIobj
-    : VerbProduction
-    action = PushTravelEnter
+    ('in' | 'into' | 'in' 'to') singleIobj:
     verbPhrase = 'push/pushing (what) (into what)'
     missingQ = 'what do you want to push;what do you want to push it into'
     dobjReply = singleNoun
     iobjReply = inSingleNoun
 ;
 
-VerbRule(PushTravelGetOutOf)
+verb PushTravelGetOutOf
     ('push' | 'pull' | 'drag' | 'move') singleDobj
-    'out' ('of' | ) singleIobj
-    : VerbProduction
-    action = PushTravelGetOutOf
+    'out' ('of' | ) singleIobj:
     verbPhrase = 'push/pushing (what) (out of what)'
     missingQ = 'what do you want to push;what do you want to push it out of'
     dobjReply = singleNoun
@@ -3645,135 +3008,92 @@ VerbRule(PushTravelGetOutOf)
 ;
 
 
-VerbRule(PushTravelClimbUp)
+verb PushTravelClimbUp
     ('push' | 'pull' | 'drag' | 'move') singleDobj
-    'up' singleIobj
-    : VerbProduction
-    action = PushTravelClimbUp
+    'up' singleIobj:
     verbPhrase = 'push/pushing (what) (up what)'
     missingQ = 'what do you want to push;what do you want to push it up'
     dobjReply = singleNoun
 ;
 
-VerbRule(PushTravelClimbDown)
+verb PushTravelClimbDown
     ('push' | 'pull' | 'drag' | 'move') singleDobj
-    'down' singleIobj
-    : VerbProduction
-    action = PushTravelClimbDown
+    'down' singleIobj:
     verbPhrase = 'push/pushing (what) (down what)'
     missingQ = 'what do you want to push;what do you want to push it down'
     dobjReply = singleNoun
 ;
 
-VerbRule(Exits)
-    'exits'
-    : VerbProduction
-    action = Exits
+verb Exits 'exits':
     verbPhrase = 'exits/showing exits'
 ;
 
-VerbRule(ExitsMode)
+verb ExitsMode
     'exits' ('on'->on_ | 'all'->on_
              | 'off'->off_ | 'none'->off_
              | ('status' ('line' | ) | 'statusline') 'look'->on_
              | 'look'->on_ ('status' ('line' | ) | 'statusline')
              | 'status'->stat_ ('line' | ) | 'statusline'->stat_
-             | 'look'->look_)
-    : VerbProduction
-    action = ExitsMode
+             | 'look'->look_):
     verbPhrase = 'turn/turning off exits display'
 ;
 
-VerbRule(ExitsColour)
+verb ExitsColour
     ('exits'|'exit') ('color'|'colour') ('on' ->on_| 'off' ->on_ | 
                                          'blue' ->colour_ | 'red' -> colour_ |
                                          'green' -> colour_ | 'yellow' ->
-                                         colour_)
-    : VerbProduction
-    action = ExitsColour
+                                         colour_):
     verbPhrase = 'turn/turning off unvisited exits colouring'
 ;
 
 
-VerbRule(HintsOff)
-    'hints' 'off'
-    : VerbProduction
-    action = HintsOff
+verb HintsOff 'hints' 'off':
     verbPhrase = 'disable/disabling hints'
 ;
 
-VerbRule(Hints)
-    'hint' | 'hints'
-    : VerbProduction
-    action = Hints
+verb Hints 'hint' | 'hints':
     verbPhrase = 'show/showing hints'
 ;
 
 /* Command for enabling or disabling extra hints */
-VerbRule(ExtraHints)
+verb ExtraHints
     ('extra' | 'extras'| 'bonus') ('hint' | 'hints' |'tips' |'tip'| ) 
-    ('on'->onOff | 'off'->onOff | )
-    : VerbProduction
-    action = ExtraHints
+    ('on'->onOff | 'off'->onOff | ):
     verbPhrase = ('turn/turning extra hints ' + onOff)
 ;
 
-VerbRule(TipsOn)
-    ('tips' |'tip'| ) 'on'    
-    : VerbProduction
-    action = TipsOn
+verb TipsOn ('tips' |'tip'| ) 'on':
     verbPhrase = ('turn/turning tips on')
 ;
 
-VerbRule(TipsOff)
-    ('tips' |'tip'| ) 'off'    
-    : VerbProduction
-    action = TipsOff
+verb TipsOff ('tips' |'tip'| ) 'off':
     verbPhrase = ('turn/turning tips off')
 ;
 
-VerbRule(Brief)
-    'brief' | 'terse'
-    : VerbProduction
-    action = Brief
+verb Brief 'brief' | 'terse':
     verbPhrase = 'set/setting brief mode'
 ;
 
-VerbRule(Verbose)
-    'verbose' | 'wordy'
-    : VerbProduction
-    action = Verbose
+verb Verbose 'verbose' | 'wordy':
     verbPhrase = 'set/setting verbose mode'   
 ;
 
     
-VerbRule(HyperlinkSuggestions)
-    ('hyper' | 'hyperlink') ('topic'|) ('suggestions' | 'suggs')
-    : VerbProduction
-    action = HyperlinkSuggestions
+verb HyperlinkSuggestions ('hyper' | 'hyperlink') ('topic'|) ('suggestions' | 'suggs'):
     verbPhrase = 'toggle/toggling hyperlinking of topic suggestions'  
 ;
     
-VerbRule(EnumerateSuggestions)
-    ('enum' | 'enumerate') ('topic'|) ('suggestions' | 'suggs')
-    : VerbProduction
-    action = EnumerateSuggestions
+verb EnumerateSuggestions ('enum' | 'enumerate') ('topic'|) ('suggestions' | 'suggs'):
     verbPhrase = 'toggle/toggling enumeration of topic suggestions'  
 ;
 
-VerbRule(SpecialAction)
-    'sp#act' singleDobj
-    :VerbProduction
-    action = SpecialAction
+verb SpecialAction 'sp#act' singleDobj:
     verbPhrase = 'do/doing that to (what)'
     missingQ = 'what do you want to do that to'    
     dobjReply = singleNoun
 ;
 
-VerbRule(SpecialActionMulti)
-    'sp#acts' multiDobj
-    :VerbProduction
-    action = SpecialAction
+verb SpecialActionMulti for SpecialAction 'sp#acts' multiDobj:
     verbPhrase = 'do/doing that to (what)'
     missingQ = 'what do you want to do that to'    
 ;
@@ -3794,36 +3114,24 @@ specialActionPreparser: StringPreParser
 
 #ifdef __DEBUG
 
-VerbRule(Purloin)
-    ('purloin' | 'pn') singleDobj
-    : VerbProduction
-    action = Purloin
+verb Purloin ('purloin' | 'pn') singleDobj:
     verbPhrase = 'purloin/purloining (what)'
     missingQ = 'what do you want to purloin'
     dobjReply = singleNoun
 ;
 
-VerbRule(GoNear)
-    ('gonear' |'go' 'near'| 'gn') singleDobj
-    : VerbProduction
-    action = GoNear
+verb GoNear ('gonear' |'go' 'near'| 'gn') singleDobj:
     verbPhrase = 'go near/going near (what)'
     missingQ = 'what do you want to go near'
     dobjReply = singleNoun
 ;
 
 
-VerbRule(FiatLux)
-    'fiat' 'lux' | 'let' 'there' 'be' 'light'
-    : VerbProduction
-    action = FiatLux
+verb FiatLux 'fiat' 'lux' | 'let' 'there' 'be' 'light':
     verbPhrase = 'adjust/adjusting light'
 ;
 
-VerbRule(Evaluate)
-    'eval' literalDobj
-    : VerbProduction
-    action = Evaluate
+verb Evaluate 'eval' literalDobj:
     verbPhrase = 'evaluate/evaluating (what)'
     missingQ = 'what do you want to evaluate'
 ;

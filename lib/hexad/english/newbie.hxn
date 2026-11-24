@@ -429,10 +429,7 @@ action LookHere: IAction
     }
 ;
     
-VerbRule(LookHere)
-    ('l' | 'look' | 'search') ('here'->placeName|'there'->placeName)
-    : VerbProduction
-    action = LookHere
+verb LookHere ('l' | 'look' | 'search') ('here'->placeName|'there'->placeName):
     verbPhrase = 'look/looking'
 ;
 
@@ -497,11 +494,9 @@ KeepGoing: TravelAction
     }
 ;
 
-VerbRule(KeepGoing)
+verb KeepGoing
     ('keep' | 'continue') ('going'|'walking'|'running'|'heading') singleDir
-    | 'head' ('back' | ) singleDir
-    : VerbProduction
-    action = KeepGoing
+    | 'head' ('back' | ) singleDir:
     verbPhrase = 'go/going (where)'
 ;
 
@@ -559,14 +554,12 @@ action WhereHelp: SystemAction
     }
 ;
 
-VerbRule(WhereHelp)
+verb WhereHelp
     'where' ('can' | 'do' | 'does' | 'should') 
     ('i' | 'we' | 'one' | 'anyone'| 'someone') 
     ('get' | 'find' | 'obtain')
     ('help' | 'assistance' | 'instructions')
-    (literalDobj | )
-    : VerbProduction
-    action = WhereHelp
+    (literalDobj | ):
     verbPhrase = 'request/requesting help'
     priority = 80
     
@@ -584,15 +577,12 @@ action Help: SystemAction
 
 /* Provide grammar to understand a fairly wide variety of requests for help */
 
-VerbRule(Help)
+verb Help
     ('help' | 'assist' | 'assistance' ) |
     'how' ('do' | 'can' | 'does' | 'will' | 'shall' | 'could' | 'should' | 'may'
            | 'must') 
     ('i' | 'me' | 'he' | 'she' | 'it' | 'we' | 'you' | 'they' | 'person' | 'one'
-     | 'someone' | 'anyone' | 'somebody' | 'anybody') literalDobj
-    
-    : VerbProduction
-    action = Help
+     | 'someone' | 'anyone' | 'somebody' | 'anybody') literalDobj:
     verbPhrase = 'help/helping with the software'
     
     priority = 80
@@ -605,13 +595,11 @@ VerbRule(Help)
     isActive = (gPlayerChar.currentInterlocutor == nil)
 ;
 
-VerbRule(WhatNext)
+verb WhatNext for Help
     'what' ('next' | 'now') |
     'what' ('should' | 'can' | 'do' | 'does' | 'am' | 'is') 
     ('i' | 'one' |'anyone' | 'someone') 
-    (('meant' 'to')|) ('do' | 'try') ('next' | 'now'|)
-    : VerbProduction
-    action = Help
+    (('meant' 'to')|) ('do' | 'try') ('next' | 'now'|):
     verbPhrase = 'help/helping with the software'
     
     priority = 80
@@ -633,10 +621,7 @@ action Intro: SystemAction
     execAction(cmd) { helpMessage.briefIntro(); }
 ;
 
-VerbRule(Intro)
-    ('show'|'view'|) ('brief'|) ('intro' | 'introduction')
-    : VerbProduction
-    action = Intro
+verb Intro ('show'|'view'|) ('brief'|) ('intro' | 'introduction'):
     verbPhrase = 'show/showing brief introduction'    
 ;
 
@@ -645,10 +630,7 @@ action Sample: SystemAction
     execAction(cmd) { helpMessage.showSample(); }
 ;
 
-VerbRule(Sample)
-    ('show'|'view'|) 'sample' ('transcript' | )
-    : VerbProduction
-    action = Sample
+verb Sample ('show'|'view'|) 'sample' ('transcript' | ):
     verbPhrase = 'show/showing sample transcript'
 ;
 
@@ -659,10 +641,7 @@ VerbRule(Sample)
  *   phrasing of an EXAMINE command. 
  */
 
-VerbRule(WhatIsNoun)
-    ('whats' | 'what' ('is'|'are')) multiDobj
-    : VerbProduction
-    action = Examine
+verb WhatIsNoun for Examine ('whats' | 'what' ('is'|'are')) multiDobj:
     verbPhrase = 'examine/examining (what)'
     
     priority = 80
@@ -695,12 +674,10 @@ modify Examine
  *   command.
  */
 
-VerbRule(WhatAmICarrying)
+verb WhatAmICarrying for Inventory
     'what' ('am'|'are') ('i'|'we'|'you') ('carrying' | 'holding')
     | 'what' 'do' ('i'|'we'|'you') 'have'
-    | 'what' 'have' ('i'|'we'|'you') 'got'
-    : VerbProduction
-    action = Inventory
+    | 'what' 'have' ('i'|'we'|'you') 'got':
     verbPhrase = 'take/taking inventory'
     priority = 80
     isActive = (gPlayerChar.currentInterlocutor == nil)
@@ -726,11 +703,9 @@ modify Inventory
  *   Trap a variety of commands of the sort WHAT IS GAME ABOUT or WHATS THE 
  *   POINT and respond by showing the game's ABOUT text.
  */
-VerbRule(WhatsThePoint)
+verb WhatsThePoint for About
     ('whats' | 'what' 'is') ('the'|) ('point' | 'idea' | 'goal' | 'purpose')
-    (literalDobj | )
-    : VerbProduction
-    action = About
+    (literalDobj | ):
     verbPhrase = 'ask/asking about the point of the game'
     
     priority = 80
@@ -743,12 +718,10 @@ VerbRule(WhatsThePoint)
     isActive = (gPlayerChar.currentInterlocutor == nil)
 ;
 
-VerbRule(WhatThisGame)
+verb WhatThisGame for About
     ('whats' | 'what' ('is'|'are')) ('the' | 'these' | 'this' |)
     ('game' | 'story' | 'program' | 'games' | ('interactive' 'fiction')) 
-        ('for' | 'about' | )
-    : VerbProduction
-    action = About
+        ('for' | 'about' | ):
     verbPhrase = 'ask/asking what the game is about'
     
     priority = 80
@@ -782,13 +755,11 @@ action GoSomewhere: IAction
     actionTime = 0
 ;
 
-VerbRule(GoSomewhere)
+verb GoSomewhere
     (('go' | 'walk' |  'proceed' | 'run') ( | ('to' 'the') )
     ('left' | 'right' | 'on' | 'onwards' | 'onward' | 'forward' | 'forwards' |
      'around' | 'somewhere' | (('straight'| ) 'ahead'))) | ('turn'
-         ('left'|'right'))
-    : VerbProduction
-    action = GoSomewhere
+         ('left'|'right')):
     verbPhrase = 'go/going somewhere'
 ;
 
@@ -810,21 +781,16 @@ action WhereAmI: IAction
      
 ;
 
-VerbRule(WhereAmI)
-    'where' ('are' | 'am' | 'is') ('i' | 'we')
-    : VerbProduction
-    action = WhereAmI
+verb WhereAmI 'where' ('are' | 'am' | 'is') ('i' | 'we'):
     verbPhrase = 'look/looking'
     
     priority = 80
     isActive = (gPlayerChar.currentInterlocutor == nil)
 ;
 
-VerbRule(WhatsHere)
+verb WhatsHere for WhereAmI
     'what' 'is' 'here'
-    | 'whats' 'here'
-    : VerbProduction
-    action = WhereAmI
+    | 'whats' 'here':
     verbPhrase = 'ask/asking what\'s here'
     
     priority = 80
@@ -848,10 +814,7 @@ action WhoAmI: IAction
     }
 ;
 
-VerbRule(WhoAmI)
-    ('who'| 'what') ('am'|'is') ('i'|'me')
-    : VerbProduction
-    action = WhoAmI
+verb WhoAmI ('who'| 'what') ('am'|'is') ('i'|'me'):
     verbPhrase = 'ask/asking who I am'
     
     priority = 80
@@ -871,11 +834,9 @@ action WhereGo: IAction
     }
 ;
 
-VerbRule(WhereGo)
+verb WhereGo
     'where' ('can' | 'do' | 'does' | 'should') ('i' | 'we' | 'one'| 'anyone') 
-    'go'
-    : VerbProduction
-    action = WhereGo
+    'go':
     verbPhrase = 'show/showing exits'
     
     priority = 80
@@ -1058,10 +1019,7 @@ action Seek: TopicAction
  
 ;
 
-VerbRule(Seek)
-    ('seek' | ('hunt' 'for')) topicDobj
-    : VerbProduction
-    action = Seek
+verb Seek ('seek' | ('hunt' 'for')) topicDobj:
     verbPhrase = 'seek/seeking (what)'
     missingQ = 'what do you want to seek'
     dobjReply = topicPhrase

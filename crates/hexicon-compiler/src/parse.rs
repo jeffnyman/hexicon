@@ -1981,6 +1981,10 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.lower_action();
                     Ok(())
                 }
+                Tok::Sym if self.at_hexicon_form(&[b"verb"]) => {
+                    self.lower_verb(Redef::No);
+                    Ok(())
+                }
                 Tok::Sym => {
                     self.parse_object_or_func(Redef::No, suppress_error, &mut suppress_next_error)
                 }
@@ -2938,6 +2942,13 @@ impl<'p, 'a> Parser<'p, 'a> {
                 self.next();
                 self.parse_object(true, Redef::Replace)
             }
+            Tok::Sym if self.at_hexicon_form(&[b"verb"]) => {
+                if self.lower_verb(Redef::Replace) {
+                    self.parse_grammar(Redef::Replace)
+                } else {
+                    Ok(())
+                }
+            }
             Tok::Sym => self.parse_object_or_func(Redef::Replace, false, &mut false),
             Tok::Transient => {
                 self.transient = true;
@@ -2979,6 +2990,13 @@ impl<'p, 'a> Parser<'p, 'a> {
     fn parse_modify(&mut self) -> Parsed<()> {
         match self.next() {
             Tok::Grammar => return self.parse_grammar(Redef::Modify),
+            Tok::Sym if self.at_hexicon_form(&[b"verb"]) => {
+                return if self.lower_verb(Redef::Modify) {
+                    self.parse_grammar(Redef::Modify)
+                } else {
+                    Ok(())
+                };
+            }
             Tok::Function | Tok::Method => return self.parse_function(true, Redef::Modify),
             Tok::Sym => {
                 let is_lpar = self.next() == Tok::LPar;
@@ -8338,6 +8356,85 @@ impl Parser<'_, '_> {
             .map(|(t, text)| (*t, text.as_slice()))
             .collect();
         self.lower_to(&place, &tokens);
+    }
+
+    /// A verb rule, in Hexicon: `verb Ring 'ring' singleDobj:`, then the
+    /// rule's properties. The name is the rule's, and its action's unless
+    /// `for` names another (`verb LookAtWhat for Examine ...`). The words
+    /// are a grammar rule's and end at the colon. It is what Hexad's
+    /// `VerbRule(Ring) 'ring' singleDobj : VerbProduction action = Ring`
+    /// makes: `grammar predicate(Ring): 'ring' singleDobj :
+    /// VerbProduction action = Ring`.
+    ///
+    /// After `modify`, the rule keeps its class and action, so only the
+    /// words (none keeps them) and an action that `for` names are given.
+    /// After `replace`, it is lowered as a new rule is. With either, the
+    /// lowering starts at `grammar`, so the caller goes on to read it;
+    /// false means there was an error, and nothing to read.
+    fn lower_verb(&mut self, redef: Redef) -> bool {
+        let place = self.tok.cur_token().clone();
+        self.next();
+        let name = self.cur_text();
+        let mut action = None;
+        if self.next() == Tok::For {
+            if self.next() != Tok::Sym {
+                self.error_curtok("expected the name of an action after 'for', but found \"%\"");
+                return false;
+            }
+            action = Some(self.cur_text());
+            self.next();
+        }
+        // The words, which end at a colon outside any parentheses.
+        let mut words = Vec::new();
+        let mut depth = 0u32;
+        loop {
+            match self.cur() {
+                Tok::LPar => depth += 1,
+                Tok::RPar => depth = depth.saturating_sub(1),
+                Tok::Colon if depth == 0 => break,
+                Tok::Sem | Tok::Eof => {
+                    self.error_curtok("expected ':' at the end of a verb's words, but found \"%\"");
+                    return false;
+                }
+                _ => {}
+            }
+            words.push(self.tok.cur_token().clone());
+            self.next();
+        }
+        self.next();
+        let made = |typ: Tok, text: &[u8]| {
+            let mut token = place.clone();
+            token.typ = typ;
+            token.text = text.to_vec();
+            token.int_val = 0;
+            token.lowered = true;
+            token
+        };
+        let mut tokens = vec![
+            made(Tok::Grammar, b"grammar"),
+            made(Tok::Sym, b"predicate"),
+            made(Tok::LPar, b"("),
+            made(Tok::Sym, &name),
+            made(Tok::RPar, b")"),
+            made(Tok::Colon, b":"),
+        ];
+        tokens.extend(words);
+        tokens.push(made(Tok::Colon, b":"));
+        if redef != Redef::Modify {
+            tokens.push(made(Tok::Sym, b"VerbProduction"));
+        }
+        if redef != Redef::Modify || action.is_some() {
+            tokens.push(made(Tok::Sym, b"action"));
+            tokens.push(made(Tok::Eq, b"="));
+            tokens.push(made(Tok::Sym, action.as_deref().unwrap_or(&name)));
+        }
+        let current = self.tok.cur_token().clone();
+        self.tok.push_token(current);
+        for token in tokens.into_iter().rev() {
+            self.tok.push_token(token);
+        }
+        self.next();
+        true
     }
 
     /// An action, in Hexicon: `action PutIn(dobj, iobj): TIAction`, then

@@ -911,10 +911,7 @@ action ListRelations: SystemAction
     }
 ;
 
-VerbRule(ListRelations)
-    ('list'|) 'relations'
-    :VerbProduction
-    action = ListRelations
+verb ListRelations ('list'|) 'relations':
     verbPhrase = 'list/listing relations'
 ;
 
@@ -1025,10 +1022,7 @@ action RelationDetails: SystemAction
 ;
 
 /* [RELATIONS EXTENSION] List relation details */
-VerbRule(RelationDetails)
-    ('relation' | 'relations' | 'rel') literalDobj
-    : VerbProduction
-    action = RelationDetails
+verb RelationDetails ('relation' | 'relations' | 'rel') literalDobj:
     verbPhrase = 'list/listing relation details'
 ;
 

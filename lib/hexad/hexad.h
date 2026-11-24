@@ -54,7 +54,9 @@
 /*
  *   The VerbRule macro starts the definition of a verb grammar rule.  The
  *   tag is just an identifying name for the rule, so that you can refer to
- *   it with 'replace' or 'modify'.  
+ *   it with 'replace' or 'modify'.  A Hexicon source writes a verb
+ *   declaration instead: verb Take 'take' multiDobj: ...;  The macro is
+ *   kept for sources not yet converted, and for the macros below.  
  */
 #define VerbRule(tag)  grammar predicate(tag):
 

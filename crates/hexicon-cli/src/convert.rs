@@ -3,7 +3,8 @@
 //!
 //! Source files (`.t`) become Hexicon sources (`.hxn`) and headers stay
 //! headers, each with Hexicon's names for the built-in functions, and
-//! with Hexicon's declarations for adv3Lite's actions and handlers.
+//! with Hexicon's declarations for adv3Lite's actions, handlers, and
+//! verb rules.
 //! Hexicon sources (`.hxn`) get the same, which brings a Hexicon
 //! program written before a declaration was added up to date. A
 //! project file (`.t3m`) becomes a game's manifest: `hexicon.toml` if it
@@ -180,8 +181,8 @@ fn convert_folder(from: &Path, to: &Path) -> Result<(), String> {
         std::fs::write(&dest, data).map_err(|e| format!("{}: {e}", dest.display()))?;
     }
     eprintln!(
-        "converted {converted} files ({renamed} names renamed, {declared} actions and handlers \
-         declared), copied {copied}, into {}",
+        "converted {converted} files ({renamed} names renamed, {declared} actions, handlers, \
+         and verb rules declared), copied {copied}, into {}",
         to.display()
     );
     Ok(())

@@ -267,6 +267,19 @@ Thing
 - **A handler** is the role and the action, then a block of the handler's methods and properties, which lowers to `propertyset '*DobjTake' { ... }`. `dobj Search as LookIn` handles one action as another of the same role, and lowers to the six methods `asDobjFor(LookIn)` makes. Anything that expands to a block can follow `dobj Search` instead, so adv3Lite's other redirecting macros (`asIobjFor`, `asDobjWithoutVerifyFor`) still work. A handler, like any property, ends without a semicolon.
 - **The words are not reserved.** `action`, `dobj`, `iobj`, and `aobj` start these forms only when a name follows them, where nothing in TADS 3 could, so a property called `action` or a local called `dobj` is still a name.
 - **The lowering is to tokens.** The parser reads the tokens the macros would have made, each given the place of the form, so messages and the debugger's line records are the same as the macros give.
+- **Verb rules** (2026-11-24, milestone 6). `VerbRule(Ring) 'ring' singleDobj : VerbProduction action = Ring` is now:
+
+  ```
+  verb Ring 'ring' singleDobj:
+      verbPhrase = 'ring/ringing (what)'
+      missingQ = 'what do you want to ring'
+  ;
+  verb LookAtWhat for Examine ('look' | 'l') 'at' singleDobj: ... ;
+  modify verb Jump ('jump' | 'leap'): ;
+  replace verb Take ('take' | 'grab') multiDobj: ... ;
+  ```
+
+  The name is the rule's, and its action's unless `for` names another. The words end at the colon, which needs no more than that: a grammar rule's words have no colon of their own, though they can have a name followed by `(`, so the properties cannot be told from them by their look. A rule lowers to `grammar predicate(Ring): 'ring' singleDobj : VerbProduction action = Ring`, which is what the macro makes. After `modify`, a rule keeps its class and action, so it lowers to `modify grammar predicate(Jump): ... :`, with `action =` only if `for` gives one; with no words, it keeps its words. After `replace`, a rule lowers as a new one does. The keyword is `verb` and not `grammar`, which already starts a grammar production in TADS 3 (`grammar Ring: ...` defines a production called `Ring`). Like `action`, `verb` starts the form only when a name follows it.
 - **The lowering is adv3Lite's, and so Hexad's** (open question 2). A Hexicon file on adv3 can use the handler form, but adv3's own macros also check the action's name in a debug build, which this does not.
 
 ### 3. Modules instead of headers
@@ -361,3 +374,8 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
    - **Hexad imports itself:** its manifest names `advlite.h` as its header, and its 77 sources say `import hexad;` where they included it. Airport and the ten exercises built on it give images identical to those on the Hexad before, preinitialized, and in debug builds but for the build time and the folder's name.
    - **A game imports Hexad:** `hexad-compare.sh` now also builds Airport from `.hxn` sources that say `import hexad;`, from a manifest, and checks that its image is the one built from Airport's TADS 3 sources on Hexad.
    - **Tests** cover an import against an include, an import twice, one inside `#if 0`, a library not in the build or without a header, a TADS 3 source, and a manifest's `header`.
+6. **Verb declarations.** Exit: the converter writes them for Hexad's verb rules, and the games built on Hexad give identical images. Done (2026-11-24), as described under change 2:
+   - **The converter writes them** in any file that includes adv3Lite's header or Hexad's, or imports Hexad, for a `VerbRule` whose words end at `: VerbProduction` and whose `action = X` is a line of its own among the simple properties. The action line goes, or becomes `for X`. A rule after `modify` or `replace`, in a macro, or of another shape is left as it is, and the macro still works.
+   - **Hexad adopted them:** all 288 of its rules. Airport and the ten exercises built on it give images identical to those built on the Hexad before. Five rules in `debug.hxn` had their action after another property, which the declaration puts first. Those rules are only in debug builds, and they work there as before.
+   - **Converted games:** the exercises' own rules are converted too, and play as before (`hexad-compare.sh`).
+   - **Tests** check that the declarations, with `for`, `modify` (with words and without), and `replace`, make the image the macro does; that a TADS 3 source has no such form; that `verb` is still a name; and the converter's cases, including those it leaves alone.

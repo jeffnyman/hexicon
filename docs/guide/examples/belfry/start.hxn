@@ -17,10 +17,7 @@ gameMain: GameMainDef
 action Ring(dobj): TAction;
 
 // The words that mean it.
-VerbRule(Ring)
-    'ring' singleDobj
-    : VerbProduction
-    action = Ring
+verb Ring 'ring' singleDobj:
     verbPhrase = 'ring/ringing (what)'
     missingQ = 'what do you want to ring'
 ;
@@ -42,12 +39,18 @@ action Sing: IAction
     }
 ;
 
-VerbRule(Sing)
-    'sing'
-    : VerbProduction
-    action = Sing
+verb Sing 'sing':
     verbPhrase = 'sing/singing'
 ;
+
+// Another rule for RING.
+verb Toll for Ring 'toll' singleDobj:
+    verbPhrase = 'toll/tolling (what)'
+    missingQ = 'what do you want to toll'
+;
+
+// Hexad's rule for JUMP, with another word.
+modify verb Jump ('jump' | 'leap'): ;
 
 belfry: Room 'Belfry'
     "A bare stone room under the bell. A rope hangs from it, beside a rusty
