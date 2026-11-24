@@ -1,0 +1,106 @@
+Study
+Books line the walls, above a writing desk and a glass cabinet.  A rug covers
+the floor, and a wardrobe stands by the door to the north.
+
+You can see a puzzle box and a wicker basket here.
+
+On the writing desk you see an inkwell.
+
+On the shelf you see a vase.
+
+In the glass cabinet you see a medal.
+
+>look
+Study
+Books line the walls, above a writing desk and a glass cabinet.  A rug covers
+the floor, and a wardrobe stands by the door to the north.
+
+You can see a puzzle box and a wicker basket here.
+
+On the writing desk you see an inkwell.
+
+On the shelf you see a vase.
+
+In the glass cabinet you see a medal.
+
+>take vase
+Taken.
+
+>put vase in basket
+You put the vase in the wicker basket.
+
+>x desk
+An old writing desk, with a drawer.  On the writing desk you see an inkwell.
+
+>open desk
+Opening the writing desk reveals a pen.
+
+>look in desk
+In the writing desk you see a pen.
+
+>take pen
+Taken.
+
+>put pen on desk
+You put the pen on the writing desk.
+
+>x cabinet
+A cabinet with glass doors.  In the glass cabinet you see a medal.
+
+>open cabinet
+The glass cabinet is locked.
+
+>look under rug
+Under the rug you find a small key, which you take.
+
+>unlock cabinet with key
+You unlock the glass cabinet with the small key.
+
+>open cabinet
+Opening the glass cabinet reveals a medal.
+
+>take medal
+Taken.
+
+>open box
+The puzzle box is locked.
+
+>unlock box
+Unlocked.
+
+>open box
+Opened.
+
+>put medal in box
+You put the medal in the puzzle box.
+
+>close box
+Done.
+
+>lock box
+Locked.
+
+>get in wardrobe
+You get in the wardrobe.
+
+>get out
+Okay, you get out of the wardrobe.
+
+>north
+(first opening the door)
+
+Hall
+A cold hall.  The study is to the south.
+
+>south
+Study
+Books line the walls, above a writing desk and a glass cabinet.  A rug covers
+the floor, and a wardrobe stands by the door to the north.
+
+You can see a puzzle box and a wicker basket here.
+
+On the writing desk you see a pen and an inkwell.
+
+In the wicker basket you see a vase.
+
+>

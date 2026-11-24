@@ -1,0 +1,8 @@
+[game]
+name = "The Attic"
+libraries = ["system", "hexad"]
+sources = ["start"]
+image = "attic.hxg"
+
+[defines]
+LANGUAGE = "english"

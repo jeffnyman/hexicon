@@ -1,0 +1,105 @@
+// The Attic: the example of Hexad's things and rooms.
+
+import hexad;
+
+versionInfo: GameID
+    IFID = '8E1B4C2D-6F3A-4B9E-A170-2D5C9E4F8A13'
+    name = 'The Attic'
+    byline = 'by the Hexicon guide'
+    version = '1'
+;
+
+gameMain: GameMainDef
+    initialPlayerChar = me
+;
+
+me: Player 'you'
+    location = landing
+;
+
+// A room, with an exit that only says something.
+landing: Room 'Landing'
+    "A narrow landing at the top of the house, with a portrait on one wall
+    and a small window in the other. A ladder leads up into the attic, and
+    the stairs lead down. "
+
+    up = attic
+    down = "You have not finished up here yet. "
+    cannotGoThatWayMsg = 'The walls of the landing close in on every side. '
+;
+
+// Fixed in place, and so not listed: the room's description mentions it.
++ portrait: Fixture 'portrait; old oil; painting'
+    "An old oil portrait of a stern woman<<if note.isHidden>>. Something
+    is tucked behind the frame<<note.discover()>><<end>>. "
+;
+
+// Hidden until the portrait is examined.
++ note: Thing 'folded note'
+    "A note, folded small. "
+    readDesc = "<q>Do not go up without a light.</q> "
+    isHidden = true
+;
+
+// A paragraph of its own, until it is moved.
++ letter: Thing 'letter'
+    "A letter, addressed to nobody. "
+    initSpecialDesc = "A letter lies on the floor. "
+    readDesc = "It is blank. "
+;
+
+// A paragraph of its own, always.
++ clock: Fixture 'grandfather clock'
+    "A tall clock in a dark case. "
+    specialDesc = "A grandfather clock ticks in the corner. "
+    listenDesc = "Tick. Tock. "
+;
+
+// Only to be looked at.
++ window: Decoration 'window; small'
+    "Rain runs down the small window. "
+;
+
+// Too far away to touch.
++ spire: Distant 'church spire; distant'
+    "Through the window, a church spire rises over the roofs. "
+;
+
+// Not here at all.
++ ghost: Unthing 'ghost'
+    notImportantMsg = 'There is no ghost. There never was. '
+;
+
+// Things to smell, taste, eat, and wear.
++ lavender: Thing 'sprig of lavender; dried'
+    "A dried sprig of lavender. "
+    smellDesc = "It smells of summer. "
+;
+
++ apple: Food 'apple; red'
+    "A red apple. "
+    tasteDesc = "Sweet. "
+;
+
++ scarf: Wearable 'scarf; woollen wool'
+    "A long woollen scarf. "
+;
+
+// Something to light the attic with.
++ candle: Thing 'candle'
+    "A stub of candle. "
+    isLightable = true
+;
+
+// A dark room, lit only by what is brought into it.
+attic: Room 'Attic'
+    "Dust lies thick on the boards, and the roof slopes low. A ladder leads
+    down. "
+
+    down = landing
+    isLit = nil
+;
+
++ trunk: Heavy 'trunk; old'
+    "An old trunk, far too heavy to move. "
+;

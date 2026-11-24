@@ -1,0 +1,128 @@
+Landing
+A narrow landing at the top of the house, with a portrait on one wall and a
+small window in the other.  A ladder leads up into the attic, and the stairs
+lead down.
+
+A letter lies on the floor.
+
+A grandfather clock ticks in the corner.
+
+You can see a candle, a sprig of lavender, an apple, and a scarf here.
+
+>look
+Landing
+A narrow landing at the top of the house, with a portrait on one wall and a
+small window in the other.  A ladder leads up into the attic, and the stairs
+lead down.
+
+A letter lies on the floor.
+
+A grandfather clock ticks in the corner.
+
+You can see a candle, a sprig of lavender, an apple, and a scarf here.
+
+>take portrait
+The portrait is fixed in place.
+
+>x portrait
+An old oil portrait of a stern woman.  Something is tucked behind the frame.
+
+>take note
+Taken.
+
+>read note
+“Do not go up without a light.”
+
+>x portrait
+An old oil portrait of a stern woman.
+
+>take letter
+Taken.
+
+>look
+Landing
+A narrow landing at the top of the house, with a portrait on one wall and a
+small window in the other.  A ladder leads up into the attic, and the stairs
+lead down.
+
+A grandfather clock ticks in the corner.
+
+You can see a candle, a sprig of lavender, an apple, and a scarf here.
+
+>listen
+Tick.  Tock.
+
+>listen to clock
+Tick.  Tock.
+
+>smell
+It smells of summer.
+
+>smell lavender
+It smells of summer.
+
+>touch window
+The window is not important.
+
+>x spire
+Through the window, a church spire rises over the roofs.
+
+>touch spire
+The church spire is too far away.
+
+>x ghost
+There is no ghost.  There never was.
+
+>taste apple
+Sweet.
+
+>eat apple
+(first taking the apple)
+You eat the apple.
+
+>wear scarf
+(first taking the scarf)
+Okay, you’re now wearing the scarf.
+
+>i
+You are wearing a scarf, and carrying a letter and a folded note.
+
+>west
+The walls of the landing close in on every side.  From here you could go down
+or up.
+
+>down
+You have not finished up here yet.
+
+>up
+In the dark
+It is pitch black; you can’t see a thing.
+
+>look
+In the dark
+It is pitch black; you can’t see a thing.
+
+>down
+Landing
+A narrow landing at the top of the house, with a portrait on one wall and a
+small window in the other.  A ladder leads up into the attic, and the stairs
+lead down.
+
+A grandfather clock ticks in the corner.
+
+You can see a sprig of lavender and a candle here.
+
+>take candle
+Taken.
+
+>light candle
+Done.
+
+>up
+Attic
+Dust lies thick on the boards, and the roof slopes low.  A ladder leads down.
+
+>take trunk
+The trunk is too heavy to move.
+
+>

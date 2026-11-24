@@ -1,0 +1,108 @@
+// The Study: the example of Hexad's containers, surfaces, doors, and keys.
+
+import hexad;
+
+versionInfo: GameID
+    IFID = '3A7F9C1E-2B6D-4E80-9F35-6C1D8B2E7A49'
+    name = 'The Study'
+    byline = 'by the Hexicon guide'
+    version = '1'
+;
+
+gameMain: GameMainDef
+    initialPlayerChar = me
+;
+
+me: Player 'you'
+    location = study
+;
+
+study: Room 'Study'
+    "Books line the walls, above a writing desk and a glass cabinet. A rug
+    covers the floor, and a wardrobe stands by the door to the north. "
+
+    north = studyDoor
+;
+
+// Something to put things in, always open.
++ basket: Container 'wicker basket'
+    "A wicker basket. "
+;
+
+// Something to put things on.
++ shelf: Surface, Fixture 'shelf'
+    "A plain shelf. "
+;
+
+++ vase: Thing 'vase; blue'
+    "A blue vase. "
+;
+
+// One thing with a top and a drawer: two parts, each a SubComponent.
++ desk: Fixture 'writing desk'
+    "An old writing desk, with a drawer. "
+
+    remapOn: SubComponent { }
+    remapIn: SubComponent { isOpenable = true }
+;
+
+++ inkwell: Thing 'inkwell'
+    "A brass inkwell. "
+    subLocation = &remapOn
+;
+
+++ pen: Thing 'pen'
+    "A steel pen. "
+    subLocation = &remapIn
+;
+
+// Locked with a key; seen into even when closed.
++ cabinet: KeyedContainer, Fixture 'glass cabinet'
+    "A cabinet with glass doors. "
+    isTransparent = true
+    keyList = [smallKey]
+;
+
+++ medal: Thing 'medal; silver'
+    "A silver medal. "
+;
+
+// Locked and unlocked without a key.
++ puzzleBox: LockableContainer 'puzzle box; little'
+    "A little puzzle box. "
+;
+
+// Something hidden under the rug, found by looking.
++ rug: Fixture 'rug'
+    "A worn rug. "
+    hiddenUnder = [smallKey]
+;
+
+// Somewhere to get into.
++ wardrobe: Booth, Fixture 'wardrobe'
+    "A tall wardrobe, its doors open. "
+;
+
+// A door that opens and closes, but does not lock.
++ studyDoor: Door 'door'
+    "A plain door. "
+    otherSide = hallDoor
+;
+
+hall: Room 'Hall'
+    "A cold hall. The study is to the south. "
+
+    south = hallDoor
+;
+
++ hallDoor: Door 'door'
+    "A plain door. "
+    otherSide = studyDoor
+;
+
+// The key is hidden, so it has no location: it is defined here, after the
+// objects with a +, which go in the object defined before them that has
+// none.
+smallKey: Key 'small key'
+    "A small key. "
+;

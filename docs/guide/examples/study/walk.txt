@@ -1,0 +1,25 @@
+<eventscript>
+<line>look
+<line>take vase
+<line>put vase in basket
+<line>x desk
+<line>open desk
+<line>look in desk
+<line>take pen
+<line>put pen on desk
+<line>x cabinet
+<line>open cabinet
+<line>look under rug
+<line>unlock cabinet with key
+<line>open cabinet
+<line>take medal
+<line>open box
+<line>unlock box
+<line>open box
+<line>put medal in box
+<line>close box
+<line>lock box
+<line>get in wardrobe
+<line>get out
+<line>north
+<line>south

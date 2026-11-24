@@ -4,7 +4,12 @@ For writing games with Hexicon.
 
 - [Getting Started](getting-started.md): getting Hexicon, starting a game, and writing *The Lighthouse*, a small game, step by step.
 
-More is to come: a reference to Hexad, the library games are built on, and to Hexicon's language.
+Hexad, the library games are built on:
+
+- [Things and Rooms](things-and-rooms.md): what things are, what can be taken, what a room lists, the senses, hidden things, exits, and light and dark.
+- [Containers, Surfaces, Doors, and Keys](containers-and-doors.md): what holds what, a thing with several parts, things hidden under and behind, locks, keys, and doors.
+
+More is to come: characters and conversation, actions and their handlers, and Hexicon's language.
 
 ## For the guide's writers
 

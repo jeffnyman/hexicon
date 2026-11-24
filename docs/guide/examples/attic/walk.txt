@@ -1,0 +1,30 @@
+<eventscript>
+<line>look
+<line>take portrait
+<line>x portrait
+<line>take note
+<line>read note
+<line>x portrait
+<line>take letter
+<line>look
+<line>listen
+<line>listen to clock
+<line>smell
+<line>smell lavender
+<line>touch window
+<line>x spire
+<line>touch spire
+<line>x ghost
+<line>taste apple
+<line>eat apple
+<line>wear scarf
+<line>i
+<line>west
+<line>down
+<line>up
+<line>look
+<line>down
+<line>take candle
+<line>light candle
+<line>up
+<line>take trunk
