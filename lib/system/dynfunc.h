@@ -45,7 +45,7 @@
  *   
  *   The optional fourth argument is a LookupTable giving the preprocessor
  *   macros to use for the compilation.  This is a table in the format
- *   returned by t3GetGlobalsSymbols(MacroTable).
+ *   returned by globalSymbols(MacroTable).
  *   
  *   If the 'symtab' or 'macros' arguments are omitted or nil, the
  *   compilation is done without global symbols or macros, respectively.

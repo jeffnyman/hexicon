@@ -994,7 +994,7 @@ _outputCapture(func)
 /* ------------------------------------------------------------------------ */
 /*
  *   The stack information object.  The intrinsic function
- *   stackTrace() in the 't3vm' function set returns a list of these
+ *   stackTrace() in the 'hexicon-vm' function set returns a list of these
  *   objects; each object represents a level in the stack trace.  
  */
 class StackInfo: object
@@ -1120,8 +1120,7 @@ class StackInfo: object
 ;
 
 /* export StackInfo for use by the system */
-/* exported by the name the virtual machine looks for */
-export StackInfo 'T3StackInfo';
+export StackInfo;
 
 
 /* ------------------------------------------------------------------------ */

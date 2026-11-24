@@ -235,7 +235,7 @@ intrinsic class AnonFuncPtr 'anon-func-ptr': Vector
  *   defines with the "class" or "object" statements descend from this
  *   class.  
  */
-intrinsic class ProgramObject 'tads-object/030005': Object
+intrinsic class ProgramObject 'hexicon-object/030005': Object
 {
     /* 
      *   Create an instance of this object: in other words, create a new

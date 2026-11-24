@@ -66,7 +66,7 @@ inputManager: PostRestoreObject
      *   caller can simply display the prompt before calling this routine rather
      *   than passing in a prompt callback, if desired.
      *
-     *   If we're in HTML mode, this will switch into the 'tads-input' font
+     *   If we're in HTML mode, this will switch into the 'hexicon-input' font
      *   while reading the line, so this routine should be used wherever
      *   possible rather than calling inputLine() or inputLineTimeout()
      *   directly.

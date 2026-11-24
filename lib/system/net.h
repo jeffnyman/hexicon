@@ -2,7 +2,7 @@
 #pragma once
 
 /* 
- *   This header defines the network function set ('tads-net' to the
+ *   This header defines the network function set ('hexicon-net' to the
  *   virtual machine).
  *   
  *   The network function set provides network input/output.  In particular,
@@ -34,7 +34,7 @@
 /*
  *   the network function set
  */
-intrinsic 'tads-net/030001'
+intrinsic 'hexicon-net/030001'
 {
     /*
      *   Connect to the Web UI client.  This connects the Web browser client

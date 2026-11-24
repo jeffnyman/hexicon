@@ -133,7 +133,7 @@ mod tests {
 
     /// An image with nothing in it but its header and its end.
     fn empty_image() -> Vec<u8> {
-        let mut image = b"T3-image\r\n\x1a".to_vec();
+        let mut image = b"HX-image\r\n\x1a".to_vec();
         image.extend_from_slice(&1u16.to_le_bytes());
         image.extend_from_slice(&[0; 32]);
         image.extend_from_slice(b"Sat Nov 21 12:00:00 2026");

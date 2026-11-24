@@ -320,6 +320,15 @@ pub(crate) const PREDEFINED_METACLASSES: [&str; 8] = [
     "lookuptable/030003",
 ];
 
+/// Whether two names of built-in classes, without their versions, are
+/// one class's. The class of the program's own objects is
+/// `hexicon-object` on Hexicon's system library and `tads-object` on
+/// TADS 3's.
+pub(crate) fn same_meta(a: &[u8], b: &[u8]) -> bool {
+    let root = |name: &[u8]| name == b"hexicon-object" || name == b"tads-object";
+    a == b || (root(a) && root(b))
+}
+
 /// A property, as a name.
 #[derive(Debug, Clone)]
 pub(crate) struct PropSym {
@@ -1139,9 +1148,14 @@ impl Program {
         };
         let (name_len, version) = split(name);
         for (index, entry) in self.meta_table.iter_mut().enumerate() {
-            let (entry_len, entry_version) = split(&entry.name);
-            if entry.name[..entry_len] != name[..name_len] {
+            let (entry_len, mut entry_version) = split(&entry.name);
+            if !same_meta(&entry.name[..entry_len], &name[..name_len]) {
                 continue;
+            }
+            if entry.name[..entry_len] != name[..name_len] {
+                // The Hexicon name for the program's objects' class.
+                entry.name = [&name[..name_len], &entry.name[entry_len..]].concat();
+                entry_version = entry_version.map(|at| at - entry_len + name_len);
             }
             if let (Some(version), Some(entry_version)) = (version, entry_version) {
                 let (new, old) = (&name[version..], &entry.name[entry_version..]);

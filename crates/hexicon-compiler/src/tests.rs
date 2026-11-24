@@ -4504,3 +4504,45 @@ mod hexicon_messages {
         );
     }
 }
+
+mod image_names {
+    use super::{CompileOptions, Files};
+
+    fn image(text: &str) -> Vec<u8> {
+        let mut files = Files::default().with("game.hxn", text);
+        let compiled =
+            crate::compile_program(&mut files, &["game.hxn"], &CompileOptions::default());
+        compiled.image.expect("the program compiles")
+    }
+
+    fn has(image: &[u8], name: &[u8]) -> bool {
+        image.windows(name.len()).any(|at| at == name)
+    }
+
+    #[test]
+    fn a_program_on_hexicons_names_is_a_hexicon_image() {
+        let image = image(
+            "intrinsic 'hexicon-gen/030008' { dataType(val); }\n\
+             intrinsic class ProgramObject 'hexicon-object/030005' { }\n\
+             rock: object;\n\
+             _main(args) { return dataType(rock); }\n",
+        );
+        assert!(image.starts_with(b"HX-image\r\n\x1a"));
+        assert!(has(&image, b"hexicon-object/030005"));
+        // The predefined class took the Hexicon name, and is not there
+        // twice.
+        assert!(!has(&image, b"tads-object"));
+    }
+
+    #[test]
+    fn a_program_on_tads_3_names_is_a_t3_image() {
+        let image = image(
+            "intrinsic 'tads-gen/030008' { dataType(val); }\n\
+             rock: object;\n\
+             _main(args) { return dataType(rock); }\n",
+        );
+        assert!(image.starts_with(b"T3-image\r\n\x1a"));
+        assert!(has(&image, b"tads-object/"));
+        assert!(!has(&image, b"hexicon-"));
+    }
+}

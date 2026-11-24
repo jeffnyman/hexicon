@@ -16,7 +16,13 @@ pub use error::{BlockKind, ImageError};
 use reader::Reader;
 
 /// The bytes every image file starts with.
-pub const SIGNATURE: &[u8; 11] = b"T3-image\r\n\x1a";
+pub const SIGNATURE: &[u8; 11] = b"HX-image\r\n\x1a";
+
+/// The signature of a T3 image, which is laid out as a Hexicon image is.
+/// The virtual machine still runs one, and the compiler writes one for a
+/// program built on a TADS 3 system library, which the comparisons with
+/// the reference need.
+pub const T3_SIGNATURE: &[u8; 11] = b"T3-image\r\n\x1a";
 
 /// The newest image format version this crate reads.
 pub const MAX_FORMAT_VERSION: u16 = 2;
@@ -486,7 +492,9 @@ impl Image {
 
 /// Read only the header of an image file.
 pub fn parse_header(data: &[u8]) -> Result<Header, ImageError> {
-    if data.len() < SIGNATURE.len() || &data[..SIGNATURE.len()] != SIGNATURE {
+    if data.len() < SIGNATURE.len()
+        || (&data[..SIGNATURE.len()] != SIGNATURE && &data[..SIGNATURE.len()] != T3_SIGNATURE)
+    {
         return Err(ImageError::NotAnImage);
     }
     if data.len() < HEADER_SIZE {

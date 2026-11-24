@@ -12,4 +12,4 @@ The compiler has all of this built in, as it has Hexad. A build looks for the sy
 
 ## What is still the virtual machine's
 
-The virtual machine binds a program to its built-in functions and classes by identifiers (`'tads-gen/030008'`, `'tads-object/030005'`), and finds some of the program's classes by the names they are exported under (`StackInfo` as `'T3StackInfo'`). Those are the machine's, not the library's, and stay until it goes its own way.
+The virtual machine binds a program to its built-in functions and classes by identifiers (`'hexicon-gen/030008'`, `'hexicon-object/030005'`), and finds some of the program's classes by the names they are exported under (`StackInfo`, `RuntimeError`). A header that declares a function set gives its functions their names. The identifier and version are what the machine binds to.

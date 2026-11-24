@@ -61,7 +61,7 @@ impl fmt::Debug for BlockKind {
 /// An error found while reading an image file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImageError {
-    /// The file does not start with the T3 image signature.
+    /// The file does not start with an image's signature.
     NotAnImage,
     /// The file uses a format version newer than this reader understands.
     UnsupportedVersion(u16),
@@ -135,7 +135,7 @@ pub enum ImageError {
 impl fmt::Display for ImageError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotAnImage => write!(f, "not a T3 image file"),
+            Self::NotAnImage => write!(f, "not a game file"),
             Self::UnsupportedVersion(v) => write!(f, "unsupported image format version {v}"),
             Self::TruncatedFile { offset } => {
                 write!(f, "file ends unexpectedly at offset {offset}")

@@ -454,3 +454,15 @@ fn hostile_counts_do_not_allocate() {
         .finish();
     assert!(Image::parse(&data).is_err());
 }
+
+#[test]
+fn reads_hexicon_and_t3_signatures_only() {
+    for signature in [SIGNATURE, T3_SIGNATURE] {
+        let mut data = Builder::new().entry_point().finish();
+        data[..signature.len()].copy_from_slice(signature);
+        assert!(parse_header(&data).is_ok());
+    }
+    let mut data = Builder::new().entry_point().finish();
+    data[..2].copy_from_slice(b"XX");
+    assert!(matches!(parse_header(&data), Err(ImageError::NotAnImage)));
+}

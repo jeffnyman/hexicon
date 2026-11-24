@@ -751,7 +751,7 @@ impl Vm {
                     None => text.push_str(label),
                 }
             }
-            text.push_str("<font face='TADS-Input'> >");
+            text.push_str("<font face='hexicon-input'> >");
             // The question is asked once, however many times the answer
             // is waited for.
             if !self.io.prompt_shown {

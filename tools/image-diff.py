@@ -18,13 +18,13 @@ is in, and exits with 1.
 import struct
 import sys
 
-SIGNATURE = b"T3-image\r\n\x1a"
-HEADER_LEN = len(SIGNATURE) + 2 + 28 + 4 + 24
+SIGNATURES = (b"HX-image\r\n\x1a", b"T3-image\r\n\x1a")
+HEADER_LEN = len(SIGNATURES[0]) + 2 + 28 + 4 + 24
 
 
 def blocks(data, path):
     """The image's blocks as (name, offset, length), header included."""
-    if not data.startswith(SIGNATURE):
+    if not data.startswith(SIGNATURES):
         sys.exit(f"{path}: not a program image")
     found = [("header", 0, HEADER_LEN)]
     pos = HEADER_LEN

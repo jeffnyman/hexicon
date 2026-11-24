@@ -174,7 +174,7 @@ impl Finder<'_> {
         }
         for block in &image.object_blocks {
             let layout = match image.metaclass_of(block).base_name() {
-                "tads-object" | "int-class-mod" => ObjectLayout::Properties,
+                "hexicon-object" | "tads-object" | "int-class-mod" => ObjectLayout::Properties,
                 "vector" | "anon-func-ptr" => ObjectLayout::Vector,
                 "lookuptable" | "weakreflookuptable" => ObjectLayout::LookupTable,
                 _ => continue,

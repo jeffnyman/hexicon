@@ -423,7 +423,11 @@ impl Vm {
             destruct: prop_symbol(image, "Destructor")?,
             last_prop: prop_symbol(image, "LastProp")?,
             prop_not_defined: prop_symbol(image, "propNotDefined")?,
-            stack_info_class: object_symbol(image, "T3StackInfo")?,
+            // A T3 image exports it as `T3StackInfo`.
+            stack_info_class: match object_symbol(image, "StackInfo")? {
+                ObjId::INVALID => object_symbol(image, "T3StackInfo")?,
+                found => found,
+            },
             main_restore: function_symbol(image, "mainRestore")?,
             length: prop_symbol(image, "length")?,
             const_str_obj: ObjId::INVALID,

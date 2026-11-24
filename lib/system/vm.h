@@ -2,8 +2,9 @@
 #pragma once
 
 /* 
- *   This header defines the t3vm intrinsic function set.  These functions
- *   provide access to basic features of the Virtual Machine.  
+ *   This header defines the virtual machine's function set ('hexicon-vm'
+ *   to the virtual machine).  These functions provide access to basic
+ *   features of the Virtual Machine.  
  */
 
 /* 
@@ -16,7 +17,7 @@
 /*
  *   The virtual machine's function set
  */
-intrinsic 't3vm/010006'
+intrinsic 'hexicon-vm/010006'
 {
     /* 
      *   Explicitly run garbage collection.
@@ -155,7 +156,7 @@ intrinsic 't3vm/010006'
      *   omitted or nil, we return a list of StackInfo objects giving the
      *   entire stack trace.
      *   
-     *   If 'flags' is specified, it's a combination of T3GetStackXxx flags
+     *   If 'flags' is specified, it's a combination of StackTraceXxx flags
      *   specifying additional options.  If this isn't included, the default
      *   is 0 (i.e., all flags turned off).  
      */

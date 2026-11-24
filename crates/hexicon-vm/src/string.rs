@@ -943,7 +943,7 @@ impl Vm {
         }
         let native = if is_rex {
             let mut native = NativeCall::named("rexReplace");
-            native.function = self.function_set_index("tads-gen").map(|set| (set, 12));
+            native.function = self.function_set_index("hexicon-gen").map(|set| (set, 12));
             native.args = (0..argc).map(|i| self.arg(i)).collect();
             native.caller_pc = self.pc;
             native.arg_top = self.stack.len();

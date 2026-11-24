@@ -153,9 +153,17 @@ fn tads_object_data(superclasses: &[u32], is_class: bool, props: &[(u16, [u8; 5]
 struct ImageBuilder {
     objects: Vec<(u32, Vec<u8>)>,
     symbols: Vec<(String, [u8; 5])>,
+    /// A T3 image: its signature, and its names for the function sets and
+    /// the program's objects' class, rather than Hexicon's.
+    t3: bool,
 }
 
 impl ImageBuilder {
+    fn t3(mut self) -> Self {
+        self.t3 = true;
+        self
+    }
+
     fn object(mut self, id: u32, data: Vec<u8>) -> Self {
         self.objects.push((id, data));
         self
@@ -185,7 +193,12 @@ impl ImageBuilder {
             block(data, b"CPPG", &body);
         }
 
-        let mut data = hexicon_image::SIGNATURE.to_vec();
+        let t3 = self.t3;
+        let mut data = if t3 {
+            hexicon_image::T3_SIGNATURE.to_vec()
+        } else {
+            hexicon_image::SIGNATURE.to_vec()
+        };
         data.extend_from_slice(&2u16.to_le_bytes());
         data.extend_from_slice(&[0; 32]);
         data.extend_from_slice(b"Sun Aug 01 17:05:20 1999");
@@ -198,7 +211,14 @@ impl ImageBuilder {
 
         // The string class has one method, `length`.
         let metaclasses: [(&str, &[u16]); 4] = [
-            ("tads-object/030005", &[]),
+            (
+                if t3 {
+                    "tads-object/030005"
+                } else {
+                    "hexicon-object/030005"
+                },
+                &[],
+            ),
             ("string/030008", &[PROP_LENGTH]),
             ("list/030008", &[]),
             ("intrinsic-class/030001", &[]),
@@ -217,7 +237,15 @@ impl ImageBuilder {
         }
         block(&mut data, b"MCLD", &body);
 
-        let sets = ["t3vm/010006", "tads-gen/030008", "tads-io/030007"];
+        let sets = if t3 {
+            ["t3vm/010006", "tads-gen/030008", "tads-io/030007"]
+        } else {
+            [
+                "hexicon-vm/010006",
+                "hexicon-gen/030008",
+                "hexicon-io/030007",
+            ]
+        };
         let mut body = (sets.len() as u16).to_le_bytes().to_vec();
         for name in sets {
             body.push(name.len() as u8);
@@ -621,6 +649,36 @@ fn runaway_recursion_overflows_the_stack() {
         run(&image).1,
         Err("Unhandled exception: stack overflow".to_owned())
     );
+}
+
+#[test]
+fn runs_a_t3_image_as_it_runs_a_hexicon_one() {
+    let mut consts = Consts::default();
+    let hello = consts.string(
+        "Hello, world!
+",
+    );
+    let mut code = Code::default();
+    let main = code.function(1, 0);
+    code.say_str(hello).op(Op::RetNil);
+    let hexicon = ImageBuilder::default().build_bytes(main, &code, &consts);
+    let t3 = ImageBuilder::default()
+        .t3()
+        .build_bytes(main, &code, &consts);
+    assert!(hexicon.starts_with(b"HX-image"));
+    assert!(t3.starts_with(b"T3-image"));
+    for bytes in [hexicon, t3] {
+        let image = Image::parse(&bytes).expect("the test image is well formed");
+        assert_eq!(
+            run(&image),
+            (
+                "Hello, world!
+"
+                .to_owned(),
+                Ok(())
+            )
+        );
+    }
 }
 
 #[test]

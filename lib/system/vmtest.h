@@ -2,7 +2,8 @@
 #pragma once
 
 /* 
- *   This header defines the t3vmTEST function set.  This function set is
+ *   This header defines the test function set ('hexicon-vm-test' to the
+ *   virtual machine).  This function set is
  *   intended primarily for use by the developers of the VM itself, for
  *   testing purposes.  User could should not use this function set, as the
  *   functionality here is not generally useful to "real" programs and is
@@ -12,7 +13,7 @@
 /* 
  *   The virtual machine's test interface 
  */
-intrinsic 't3vmTEST/010000'
+intrinsic 'hexicon-vm-test/010000'
 {
     vmTestObjId(obj);
     vmTestObjGcState(id);

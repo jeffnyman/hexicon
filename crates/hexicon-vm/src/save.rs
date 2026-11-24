@@ -27,7 +27,11 @@ use crate::tads::TadsObject;
 use crate::value::{ObjId, PropId, Value};
 use crate::vm::Vm;
 
-const SIGNATURE: &[u8] = b"T3-state-v000A\r\n\x1a";
+const SIGNATURE: &[u8] = b"HX-state-v000A\r\n\x1a";
+
+/// The signature of a state saved by a T3 virtual machine, which is
+/// laid out as Hexicon's is.
+const T3_SIGNATURE: &[u8] = b"T3-state-v000A\r\n\x1a";
 
 /// The names under which the objects and properties the VM creates for
 /// itself are saved.
@@ -865,7 +869,7 @@ impl Vm {
         // A file too short to hold the signature is one that could not
         // be read, not one of the wrong kind.
         let signature = r.bytes(SIGNATURE.len())?;
-        if signature != SIGNATURE {
+        if signature != SIGNATURE && signature != T3_SIGNATURE {
             return Err(VmError::new(code::NOT_SAVED_STATE));
         }
         let size = r.u32()? as usize;

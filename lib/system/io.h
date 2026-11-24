@@ -2,7 +2,7 @@
 #pragma once
 
 /* 
- *   This header defines the input/output function set ('tads-io' to the
+ *   This header defines the input/output function set ('hexicon-io' to the
  *   virtual machine).  
  *   
  *   The input/output function set provides access to the user
@@ -18,7 +18,7 @@
 /*
  *   the input/output function set 
  */
-intrinsic 'tads-io/030007'
+intrinsic 'hexicon-io/030007'
 {
     /* 
      *   Display values on the console.  One or more values can be displayed.

@@ -3,7 +3,7 @@
 
 /* 
  *   This header defines the input/output extension function sets
- *   ('tads-io-ext' to the virtual machine), which provide
+ *   ('hexicon-io-ext' to the virtual machine), which provide
  *   optional extensions to the standard input/output set.
  *   
  *   These functions are defined in a separate function set from the basic
@@ -17,7 +17,7 @@
 /*
  *   The input/output extensions function set.
  */
-intrinsic 'tads-io-ext/030000'
+intrinsic 'hexicon-io-ext/030000'
 {
     /*
      *   Show a popup menu.  This opens a temporary window, drawn in a style

@@ -82,7 +82,13 @@ metaclasses! {
 
 impl MetaKind {
     /// The class with a given name, ignoring any version suffix.
+    /// `hexicon-object` is a Hexicon image's name for `tads-object`.
     pub fn from_name(name: &str) -> Option<Self> {
+        let name = if name == "hexicon-object" {
+            "tads-object"
+        } else {
+            name
+        };
         Self::ALL.iter().copied().find(|kind| kind.name() == name)
     }
 }

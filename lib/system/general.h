@@ -2,7 +2,7 @@
 #pragma once
 
 /* 
- *   This header defines the general function set ('tads-gen' to the
+ *   This header defines the general function set ('hexicon-gen' to the
  *   virtual machine).  This function
  *   set provides some miscellaneous functions, including data conversions,
  *   object iteration, regular expressions, and state persistence operations.
@@ -13,7 +13,7 @@
  *   The general function set.  This set contains basic data manipulation
  *   and miscellaneous utility functions.
  */
-intrinsic 'tads-gen/030008'
+intrinsic 'hexicon-gen/030008'
 {
     /*
      *   Get the type of the given value.  This returns a TypeXxx value.

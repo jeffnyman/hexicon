@@ -995,7 +995,7 @@ roomparaStyleTag: StyleTag 'roompara' '<.p>\n';
  */
 inputlineStyleTag: HtmlStyleTag 'inputline'
     /* in HTML mode, switch in and out of the input font */
-    htmlOpenText = '<font face="tads-input">'
+    htmlOpenText = '<font face="hexicon-input">'
     htmlCloseText = '</font>'
 
     /* in plain mode, do nothing */
