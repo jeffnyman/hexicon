@@ -1,11 +1,11 @@
 // A program to run: expressions embedded in strings, saying what they
 // come to.
-intrinsic 'hexicon-vm/010006'
+builtin 'hexicon-vm/010006'
 {
     collectGarbage();
     setSay(val);
 }
-intrinsic 'hexicon-gen/030008'
+builtin 'hexicon-gen/030008'
 {
     typeOf(val);
     arg(idx);
@@ -32,7 +32,7 @@ intrinsic 'hexicon-gen/030008'
     toNumber(val, radix?);
     sprintf(format, ...);
 }
-intrinsic 'hexicon-io/030007'
+builtin 'hexicon-io/030007'
 {
     print(val, ...);
 }

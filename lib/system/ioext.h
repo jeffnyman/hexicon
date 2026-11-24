@@ -17,7 +17,7 @@
 /*
  *   The input/output extensions function set.
  */
-intrinsic 'hexicon-io-ext/030000'
+builtin 'hexicon-io-ext/030000'
 {
     /*
      *   Show a popup menu.  This opens a temporary window, drawn in a style

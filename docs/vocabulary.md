@@ -1,6 +1,6 @@
 # Hexicon Vocabulary
 
-Status: decided, 2026-11-24. Messages, built-in classes, and built-in functions done; the rest to come in the order below.
+Status: decided, 2026-11-24. Messages, built-in classes, built-in functions, and the `builtin` keyword done. Hexad's words are next, with Hexad's design.
 
 ## Goal
 
@@ -42,7 +42,7 @@ Done (2026-11-24). The compiler's messages and the VM's error messages use these
 | property pointer | property reference (`&name`) | the guide, and the VM's "property reference required" | done |
 | object file | (gone) | done in the break | done |
 
-Kept: "metaclass" in the messages about a damaged image file, and in `hexicon dump`'s listings, where it names a part of the image format. The keyword is quoted as it is written (`"intrinsic class"`) until it changes (section 4).
+Kept: "metaclass" in the messages about a damaged image file, and in `hexicon dump`'s listings, where it names a part of the image format. Messages quote the keyword as it is written, `"builtin class"` since section 4.
 
 ## 2. Built-in classes
 
@@ -131,7 +131,7 @@ These change how every source looks, so each is its own decision. The counts are
 |---|---|---|---|---|
 | `nil` | keep | 4,340 | `nil` means both "no value" and false (`isOpen = nil`); `null` would say unknown rather than false, and need a separate `false`, a change of meaning and not of spelling. Ruby, Lua, Go, and Swift have `nil` too | keep |
 | `local` | keep | 3,197 | plain English, and Lua's word too | keep |
-| `intrinsic` | `builtin` | 316 | only the system library's headers write it | decided |
+| `intrinsic` | `builtin` | 316 | only the system library's headers write it. Done (2026-11-24): `builtin 'hexicon-gen/030008' { ... }` and `builtin class Map 'lookuptable/030003': Collection { ... }`; comments that said "intrinsic" say "built-in". The image never held the keyword, so no image changed | done |
 | `propertyset` | keep | 45 | Hexad writes it once; handlers (`dobj Take { }`) replaced its common use | keep |
 | `targetprop`, `targetobj`, `definingobj`, `argcount` | keep | 33 | rare, and they say what they are | keep |
 | `inherited`, `delegated` | keep | 607 | plain English | keep |

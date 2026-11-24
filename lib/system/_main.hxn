@@ -121,7 +121,7 @@ _mainCommon(args, restoreFile)
             catch (RestartSignal rsig)
             {
                 /* 
-                 *   call the intrinsic restartGame function to reset all
+                 *   call the built-in restartGame function to reset all
                  *   of the static objects to their initial state 
                  */
                 restartGame();
@@ -850,7 +850,7 @@ class UnknownCharSetException: Exception
 
 /* 
  *   this exception object must be exported for use by the CharacterSet
- *   intrinsic class 
+ *   built-in class 
  */
 export UnknownCharSetException 'CharacterSet.UnknownCharSetException';
 
@@ -993,7 +993,7 @@ _outputCapture(func)
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The stack information object.  The intrinsic function
+ *   The stack information object.  The built-in function
  *   stackTrace() in the 'hexicon-vm' function set returns a list of these
  *   objects; each object represents a level in the stack trace.  
  */
@@ -1018,8 +1018,8 @@ class StackInfo: object
     }
 
     /*
-     *   Is this a system routine?  This returns true if an intrinsic
-     *   function or an intrinsic class method is running at this level. 
+     *   Is this a system routine?  This returns true if a built-in
+     *   function or a built-in class method is running at this level. 
      */
     isSystem()
     {
@@ -1028,7 +1028,7 @@ class StackInfo: object
          *   
          *   - we have NEITHER a function nor a method
          *.  - the function is a built-in function pointer
-         *.  - the defining object is an intrinsic class
+         *.  - the defining object is a built-in class
          *   
          *   The first case applies to pre-3.0.19 VMs, where no information
          *   was available for native callers.  Starting in 3.0.19, full

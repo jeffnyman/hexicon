@@ -2,7 +2,7 @@
 #pragma once
 
 /* 
- *   The header defines the Map and WeakMap intrinsic
+ *   The header defines the Map and WeakMap built-in
  *   classes, as well as MapIterator, the special Iterator type for
  *   these classes.  
  */
@@ -12,12 +12,12 @@
 #include "systype.h"
 
 /*
- *   The Map intrinsic class provides a general-purpose hash table
+ *   The Map built-in class provides a general-purpose hash table
  *   implementation.  Map can be used syntactically as though it were
  *   a list, but the index values are arbitrary hash key values rather than
  *   being limited to sequential integers.  
  */
-intrinsic class Map 'lookuptable/030003': Collection
+builtin class Map 'lookuptable/030003': Collection
 {
     /* 
      *   Determine if a given key is present in the table.  Returns true if
@@ -128,7 +128,7 @@ intrinsic class Map 'lookuptable/030003': Collection
  *   values, the key/value pair for the value is automatically deleted from
  *   the table.  
  */
-intrinsic class WeakMap 'weakreflookuptable/030001': Map
+builtin class WeakMap 'weakreflookuptable/030001': Map
 {
 }
 
@@ -136,7 +136,7 @@ intrinsic class WeakMap 'weakreflookuptable/030001': Map
  *   Map iterator - this type of iterator is used for Map and
  *   WeakMap instances.  
  */
-intrinsic class MapIterator 'lookuptable-iterator/030000': Iterator
+builtin class MapIterator 'lookuptable-iterator/030000': Iterator
 {
 }
 

@@ -18,7 +18,7 @@
 /*
  *   the input/output function set 
  */
-intrinsic 'hexicon-io/030007'
+builtin 'hexicon-io/030007'
 {
     /* 
      *   Display values on the console.  One or more values can be displayed.
@@ -491,7 +491,7 @@ intrinsic 'hexicon-io/030007'
 
 /* 
  *   constants for the event codes returned by the inputEvent() and
- *   inputLineTimeout() intrinsic functions 
+ *   inputLineTimeout() built-in functions 
  */
 #define InEvtKey         1
 #define InEvtTimeout     2

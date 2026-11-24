@@ -1,4 +1,4 @@
-intrinsic class A 'a/030000' { x(); }
+builtin class A 'a/030000' { x(); }
 b: A;
 A: object;
 A() { }

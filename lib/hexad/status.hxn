@@ -71,7 +71,7 @@ transient statusLeftOutputStream: OutputStream
  *   A special OutputStream for the right half of the status line (the
  *   score/turn count area) in text mode.  We use a separate stream for
  *   this because we have to write this text with the special
- *   statusRight() intrinsic in text mode.
+ *   statusRight() built-in in text mode.
  *   
  *   We only use this stream when we use the old-style text-mode status
  *   line interface, which explicitly separates the status line into a

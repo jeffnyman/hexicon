@@ -1,11 +1,11 @@
 // A program to run: objects, classes, properties, and methods, saying
 // what they do as they do it.
-intrinsic 'hexicon-vm/010006'
+builtin 'hexicon-vm/010006'
 {
     collectGarbage();
     setSay(val);
 }
-intrinsic 'hexicon-gen/030008'
+builtin 'hexicon-gen/030008'
 {
     typeOf(val);
     arg(idx);
@@ -15,7 +15,7 @@ intrinsic 'hexicon-gen/030008'
     rand(x, ...);
     toString(val, radix?, isSigned?);
 }
-intrinsic 'hexicon-io/030007'
+builtin 'hexicon-io/030007'
 {
     print(val, ...);
 }

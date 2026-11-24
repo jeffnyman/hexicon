@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This header defines the ByteArray intrinsic class.  
+ *   This header defines the ByteArray built-in class.  
  */
 
 /* include our base class definition */
@@ -12,14 +12,14 @@
 #include "charset.h"
 
 /*
- *   'ByteArray' intrinsic class.  This class provides a fixed-size array of
+ *   'ByteArray' built-in class.  This class provides a fixed-size array of
  *   unsigned 8-bit byte values; each array element is an integer in the
  *   range 0-255.  
  *   
  *   ByteArray is particularly useful for reading and writing binary files,
  *   since it lets you manipulate the raw bytes in a file directly. 
  */
-intrinsic class ByteArray 'bytearray/030002': Object
+builtin class ByteArray 'bytearray/030002': Object
 {
     /*
      *   Constructors:
@@ -29,7 +29,7 @@ intrinsic class ByteArray 'bytearray/030002': Object
      *   
      *   new ByteArray(byteArray, startIndex?, length?) - create a new byte
      *   array as a copy of the given byte range of the given byte array,
-     *   which must be an object of intrinsic class ByteArray.  If the
+     *   which must be an object of built-in class ByteArray.  If the
      *   starting index and length are not given, the new object is a
      *   complete copy of the source byte array.
      *   
@@ -79,7 +79,7 @@ intrinsic class ByteArray 'bytearray/030002': Object
      *   
      *   If the starting index and length are not given, the entire byte
      *   array is converted to a string.  'charset' must be an object of
-     *   intrinsic class CharacterSet.  
+     *   built-in class CharacterSet.  
      */
     mapToString(charset, startIndex?, length?);
 

@@ -3,12 +3,12 @@ image: none
 error: the superclass "Collection" is not defined
   --> meta2.hxn:1
   |
-1 | intrinsic class Vector 'vector/030005': Collection
+1 | builtin class Vector 'vector/030005': Collection
   |
 
 error: the superclass "Object" is not defined
   --> meta2.hxn:6
   |
-6 | intrinsic class String 'string/030008': Object
+6 | builtin class String 'string/030008': Object
   |
 --- output

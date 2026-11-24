@@ -1,4 +1,4 @@
-intrinsic 'hexicon-gen/030008'
+builtin 'hexicon-gen/030008'
 {
     typeOf(val); arg(idx); firstObj(cls?, flags?); nextObj(obj, cls?, flags?);
     randomize(...); rand(x, ...); toString(val, radix?, isSigned?); toInteger(val, radix?);

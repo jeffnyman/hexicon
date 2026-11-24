@@ -1,6 +1,6 @@
 f() { }
-intrinsic class f 'f/030000' { }
-intrinsic class A 'a/030000' { f(); 1; x y; z(a,); }
-intrinsic class A 'a/030001' { }
-intrinsic class B 'a/030000' { }
+builtin class f 'f/030000' { }
+builtin class A 'a/030000' { f(); 1; x y; z(a,); }
+builtin class A 'a/030001' { }
+builtin class B 'a/030000' { }
 _main(args) { }

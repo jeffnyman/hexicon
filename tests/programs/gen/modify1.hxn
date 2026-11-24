@@ -1,4 +1,4 @@
-intrinsic 'hexicon-vm/010006'
+builtin 'hexicon-vm/010006'
 {
     collectGarbage();
     setSay(val);
@@ -13,7 +13,7 @@ intrinsic 'hexicon-vm/010006'
     namedArg(name, defval?);
     namedArgList();
 }
-intrinsic 'hexicon-gen/030008'
+builtin 'hexicon-gen/030008'
 {
     typeOf(val);
     arg(idx);
@@ -38,7 +38,7 @@ intrinsic 'hexicon-gen/030008'
     repeatString(val, repeatCount?);
     functionParams(func);
 }
-intrinsic 'hexicon-io/030007'
+builtin 'hexicon-io/030007'
 {
     print(val, ...);
 }

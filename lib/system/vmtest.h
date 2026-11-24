@@ -13,7 +13,7 @@
 /* 
  *   The virtual machine's test interface 
  */
-intrinsic 'hexicon-vm-test/010000'
+builtin 'hexicon-vm-test/010000'
 {
     vmTestObjId(obj);
     vmTestObjGcState(id);

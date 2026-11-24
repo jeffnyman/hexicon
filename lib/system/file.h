@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This header defines the File intrinsic class.  
+ *   This header defines the File built-in class.  
  */
 
 
@@ -10,7 +10,7 @@
 #include "systype.h"
 
 /*
- *   File methods use the CharacterSet and ByteArray intrinsic
+ *   File methods use the CharacterSet and ByteArray built-in
  *   classes, so include their headers to make sure they're available to
  *   File users.  
  */
@@ -116,7 +116,7 @@
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The File intrinsic class provides access to files in the external file
+ *   The File built-in class provides access to files in the external file
  *   system.  This lets you create, read, and write files.  The class
  *   supports text files (with translations to and from local character
  *   sets), "data" files (using a binary format of its own), and
@@ -124,7 +124,7 @@
  *   binary formats by giving you direct access to the raw bytes in the
  *   file).  
  */
-intrinsic class File 'file/030003': Object
+builtin class File 'file/030003': Object
 {
     /*
      *   File has no constructors.  Instead of using 'new', you create a File
@@ -562,7 +562,7 @@ intrinsic class File 'file/030003': Object
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The TemporaryFile intrinsic class represents a temporary file name in
+ *   The TemporaryFile built-in class represents a temporary file name in
  *   the local file system.  Temporary files can be used to store data too
  *   large to conveniently store in memory.
  *   
@@ -591,7 +591,7 @@ intrinsic class File 'file/030003': Object
  *   the inherent restrictions on temporary files provide the same system
  *   protections that the safety level settings provide for ordinary files.
  */
-intrinsic class TemporaryFile 'tempfile/030000': Object
+builtin class TemporaryFile 'tempfile/030000': Object
 {
     /*
      *   Get the name of the underlying file system object.  This returns a

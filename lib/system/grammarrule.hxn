@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /*
- *   This module defines some classes used by the GrammarRule intrinsic
+ *   This module defines some classes used by the GrammarRule built-in
  *   class.  
  */
 
@@ -11,12 +11,12 @@
 
 /* ------------------------------------------------------------------------ */
 /*
- *   GrammarRule descriptor classes.  The GrammarRule intrinsic class's
+ *   GrammarRule descriptor classes.  The GrammarRule built-in class's
  *   getGrammarInfo() method uses these classes to build its description of
  *   a grammar production.
  */
 
-/* export the classes so the intrinsic class can find them */
+/* export the classes so the built-in class can find them */
 export GrammarAltInfo 'GrammarRule.GrammarAltInfo';
 export GrammarAltTokInfo 'GrammarRule.GrammarAltTokInfo';
 

@@ -3,6 +3,6 @@ image: none
 error: parameter 'b' must be optional because it follows an optional parameter
   --> e_bif6.hxn:1
   |
-1 | intrinsic 'x' { f(a?, b); } _main(args) { }
+1 | builtin 'x' { f(a?, b); } _main(args) { }
   |
 --- output

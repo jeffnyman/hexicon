@@ -3,42 +3,42 @@ image: none
 error: "f" is already the name of something else, so it cannot also name a built-in class
   --> e_meta2.hxn:2
   |
-2 | intrinsic class f 'f/030000' { }
+2 | builtin class f 'f/030000' { }
   |
 
 error: "f" is already the name of something else, so it cannot also name a property
   --> e_meta2.hxn:3
   |
-3 | intrinsic class A 'a/030000' { f(); 1; x y; z(a,); }
+3 | builtin class A 'a/030000' { f(); 1; x y; z(a,); }
   |
 
 error: expected property name in built-in class list, but found "1"
   --> e_meta2.hxn:3
   |
-3 | intrinsic class A 'a/030000' { f(); 1; x y; z(a,); }
+3 | builtin class A 'a/030000' { f(); 1; x y; z(a,); }
   |
 
 error: expected ';', but found "y"
   --> e_meta2.hxn:3
   |
-3 | intrinsic class A 'a/030000' { f(); 1; x y; z(a,); }
+3 | builtin class A 'a/030000' { f(); 1; x y; z(a,); }
   |
 
 error: missing parameter name at end of parameter list
   --> e_meta2.hxn:3
   |
-3 | intrinsic class A 'a/030000' { f(); 1; x y; z(a,); }
+3 | builtin class A 'a/030000' { f(); 1; x y; z(a,); }
   |
 
 error: "A" is already the name of something else, so it cannot also name a built-in class
   --> e_meta2.hxn:4
   |
-4 | intrinsic class A 'a/030001' { }
+4 | builtin class A 'a/030001' { }
   |
 
 error: built-in class has been previously defined as "A"
   --> e_meta2.hxn:5
   |
-5 | intrinsic class B 'a/030000' { }
+5 | builtin class B 'a/030000' { }
   |
 --- output

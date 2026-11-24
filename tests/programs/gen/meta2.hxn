@@ -1,28 +1,28 @@
-intrinsic class Vector 'vector/030005': Collection
+builtin class Vector 'vector/030005': Collection
 {
     toList(start?, cnt?);
     length();
 }
-intrinsic class String 'string/030008': Object
+builtin class String 'string/030008': Object
 {
     length();
     substr(start, len?);
 }
-intrinsic class Object 'root-object/030004'
+builtin class Object 'root-object/030004'
 {
     ofKind(cls);
 }
-intrinsic class Collection 'collection/030000': Object
+builtin class Collection 'collection/030000': Object
 {
     createIterator();
 }
-intrinsic class Iterator 'iterator/030001': Object
+builtin class Iterator 'iterator/030001': Object
 {
     getNext();
 }
-intrinsic class Decimal 'bignumber/030001': Object { formatString(); }
-intrinsic class BuiltinClass 'intrinsic-class/030001': Object { isBuiltinClass(obj); }
-intrinsic class ByteArray 'bytearray/030002': Object { }
+builtin class Decimal 'bignumber/030001': Object { formatString(); }
+builtin class BuiltinClass 'intrinsic-class/030001': Object { isBuiltinClass(obj); }
+builtin class ByteArray 'bytearray/030002': Object { }
 a: object x = 1;
 _main(args)
 {

@@ -654,8 +654,8 @@ fn constants(image: &[u8]) -> Vec<u8> {
 #[test]
 fn built_in_functions_are_called_by_set_and_number() {
     let compiled = compile_text(
-        "intrinsic 'first/010000' { a(); b(x, y?); }\n\
-         intrinsic 'second/020000' { c(...); }\n\
+        "builtin 'first/010000' { a(); b(x, y?); }\n\
+         builtin 'second/020000' { c(...); }\n\
          _main(args) { b(1); c(1, 2); return a; }\n",
     );
     assert!(
@@ -676,7 +676,7 @@ fn built_in_functions_are_called_by_set_and_number() {
         [0x02, 0xb1, 1, 1, 0x03, 2, 0x02, 0xb2, 2, 0, 0xb1, 0, 0]
     );
     assert_eq!(
-        compile_messages("intrinsic 'x/1' { b(x, y?); }\n_main(args) { b(); b(1, 2, 3); }\n"),
+        compile_messages("builtin 'x/1' { b(x, y?); }\n_main(args) { b(); b(1, 2, 3); }\n"),
         [
             "2: error: too few arguments to function \"b\"",
             "2: error: too many arguments to function \"b\"",
@@ -1297,8 +1297,8 @@ fn the_address_of_a_property_is_a_constant() {
 #[test]
 fn a_built_in_class_is_declared_with_its_properties() {
     let compiled = compile_text(
-        "intrinsic class Object 'root-object/030004' { ofKind(cls); }\n\
-         intrinsic class List 'list/030008': Object { length(); }\n\
+        "builtin class Object 'root-object/030004' { ofKind(cls); }\n\
+         builtin class List 'list/030008': Object { length(); }\n\
          _main(args) { return [args.length(), new List()]; }\n",
     );
     assert!(
@@ -1327,8 +1327,8 @@ fn a_built_in_class_is_declared_with_its_properties() {
 
     assert_eq!(
         compile_messages(
-            "f() { }\nintrinsic class f 'f/030000' { }\n\
-             intrinsic class A 'a/030000': Nosuch { 1; }\n_main(args) { return A(); }\n"
+            "f() { }\nbuiltin class f 'f/030000' { }\n\
+             builtin class A 'a/030000': Nosuch { 1; }\n_main(args) { return A(); }\n"
         ),
         [
             "2: error: \"f\" is already the name of something else, so it cannot also name a built-in class",
@@ -1371,8 +1371,8 @@ fn exports_come_first_among_the_names_the_image_gives() {
     );
 }
 
-const COLLECTION: &str = "intrinsic class Object 'root-object/030004' { ofKind(cls); }\n\
-     intrinsic class Collection 'collection/030000': Object { createIterator(); }\n";
+const COLLECTION: &str = "builtin class Object 'root-object/030004' { ofKind(cls); }\n\
+     builtin class Collection 'collection/030000': Object { createIterator(); }\n";
 
 #[test]
 fn a_loop_over_a_collection_asks_it_for_an_iterator() {
@@ -1564,11 +1564,11 @@ fn a_short_anonymous_function_has_its_own_mistakes() {
 
 /// The declarations of the built-in functions that optional and named
 /// parameters are filled in with.
-const PARAM_SUPPORT: &str = "intrinsic 'hexicon-vm/010006' { collectGarbage(); setSay(val); vmVersion(); \
+const PARAM_SUPPORT: &str = "builtin 'hexicon-vm/010006' { collectGarbage(); setSay(val); vmVersion(); \
     vmId(); vmBanner(); inPreinit(); debugTrace(mode, ...); \
     globalSymbols(which?); newProperty(); stackTrace(level?, flags?); \
     namedArg(name, defval?); namedArgList(); }\n\
-    intrinsic 'hexicon-gen/030008' { typeOf(val); arg(idx); }\n";
+    builtin 'hexicon-gen/030008' { typeOf(val); arg(idx); }\n";
 
 #[test]
 fn an_optional_parameter_is_a_local_filled_in_at_the_start() {
@@ -1779,7 +1779,7 @@ fn modify_leaves_the_object_there_was_as_a_class_behind_the_new_one() {
 #[test]
 fn modify_of_a_built_in_class_makes_objects_for_what_is_added() {
     let compiled = compile_text(
-        "intrinsic class Object 'root-object/030004' { ofKind(cls); }\n\
+        "builtin class Object 'root-object/030004' { ofKind(cls); }\n\
          modify Object hello = 7;\n_main(args) { }\n",
     );
     assert!(
@@ -2550,8 +2550,8 @@ fn grammar_statements_have_their_own_mistakes() {
 }
 
 /// What a program needs to declare for objects written in expressions.
-const PROGRAM_OBJECT: &str = "intrinsic class Object 'root-object/030004' { }\n\
-    intrinsic class ProgramObject 'hexicon-object/030005': Object\n\
+const PROGRAM_OBJECT: &str = "builtin class Object 'root-object/030004' { }\n\
+    builtin class ProgramObject 'hexicon-object/030005': Object\n\
     { createInstanceOf(...); setMethod(prop, meth); }\n";
 
 #[test]
@@ -2791,8 +2791,8 @@ fn what_no_file_defines_is_unresolved() {
 
 #[test]
 fn what_each_file_adds_to_a_built_in_class_is_there_together() {
-    let decl = "intrinsic class Object 'root-object/030004' { }\n\
-                intrinsic class List 'list/030008': Object { }\n";
+    let decl = "builtin class Object 'root-object/030004' { }\n\
+                builtin class List 'list/030008': Object { }\n";
     let one = format!(
         "{decl}modify List first() {{ return self[1]; }};\n_main(args) {{ return [1].first() + [1, 2].second(); }}\n"
     );
@@ -4217,8 +4217,8 @@ mod image_names {
     #[test]
     fn a_program_on_hexicons_names_is_a_hexicon_image() {
         let image = image(
-            "intrinsic 'hexicon-gen/030008' { typeOf(val); }\n\
-             intrinsic class ProgramObject 'hexicon-object/030005' { }\n\
+            "builtin 'hexicon-gen/030008' { typeOf(val); }\n\
+             builtin class ProgramObject 'hexicon-object/030005' { }\n\
              rock: object;\n\
              _main(args) { return typeOf(rock); }\n",
         );

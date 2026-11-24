@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This module defines the HTTPServer intrinsic class.  This class is used
+ *   This module defines the HTTPServer built-in class.  This class is used
  *   to set up a network HTTP server, which has a number of potential
  *   applications:
  *   
@@ -75,7 +75,7 @@
  *   that connection.  Each incoming request will be forwarded to the game
  *   program to handle, via the network message queue.  
  */
-intrinsic class HTTPServer 'http-server/030000': Object
+builtin class HTTPServer 'http-server/030000': Object
 {
     /*
      *   Shut down the server.  This immediately disconnects the server from

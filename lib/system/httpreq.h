@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This module defines the HTTPRequest intrinsic class.  This class
+ *   This module defines the HTTPRequest built-in class.  This class
  *   represents a request sent from a network client to the byte-code program
  *   via the program's HTTP server object.
  *   
@@ -22,7 +22,7 @@
  *   program uses the object to get information on the request and to send
  *   back the reply.  
  */
-intrinsic class HTTPRequest 'http-request/030001': Object
+builtin class HTTPRequest 'http-request/030001': Object
 {
     /*
      *   Get the HTTPServer object.  This is the server that received the

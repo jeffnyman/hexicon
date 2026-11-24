@@ -1,4 +1,4 @@
-intrinsic 'many/1'
+builtin 'many/1'
 {
     fn0();
     fn1();

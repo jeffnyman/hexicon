@@ -1977,7 +1977,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     self.next();
                     Ok(())
                 }
-                Tok::Intrinsic => self.parse_intrinsic(),
+                Tok::Builtin => self.parse_builtin(),
                 Tok::Class => {
                     self.next();
                     self.parse_object(true, Redef::No)
@@ -3376,20 +3376,20 @@ impl Program {
 }
 
 impl Parser<'_, '_> {
-    /// Read `intrinsic 'set-name' { name(parameters); ... }`: the
+    /// Read `builtin 'set-name' { name(parameters); ... }`: the
     /// functions of a set built into the virtual machine, in the order
     /// the set has them.
-    fn parse_intrinsic(&mut self) -> Parsed<()> {
+    fn parse_builtin(&mut self) -> Parsed<()> {
         let set = match self.next() {
             Tok::SStr => {
                 let name = self.cur_text();
                 self.next();
                 self.add_fnset(&name)
             }
-            Tok::Class => return self.parse_intrinsic_class(),
+            Tok::Class => return self.parse_builtin_class(),
             _ => {
                 self.error_curtok(
-                    "expected function set name string after \"intrinsic\", but found \"%\"",
+                    "expected function set name string after \"builtin\", but found \"%\"",
                 );
                 0
             }
@@ -3407,7 +3407,7 @@ impl Parser<'_, '_> {
                     return Ok(());
                 }
                 Tok::Eof => {
-                    self.error("end of file in \"intrinsic\" list - '}' is probably missing");
+                    self.error("end of file in \"builtin\" list - '}' is probably missing");
                     return Err(Stop);
                 }
                 Tok::Sem => {
@@ -6008,11 +6008,11 @@ impl Parser<'_, '_> {
     /// Read `.prop` after an expression, with arguments if there are
     /// any. The property is a name, or an expression in parentheses
     /// that says which property.
-    /// Read `intrinsic class Name 'vm-name/version': Superclass { ... }`,
+    /// Read `builtin class Name 'vm-name/version': Superclass { ... }`,
     /// from `class` on: the name the program has for a class built into
     /// the virtual machine, and the names of the class's properties, in
     /// the virtual machine's order.
-    fn parse_intrinsic_class(&mut self) -> Parsed<()> {
+    fn parse_builtin_class(&mut self) -> Parsed<()> {
         let mut sym = None;
         let mut name = None;
         if self.next() == Tok::Sym {
@@ -6029,7 +6029,7 @@ impl Parser<'_, '_> {
             }
             self.next();
         } else {
-            self.error_curtok("expected class name after \"intrinsic class\", but found \"%\"");
+            self.error_curtok("expected class name after \"builtin class\", but found \"%\"");
         }
 
         if self.cur() == Tok::SStr {
@@ -6106,7 +6106,7 @@ impl Parser<'_, '_> {
                     return Ok(());
                 }
                 Tok::Eof => {
-                    self.error("end of file in \"intrinsic class\" list - '}' is probably missing");
+                    self.error("end of file in \"builtin class\" list - '}' is probably missing");
                     return Err(Stop);
                 }
                 Tok::Sem => {
@@ -8128,7 +8128,7 @@ impl Parser<'_, '_> {
                 | Tok::Property
                 | Tok::Plus
                 | Tok::Inc
-                | Tok::Intrinsic
+                | Tok::Builtin
                 | Tok::Object
                 | Tok::Grammar
                 | Tok::Enum => {

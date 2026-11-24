@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This header defines the Date and TimeZone intrinsic classes.  
+ *   This header defines the Date and TimeZone built-in classes.  
  */
 
 /* include our base class definition */
@@ -11,7 +11,7 @@
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The Date intrinsic class stores a date-and-time value representing a
+ *   The Date built-in class stores a date-and-time value representing a
  *   particular point in time, and provides methods and operators for date
  *   arithmetic, formatting, and parsing.
  *   
@@ -127,7 +127,7 @@
  *   default if you don't specify a time zone is 
  *   
  */
-intrinsic class Date 'date/030000': Object
+builtin class Date 'date/030000': Object
 {
     /*
      *   Parse a date.  This is similar to the new Date('date string')
@@ -417,7 +417,7 @@ intrinsic class Date 'date/030000': Object
 
 /* ------------------------------------------------------------------------ */
 /*
- *   TimeZone intrinsic class.  A TimeZone object represents a location entry
+ *   TimeZone built-in class.  A TimeZone object represents a location entry
  *   in the IANA zoneinfo database.  It contains information on the
  *   location's wall clock time settings relative to universal time (UTC),
  *   allowing translations between local wall clock time and UTC.  The object
@@ -501,7 +501,7 @@ intrinsic class Date 'date/030000': Object
  *   Standard Time, and Cuba Summer Time).
  *   
  */
-intrinsic class TimeZone 'timezone/030000' : Object
+builtin class TimeZone 'timezone/030000' : Object
 {
     /*
      *   Get the name or names for this timezone.  This returns a list of

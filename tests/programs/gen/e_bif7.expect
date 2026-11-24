@@ -1,5 +1,5 @@
 image: none
 --- messages
-error: end of file in "intrinsic" list - '}' is probably missing
+error: end of file in "builtin" list - '}' is probably missing
   --> e_bif7.hxn:2
 --- output

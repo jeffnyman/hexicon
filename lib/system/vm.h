@@ -8,7 +8,7 @@
  */
 
 /* 
- *   include the Map intrinsic class, since globalSymbols()
+ *   include the Map built-in class, since globalSymbols()
  *   returns an instance of this class 
  */
 #include "map.h"
@@ -17,7 +17,7 @@
 /*
  *   The virtual machine's function set
  */
-intrinsic 'hexicon-vm/010006'
+builtin 'hexicon-vm/010006'
 {
     /* 
      *   Explicitly run garbage collection.

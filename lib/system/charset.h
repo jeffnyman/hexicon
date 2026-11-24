@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This header defines the CharacterSet intrinsic class.  
+ *   This header defines the CharacterSet built-in class.  
  */
 
 
@@ -10,12 +10,12 @@
 #include "systype.h"
 
 /*
- *   The CharacterSet intrinsic class provides information on character set
+ *   The CharacterSet built-in class provides information on character set
  *   translations and can be used to translate between the Unicode character
  *   set that the virtual machine uses internally for string values and the local
  *   character set or sets used for display, keyboard input, and file I/O.  
  */
-intrinsic class CharacterSet 'character-set/030001': Object
+builtin class CharacterSet 'character-set/030001': Object
 {
     /*
      *   Constructor:

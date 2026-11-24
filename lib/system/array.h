@@ -4,9 +4,9 @@
 #define _ARRAY_H_
 
 /*
- *   'Array' intrinsic class
+ *   'Array' built-in class
  */
-intrinsic class Array 'array/030006'
+builtin class Array 'array/030006'
 {
     /* 
      *   Create a list with the same elements as the array.  If 'start' is

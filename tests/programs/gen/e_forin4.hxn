@@ -1,5 +1,5 @@
-intrinsic class Object 'root-object/030004' { ofKind(cls); }
-intrinsic class Collection 'collection/030000': Object { createIterator(); createLiveIterator(); }
-intrinsic class List 'list/030008': Collection { length(); }
+builtin class Object 'root-object/030004' { ofKind(cls); }
+builtin class Collection 'collection/030000': Object { createIterator(); createLiveIterator(); }
+builtin class List 'list/030008': Collection { length(); }
 _main(args) { foreach (local x in args) { local y = x; } return x; }
 f() { foreach (local a in 1) break; continue; }

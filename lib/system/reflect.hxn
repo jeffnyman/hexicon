@@ -75,10 +75,10 @@ reflectionServices: PreinitObject
             if (val.ofKind(self))
                 return inherited();
 
-            /* check for intrinsic classes */
+            /* check for built-in classes */
             if (BuiltinClass.isBuiltinClass(val))
             {
-                /* intrinsic classes should always be in the symbol table */
+                /* built-in classes should always be in the symbol table */
                 sym = reverseSymtab_[val];
                 return (sym != nil ? sym : '{intrinsicClass}');
             }
@@ -276,7 +276,7 @@ modify Object
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Modify the String intrinsic class to provide a to-symbol mapping 
+ *   Modify the String built-in class to provide a to-symbol mapping 
  */
 modify String
     valToSymbol()
@@ -362,7 +362,7 @@ modify String
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Modify the List intrinsic class to provide a to-symbol mapping 
+ *   Modify the List built-in class to provide a to-symbol mapping 
  */
 modify List
     valToSymbol()
@@ -391,7 +391,7 @@ modify List
 
 /* ------------------------------------------------------------------------ */
 /*
- *   If desired, modify the Decimal intrinsic class to provide a
+ *   If desired, modify the Decimal built-in class to provide a
  *   to-symbol mapping.  We only include this modification if the program
  *   is compiled with REFLECT_BIGNUM defined.  
  */

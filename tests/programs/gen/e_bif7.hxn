@@ -1,1 +1,1 @@
-intrinsic 'x' { f();
+builtin 'x' { f();

@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This module defines the StringBuilder intrinsic class.  StringBuilder is
+ *   This module defines the StringBuilder built-in class.  StringBuilder is
  *   essentialy a mutable version of String: you can append, insert, replace,
  *   and delete characters in place, without creating new objects as a
  *   result.  This is useful for complex string constructions that involve
@@ -37,7 +37,7 @@
  *   String, use the toString() function.  You can also create an ordinary
  *   string from a section of the buffer using the substr() method.  
  */
-intrinsic class StringBuilder 'stringbuffer/030000'
+builtin class StringBuilder 'stringbuffer/030000'
 {
     /*
      *   Get the length in characters of the current text in the buffer. 

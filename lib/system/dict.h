@@ -2,7 +2,7 @@
 #pragma once
 
 /* 
- *   This header defines the Dictionary intrinsic class.  
+ *   This header defines the Dictionary built-in class.  
  */
 
 
@@ -10,7 +10,7 @@
 #include "systype.h"
 
 /*
- *   The Dictionary intrinsic class is a specialized lookup table class
+ *   The Dictionary built-in class is a specialized lookup table class
  *   designed for storing the vocabulary table for a parser.  Dictionary
  *   works closely with GrammarRule to supply the vocabulary tokens for the
  *   productions.
@@ -20,7 +20,7 @@
  *   the type is the vocabulary property (&noun, &adjective, etc) that
  *   associates the word with an object.  
  */
-intrinsic class Dictionary 'dictionary2/030001': Object
+builtin class Dictionary 'dictionary2/030001': Object
 {
     /*
      *   Constructor:

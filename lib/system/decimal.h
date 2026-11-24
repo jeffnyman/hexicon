@@ -2,14 +2,14 @@
 #pragma once
 
 /* 
- *   This header defines the Decimal intrinsic class.  
+ *   This header defines the Decimal built-in class.  
  */
 
 /* include our base class definition */
 #include "systype.h"
 
 /*
- *   The Decimal intrinsic class lets you perform floating-point and
+ *   The Decimal built-in class lets you perform floating-point and
  *   integer arithmetic with (almost) any desired precision.  Decimal uses
  *   a decimal representation, which means that decimal values can be
  *   represented exactly (i.e., with no rounding errors, as can happen with
@@ -30,7 +30,7 @@
  *   value, the more memory the object consumes, and the more time it takes
  *   to perform calculations using the value.  
  */
-intrinsic class Decimal 'bignumber/030001': Object
+builtin class Decimal 'bignumber/030001': Object
 {
     /* format to a string */
     formatString(maxDigits?, flags?,

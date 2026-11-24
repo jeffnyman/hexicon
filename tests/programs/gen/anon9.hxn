@@ -1,6 +1,6 @@
 class Exception: object;
-intrinsic class Object 'root-object/030004' { ofKind(cls); }
-intrinsic class Collection 'collection/030000': Object { createIterator(); }
+builtin class Object 'root-object/030004' { ofKind(cls); }
+builtin class Collection 'collection/030000': Object { createIterator(); }
 a: object
     v = 1
     m1(lst)

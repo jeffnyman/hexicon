@@ -1,15 +1,15 @@
-intrinsic class Object 'root-object/030004'
+builtin class Object 'root-object/030004'
 {
     ofKind(cls);
     superclasses();
     hasProp(prop, flags?);
 }
-intrinsic class Collection 'collection/030000': Object
+builtin class Collection 'collection/030000': Object
 {
     createIterator();
     createLiveIterator();
 }
-intrinsic class List 'list/030008': Collection
+builtin class List 'list/030008': Collection
 {
     subset(func);
     mapAll(func);

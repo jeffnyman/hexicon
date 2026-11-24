@@ -1,4 +1,4 @@
-intrinsic 'hexicon-io/030007' { print(val, ...); }
+builtin 'hexicon-io/030007' { print(val, ...); }
 f(a?) { }
 k(x)
 {

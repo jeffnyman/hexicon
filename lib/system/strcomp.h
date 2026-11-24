@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This header defines the StringComparator intrinsic class.  
+ *   This header defines the StringComparator built-in class.  
  */
 
 
@@ -10,7 +10,7 @@
 #include "systype.h"
 
 /*
- *   StringComparator intrinsic class.  This class provides support for
+ *   StringComparator built-in class.  This class provides support for
  *   dictionaries based on complex string matches, including truncation
  *   (matching an input word to a dictionary word when the input word is at
  *   least some minimum length, and matches the dictionary word up to the
@@ -22,7 +22,7 @@
  *   German "ess-zet" ("sharp-s") ligature to a pair of lower-case "s"
  *   characters in input).  
  */
-intrinsic class StringComparator 'string-comparator/030000': Object
+builtin class StringComparator 'string-comparator/030000': Object
 {
     /*
      *   Constructor:

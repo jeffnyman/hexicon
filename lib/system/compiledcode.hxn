@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /*
- *   This module defines classes related to the CompiledCode intrinsic
+ *   This module defines classes related to the CompiledCode built-in
  *   class.  You should include this source file in your build if you're
  *   using the CompiledCode class.  
  */
@@ -165,6 +165,6 @@ class CompilerException: Exception
     errmsg_ = nil
 ;
 
-/* export the compiler exception for use by the intrinsic class */
+/* export the compiler exception for use by the built-in class */
 export CompilerException 'CompiledCode.CompilerException';
 

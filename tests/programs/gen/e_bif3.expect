@@ -1,8 +1,8 @@
 image: none
 --- messages
-error: expected function set name string after "intrinsic", but found "{"
+error: expected function set name string after "builtin", but found "{"
   --> e_bif3.hxn:1
   |
-1 | intrinsic { f(); } _main(args) { }
+1 | builtin { f(); } _main(args) { }
   |
 --- output

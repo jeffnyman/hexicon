@@ -13,7 +13,7 @@
  *   The general function set.  This set contains basic data manipulation
  *   and miscellaneous utility functions.
  */
-intrinsic 'hexicon-gen/030008'
+builtin 'hexicon-gen/030008'
 {
     /*
      *   Get the type of the given value.  This returns a TypeXxx value.

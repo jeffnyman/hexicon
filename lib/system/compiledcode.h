@@ -2,7 +2,7 @@
 #pragma once
 
 /* 
- *   The header defines the CompiledCode intrinsic class.  This class is used
+ *   The header defines the CompiledCode built-in class.  This class is used
  *   for creating new functions from source code strings dynamically at
  *   run-time.
  *   
@@ -49,7 +49,7 @@
  *   
  *   If the 'symtab' or 'macros' arguments are omitted or nil, the
  *   compilation is done without global symbols or macros, respectively.
- *   Note that built-in functions and intrinsic classes are identified by
+ *   Note that built-in functions and built-in classes are identified by
  *   global symbols, so you won't be able to call any built-ins if you don't
  *   provide a symbol table.
  *   
@@ -68,7 +68,7 @@
  *   
  *.     local y = f(7);
  */
-intrinsic class CompiledCode 'dynamic-func/030000'
+builtin class CompiledCode 'dynamic-func/030000'
 {
     /*
      *   Get the original source code of the function.  This returns the

@@ -1,9 +1,9 @@
-intrinsic class;
-intrinsic class 1;
-intrinsic class A;
-intrinsic class B 'b/030000'
-intrinsic class C 'c/030000': ;
-intrinsic class D 'd/030000': Nosuch { }
+builtin class;
+builtin class 1;
+builtin class A;
+builtin class B 'b/030000'
+builtin class C 'c/030000': ;
+builtin class D 'd/030000': Nosuch { }
 f() { }
-intrinsic class E 'e/030000': f { }
+builtin class E 'e/030000': f { }
 _main(args) { }

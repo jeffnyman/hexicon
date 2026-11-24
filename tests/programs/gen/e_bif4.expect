@@ -3,6 +3,6 @@ image: none
 error: expected '{' after the function set's name, but found "f"
   --> e_bif4.hxn:1
   |
-1 | intrinsic 'x' f(); } _main(args) { }
+1 | builtin 'x' f(); } _main(args) { }
   |
 --- output

@@ -34,7 +34,7 @@
 /*
  *   the network function set
  */
-intrinsic 'hexicon-net/030001'
+builtin 'hexicon-net/030001'
 {
     /*
      *   Connect to the Web UI client.  This connects the Web browser client

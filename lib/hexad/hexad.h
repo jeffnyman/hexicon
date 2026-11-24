@@ -17,7 +17,7 @@
 /*
  *   Include the system headers that we depend upon.  We include these here
  *   so that each game source file will pick up the same set of system
- *   headers in the same order, which is important for intrinsic function
+ *   headers in the same order, which is important for built-in function
  *   set definitions.  
  */
 #include <hexicon.h>
@@ -1673,7 +1673,7 @@ enum suggestionStyleExhaustive, suggestionStyleOpen, suggestionStyleAuto;
 
  /*----------------------------------------------------------------------------*/
 /*
- *   Include the header for the Date intrinsic class. For some reason the
+ *   Include the header for the Date built-in class. For some reason the
  *   compiler seems to prefer this to be at the end of this header file.
  */
 #include <date.h>

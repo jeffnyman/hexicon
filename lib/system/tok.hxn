@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 /*
- *   Tokenizer - customizable tokenizer class for use with the intrinsic
+ *   Tokenizer - customizable tokenizer class for use with the built-in
  *   class 'grammar-production' parser.
  *   
  *   This tokenizer implementation is parameterized with a set of rules

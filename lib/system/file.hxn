@@ -2,7 +2,7 @@
 
 /*
  *   This module defines classes and constants related to the File
- *   intrinsic class.  In particular, this module defines the Exception
+ *   built-in class.  In particular, this module defines the Exception
  *   subclasses thrown by File methods.  
  */
 
@@ -175,7 +175,7 @@ class FileSafetyException: FileException
 ;
 
 
-/* export the file exceptions for use by the intrinsic class */
+/* export the file exceptions for use by the built-in class */
 export FileNotFoundException 'File.FileNotFoundException';
 export FileCreationException 'File.FileCreationException';
 export FileOpenException 'File.FileOpenException';

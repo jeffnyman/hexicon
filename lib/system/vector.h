@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This header defines the Vector intrinsic class.  
+ *   This header defines the Vector built-in class.  
  */
 
 
@@ -11,7 +11,7 @@
 
 
 /*
- *   The Vector intrinsic class provides a varying-length array type.
+ *   The Vector built-in class provides a varying-length array type.
  *   Vectors can be expanded dynamically, and values within a vector can be
  *   changed.  (In contrast, List is a constant type: a value within a list
  *   cannot be changed, and new values can't be added to a list.  Any
@@ -19,7 +19,7 @@
  *   the original unchanged.  Vector allows new values to be added and
  *   existing values to be changed in place, without creating a new object.)
  */
-intrinsic class Vector 'vector/030005': Collection
+builtin class Vector 'vector/030005': Collection
 {
     /* 
      *   Create a list with the same elements as the vector.  If 'start' is

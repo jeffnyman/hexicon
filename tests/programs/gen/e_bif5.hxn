@@ -1,1 +1,1 @@
-intrinsic 'x' { f; g() 1; } _main(args) { }
+builtin 'x' { f; g() 1; } _main(args) { }

@@ -1,5 +1,5 @@
 // try and finally, throw, and the ways of leaving a protected block.
-intrinsic 'hexicon-io/030007'
+builtin 'hexicon-io/030007'
 {
     print(val, ...);
 }

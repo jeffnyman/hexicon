@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This header defines the FileName intrinsic class.  
+ *   This header defines the FileName built-in class.  
  */
 
 
@@ -65,7 +65,7 @@
  *.            system layout.  For example, it doesn't resolve symbolic
  *.            links on Unix or apply working directories to local paths.
  */
-intrinsic class FileName 'filename/030000' : Object
+builtin class FileName 'filename/030000' : Object
 {
     /*
      *   Get the filename.  This returns a string with the filename this

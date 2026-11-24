@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This module defines the fundamental intrinsic classes, including Object,
+ *   This module defines the fundamental built-in classes, including Object,
  *   String, Collection, List, and Iterator.  
  */
 
@@ -30,7 +30,7 @@
 /*
  *   The root object class.  All objects descend from this class. 
  */
-intrinsic class Object 'root-object/030004'
+builtin class Object 'root-object/030004'
 {
     /* 
      *   Determine if I'm an instance or subclass of the given class 'cls'.
@@ -49,7 +49,7 @@ intrinsic class Object 'root-object/030004'
 
     /* 
      *   Get a list of my directly-defined properties.  When called on
-     *   intrinsic class objects, this returns a list of properties defined
+     *   built-in class objects, this returns a list of properties defined
      *   for instances of the class, as well as static properties of the
      *   class.  
      */
@@ -98,10 +98,10 @@ export objToString 'objToString';
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The BuiltinClass intrinsic class.  Objects of this type represent the
- *   intrinsic classes themselves.  
+ *   The BuiltinClass built-in class.  Objects of this type represent the
+ *   built-in classes themselves.  
  */
-intrinsic class BuiltinClass 'intrinsic-class/030001': Object
+builtin class BuiltinClass 'intrinsic-class/030001': Object
 {
     /*
      *   Class method: is the given value a BuiltinClass object?  This
@@ -115,7 +115,7 @@ intrinsic class BuiltinClass 'intrinsic-class/030001': Object
      *   occasionally useful to know if you're dealing with such an object.
      *   That's where this method comes in.
      *   
-     *   This method returns nil for instances of an intrinsic class.  For
+     *   This method returns nil for instances of a built-in class.  For
      *   example, isBuiltinClass([1,2,3]) returns nil, because [1,2,3] is a
      *   List instance.  If you get the superclass list for [1,2,3], though,
      *   that will be [List], and isBuiltinClass(List) returns true.
@@ -124,9 +124,9 @@ intrinsic class BuiltinClass 'intrinsic-class/030001': Object
 }
 
 /*
- *   Intrinsic class modifier object (for internal compiler use only) 
+ *   Built-in class modifier object (for internal compiler use only) 
  */
-intrinsic class BuiltinClassModifier 'int-class-mod/030000'
+builtin class BuiltinClassModifier 'int-class-mod/030000'
 {
 }
 
@@ -135,7 +135,7 @@ intrinsic class BuiltinClassModifier 'int-class-mod/030000'
  *   The native collection type - this is the base class for lists, vectors,
  *   and other objects that represent collections of values.  
  */
-intrinsic class Collection 'collection/030000': Object
+builtin class Collection 'collection/030000': Object
 {
     /* 
      *   Create an iterator for the collection.  This returns a new Iterator
@@ -167,7 +167,7 @@ intrinsic class Collection 'collection/030000': Object
  *   operator.  Instead, iterators must be obtained from a collection via the
  *   collection's createIterator() method.  
  */
-intrinsic class Iterator 'iterator/030001': Object
+builtin class Iterator 'iterator/030001': Object
 {
     /*
      *   Get the next item in the collection.  This returns the next item's
@@ -210,7 +210,7 @@ intrinsic class Iterator 'iterator/030001': Object
  *   Indexed object iterator - this type of iterator is used for lists,
  *   vectors, and other indexed collection objects.  
  */
-intrinsic class IndexedIterator 'indexed-iterator/030000': Iterator
+builtin class IndexedIterator 'indexed-iterator/030000': Iterator
 {
 }
 
@@ -222,20 +222,20 @@ intrinsic class IndexedIterator 'indexed-iterator/030000': Iterator
 #include "vector.h"
 
 /*
- *   Anonymous function pointer intrinsic class 
+ *   Anonymous function pointer built-in class 
  */
-intrinsic class Function 'anon-func-ptr': Vector
+builtin class Function 'anon-func-ptr': Vector
 {
 }
 
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The "ProgramObject" intrinsic class.  All objects that the program
+ *   The "ProgramObject" built-in class.  All objects that the program
  *   defines with the "class" or "object" statements descend from this
  *   class.  
  */
-intrinsic class ProgramObject 'hexicon-object/030005': Object
+builtin class ProgramObject 'hexicon-object/030005': Object
 {
     /* 
      *   Create an instance of this object: in other words, create a new
@@ -306,7 +306,7 @@ intrinsic class ProgramObject 'hexicon-object/030005': Object
      *   Set the superclass list.  scList is a list giving the new
      *   superclasses.  The superclasses must all be ProgramObject objects, with
      *   one exception: the list [ProgramObject] may be passed to create an
-     *   object based directly on ProgramObject.  No other intrinsic classes can
+     *   object based directly on ProgramObject.  No other built-in classes can
      *   be used in the list, and objects of other types cannot be used in
      *   the list.  
      */
@@ -351,7 +351,7 @@ intrinsic class ProgramObject 'hexicon-object/030005': Object
 /*
  *   The native string type. 
  */
-intrinsic class String 'string/030008': Object
+builtin class String 'string/030008': Object
 {
     /* get the length of the string */
     length();
@@ -407,7 +407,7 @@ intrinsic class String 'string/030008': Object
 
     /* 
      *   Map to a byte array, converting to the given character set.  If
-     *   'charset' is provided, it must be an object of intrinsic class
+     *   'charset' is provided, it must be an object of built-in class
      *   CharacterSet, or a string giving the name of a character set.  The
      *   characters in the string are mapped from the internal Unicode
      *   representation to the appropriate byte representation in the given
@@ -925,7 +925,7 @@ export tag_ 'String.specialsToHtml.tag';
 /*
  *   The native list type 
  */
-intrinsic class List 'list/030008': Collection
+builtin class List 'list/030008': Collection
 {
     /* 
      *   Select a subset of the list: returns a new list consisting only
@@ -1192,7 +1192,7 @@ export length 'length';
 
 /* ------------------------------------------------------------------------ */
 /*
- *   'Regex' intrinsic class.  This class encapsulates a compiled
+ *   'Regex' built-in class.  This class encapsulates a compiled
  *   regular expression pattern.
  *   
  *   A Regex object can be passed to the regular expression functions
@@ -1201,7 +1201,7 @@ export length 'length';
  *   more efficient to compile a pattern to a Regex object if the same
  *   pattern will be used in multiple searches.  
  */
-intrinsic class Regex 'regex-pattern/030000': Object
+builtin class Regex 'regex-pattern/030000': Object
 {
     /*
      *   Constructor:
@@ -1216,7 +1216,7 @@ intrinsic class Regex 'regex-pattern/030000': Object
 
 /* ------------------------------------------------------------------------ */
 /*
- *   StackFrame intrinsic class.  This class provides access to a stack
+ *   StackFrame built-in class.  This class provides access to a stack
  *   frame.  It lets us retrieve the values of local variables and method
  *   context variables (self, definingobj, targetobj, targetprop).  It also
  *   allows us to assign new values to local variables.
@@ -1241,7 +1241,7 @@ intrinsic class Regex 'regex-pattern/030000': Object
  *   information on an active stack frame in the current call stack,
  *   including the frame object.  
  */
-intrinsic class StackFrame 'stack-frame-desc/030000'
+builtin class StackFrame 'stack-frame-desc/030000'
 {
     /*
      *   Is the stack frame active?  A stack frame is active until the
@@ -1309,7 +1309,7 @@ intrinsic class StackFrame 'stack-frame-desc/030000'
  *   type is used internally by the VM; user code can't create an instance of
  *   this class directly with 'new', and the class has no public methods.  
  */
-intrinsic class StackFrameRef 'stack-frame-ref/030000'
+builtin class StackFrameRef 'stack-frame-ref/030000'
 {
 }
 

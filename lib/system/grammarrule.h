@@ -2,7 +2,7 @@
 #pragma once
 
 /* 
- *   The header defines the GrammarRule intrinsic class and some associated
+ *   The header defines the GrammarRule built-in class and some associated
  *   properties and constants.  
  */
 
@@ -11,7 +11,7 @@
 #include "systype.h"
 
 /*
- *   The GrammarRule intrinsic class is a specialized type that's designed
+ *   The GrammarRule built-in class is a specialized type that's designed
  *   for creating parsers.  An object of this type is created automatically
  *   by the compiler for each 'grammar' statement.  This class
  *   encapsulates the prototype token list and mapping information defined in
@@ -37,7 +37,7 @@
  *   You can also create new productions dynamically with new GrammarRule().
  *   Use addAlt() to populate a new production with token matching rules.  
  */
-intrinsic class GrammarRule 'grammar-production/030002': Object
+builtin class GrammarRule 'grammar-production/030002': Object
 {
     /*
      *   Parse the token list, starting at this production, using the given

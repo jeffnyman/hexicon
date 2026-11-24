@@ -1,10 +1,10 @@
-intrinsic 'hexicon-gen/030001' { typeOf(val); }
-intrinsic 'hexicon-gen/030008' { dataType2(val); second(a?); }
-intrinsic 'hexicon-gen/030005' { third(a, b?, c?); }
-intrinsic 'five' { f0(); }
-intrinsic 'six/1' { g0(); }
-intrinsic 'seven/123456789' { h0(); }
-intrinsic 'seven/2' { h1(); }
+builtin 'hexicon-gen/030001' { typeOf(val); }
+builtin 'hexicon-gen/030008' { dataType2(val); second(a?); }
+builtin 'hexicon-gen/030005' { third(a, b?, c?); }
+builtin 'five' { f0(); }
+builtin 'six/1' { g0(); }
+builtin 'seven/123456789' { h0(); }
+builtin 'seven/2' { h1(); }
 _main(args)
 {
     return typeOf(1) + dataType2(2) + second() + second(1) + third(1) + third(1, 2, 3)
