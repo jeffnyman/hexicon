@@ -3645,17 +3645,78 @@ fn a_built_in_header_comes_after_the_include_path() {
         .map(|d| format!("{}({}): {}", d.file, d.line, d.message))
         .collect();
     assert_eq!(messages[0], "main.t(3): #error :  from disk");
-    // A problem in a built-in header is reported as in <hexicon>.
+    // With no headers anywhere, the system library's built-in ones are
+    // what hexicon.h includes.
     let mut files = Files::default().with("main.t", program);
-    let messages: Vec<String> = compile(&mut files, "main.t", &CompileOptions::default())
-        .diagnostics
-        .into_iter()
-        .map(|d| format!("{}({}): {}", d.file, d.line, d.message))
-        .collect();
-    assert_eq!(
-        messages[0],
-        "<hexicon>/hexicon.h(21): cannot open include file \"tadsgen.h\""
-    );
+    let compiled = compile(&mut files, "main.t", &CompileOptions::default());
+    assert!(compiled.image.is_some(), "{:?}", compiled.diagnostics);
+}
+
+mod system_library {
+    use super::Files;
+
+    #[test]
+    fn a_game_builds_with_nothing_installed() {
+        // No system library or headers where the paths say: the
+        // compiler's own are used.
+        let mut files = Files::default()
+            .with(
+                "game/hexicon.toml",
+                "[game]\nlibraries = [\"system\"]\nsources = [\"start.t\"]\n",
+            )
+            .with(
+                "game/start.t",
+                "#include <tads.h>\nmain(args) { \"Hello, world.\"; }\n",
+            );
+        let paths = crate::ProjectPaths {
+            system_include: "nowhere/include".to_owned(),
+            system_library: "nowhere/lib".to_owned(),
+            user_libraries: Vec::new(),
+        };
+        let args = ["-f".to_owned(), "game".to_owned()];
+        let project =
+            crate::read_project(&mut files, &args, &paths).unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(
+            project.sources,
+            [
+                "<hexicon>/system/_main.t",
+                "<hexicon>/system/file.t",
+                "<hexicon>/system/tok.t",
+                "<hexicon>/system/gramprod.t",
+                "<hexicon>/system/multmeth.t",
+                &super::sys_path(&["game", "start.t"]),
+            ]
+        );
+        let sources: Vec<&str> = project.sources.iter().map(String::as_str).collect();
+        let compiled = crate::compile_program(&mut files, &sources, &project.options);
+        let errors: Vec<_> = compiled
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity != crate::pp::Severity::Warning)
+            .collect();
+        assert!(errors.is_empty(), "{errors:?}");
+        assert!(compiled.image.is_some());
+    }
+
+    #[test]
+    fn the_built_in_files_are_those_in_lib_system() {
+        let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../lib/system");
+        let mut on_disk: Vec<String> = std::fs::read_dir(&folder)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".h") || name.ends_with(".t") || name.ends_with(".toml"))
+            .collect();
+        on_disk.sort();
+        let built_in: Vec<&str> = crate::system::FILES.iter().map(|(name, _)| *name).collect();
+        assert_eq!(built_in, on_disk);
+        for (name, data) in crate::system::FILES {
+            assert_eq!(
+                *data,
+                std::fs::read(folder.join(name)).unwrap().as_slice(),
+                "{name}"
+            );
+        }
+    }
 }
 
 // ---- the converter ----
@@ -4153,6 +4214,99 @@ box: Thing
                 .any(|m| m
                     == "expected '{' or 'as' after the action a handler is for, but found \"=\""),
             "{messages:?}"
+        );
+    }
+}
+
+mod imports {
+    use super::{CompileOptions, Compiled, Files, read, sys_path};
+
+    const HEADER: &str = "#define GREETING 'hello'\nclass Thing: object;\nThing template 'name';\n";
+    const START: &str = "_main(args) { return [GREETING, rock.name]; }\nrock: Thing 'rock';\n";
+
+    /// A program of one source, `start`, put in front of `START`, with
+    /// a library `lib` whose header is `HEADER` and one with none.
+    fn compile(name: &str, start: &str) -> Compiled {
+        let mut files = Files::default()
+            .with("lib/lib.h", HEADER)
+            .with(name, &format!("{start}{START}"));
+        let options = CompileOptions {
+            imports: vec![
+                ("lib".to_owned(), Some("lib/lib.h".to_owned())),
+                ("old".to_owned(), None),
+            ],
+            include_paths: vec!["lib".to_owned()],
+            ..CompileOptions::default()
+        };
+        crate::compile_program(&mut files, &[name], &options)
+    }
+
+    fn messages(compiled: &Compiled) -> Vec<String> {
+        compiled
+            .diagnostics
+            .iter()
+            .map(|d| format!("{}({}): {}", d.file, d.line, d.message))
+            .collect()
+    }
+
+    #[test]
+    fn importing_a_library_is_including_its_header() {
+        let imported = compile("start.hxn", "import lib;\n");
+        let included = compile("start.hxn", "#include <lib.h>\n");
+        assert_eq!(messages(&imported), Vec::<String>::new());
+        assert!(imported.image.is_some());
+        assert_eq!(imported.image, included.image);
+        // Twice is once, as for an include.
+        let twice = compile("start.hxn", "import lib;\n  import  lib ;\n");
+        assert_eq!(
+            twice.image.as_ref().map(Vec::len),
+            imported.image.as_ref().map(Vec::len)
+        );
+    }
+
+    #[test]
+    fn a_library_not_in_the_build_or_without_a_header_cannot_be_imported() {
+        assert_eq!(
+            messages(&compile("start.hxn", "import nothing;\nimport old;\n"))[..2],
+            [
+                "start.hxn(1): import nothing: no library \"nothing\" in this build",
+                "start.hxn(2): import old: library \"old\" names no header to import",
+            ]
+        );
+    }
+
+    #[test]
+    fn an_import_is_hexicons_and_a_line_of_its_own() {
+        // In TADS 3 it is not a directive, and in a block not being
+        // compiled it is nothing.
+        assert!(compile("start.t", "import lib;\n").image.is_none());
+        let skipped = compile("start.hxn", "#if 0\nimport nothing;\n#endif\nimport lib;\n");
+        assert_eq!(messages(&skipped), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_librarys_manifest_names_its_header() {
+        let mut files = Files::default()
+            .with(
+                "game/hexicon.toml",
+                "[game]\nsources = [\"start\"]\nlibraries = [\"mylib\", \"old\"]\n",
+            )
+            .with(
+                "game/mylib/hexicon.toml",
+                "[library]\nheader = \"my.h\"\nsources = [\"one\"]\n",
+            )
+            .with("game/old.tl", "source: legacy\n")
+            .with("game/start.hxn", "");
+        let project = read(&mut files, &["-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(
+            project.options.imports,
+            [
+                (
+                    "mylib".to_owned(),
+                    Some(sys_path(&["game", "mylib", "my.h"]))
+                ),
+                ("old".to_owned(), None),
+            ]
         );
     }
 }

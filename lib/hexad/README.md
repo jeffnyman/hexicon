@@ -17,6 +17,7 @@ adv3Lite's manual, templates, and cut-down variants (`adv3Liter`, `adv3Litest`) 
 ## How it differs from adv3Lite
 
 - The built-in functions have Hexicon's names (`hexicon.h`).
+- Its sources import it (`import hexad;`) rather than including `advlite.h`.
 - Actions and their handlers are Hexicon's declarations (`action Take(dobj): TAction`, `dobj Take { ... }`, `dobj Search as LookIn`), not `DefineTAction`, `dobjFor`, and `asDobjFor`. They make the same program. `advlite.h` keeps the macros, so a game may use either.
 - The library's `ModuleID` is `moduleHexad`, which VERSION shows as "Hexad version 0.1.0", where adv3Lite has `moduleAdv3Lite`.
 
@@ -24,7 +25,7 @@ adv3Lite's manual, templates, and cut-down variants (`adv3Liter`, `adv3Litest`) 
 
 ## Using it
 
-A game names Hexad among its libraries, with `LANGUAGE` defined:
+A game names Hexad among its libraries, after Hexicon's system library (`system`, which is built into Hexicon), with `LANGUAGE` defined:
 
 ```toml
 [game]
@@ -38,4 +39,10 @@ LANGUAGE = "english"
 library-paths = ["path/to/hexicon/lib"]
 ```
 
-A TADS 3 project file can name it too: `-lib hexad`, with `-Fs` giving the folder that holds `hexad`.
+Each Hexicon source of the game imports it, which gives the file Hexad's header (`advlite.h`, named in Hexad's manifest):
+
+```
+import hexad;
+```
+
+A TADS 3 project file can name it too: `-lib hexad`, with `-Fs` giving the folder that holds `hexad`, and its sources include `<advlite.h>`.

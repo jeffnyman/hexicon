@@ -35,6 +35,9 @@ pub struct CompileOptions {
     /// nothing reads (see [`crate::names`]); a library's are not.
     /// Without them, no source is a library's.
     pub from_library: Vec<bool>,
+    /// The libraries a Hexicon source can import (`import hexad;`): each
+    /// by name, with its header, or none if it names none.
+    pub imports: Vec<(String, Option<String>)>,
     /// Compile for debugging (`-d`): `__DEBUG` is defined, and the image
     /// says where in the source each statement's code came from.
     pub debug: bool,
@@ -51,6 +54,7 @@ impl Default for CompileOptions {
             source_text_group: false,
             module_names: Vec::new(),
             from_library: Vec::new(),
+            imports: Vec::new(),
             debug: false,
         }
     }
@@ -316,6 +320,7 @@ fn start<'a>(
     }
     pp.set_compile_mode();
     pp.set_dialect(Dialect::of(source));
+    pp.set_imports(options.imports.clone());
     Ok(pp)
 }
 
@@ -336,6 +341,9 @@ pub fn compile_program(
     sources: &[&str],
     options: &CompileOptions,
 ) -> Compiled {
+    // The system library's files are part of the compiler.
+    let mut files = crate::system::WithSystem::new(files);
+    let files: &mut dyn SourceFiles = &mut files;
     let mut compiled = Compiled::default();
 
     let mut exports = Vec::new();

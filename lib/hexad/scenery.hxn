@@ -1,5 +1,5 @@
 #charset "us-ascii"
-#include "advlite.h"
+import hexad;
 
 /*
  *   This file forms part of the adv3Lie library (c) Eric Eve 2024

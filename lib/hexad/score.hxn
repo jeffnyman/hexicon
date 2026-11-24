@@ -11,7 +11,7 @@
  */
 
 /* include the library header */
-#include "advlite.h"
+import hexad;
 
 
 

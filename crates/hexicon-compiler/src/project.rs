@@ -194,6 +194,12 @@ fn is_sep(c: char) -> bool {
 }
 
 /// The folder part of a path, without its last separator.
+/// The last part of a path: the file's or folder's own name.
+fn file_name_of(path: &str) -> &str {
+    let path = path.trim_end_matches(['/', '\\']);
+    path.rsplit(['/', '\\']).next().unwrap_or(path)
+}
+
 fn path_name(path: &str) -> &str {
     match path.rfind(|c| is_sep(c) || c == ':') {
         None => "",
@@ -226,6 +232,9 @@ fn build_full_path(dir: &str, file: &str) -> String {
         file.to_owned()
     } else if dir.ends_with(|c| is_sep(c) || c == ':') {
         format!("{dir}{file}")
+    } else if crate::system::in_folder(dir) {
+        // The built-in files are named the same on every system.
+        format!("{dir}/{file}")
     } else {
         format!("{dir}{SEP}{file}")
     }
@@ -313,6 +322,9 @@ struct Reader<'f, 'a> {
     res_recurse: bool,
     messages: Vec<String>,
     lib_err: bool,
+    /// The libraries a Hexicon source can import: each by the name of
+    /// its folder or file, with the header its manifest names, if any.
+    imports: Vec<(String, Option<String>)>,
     opt_file: Option<String>,
     /// The folder of the project file, once it has been read: what it
     /// names is relative to that.
@@ -329,8 +341,10 @@ pub fn read_project(
     args: &[String],
     paths: &ProjectPaths,
 ) -> Result<Project, ProjectError> {
+    // The system library's files are part of the compiler.
+    let mut files = crate::system::WithSystem::new(files);
     let mut reader = Reader {
-        files,
+        files: &mut files,
         user_source_paths: Vec::new(),
         sys_source_paths: paths.user_libraries.clone(),
         sys_library: paths.system_library.clone(),
@@ -351,6 +365,7 @@ pub fn read_project(
         res_recurse: true,
         messages: Vec::new(),
         lib_err: false,
+        imports: Vec::new(),
         opt_file: None,
         opt_file_path: None,
         manifest: false,
@@ -507,11 +522,13 @@ impl Reader<'_, '_> {
         if is_absolute(search) || self.files.exists(source) {
             return source.to_owned();
         }
+        let built_in = crate::system::FOLDER.to_owned();
         let dirs: Vec<String> = self
             .user_source_paths
             .iter()
             .chain(&self.sys_source_paths)
             .chain(std::iter::once(&self.sys_library))
+            .chain(std::iter::once(&built_in))
             .cloned()
             .collect();
         for dir in dirs {
@@ -860,6 +877,15 @@ impl Reader<'_, '_> {
             let full = build_full_path(&lib_path, &cvt_url_dir(&value));
             (value, full)
         };
+        // Imported by the name of its folder (`hexad/hexicon.toml`) or of
+        // its file (`hexad.toml`).
+        let import_name = if file_name_of(full_name).eq_ignore_ascii_case(MANIFEST) {
+            file_name_of(&lib_path).to_owned()
+        } else {
+            rem_ext(file_name_of(full_name)).to_owned()
+        };
+        let header = lib.header.as_ref().map(|header| place(self, header).1);
+        self.imports.push((import_name, header));
         let mut nodef = lib.no_system_main;
         for module in &lib.modules {
             match module {
@@ -910,6 +936,10 @@ impl Reader<'_, '_> {
         let full_name = def_ext(lib_name, "tl");
         let lib_path = path_name(lib_name).to_owned();
         self.maybe_add_include_path(&lib_path);
+        // A `.tl` names no header: it can be imported by name, to be
+        // told so.
+        self.imports
+            .push((rem_ext(file_name_of(&full_name)).to_owned(), None));
         let mut nodef = false;
         let Some(text) = self.files.read(&full_name) else {
             self.messages
@@ -992,7 +1022,12 @@ impl Reader<'_, '_> {
         // The system library's `_main` comes first, unless something
         // said not to.
         if !self.nodef {
-            let name = build_full_path(&self.sys_library, "_main");
+            // The system library's, or the one built in if it has none.
+            let mut library = self.sys_library.clone();
+            if !self.files.exists(&build_full_path(&library, "_main.t")) {
+                library = crate::system::FOLDER.to_owned();
+            }
+            let name = build_full_path(&library, "_main");
             self.modules.insert(
                 0,
                 Module {
@@ -1075,6 +1110,8 @@ impl Reader<'_, '_> {
         if !self.sys_include.is_empty() {
             include_paths.push(self.sys_include);
         }
+        // The headers built into the compiler need no place here: the
+        // preprocessor looks there for any it does not find.
         Ok(Project {
             sources,
             options: CompileOptions {
@@ -1085,6 +1122,7 @@ impl Reader<'_, '_> {
                 source_text_group: self.source_text_group,
                 module_names,
                 from_library,
+                imports: std::mem::take(&mut self.imports),
                 debug: self.debug,
                 ..CompileOptions::default()
             },

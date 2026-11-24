@@ -1,5 +1,5 @@
 #charset "us-ascii"
-#include "advlite.h"
+import hexad;
 
 /* 
  *   RULES EXTENSION by Eric Eve July 2014

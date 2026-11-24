@@ -18,7 +18,7 @@
  *   manager, used by permission.  
  */
 
-#include "advlite.h"
+import hexad;
 
 /* ------------------------------------------------------------------------ */
 /*

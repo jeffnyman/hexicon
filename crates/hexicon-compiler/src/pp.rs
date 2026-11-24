@@ -77,20 +77,16 @@ pub(crate) const MAX_ERRORS: usize = 100;
 pub(crate) const TOO_MANY_ERRORS: &str =
     "too many errors (try fixing the first couple of errors and recompiling)";
 
-/// Hexicon's own headers, which are part of the compiler: a file an
-/// `#include` names that is nowhere on the include path is looked for
-/// among these, by its name.
-const BUILT_IN_HEADERS: &[(&str, &str)] = &[("hexicon.h", include_str!("../include/hexicon.h"))];
-
-/// Where a built-in header is said to be, in messages and in the image.
-const BUILT_IN_FOLDER: &str = "<hexicon>";
-
-/// The text of the built-in header `name`, if there is one.
-fn built_in_header(name: &str) -> Option<&'static str> {
-    BUILT_IN_HEADERS
-        .iter()
-        .find(|(header, _)| *header == name)
-        .map(|(_, text)| *text)
+/// The library a line imports, if it is `import name;` and nothing else.
+fn import_line(line: &[u8]) -> Option<String> {
+    let rest = line.trim_ascii().strip_prefix(b"import")?;
+    if !rest.first().is_some_and(|c| c.is_ascii_whitespace()) {
+        return None;
+    }
+    let rest = rest.trim_ascii_start().strip_suffix(b";")?.trim_ascii_end();
+    let valid =
+        rest.first().is_some_and(|&c| crate::lex::is_syminit(c)) && rest.iter().all(|&c| is_sym(c));
+    valid.then(|| String::from_utf8_lossy(rest).into_owned())
 }
 
 /// A problem found in the source.
@@ -367,6 +363,10 @@ pub struct Preprocessor<'a> {
     pp_expr: bool,
     /// The language of the source being read.
     dialect: crate::Dialect,
+    /// The libraries a Hexicon source can import, with their headers.
+    imports: Vec<(String, Option<String>)>,
+    /// The libraries imported already: importing one again is nothing.
+    imported: Vec<String>,
     /// While the current token is one a Hexicon form was lowered to,
     /// the form's place: see [`SrcToken::lowered`].
     lowered_pos: Option<(usize, u32)>,
@@ -418,6 +418,8 @@ impl<'a> Preprocessor<'a> {
             default_charset: "utf-8".to_owned(),
             pp_expr: false,
             dialect: crate::Dialect::Tads3,
+            imports: Vec::new(),
+            imported: Vec::new(),
             lowered_pos: None,
         };
         pp.add_special(b"__LINE__", MacroKind::Line);
@@ -447,6 +449,12 @@ impl<'a> Preprocessor<'a> {
     /// The language the source being read is in.
     pub(crate) fn dialect(&self) -> crate::Dialect {
         self.dialect
+    }
+
+    /// The libraries a Hexicon source can import (`import hexad;`), each
+    /// with the header importing it gives, if it has one.
+    pub fn set_imports(&mut self, imports: Vec<(String, Option<String>)>) {
+        self.imports = imports;
     }
 
     /// Set the language of the source, which decides a few of the
@@ -1208,6 +1216,12 @@ impl<'a> Preprocessor<'a> {
             // A directive is one line, so a string cannot carry on from
             // it.
             self.in_quote = 0;
+        } else if let Some(name) =
+            (!started_in_string && self.dialect == crate::Dialect::Hexicon && !self.in_false_if())
+                .then(|| import_line(&self.linebuf[self.p.min(self.linebuf.len())..]))
+                .flatten()
+        {
+            self.pp_import(&name);
         } else {
             if self.in_false_if() {
                 self.clear_linebuf();
@@ -2334,13 +2348,48 @@ impl<'a> Preprocessor<'a> {
         if at(&line, p) != 0 {
             self.warning("extraneous characters following #include filename");
         }
+        self.clear_linebuf();
+        self.include_file(&name, is_local, false);
+    }
 
+    /// `import name;`, in Hexicon: the header the library of that name
+    /// says to give the files that import it, read as `#include` would
+    /// read it.
+    fn pp_import(&mut self, name: &str) {
+        self.clear_linebuf();
+        if self.imported.iter().any(|have| have == name) {
+            return;
+        }
+        let found = self.imports.iter().find(|(have, _)| have == name).cloned();
+        match found {
+            Some((_, Some(header))) => {
+                self.imported.push(name.to_owned());
+                self.include_file(&header, false, true);
+            }
+            Some((_, None)) => self.error(format!(
+                "import {name}: library \"{name}\" names no header to import"
+            )),
+            None => self.error(format!(
+                "import {name}: no library \"{name}\" in this build"
+            )),
+        }
+    }
+
+    /// Read a file named by `#include` or found by `import`: in quotes
+    /// (`is_local`), beside the file that includes it, and then, as in
+    /// angle brackets, along the include path. A header a library names
+    /// for `import` (`as_found`) is where its path says, if it is there.
+    fn include_file(&mut self, name: &str, is_local: bool, as_found: bool) {
+        let name = name.to_owned();
         // A file named in quotes is looked for beside the file that
         // includes it, and then, like one in angle brackets, in each
         // folder of the include path.
         let absolute = is_absolute(&name);
         let mut full_name = None;
-        if is_local {
+        if as_found && self.files.exists(&name) {
+            full_name = Some(name.clone());
+        }
+        if is_local && full_name.is_none() {
             if let Some(desc) = self.last_desc {
                 let candidate = join_path(dir_name(&self.descs[desc].name), &name);
                 if self.files.exists(&candidate) {
@@ -2360,17 +2409,17 @@ impl<'a> Preprocessor<'a> {
         if full_name.is_none() && absolute && self.files.exists(&name) {
             full_name = Some(name.clone());
         }
-        // Last, the headers that are part of the compiler.
+        // Last, the system library's headers, which are part of the
+        // compiler.
         let built_in = if full_name.is_none() {
-            built_in_header(&name)
+            crate::system::file(&name)
         } else {
             None
         };
         if built_in.is_some() {
-            full_name = Some(format!("{BUILT_IN_FOLDER}/{name}"));
+            full_name = Some(format!("{}/{name}", crate::system::FOLDER));
         }
 
-        self.clear_linebuf();
         let Some(full_name) = full_name else {
             self.error(format!("cannot open include file \"{name}\""));
             return;
@@ -2379,7 +2428,7 @@ impl<'a> Preprocessor<'a> {
             return;
         }
         let data = match built_in {
-            Some(text) => text.as_bytes().to_vec(),
+            Some(data) => data.to_vec(),
             None => {
                 let Some(data) = self.files.read(&full_name) else {
                     self.error(format!("cannot open include file \"{full_name}\""));

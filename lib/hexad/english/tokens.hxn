@@ -2,7 +2,7 @@
 #include <dict.h>
 #include <strcomp.h>
 #include <tok.h>
-#include "advlite.h"
+import hexad;
 
 
 /* ------------------------------------------------------------------------ */

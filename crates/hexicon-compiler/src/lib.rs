@@ -27,6 +27,7 @@ mod names;
 mod parse;
 pub mod pp;
 mod project;
+pub mod system;
 
 pub use compile::{
     CompileOptions, Compiled, Dialect, RuntimeSymbol, RuntimeValue, compile, compile_program,

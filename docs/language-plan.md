@@ -19,7 +19,7 @@ The long-term direction (2026-11-23) is that Hexicon becomes its own thing, as i
 TADS 3 is retired in stages, each one bought by having something else take over its job of checking the toolchain.
 
 1. **Now: both.** The reference comparison is the backbone of testing, and Hexicon's language is checked by lowering to TADS 3.
-2. **Hexicon checks itself.** The converter's round trip is done. Hexad, the converted games, and Hexicon's own conformance programs have recorded transcripts that serve as Hexicon's own regression tests. Hexicon's language and library use no TADS names. TADS 3 is now a compatibility mode kept apart from the rest, in its own crate or module, so that nothing in Hexicon's own code carries its names or its quirks.
+2. **Hexicon checks itself.** The converter's round trip is done. Hexad, the converted games, and Hexicon's own conformance programs have recorded transcripts that serve as Hexicon's own regression tests. Hexicon's language and library use no TADS names. TADS 3 is now a compatibility mode kept apart from the rest, in its own crate or module, so that nothing in Hexicon's own code carries its names or its quirks. Begun (2026-11-24): Hexicon ships its own system library and headers (`lib/system`, built into the compiler), so a game builds with nothing from TADS 3 installed. They are TADS 3's, by permission, and are to be renamed.
 3. **Hexicon's VM goes its own way.** When a feature needs a change that T3 images cannot have, such as a new image format or a different object model, TADS 3 support is either dropped or kept as a frozen loader for old images. That is decided then, knowing what it costs. The games in the playground are all TADS 3 games, and dropping TADS 3 means they no longer play.
 
 Stage 2 has to come before stage 3. Without the reference or tests of its own, nothing would tell us that the compiler or the VM is right.
@@ -96,6 +96,7 @@ libraries = ["$(LANGUAGE)"]              # $(NAME) is a macro's value, as in a .
 # or modules = [...], as for a game, where the order matters
 resources = ["webuires"]
 system-main = true                       # false is nodef
+header = "advlite.h"                     # what `import adv3Lite;` gives a file
 
 [needs]                                  # needmacro
 LANGUAGE = "this selects the language the library uses"
@@ -106,6 +107,7 @@ LANGUAGE = "this selects the language the library uses"
 - **A library is a folder with a manifest, a `.toml` manifest, or a `.tl` file, named without its extension.** A library named `adv3Lite` is `adv3Lite/hexicon.toml`, `adv3Lite.toml`, or `adv3Lite.tl`, looked for in that order where its name says and then along the library paths. A manifest can sit beside other libraries this way, as adv3Lite's several `.tl` files do in one folder. Any kind can be built on any other.
 - **The order of sources and libraries is kept.** With `sources` and `libraries`, a game's libraries come before its sources and a library's sources before its libraries, as is usual. A `modules` list gives any other order, which a project such as Ditch Day's needs, since the order shows in the image.
 - **A name the manifest does not know is an error**, so a misspelled key is not silently ignored.
+- **`header` is Hexicon's own** (milestone 5): the file a Hexicon source gets when it imports the library, relative to the library's folder. A `.tl` has none.
 
 `.t3m` and `.tl` stay accepted for TADS 3 projects.
 
@@ -154,7 +156,7 @@ None of the new names is defined anywhere in adv3, adv3Lite, the system library,
 
 What was found:
 
-- **`hexicon.h` is part of the compiler** (`crates/hexicon-compiler/include`). An `#include` that finds nothing on the include path looks among the compiler's own headers last, so a file of the same name on the include path comes first. Messages place it in `<hexicon>/hexicon.h`. Because it is built in, it works wherever the compiler does, in WebAssembly too.
+- **`hexicon.h` is part of the compiler**, with the rest of the system library (`lib/system`, built in since 2026-11-24). An `#include` that finds nothing on the include path looks among the compiler's own headers last, so a file of the same name on the include path comes first. Messages place it in `<hexicon>/system/hexicon.h`. Because it is built in, it works wherever the compiler does, in WebAssembly too.
 - **A function set can be declared twice in one program, under different names.** The reference accepts it, and gives the image one entry for the set; the second declaration only adds names. Declaring the same name again in the same place is accepted too. So `hexicon.h` and `tads.h` can be included together, which Hexad needs while its sources still include `advlite.h`.
 - **`hexicon.h` includes the reference's `tadsgen.h`, `tadsio.h`, and `systype.h`**, whose names are already neutral, rather than copies of them. So `tadsSay` is still declared beside `print`, until Hexicon has its own copies of the system headers.
 - **An intrinsic class cannot be renamed this way.** The reference says "intrinsic class has been previously defined as \"TadsObject\"" when a second name is given to one. `TadsObject` keeps its name for now. Authors rarely write it, since `object` and `class` stand for it. `T3StackInfo` is a class in the system library's `_main.t`, not in a header, so renaming it waits for Hexicon's own system library.
@@ -235,6 +237,28 @@ Thing
 
 Every file of a TADS 3 game starts with `#include <adv3.h>` or `<advlite.h>`, and every name in the game and its library shares one namespace. Hexicon files would say `import hexad;` instead. That brings in the library's declarations (templates, actions, and the macros that remain) without pasting text, and a name that clashes can be qualified. Names in the image stay global, made unique where they need to be, so modules lower without a VM change. The preprocessor stays for conditional compilation.
 
+As built (milestone 5, 2026-11-24), the first step of this, decided as the one to take now:
+
+```toml
+# lib/hexad/hexicon.toml
+[library]
+name = "Hexad"
+header = "advlite.h"
+```
+
+```
+// start.hxn
+import hexad;
+```
+
+- **A library names its interface.** `header` in its manifest is the file a source gets by importing it. `import hexad;` is the library a build names `hexad` (its folder, or its `.toml` file's name), and gives the file that header, read exactly as `#include` reads it. So the program, and its image, are the same.
+- **Only what is in the build can be imported.** `import hexad;` with no Hexad in the build says `import hexad: no library "hexad" in this build`. A library with no `header` (any `.tl`) says it has none to import.
+- **An import is a line of its own** (`import name;`) in a Hexicon source, read by the preprocessor as a directive is, and skipped in a block `#if` leaves out. Importing a library twice in one file is importing it once.
+- **What it buys now** is that games no longer name a library's files: what sits behind `import` is the library's to change. **What it leaves for later:**
+  - **A compiled interface:** the header read once per build and its macros, templates, and declarations reused by each importing file, rather than read again by every one (Airport's build reads `advlite.h` once for each of its 50 or so modules). The language and the images stay as they are.
+  - **Namespaces:** qualified names and clashes made unique. Large, and at odds with libraries that find objects and macros by their global names while a program runs, so they are listed here only so as not to close them off.
+  - **The converter** does not yet write `import`: a converted adv3Lite game is on the converted adv3Lite, whose manifest, made from a `.tl`, names no header. Games on Hexad write `import hexad;`.
+
 ### 4. Messages written for the reader
 
 Hexicon files get messages with the line and column and the line of source itself, and they come from declarations rather than from inside a macro expansion. TADS 3 files keep the reference's messages, which the comparison checks.
@@ -276,4 +300,7 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
    - **The round trip** (`convert-compare.sh`): adv3Lite, with its extensions and English, and Airport converted with the declarations give images identical to the originals'. Ditch Day and adv3 are not touched.
    - **Hexad adopted them** (548 declarations in 25 files). Airport and the ten exercises built on it give images identical to those built on the Hexad before, preinitialized and not, and in debug builds, line records included, but for the build time and the folder's name.
    - **Checked names speak the new form:** `handler "dobj ClimpUp" is never called - did you mean "dobj ClimbUp"?`
-5. **Modules.** Exit: Hexad and a game built with `import` rather than headers, with identical images.
+5. **Modules.** Exit: Hexad and a game built with `import` rather than headers, with identical images. Done (2026-11-24), as described under change 3:
+   - **Hexad imports itself:** its manifest names `advlite.h` as its header, and its 77 sources say `import hexad;` where they included it. Airport and the ten exercises built on it give images identical to those on the Hexad before, preinitialized, and in debug builds but for the build time and the folder's name.
+   - **A game imports Hexad:** `hexad-compare.sh` now also builds Airport from `.hxn` sources that say `import hexad;`, from a manifest, and checks that its image is the one built from Airport's TADS 3 sources on Hexad.
+   - **Tests** cover an import against an include, an import twice, one inside `#if 0`, a library not in the build or without a header, a TADS 3 source, and a manifest's `header`.

@@ -13,7 +13,7 @@
  */
 
 /* include the library header */
-#include "advlite.h"
+import hexad;
 #include <hexicon.h>
 
 /* we also require file access */

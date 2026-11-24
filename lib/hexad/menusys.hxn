@@ -30,7 +30,7 @@
  *   main TADS 3 library.  
  */
 
-#include "advlite.h"
+import hexad;
 
 
 /* 

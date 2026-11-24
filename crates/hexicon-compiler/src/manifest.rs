@@ -65,6 +65,9 @@ pub(crate) struct Library {
     /// The build does not start with the system library's `_main`
     /// (`nodef` in a `.tl`).
     pub no_system_main: bool,
+    /// The header a Hexicon source gets by importing the library
+    /// (`import hexad;`), relative to the library's folder.
+    pub header: Option<String>,
 }
 
 /// A table of the manifest, and its name for messages.
@@ -349,6 +352,7 @@ pub(crate) fn library(text: &[u8]) -> Result<Library, String> {
         "modules",
         "resources",
         "system-main",
+        "header",
     ])?;
     let _ = lib.string("name")?;
     let mut needs = Vec::new();
@@ -372,5 +376,6 @@ pub(crate) fn library(text: &[u8]) -> Result<Library, String> {
         resources: lib.strings("resources")?,
         needs,
         no_system_main: lib.boolean("system-main")? == Some(false),
+        header: lib.string("header")?,
     })
 }

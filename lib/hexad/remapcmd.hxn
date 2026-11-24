@@ -27,7 +27,7 @@
  *
  */
 
-#include "advlite.h"
+import hexad;
 #include <lookup.h>
 
 /*

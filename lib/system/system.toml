@@ -1,0 +1,13 @@
+# Hexicon's system library: the program's entry point and the classes and
+# functions every program is built on, with the headers that declare the
+# virtual machine's built-in functions and classes. A game names it among
+# its libraries as "system".
+#
+# Built into the compiler: a build finds it here even with nothing else
+# installed. See README.md.
+
+[library]
+name = "System"
+sources = ["_main.t", "file.t", "tok.t", "gramprod.t", "multmeth.t"]
+# The library brings its own _main, so the build does not add another.
+system-main = false

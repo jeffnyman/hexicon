@@ -64,7 +64,8 @@ commands:
                                not say what they are in (default: UTF-8)
       -FL <dir>, -FI <dir>     where the system library and its headers
                                are (default: lib and include beside
-                               hexicon)
+                               hexicon); without them there, Hexicon's
+                               own, which are built in, are used
       -Fs <dir>                a folder to look for sources and libraries
                                in
       -nodef                   leave out the system library's _main

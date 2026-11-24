@@ -6,6 +6,8 @@
 
 [library]
 name = "Hexad"
+# What a Hexicon source gets by importing Hexad (`import hexad;`).
+header = "advlite.h"
 sources = [
     "actions",
     "action",
