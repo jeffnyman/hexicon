@@ -44,24 +44,24 @@ const fn var(min: u8) -> NativeDesc {
 }
 
 const MACHINE: Table = &[
-    ("t3RunGC", fixed(0)),
-    ("t3SetSay", fixed(1)),
-    ("t3GetVMVsn", fixed(0)),
-    ("t3GetVMID", fixed(0)),
-    ("t3GetVMBanner", fixed(0)),
-    ("t3GetVMPreinitMode", fixed(0)),
-    ("t3DebugTrace", var(1)),
-    ("t3GetGlobalSymbols", opt(0, 1)),
-    ("t3AllocProp", fixed(0)),
-    ("t3GetStackTrace", opt(0, 2)),
-    ("t3GetNamedArg", opt(1, 1)),
-    ("t3GetNamedArgList", fixed(0)),
+    ("collectGarbage", fixed(0)),
+    ("setSay", fixed(1)),
+    ("vmVersion", fixed(0)),
+    ("vmId", fixed(0)),
+    ("vmBanner", fixed(0)),
+    ("inPreinit", fixed(0)),
+    ("debugTrace", var(1)),
+    ("globalSymbols", opt(0, 1)),
+    ("newProperty", fixed(0)),
+    ("stackTrace", opt(0, 2)),
+    ("namedArg", opt(1, 1)),
+    ("namedArgList", fixed(0)),
 ];
 
 const MACHINE_TEST: Table = &[
-    ("t3test_get_obj_id", fixed(1)),
-    ("t3test_get_obj_gc_state", fixed(1)),
-    ("t3test_get_charcode", fixed(1)),
+    ("vmTestObjId", fixed(1)),
+    ("vmTestObjGcState", fixed(1)),
+    ("vmTestCharCode", fixed(1)),
 ];
 
 const GEN: Table = &[
@@ -97,7 +97,7 @@ const GEN: Table = &[
 ];
 
 const IO: Table = &[
-    ("tadsSay", var(1)),
+    ("print", var(1)),
     ("setLogFile", opt(1, 1)),
     ("clearScreen", fixed(0)),
     ("morePrompt", fixed(0)),

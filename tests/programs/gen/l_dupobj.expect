@@ -1,5 +1,5 @@
 image: none
 --- messages
-error: symbol "C" (type: object) redefined in object file "b.t3o"
-error: symbol "o" (type: object) redefined in object file "b.t3o"
+error: symbol "C" (type: object) redefined in source file "b.hxn"
+error: symbol "o" (type: object) redefined in source file "b.hxn"
 --- output

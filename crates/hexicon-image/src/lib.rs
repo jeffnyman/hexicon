@@ -165,7 +165,7 @@ impl Pool {
 /// An intrinsic class the program depends on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetaclassDependency {
-    /// The class identifier with its version, such as `tads-object/030005`.
+    /// The class identifier with its version, such as `hexicon-object/030005`.
     pub name: String,
     /// The property the program uses for each of the class's methods, in
     /// the order the class defines them.

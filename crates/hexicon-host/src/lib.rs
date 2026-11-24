@@ -227,7 +227,7 @@ pub trait Host {
     }
 
     /// Read one keystroke. A key that types a character is that character;
-    /// Enter is a newline; any other key goes by its T3 name in square
+    /// Enter is a newline; any other key goes by its name in square
     /// brackets, such as `[up]` or `[f1]`.
     fn read_key(&mut self) -> Input {
         Input::End

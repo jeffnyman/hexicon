@@ -792,7 +792,7 @@ impl Vm {
                 let (ret, pc, native) = match return_pc {
                     Some(pc) => (Return::Normal, pc, None),
                     None => {
-                        let mut native = NativeCall::named("TadsObject.construct");
+                        let mut native = NativeCall::named("ProgramObject.construct");
                         native.caller_pc = self.pc;
                         (Return::Native, 0, Some(Box::new(native)))
                     }
@@ -855,7 +855,7 @@ impl Vm {
             for index in (1..list.len()).rev() {
                 self.push(list.get(index));
             }
-            let mut native = NativeCall::named("TadsObject.contructMulti");
+            let mut native = NativeCall::named("ProgramObject.constructMulti");
             native.caller_pc = 0;
             self.eval_prop(
                 Value::Obj(class),

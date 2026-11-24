@@ -242,15 +242,12 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     // The program is run once before the image is written, unless told
     // not to, and the image is what that run leaves: preinitialization.
     // It is given the program's symbols and macros, and no arguments,
-    // and goes by the name the reference gives its intermediate image.
+    // and goes by the name of the image it makes.
     let (image, image_unspecified) = if project.preinit {
         if project.verbose {
             eprintln!("	preinit -> {output}");
         }
-        let name = std::path::Path::new(&output)
-            .with_extension("t3p")
-            .to_string_lossy()
-            .into_owned();
+        let name = output.clone();
         let symbols = (
             compiled.symbols.iter().map(global_symbol).collect(),
             compiled.macros.iter().map(runtime_macro).collect(),

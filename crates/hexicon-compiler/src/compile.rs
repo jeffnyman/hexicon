@@ -74,11 +74,11 @@ pub struct Compiled {
     pub diagnostics: Vec<Diagnostic>,
     /// The program's global symbols, each with its value in the image,
     /// in the order of the reference's table of them when the program
-    /// is put together: what `t3GetGlobalSymbols()` gives a program run
-    /// before its image is written.
+    /// is put together: what `globalSymbols()` gives a program run before
+    /// its image is written.
     pub symbols: Vec<RuntimeSymbol>,
     /// The program's macros, likewise: what
-    /// `t3GetGlobalSymbols(T3PreprocMacros)` gives it.
+    /// `globalSymbols(MacroTable)` gives it.
     pub macros: Vec<LinkMacro>,
 }
 
@@ -423,15 +423,13 @@ pub fn compile_program(
         if has_errors(&compiled.diagnostics) {
             return compiled;
         }
-        // The reference writes an object file for each source, and
-        // names it when it finds something wrong on reading it back.
-        // Hexicon writes no such file; it gives the name the file
-        // would have.
-        let object_file = {
-            let name = source.rsplit(['/', '\\']).next().unwrap_or(source);
-            let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
-            format!("{stem}.t3o")
-        };
+        // What is wrong in putting the sources together names the
+        // source it was found in.
+        let object_file = source
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or(source)
+            .to_owned();
         modules.push(Module {
             prog,
             out: generated,

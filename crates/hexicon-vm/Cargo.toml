@@ -1,6 +1,6 @@
 [package]
 name = "hexicon-vm"
-description = "The Hexicon virtual machine: runs T3 program images"
+description = "The Hexicon virtual machine: runs the games Hexicon builds"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

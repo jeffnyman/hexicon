@@ -244,12 +244,12 @@ impl Linker {
         let (old, new) = (kind_name(old), kind_name(new));
         self.error(if old == new {
             format!(
-                "symbol \"{}\" (type: {old}) redefined in object file \"{object_file}\"",
+                "symbol \"{}\" (type: {old}) redefined in source file \"{object_file}\"",
                 show_name(name)
             )
         } else {
             format!(
-                "symbol \"{}\" (type: {old}) redefined (type: {new}) in object file \
+                "symbol \"{}\" (type: {old}) redefined (type: {new}) in source file \
                  \"{object_file}\"",
                 show_name(name)
             )
@@ -301,7 +301,7 @@ impl Linker {
                 Some(have) => {
                     if base(have) != base(name) {
                         self.errors.push(format!(
-                            "conflicting intrinsic function set \"{}\" found in object file \
+                            "conflicting intrinsic function set \"{}\" found in source file \
                              \"{object_file}\"",
                             show_name(name)
                         ));
@@ -496,7 +496,7 @@ impl Linker {
                     .insert_known(sym.name.clone(), Global::Func(index));
                 if redef {
                     self.errors.push(format!(
-                        "modified or replaced function \"{}\" found in object file \
+                        "modified or replaced function \"{}\" found in source file \
                          \"{object_file}\" before original function definition was loaded",
                         show_name(&sym.name)
                     ));
@@ -518,21 +518,21 @@ impl Linker {
                     || old.has_retval != sym.has_retval
                 {
                     self.errors.push(format!(
-                        "function \"{}\" has different definition in object file \
+                        "function \"{}\" has different definition in source file \
                          \"{object_file}\"",
                         show_name(&sym.name)
                     ));
                 } else if old.is_mm != sym.is_mm || old.is_mm_base != sym.is_mm_base {
                     self.errors.push(format!(
                         "function \"{}\" has conflicting definitions as multi-method and as \
-                         regular function - object file {object_file}",
+                         regular function - source file {object_file}",
                         show_name(&sym.name)
                     ));
                 }
                 if defined && redef {
                     if old.is_extern {
                         self.errors.push(format!(
-                            "modified or replaced function \"{}\" found in object file \
+                            "modified or replaced function \"{}\" found in source file \
                              \"{object_file}\" before original function definition was loaded",
                             show_name(&sym.name)
                         ));
@@ -620,7 +620,7 @@ impl Linker {
             None => {
                 if defined && sym.ext_redef {
                     self.errors.push(format!(
-                        "modified or replaced object \"{}\" found in object file \
+                        "modified or replaced object \"{}\" found in source file \
                          \"{object_file}\" before original object definition was loaded",
                         show_name(&sym.name)
                     ));
@@ -650,7 +650,7 @@ impl Linker {
                 } else if defined && sym.ext_redef {
                     if old.is_extern {
                         self.errors.push(format!(
-                            "modified or replaced object \"{}\" found in object file \
+                            "modified or replaced object \"{}\" found in source file \
                              \"{object_file}\" before original object definition was loaded",
                             show_name(&sym.name)
                         ));
@@ -736,7 +736,7 @@ impl Linker {
                 let table = self.prog.find_or_add_meta(vm_name, Some(index));
                 if self.prog.metas[index].meta != table {
                     self.errors.push(format!(
-                        "intrinsic class \"{}\" in object file {object_file} out of order with \
+                        "intrinsic class \"{}\" in source file {object_file} out of order with \
                          previous definition",
                         show_name(&sym.name)
                     ));
@@ -759,7 +759,7 @@ impl Linker {
                     if self.prog.props[have].name != *name {
                         self.errors.push(format!(
                             "intrinsic class property \"{}\" does not match previous name \
-                             (\"{}\") in object file {object_file}",
+                             (\"{}\") in source file {object_file}",
                             show_name(name),
                             show_name(&self.prog.props[have].name)
                         ));
@@ -1280,7 +1280,7 @@ impl Linker {
         }
         for what in missing {
             self.errors.push(format!(
-                "internal error: {what} is used in object file \"{object_file}\" but is not \
+                "internal error: {what} is used in source file \"{object_file}\" but is not \
                  in it"
             ));
         }
@@ -1288,7 +1288,7 @@ impl Linker {
         missing_objs.dedup();
         for id in missing_objs {
             self.errors.push(format!(
-                "internal error: object {id} is used in object file \"{object_file}\" but is \
+                "internal error: object {id} is used in source file \"{object_file}\" but is \
                  not in it"
             ));
         }
@@ -1296,7 +1296,7 @@ impl Linker {
         missing_enums.dedup();
         for id in missing_enums {
             self.errors.push(format!(
-                "internal error: enum {id} is used in object file \"{object_file}\" but is not \
+                "internal error: enum {id} is used in source file \"{object_file}\" but is not \
                  in it"
             ));
         }
@@ -1304,7 +1304,7 @@ impl Linker {
         missing_funcs.dedup();
         for func in missing_funcs {
             self.errors.push(format!(
-                "internal error: function \"{}\" is used in object file \"{object_file}\" but \
+                "internal error: function \"{}\" is used in source file \"{object_file}\" but \
                  is not in it",
                 show_name(&m.funcs[func].name)
             ));

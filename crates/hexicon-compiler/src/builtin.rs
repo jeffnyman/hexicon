@@ -21,7 +21,7 @@ pub const ROOT: &str = "<hexicon>";
 /// Where the built-in system library and its headers are said to be.
 pub const SYSTEM: &str = "<hexicon>/system";
 
-/// The built-in files, by their paths in [`ROOT`] (`system/tads.h`,
+/// The built-in files, by their paths in [`ROOT`] (`system/hexicon.h`,
 /// `hexad/english/english.hxn`).
 pub(crate) static FILES: &[(&str, &[u8])] =
     include!(concat!(env!("OUT_DIR"), "/built_in_files.rs"));
@@ -34,7 +34,7 @@ fn in_root(path: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// A built-in file, by its path (`<hexicon>/system/tads.h`, with either
+/// A built-in file, by its path (`<hexicon>/system/hexicon.h`, with either
 /// kind of slash).
 pub fn file(path: &str) -> Option<&'static [u8]> {
     let name = in_root(path)?;
@@ -44,7 +44,7 @@ pub fn file(path: &str) -> Option<&'static [u8]> {
         .map(|(_, data)| *data)
 }
 
-/// A system header built in, by its name (`tads.h`).
+/// A system header built in, by its name (`hexicon.h`).
 pub(crate) fn system_header(name: &str) -> Option<&'static [u8]> {
     file(&format!("{SYSTEM}/{name}"))
 }

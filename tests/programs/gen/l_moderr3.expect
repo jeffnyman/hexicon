@@ -7,6 +7,6 @@ warning: "y" is given a value here, but nothing reads it
   |
   = did you mean "x"?
 
-error: modified or replaced object "later" found in object file "a.t3o" before original object definition was loaded
-error: symbol "later" (type: object) redefined in object file "b.t3o"
+error: modified or replaced object "later" found in source file "a.hxn" before original object definition was loaded
+error: symbol "later" (type: object) redefined in source file "b.hxn"
 --- output

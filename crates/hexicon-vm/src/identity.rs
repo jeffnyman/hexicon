@@ -1,7 +1,6 @@
 //! How the VM identifies itself to the programs it runs.
 //!
-//! Hexicon reports its own name and version, not those of the reference
-//! T3 VM (`mjr-T3`, version 3.1.3). Programs see these through
+//! Hexicon reports its own name and version. Programs see these through
 //! `vmId`, `vmVersion`, and `vmBanner`; Hexad shows them in response to
 //! a VERSION command.
 

@@ -687,7 +687,7 @@ impl Vm {
         }
     }
 
-    /// Read a key from the player, as its T3 name.
+    /// Read a key from the player, as its name (`[up]`).
     fn read_key(&mut self) -> VmResult<Option<Vec<u8>>> {
         self.sync_console_width();
         Ok(match self.host.read_key() {

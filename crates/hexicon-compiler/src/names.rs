@@ -2,7 +2,7 @@
 //! value, that nothing in the program reads, and whose name is a slip
 //! away from one that something does read.
 //!
-//! TADS 3 makes a property of any name the first time a source uses it
+//! The language makes a property of any name the first time a source uses it
 //! as one, so a misspelled property is silently a different property.
 //! A misspelled read is already reported, as an undefined symbol,
 //! unless something defines the misspelling too. A misspelled

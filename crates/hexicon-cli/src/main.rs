@@ -902,17 +902,7 @@ pub(crate) fn preinit_image(
     }
     let result = vm.run_preinit(program_args);
     if let Err(error) = result {
-        // As the reference's t3pre says it: the message's template,
-        // with nothing filled in.
-        let message = match &error {
-            hexicon_vm::VmError::Runtime(runtime) => {
-                match hexicon_vm::code::message(runtime.code) {
-                    Some(template) => format!("VM Error: {template}"),
-                    None => format!("VM Error: [no message: code {}]", runtime.code),
-                }
-            }
-            _ => vm.error_message(&error, true),
-        };
+        let message = vm.error_message(&error, true);
         vm.flush_output();
         return Err(message);
     }
@@ -924,7 +914,8 @@ pub(crate) fn preinit_image(
     rebuilt
 }
 
-/// `hexicon preinit`: what the reference's `t3pre` does.
+/// `hexicon preinit`: run a program as it is run before its image is
+/// written, and write the image it leaves.
 fn preinit(args: &[&str]) -> ExitCode {
     let mut unspecified = None;
     let mut rest = args;
@@ -943,8 +934,8 @@ fn preinit(args: &[&str]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    // The reference's t3pre gives the program its arguments starting
-    // one too early, with the name of the new image.
+    // The program is given the new image's name, and then its
+    // arguments.
     let program_args: Vec<String> = std::iter::once(output)
         .chain(program_args.iter())
         .map(|arg| (*arg).to_owned())

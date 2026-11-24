@@ -74,7 +74,7 @@ impl NativeDesc {
     }
 }
 
-/// A T3 value.
+/// A value, as the virtual machine holds one.
 ///
 /// The variants mirror the reference VM's value types. Strings and lists
 /// appear twice: as constants (an offset into the image's constant pool)

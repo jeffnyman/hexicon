@@ -1827,7 +1827,7 @@ fn replace_and_modify_have_their_own_mistakes() {
     assert_eq!(
         compile_messages("modify f() { }\n_main(args) { }\n"),
         [
-            "0: error: modified or replaced function \"f\" found in object file \"main.t3o\" \
+            "0: error: modified or replaced function \"f\" found in source file \"main.hxn\" \
              before original function definition was loaded"
         ]
     );
@@ -2764,8 +2764,8 @@ fn what_two_files_both_define_is_found_when_they_are_put_together() {
     assert_eq!(
         messages_of(compile_files(&[("one.hxn", one), ("two.hxn", two)])),
         [
-            "(0): symbol \"f\" (type: function) redefined in object file \"two.t3o\"",
-            "(0): symbol \"o\" (type: object) redefined in object file \"two.t3o\"",
+            "(0): symbol \"f\" (type: function) redefined in source file \"two.hxn\"",
+            "(0): symbol \"o\" (type: object) redefined in source file \"two.hxn\"",
         ]
     );
 }
@@ -2899,9 +2899,9 @@ fn a_second_definition_has_to_come_after_the_first() {
         messages_of(compile_files(&[("one.hxn", one), ("two.hxn", two)])),
         [
             "two.hxn(1): \"y\" is given a value here, but nothing reads it",
-            "(0): modified or replaced object \"later\" found in object file \"one.t3o\" \
+            "(0): modified or replaced object \"later\" found in source file \"one.hxn\" \
              before original object definition was loaded",
-            "(0): symbol \"later\" (type: object) redefined in object file \"two.t3o\"",
+            "(0): symbol \"later\" (type: object) redefined in source file \"two.hxn\"",
         ]
     );
     // The other way about, it is the object the first file defined

@@ -1,6 +1,6 @@
 [package]
 name = "hexicon-image"
-description = "Reader for T3 VM program image files"
+description = "Reader for Hexicon game files"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,4 +1,4 @@
 image: none
 --- messages
-error: modified or replaced function "f" found in object file "e_modify4.t3o" before original function definition was loaded
+error: modified or replaced function "f" found in source file "e_modify4.hxn" before original function definition was loaded
 --- output

@@ -1,9 +1,9 @@
 //! The Hexicon virtual machine.
 //!
-//! This crate runs the games Hexicon builds (`.hxg` files), and T3
-//! images for the comparisons with the reference. It follows the T3 VM
-//! specification, the layout both share, and where that is silent, the
-//! behavior of the reference interpreter.
+//! This crate runs the games Hexicon builds (`.hxg` files). Their layout
+//! and instruction set are the T3 VM's, and it follows the T3 VM
+//! specification, and where that is silent, the behavior of the
+//! reference interpreter.
 //!
 //! The VM does no input or output of its own. Everything it needs from
 //! the outside world comes through a [`hexicon_host::Host`].

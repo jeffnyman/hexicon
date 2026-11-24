@@ -5382,8 +5382,6 @@ impl Gen<'_> {
                 _ => self.undefined(name),
             }
         }
-        // The class is TadsObject in TADS 3, and ProgramObject in
-        // Hexicon's system library.
         let class = self.prog.globals.get(b"ProgramObject").copied();
         let Some(Global::Meta(program_object)) = class else {
             self.error("\"ProgramObject\" is not defined or is not an intrinsic class");

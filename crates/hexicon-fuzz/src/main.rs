@@ -216,7 +216,7 @@ fn try_image(data: &[u8]) -> String {
         return "rejected by the loader".to_owned();
     };
     stage("run");
-    match vm.run(&["fuzz.t3".to_owned()]) {
+    match vm.run(&["fuzz.hxg".to_owned()]) {
         Ok(()) => "ran".to_owned(),
         Err(_) => "ran to an error".to_owned(),
     }
@@ -441,7 +441,7 @@ fn parent(mode: &str, out_dir: &str, cases: u64, seed: u64, files: &[String]) ->
         }
     }
     for (case, what) in &findings {
-        let ext = if mode == "saves" { "sav" } else { "t3" };
+        let ext = if mode == "saves" { "sav" } else { "hxg" };
         let path = format!("{out_dir}/case-{case}.{ext}");
         if let Some(data) = case_input(mode, seed, *case, files) {
             let _ = std::fs::write(&path, data);

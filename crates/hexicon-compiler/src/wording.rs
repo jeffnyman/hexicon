@@ -1,10 +1,10 @@
-//! Messages in Hexicon's own words, for Hexicon sources.
+//! Messages in Hexicon's own words.
 //!
-//! The compiler finds problems as the reference does, and says so in the
-//! reference's words, which the comparisons with it check for TADS 3
-//! sources. A problem in a Hexicon source is said again here, in words
-//! meant for the reader, often with a note on what to look at. A message
-//! not in this table keeps the reference's words.
+//! The compiler finds problems as the reference compiler did, and the
+//! parts of it that find them say so in the reference's words. The
+//! common ones are said again here, in words meant for the reader, often
+//! with a note on what to look at. A message not in this table keeps the
+//! reference's words, for now.
 
 use crate::pp::Diagnostic;
 

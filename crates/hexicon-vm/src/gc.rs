@@ -111,7 +111,7 @@ impl Vm {
         // happened to be running when the collector started.
         let (r0, pc) = (self.r0, self.pc);
         for id in queue {
-            let native = NativeCall::named("TadsObject.finalize");
+            let native = NativeCall::named("ProgramObject.finalize");
             let _ = self.call_prop(Value::Obj(id), self.predef.destruct, 0, Some(native));
         }
         self.r0 = r0;

@@ -339,7 +339,7 @@ pub enum RunState {
 /// The most bytes a string can hold.
 pub(crate) const MAX_STRING_LEN: usize = 65_535;
 
-/// A T3 virtual machine with a program loaded.
+/// The virtual machine with a program loaded.
 pub struct Vm {
     /// The code pool, as one contiguous array, and after it the code
     /// compiled while the program runs.
