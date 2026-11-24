@@ -1609,7 +1609,7 @@ impl Vm {
                 Err(VmError::new(code::BAD_DYNAMIC_NEW))
             }
             other => Err(VmError::unimplemented(format!(
-                "creating an object of intrinsic class {}",
+                "creating an object of built-in class {}",
                 other.name()
             ))),
         }

@@ -6,7 +6,7 @@ error: '=' is not allowed with a method definition
 2 |     p1 = {: }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> e_anon7.hxn:2
   |
 2 |     p1 = {: }

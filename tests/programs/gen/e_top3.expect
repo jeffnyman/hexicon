@@ -1,6 +1,6 @@
 image: none
 --- messages
-error: expected symbol after 'function', but found "1"
+error: expected a name after 'function', but found "1"
   --> e_top3.hxn:1
   |
 1 | function 1 { } _main(args) { }

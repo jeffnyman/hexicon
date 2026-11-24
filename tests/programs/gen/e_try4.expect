@@ -1,12 +1,12 @@
 image: none
 --- messages
-error: exception class symbol "f" in "catch" clause is not an object
+error: exception class "f" in "catch" clause is not an object
   --> e_try4.hxn:1
   |
 1 | f() { } _main(args) { try { } catch (f e) { } catch (_main e) { } }
   |
 
-error: exception class symbol "_main" in "catch" clause is not an object
+error: exception class "_main" in "catch" clause is not an object
   --> e_try4.hxn:1
   |
 1 | f() { } _main(args) { try { } catch (f e) { } catch (_main e) { } }

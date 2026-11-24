@@ -18,7 +18,7 @@ error: '=' is not allowed with a method definition
 4 |     p3 = {: p1 }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:4
   |
 4 |     p3 = {: p1 }
@@ -36,7 +36,7 @@ error: '=' is not allowed with a method definition
 6 |     p5 = {: targetprop }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:6
   |
 6 |     p5 = {: targetprop }
@@ -54,7 +54,7 @@ error: '=' is not allowed with a method definition
 7 |     p6 = {: {: self } }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:7
   |
 7 |     p6 = {: {: self } }
@@ -84,7 +84,7 @@ error: '=' is not allowed with a method definition
 11 |     p10 = {: "hello" }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:11
    |
 11 |     p10 = {: "hello" }
@@ -102,7 +102,7 @@ error: '=' is not allowed with a method definition
 15 |     p13 = {: self }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:15
    |
 15 |     p13 = {: self }
@@ -120,7 +120,7 @@ error: expected ';' or expression after "return", but found "{"
 16 |     m2() { return {: targetprop }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:16
    |
 16 |     m2() { return {: targetprop }; }
@@ -138,7 +138,7 @@ error: '=' is not allowed with a method definition
 17 |     p14 = {: self }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:17
    |
 17 |     p14 = {: self }
@@ -156,7 +156,7 @@ error: '=' is not allowed with a method definition
 18 |     p15 = {: {: 1 } }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:18
    |
 18 |     p15 = {: {: 1 } }
@@ -186,7 +186,7 @@ error: expected ';' or expression after "return", but found "{"
 20 | f() { return {: 1 }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:20
    |
 20 | f() { return {: 1 }; }
@@ -204,7 +204,7 @@ error: '=' is not allowed with a method definition
 22 |     p1 = {: self }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:22
    |
 22 |     p1 = {: self }
@@ -222,7 +222,7 @@ error: expected ';' or expression after "return", but found "{"
 25 |     m() { return {: {: definingobj } }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon11.hxn:25
    |
 25 |     m() { return {: {: definingobj } }; }

@@ -145,7 +145,7 @@ impl Vm {
             MetaKind::FileName => self.file_name_method(Some(self_value.obj_id()), index, argc),
             MetaKind::TemporaryFile => self.temp_file_method(self_value.obj_id(), index, argc),
             other => Err(VmError::unimplemented(format!(
-                "method {index} of intrinsic class {}",
+                "method {index} of built-in class {}",
                 other.name()
             ))),
         }
@@ -404,7 +404,7 @@ impl Vm {
                     ) =>
             {
                 Err(VmError::unimplemented(format!(
-                    "method {index} of intrinsic class {}",
+                    "method {index} of built-in class {}",
                     other.name()
                 )))
             }

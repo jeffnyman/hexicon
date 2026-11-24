@@ -1,10 +1,9 @@
 //! Messages in Hexicon's own words.
 //!
-//! The compiler finds problems as the reference compiler did, and the
-//! parts of it that find them say so in the reference's words. The
-//! common ones are said again here, in words meant for the reader, often
-//! with a note on what to look at. A message not in this table keeps the
-//! reference's words, for now.
+//! The parts of the compiler that find a problem say what it is, briefly,
+//! in the words of docs/vocabulary.md. The common ones are said again
+//! here, more fully, often with a note on what to look at. A message not
+//! in this table is shown as the part that found it says it.
 
 use crate::pp::Diagnostic;
 
@@ -18,7 +17,7 @@ fn between<'t>(text: &'t str, before: &str, after: &str) -> Option<&'t str> {
 fn hexicon_words(message: &str) -> Option<(String, Option<String>)> {
     if let Some(name) = between(
         message,
-        "undefined symbol \"",
+        "undefined name \"",
         "\" - assuming this is a property name",
     ) {
         return Some((
@@ -29,7 +28,7 @@ fn hexicon_words(message: &str) -> Option<(String, Option<String>)> {
             )),
         ));
     }
-    if let Some((name, object)) = between(message, "undefined symbol \"", "\")")
+    if let Some((name, object)) = between(message, "undefined name \"", "\")")
         .and_then(|rest| rest.split_once("\" (used as superclass of \""))
     {
         return Some((
@@ -41,7 +40,7 @@ fn hexicon_words(message: &str) -> Option<(String, Option<String>)> {
         ));
     }
     if let Some(name) =
-        between(message, "undefined symbol \"", "\"").filter(|name| !name.contains('"'))
+        between(message, "undefined name \"", "\"").filter(|name| !name.contains('"'))
     {
         return Some((
             format!("\"{name}\" is not defined anywhere"),
@@ -56,11 +55,11 @@ fn hexicon_words(message: &str) -> Option<(String, Option<String>)> {
         ("function", "a"),
         ("object", "an"),
         ("property", "a"),
-        ("intrinsic class", "an"),
+        ("built-in class", "a"),
     ] {
         if let Some(name) = between(
             message,
-            "symbol \"",
+            "the name \"",
             &format!("\" is already defined - can't redefine as {kind}"),
         ) {
             return Some((
@@ -99,6 +98,28 @@ fn hexicon_words(message: &str) -> Option<(String, Option<String>)> {
         return Some((
             format!("\"{name}\" is used, but never given a value"),
             Some("its value is nil".to_owned()),
+        ));
+    }
+    if let Some(op) = between(
+        message,
+        "can't assign to the expression on the left of \"",
+        "\"",
+    ) {
+        return Some((
+            format!("can't assign to the expression on the left of \"{op}\""),
+            Some(
+                "only a variable, a property, or an element of a list can be given a value"
+                    .to_owned(),
+            ),
+        ));
+    }
+    if let Some(op) = between(message, "can't apply \"", "\" to this expression") {
+        return Some((
+            format!("can't apply \"{op}\" to this expression"),
+            Some(format!(
+                "\"{op}\" changes what it is applied to, so it needs a variable, a property, or \
+                 an element of a list"
+            )),
         ));
     }
     if message == "unterminated object definition" {

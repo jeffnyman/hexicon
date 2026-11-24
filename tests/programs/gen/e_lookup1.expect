@@ -48,7 +48,7 @@ error: missing -> in 2nd element in LookupTable list
 9 |     local g = [* -> 1, 2];
   |
 
-error: expected integer, string, symbol, '[', or '(', but found "->"
+error: expected integer, string, name, '[', or '(', but found "->"
   --> e_lookup1.hxn:11
    |
 11 |     local i = [-> 1];
@@ -78,7 +78,7 @@ error: expected an operand, but found ";"
 12 |     local j = [1 -> 2,];
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "*"
+error: expected integer, string, name, '[', or '(', but found "*"
   --> e_lookup1.hxn:13
    |
 13 |     local k = [* 2];

@@ -1,12 +1,12 @@
 image: none
 --- messages
-error: expected symbol name in local variable declaration, but found "1"
+error: expected a name in local variable declaration, but found "1"
   --> e_local2.hxn:1
   |
 1 | _main(args) { local 1; }
   |
 
-error: expected symbol name in local variable declaration, but found ";"
+error: expected a name in local variable declaration, but found ";"
   --> e_local2.hxn:1
   |
 1 | _main(args) { local 1; }

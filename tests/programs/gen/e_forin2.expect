@@ -18,7 +18,7 @@ error: missing expression in "foreach" - found ";"
 7 |     foreach (;
   |
 
-error: expected symbol name in local variable declaration, but found "1"
+error: expected a name in local variable declaration, but found "1"
   --> e_forin2.hxn:8
   |
 8 |     foreach (local 1 in args) ;
@@ -48,7 +48,7 @@ error: expected an operand, but found ";"
 11 |     for (local i in ) ;
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "for"
+error: expected integer, string, name, '[', or '(', but found "for"
   --> e_forin2.hxn:12
    |
 12 |     for (local i in 1.. ) ;
@@ -60,7 +60,7 @@ error: expected ';' after "for" condition, but found "local"
 12 |     for (local i in 1.. ) ;
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "local"
+error: expected integer, string, name, '[', or '(', but found "local"
   --> e_forin2.hxn:12
    |
 12 |     for (local i in 1.. ) ;
@@ -84,7 +84,7 @@ error: expected ';', but found ".."
 12 |     for (local i in 1.. ) ;
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ".."
+error: expected integer, string, name, '[', or '(', but found ".."
   --> e_forin2.hxn:12
    |
 12 |     for (local i in 1.. ) ;
@@ -102,7 +102,7 @@ error: expected an operand, but found ";"
 13 |     for (i in 1..2 step ) ;
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "for"
+error: expected integer, string, name, '[', or '(', but found "for"
   --> e_forin2.hxn:14
    |
 14 |     for (local i in args ; ; ) ;
@@ -114,7 +114,7 @@ error: expected ';' after "for" condition, but found "local"
 14 |     for (local i in args ; ; ) ;
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "local"
+error: expected integer, string, name, '[', or '(', but found "local"
   --> e_forin2.hxn:14
    |
 14 |     for (local i in args ; ; ) ;

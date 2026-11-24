@@ -702,13 +702,13 @@ impl<'a> Preprocessor<'a> {
                         .find(|c| !c.is_ascii())
                         .map_or(0, u32::from);
                     self.error(format!(
-                        "symbol \"{name}\" contains non-ASCII character (U+{odd:04x})"
+                        "the name \"{name}\" contains non-ASCII character (U+{odd:04x})"
                     ));
                 }
                 LexNote::SymbolTruncated(symbol) => {
                     let kept = lex::SYM_MAX_LEN - 1;
                     self.warning(format!(
-                        "symbol \"{}\" truncated to \"{}\"",
+                        "the name \"{}\" truncated to \"{}\"",
                         text(&symbol),
                         text(&symbol[..kept.min(symbol.len())])
                     ));
@@ -2082,7 +2082,7 @@ impl<'a> Preprocessor<'a> {
         }
         if tok.typ != Tok::Sym {
             self.error(format!(
-                "symbol required for defined() (found \"{}\")",
+                "name required for defined() (found \"{}\")",
                 show_name(tok.text(src))
             ));
             return true;
@@ -2470,10 +2470,7 @@ impl<'a> Preprocessor<'a> {
     fn pp_define(&mut self) {
         if self.next_on_line() != Tok::Sym {
             let text = self.curtok_text();
-            self.error(format!(
-                "invalid symbol \"{}\" for #define",
-                show_name(&text)
-            ));
+            self.error(format!("invalid name \"{}\" for #define", show_name(&text)));
             self.clear_linebuf();
             return;
         }
@@ -2521,7 +2518,7 @@ impl<'a> Preprocessor<'a> {
                         if tok != Tok::RPar {
                             let text = self.curtok_text();
                             self.error(format!(
-                                "'...' in macro formal parameter list must be followed by ')' - found \"{}\"",
+                                "'...' in macro parameter list must be followed by ')' - found \"{}\"",
                                 show_name(&text)
                             ));
                             self.clear_linebuf();
@@ -2547,7 +2544,7 @@ impl<'a> Preprocessor<'a> {
             self.p += 1;
         }
         if name == b"defined" {
-            self.error("cannot #define reserved preprocessor symbol \"defined\"");
+            self.error("cannot #define reserved macro name \"defined\"");
             self.clear_linebuf();
             return;
         }
@@ -2672,10 +2669,7 @@ impl<'a> Preprocessor<'a> {
     fn pp_get_lone_ident(&mut self) -> Option<Vec<u8>> {
         if self.next_on_line() != Tok::Sym {
             let text = self.curtok_text();
-            self.error(format!(
-                "invalid symbol \"{}\" for #define",
-                show_name(&text)
-            ));
+            self.error(format!("invalid name \"{}\" for #define", show_name(&text)));
             return None;
         }
         let name = self.curtok_text();

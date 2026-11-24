@@ -1,6 +1,6 @@
 image: none
 --- messages
-error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+error: expected integer, string, name, '[', or '(', but found "<End Of File>"
   --> e_many8.hxn:2
 
 error: expected ',' or ';' in "for" initializer, but found "<End Of File>"

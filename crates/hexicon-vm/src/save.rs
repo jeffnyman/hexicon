@@ -395,7 +395,7 @@ impl Vm {
                     .get(usize::from(*meta_index))
                     .map_or("unknown", |entry| entry.kind.name());
                 return Err(VmError::unimplemented(format!(
-                    "saving an object of intrinsic class {name}"
+                    "saving an object of built-in class {name}"
                 )));
             }
         }
@@ -826,7 +826,7 @@ impl Vm {
             other => {
                 let _ = meta_index;
                 return Err(VmError::unimplemented(format!(
-                    "restoring an object of intrinsic class {}",
+                    "restoring an object of built-in class {}",
                     other.name()
                 )));
             }

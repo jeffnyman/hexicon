@@ -222,8 +222,8 @@ impl Vm {
 
     fn unimplemented_bif(&self, set: FunctionSet, index: u16) -> VmError {
         match set.table().get(index as usize) {
-            Some((name, _)) => VmError::unimplemented(format!("intrinsic function {name}")),
-            None => VmError::unimplemented(format!("intrinsic function {index} of {set:?}")),
+            Some((name, _)) => VmError::unimplemented(format!("built-in function {name}")),
+            None => VmError::unimplemented(format!("built-in function {index} of {set:?}")),
         }
     }
 

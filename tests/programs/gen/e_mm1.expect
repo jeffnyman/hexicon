@@ -78,7 +78,7 @@ error: expected ',' or ')' in argument list, but found "a"
 13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ","
+error: expected integer, string, name, '[', or '(', but found ","
   --> e_mm1.hxn:13
    |
 13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
@@ -96,13 +96,13 @@ error: missing colon at end of anonymous function formal list - found "return"
 13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "return"
+error: expected integer, string, name, '[', or '(', but found "return"
   --> e_mm1.hxn:13
    |
 13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ">"
+error: expected integer, string, name, '[', or '(', but found ">"
   --> e_mm1.hxn:13
    |
 13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
@@ -120,7 +120,7 @@ error: missing ':' in '?' conditional expression
 13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "+"
+error: expected integer, string, name, '[', or '(', but found "+"
   --> e_mm1.hxn:13
    |
 13 | r(Thing a, b: , c?) { return inherited<>(a) + inherited<Thing b>(a) + inherited<Thing, >(a) + inherited<Thing>; }

@@ -1,6 +1,6 @@
 image: f958e011b55a21ee46f501b1de222defe4ce13e94fd5b89680789640f84d692d
 --- messages
-warning: symbol "make" is not an object - illegal on left of '.'
+warning: the name "make" is not an object - illegal on left of '.'
   --> inl1.hxn:41
    |
 41 |     say(__objref(make, warn) == nil ? ' nil' : ' ?'); say(__objref(nope2, warn) == nil ? ' nil' : ' ?');

@@ -12,19 +12,19 @@ error: invalid "extern" type specifier "foo"
 47 | extern foo;
    |
 
-error: expected object name symbol in "extern" statement but found ";"
+error: expected object name in "extern" statement but found ";"
   --> e_extern1.hxn:48
    |
 48 | extern object;
    |
 
-error: expected object name symbol in "extern" statement but found "5"
+error: expected object name in "extern" statement but found "5"
   --> e_extern1.hxn:49
    |
 49 | extern object 5;
    |
 
-error: expected symbol after 'function', but found ";"
+error: expected a name after 'function', but found ";"
   --> e_extern1.hxn:50
    |
 50 | extern function;

@@ -1,24 +1,24 @@
 image: none
 --- messages
-error: expected symbol name in local variable declaration, but found ","
+error: expected a name in local variable declaration, but found ","
   --> e_anon5.hxn:3
   |
 3 |     local a = {x: local, x };
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ","
+error: expected integer, string, name, '[', or '(', but found ","
   --> e_anon5.hxn:3
   |
 3 |     local a = {x: local, x };
   |
 
-error: expected symbol name in local variable declaration, but found "1"
+error: expected a name in local variable declaration, but found "1"
   --> e_anon5.hxn:4
   |
 4 |     local b = {x: local 1 };
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ","
+error: expected integer, string, name, '[', or '(', but found ","
   --> e_anon5.hxn:5
   |
 5 |     local c = {x: local y = , x };
@@ -30,7 +30,7 @@ error: local variable "y" defined more than once
 6 |     local d = {x: local y, local y, y };
   |
 
-error: formal parameter "x" defined more than once
+error: parameter "x" defined more than once
   --> e_anon5.hxn:8
   |
 8 |     local f = {x, x: x };
@@ -60,7 +60,7 @@ error: expected an operand, but found "}"
 11 |     local i = {: };
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "return"
+error: expected integer, string, name, '[', or '(', but found "return"
   --> e_anon5.hxn:13
    |
 13 |     local k = {x: return x; };
@@ -84,7 +84,7 @@ error: local variable "x" defined more than once
 15 |     local m = function(x) { local x; return x; };
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "break"
+error: expected integer, string, name, '[', or '(', but found "break"
   --> e_anon5.hxn:20
    |
 20 |     local r = {: break };

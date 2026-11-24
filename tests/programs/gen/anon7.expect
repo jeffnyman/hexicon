@@ -6,7 +6,7 @@ error: expected ';' or expression after "return", but found "{"
 11 |         return {: a + inner };
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon7.hxn:11
    |
 11 |         return {: a + inner };

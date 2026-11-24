@@ -1,6 +1,6 @@
 image: none
 --- messages
-error: missing parameter name at end of formal parameter list
+error: missing parameter name at end of parameter list
   --> e_formal2.hxn:1
   |
 1 | f(a,) { } _main(args) { }

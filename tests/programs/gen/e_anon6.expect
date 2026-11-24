@@ -12,7 +12,7 @@ error: expected ';' or expression after "return", but found "{"
 11 |     switch (x) { case 1: return {: 2 }(); }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> e_anon6.hxn:11
    |
 11 |     switch (x) { case 1: return {: 2 }(); }
@@ -48,7 +48,7 @@ error: expected ';' or expression after "return", but found "{"
 12 |     return {: 1 } + {: 2 } == {: 3 } ? {: 4 } : {: 5 };
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> e_anon6.hxn:12
    |
 12 |     return {: 1 } + {: 2 } == {: 3 } ? {: 4 } : {: 5 };
@@ -66,17 +66,18 @@ error: expected ';' or expression after "return", but found "{"
 17 | j(x) { return {: x = 1 }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> e_anon6.hxn:17
    |
 17 | j(x) { return {: x = 1 }; }
    |
 
-error: invalid lvalue - cannot assign to expression on left of "="
+error: can't assign to the expression on the left of "="
   --> e_anon6.hxn:17
    |
 17 | j(x) { return {: x = 1 }; }
    |
+   = only a variable, a property, or an element of a list can be given a value
 
 error: expected ';', but found "}"
   --> e_anon6.hxn:17
@@ -90,7 +91,7 @@ error: expected ';' or expression after "return", but found "{"
 18 | k(x) { local y; return {: y }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> e_anon6.hxn:18
    |
 18 | k(x) { local y; return {: y }; }
@@ -108,7 +109,7 @@ error: expected ';' or expression after "return", but found "{"
 19 | l(x) { local y = 1; return {: 1 }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> e_anon6.hxn:19
    |
 19 | l(x) { local y = 1; return {: 1 }; }

@@ -1,6 +1,6 @@
 image: none
 --- messages
-error: exception class symbol "f" in "catch" clause is not an object
+error: exception class "f" in "catch" clause is not an object
   --> e_obj23.hxn:2
   |
 2 | f() { try { } catch (a e) { } catch (f g) { } catch (nosuch h) { } }

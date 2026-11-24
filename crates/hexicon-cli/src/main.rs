@@ -1250,7 +1250,7 @@ fn value(value: Value) -> String {
         Value::List(offset) => format!("list at {offset:#x}"),
         Value::CodeOffset(offset) => format!("code at {offset:#x}"),
         Value::FunctionPointer(offset) => format!("function at {offset:#x}"),
-        Value::IntrinsicFunction { set, index } => format!("intrinsic function {set}:{index}"),
+        Value::IntrinsicFunction { set, index } => format!("built-in function {set}:{index}"),
         Value::Other { type_code, raw } => format!("type {type_code}, raw {raw:02x?}"),
     }
 }

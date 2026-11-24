@@ -6,7 +6,7 @@ error: parameter 'c' must be optional because it follows an optional parameter
 65 |     local k1 = {a = 1, b?, c: = 2, d:: a};
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "="
+error: expected integer, string, name, '[', or '(', but found "="
   --> param5.hxn:65
    |
 65 |     local k1 = {a = 1, b?, c: = 2, d:: a};
@@ -24,7 +24,7 @@ error: expected ',' or ';' after local variable, but found "::"
 65 |     local k1 = {a = 1, b?, c: = 2, d:: a};
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "::"
+error: expected integer, string, name, '[', or '(', but found "::"
   --> param5.hxn:65
    |
 65 |     local k1 = {a = 1, b?, c: = 2, d:: a};
@@ -36,13 +36,13 @@ error: expected ';', but found "}"
 65 |     local k1 = {a = 1, b?, c: = 2, d:: a};
    |
 
-error: expected a symbol in formal parameter list, but found "1"
+error: expected a name in parameter list, but found "1"
   --> param5.hxn:66
    |
 66 |     f1(1); g1(1, n: 5); h1(); k1(d: 1);
    |
 
-error: missing parameter name at end of formal parameter list
+error: missing parameter name at end of parameter list
   --> param5.hxn:66
    |
 66 |     f1(1); g1(1, n: 5); h1(); k1(d: 1);
@@ -54,19 +54,19 @@ error: expected '{' at start of method code body, but found ";"
 66 |     f1(1); g1(1, n: 5); h1(); k1(d: 1);
    |
 
-error: expected a symbol in formal parameter list, but found ","
+error: expected a name in parameter list, but found ","
   --> param5.hxn:66
    |
 66 |     f1(1); g1(1, n: 5); h1(); k1(d: 1);
    |
 
-error: expected a comma in formal parameter list, but found "5"
+error: expected a comma in parameter list, but found "5"
   --> param5.hxn:66
    |
 66 |     f1(1); g1(1, n: 5); h1(); k1(d: 1);
    |
 
-error: expected a comma in formal parameter list, but found "1"
+error: expected a comma in parameter list, but found "1"
   --> param5.hxn:66
    |
 66 |     f1(1); g1(1, n: 5); h1(); k1(d: 1);
@@ -84,25 +84,25 @@ error: function "m" is already defined
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
    |
 
-error: expected a symbol in formal parameter list, but found "1"
+error: expected a name in parameter list, but found "1"
   --> param5.hxn:67
    |
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
    |
 
-error: expected a symbol in formal parameter list, but found ","
+error: expected a name in parameter list, but found ","
   --> param5.hxn:67
    |
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
    |
 
-error: expected a symbol in formal parameter list, but found "2"
+error: expected a name in parameter list, but found "2"
   --> param5.hxn:67
    |
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
    |
 
-error: missing parameter name at end of formal parameter list
+error: missing parameter name at end of parameter list
   --> param5.hxn:67
    |
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
@@ -114,7 +114,7 @@ error: function "n" is already defined
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
    |
 
-error: expected a symbol in formal parameter list, but found "3"
+error: expected a name in parameter list, but found "3"
   --> param5.hxn:67
    |
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
@@ -126,7 +126,7 @@ error: function "o" is already defined
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);
    |
 
-error: expected a comma in formal parameter list, but found "1"
+error: expected a comma in parameter list, but found "1"
   --> param5.hxn:67
    |
 67 |     m(); m(1, 2); n(); n(1, 2, 3); o(1, 2); o(a: 1);

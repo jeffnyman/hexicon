@@ -1,6 +1,6 @@
 # Hexicon Vocabulary
 
-Status: draft for discussion, 2026-11-24
+Status: decided, 2026-11-24. Messages done; the rest to come in the order below.
 
 ## Goal
 
@@ -25,41 +25,43 @@ This revises "What earns a change" in [language-plan.md](language-plan.md), whic
 3. **The language's own words**, if any are changed at all.
 4. **Hexad's words**, decided with Hexad's design rather than here (see the last section).
 
-In the tables, "Uses" is the count of each name in Hexad, the system library, and the test programs, as a measure of the ripple. Status is **proposed** until decided.
+In the tables, "Uses" is the count of each name in Hexad, the system library, and the test programs, as a measure of the ripple. Status is **decided** (to be made), **done**, or **keep**.
 
 ## 1. Messages
 
-The compiler's messages, and the VM's error messages, in the words an author uses. `wording.rs` already rewords the common ones; these are words to use, and to stop using, across all of them.
+Done (2026-11-24). The compiler's messages and the VM's error messages use these words. `wording.rs` says the common ones again more fully, with notes.
 
-| Now | Proposed | Example | Status |
+| Was | Now | Example | Status |
 |---|---|---|---|
-| symbol | name | "undefined symbol "x"" becomes ""x" is not defined anywhere" (done for the common ones) | proposed |
-| intrinsic class | built-in class | "intrinsic class superclass "X" is not an intrinsic class" | proposed |
-| intrinsic list, intrinsic name | built-in function set | in errors about `intrinsic` declarations | proposed |
-| lvalue | something that can be assigned to | "invalid lvalue - cannot assign to expression on left of "="" becomes "can't assign to this: only a variable, property, or list element can be given a value" | proposed |
-| formal parameter list | parameter list | "expected a symbol in formal parameter list" | proposed |
-| property pointer | property reference (`&name`) | the guide, and messages about `&` | proposed |
+| symbol | name | "symbol "x" is already defined" became "the name "x" is already defined"; "undefined symbol" became "undefined name", which `wording.rs` says as ""x" is not defined anywhere" | done |
+| intrinsic class, intrinsic function | built-in class, built-in function | "the superclass "X" is not a built-in class" | done |
+| intrinsic list, intrinsic name | the function set, the function set's name | "expected function name in the function set" | done |
+| lvalue | (said as what can be assigned to) | "can't assign to the expression on the left of "="", noted "only a variable, a property, or an element of a list can be given a value"; "can't apply "++" to this expression" | done |
+| formal parameter | parameter | "expected a comma in parameter list" | done |
+| preprocessor symbol | macro, macro name | "library requires the macro "VOICE" to be defined" | done |
+| property pointer | property reference (`&name`) | the guide, and the VM's "property reference required" | done |
 | object file | (gone) | done in the break | done |
+
+Kept: "metaclass" in the messages about a damaged image file, and in `hexicon inspect`'s listings, where it names a part of the image format; "grammar production" until `GrammarProd` is renamed (section 2). The keyword is quoted as it is written (`"intrinsic class"`) until it changes (section 4).
 
 ## 2. Built-in classes
 
 | Now | Proposed | Uses | Notes | Status |
 |---|---|---|---|---|
-| `LookupTable` | `Map` | 106 | | proposed |
-| `WeakRefLookupTable` | `WeakMap` | 4 | | proposed |
-| `LookupTableIterator` | `MapIterator` | few | | proposed |
-| `StringBuffer` | `StringBuilder` | 21 | C#, Java, and Kotlin's name for the same thing | proposed |
-| `RexPattern` | `Regex` | 73 | | proposed |
-| `AnonFuncPtr` | `Function` | 5 | the class of a function value | proposed |
-| `DynamicFunc` | `CompiledCode` | 18 | code compiled while the game runs; open to a better name | proposed |
-| `GrammarProd` | `GrammarRule` | 39 | matches the guide's word, and `verb` declarations | proposed |
-| `IntrinsicClass` | `BuiltinClass` | 8 | | proposed |
-| `IntrinsicClassModifier` | `BuiltinClassModifier` | few | | proposed |
-| `StackFrameDesc`, `StackFrameRef` | `StackFrame`, `StackFrameRef` | few | | proposed |
+| `LookupTable` | `Map` | 106 | | decided |
+| `WeakRefLookupTable` | `WeakMap` | 4 | | decided |
+| `LookupTableIterator` | `MapIterator` | few | | decided |
+| `BigNumber` | `Decimal` | 76 | it gives exact decimal digits at a chosen precision, as `Decimal` does in C# and Python; "big number" suggests large whole numbers | decided |
+| `StringBuffer` | `StringBuilder` | 21 | C#, Java, and Kotlin's name for the same thing | decided |
+| `RexPattern` | `Regex` | 73 | | decided |
+| `AnonFuncPtr` | `Function` | 5 | the class of a function value | decided |
+| `DynamicFunc` | `CompiledCode` | 18 | code compiled while the game runs | decided |
+| `GrammarProd` | `GrammarRule` | 39 | matches the guide's word, and `verb` declarations | decided |
+| `IntrinsicClass` | `BuiltinClass` | 8 | | decided |
+| `IntrinsicClassModifier` | `BuiltinClassModifier` | few | | decided |
+| `StackFrameDesc`, `StackFrameRef` | `StackFrame`, `StackFrameRef` | few | | decided |
 | `Vector` | keep | | a growable list; the name is standard (C++, Rust) | keep |
-| `List`, `String`, `Object`, `Collection`, `Iterator`, `Date`, `TimeZone`, `File`, `FileName`, `TemporaryFile`, `ByteArray`, `BigNumber`, `CharacterSet`, `Dictionary`, `ProgramObject` | keep | | already plain | keep |
-
-`BigNumber` could be `Decimal` (C#, Python), which says what it is: a number with exact decimal digits. Open.
+| `List`, `String`, `Object`, `Collection`, `Iterator`, `Date`, `TimeZone`, `File`, `FileName`, `TemporaryFile`, `ByteArray`, `CharacterSet`, `Dictionary`, `ProgramObject` | keep | | already plain | keep |
 
 ## 3. Built-in functions
 
@@ -67,26 +69,26 @@ Functions of `hexicon-gen` and `hexicon-io`, and methods of the built-in classes
 
 | Now | Proposed | Uses | Notes | Status |
 |---|---|---|---|---|
-| `dataType(x)` | `typeOf(x)` | 195 | and `TypeSString`/`TypeDString`/`TypeFuncPtr`/`TypeBifPtr` become `TypeString`/`TypePrintString`/`TypeFunction`/`TypeBuiltin` | proposed |
-| `firstObj`, `nextObj` | keep for now; add an `objects(cls)` loop later | 88 each | a new form is a language change, not a rename | open |
-| `rexMatch`, `rexSearch`, `rexSearchLast`, `rexGroup`, `rexReplace` | `regexMatch`, `regexSearch`, `regexSearchLast`, `regexGroup`, `regexReplace` | 320 | | proposed |
+| `dataType(x)` | `typeOf(x)` | 195 | and `TypeSString`/`TypeDString`/`TypeFuncPtr`/`TypeBifPtr` become `TypeString`/`TypePrintString`/`TypeFunction`/`TypeBuiltin` | decided |
+| `firstObj`, `nextObj` | keep for now | 88 each | an `objects(cls)` loop may come later, as a language change rather than a rename | keep |
+| `rexMatch`, `rexSearch`, `rexSearchLast`, `rexGroup`, `rexReplace` | `regexMatch`, `regexSearch`, `regexSearchLast`, `regexGroup`, `regexReplace` | 320 | | decided |
 | `toString`, `toInteger`, `toNumber` | keep | | | keep |
-| `makeString`, `makeList` | `repeatString`, `repeatList` | few | they repeat a value | proposed |
-| `sgn` | `sign` | few | | proposed |
+| `makeString`, `makeList` | `repeatString`, `repeatList` | few | they repeat a value | decided |
+| `sgn` | `sign` | few | | decided |
 | `getTime` | keep | | | keep |
 | `savepoint`, `undo` | keep | | | keep |
-| `getFuncParams` | `functionParams` | few | | proposed |
-| `ofKind` | keep, or `isA` | 368 | `ofKind` is clear in an IF sentence (`obj.ofKind(Door)`); `isA` is shorter | open |
-| `propDefined`, `propType`, `getPropList`, `getPropParams`, `propInherited` | `hasProp`, `propType`, `propList`, `propParams`, `propInherited` | 110 | | proposed |
-| `getSuperclassList`, `setSuperclassList` | `superclasses`, `setSuperclasses` | few | | proposed |
+| `getFuncParams` | `functionParams` | few | | decided |
+| `ofKind` | keep | 368 | `obj.ofKind(Door)` reads as a sentence, and in Hexad an `is` name is a true-or-false property (`isOpen`), which `isA` would look like | keep |
+| `propDefined`, `propType`, `getPropList`, `getPropParams`, `propInherited` | `hasProp`, `propType`, `propList`, `propParams`, `propInherited` | 110 | | decided |
+| `getSuperclassList`, `setSuperclassList` | `superclasses`, `setSuperclasses` | few | | decided |
 | `createInstance`, `createClone`, `createTransientInstance` | keep | | `new X` is the usual way; these are for code that builds objects by class | keep |
-| `getNext`, `isNextAvailable`, `resetIterator`, `getCurKey`, `getCurVal` | `next`, `hasNext`, `reset`, `key`, `value` | few | | proposed |
-| `htmlify` | `escapeHtml` | 15 | | proposed |
-| `specialsToHtml`, `specialsToText` | keep | | | open |
+| `getNext`, `isNextAvailable`, `resetIterator`, `getCurKey`, `getCurVal` | `next`, `hasNext`, `reset`, `key`, `value` | few | | decided |
+| `htmlify` | `escapeHtml` | 15 | | decided |
+| `specialsToHtml`, `specialsToText` | keep | | | keep |
 | `inputLine`, `inputKey`, `inputEvent` | keep | | | keep |
-| `banner*` (16 functions) | `window*` | 69 | they make and change the extra windows of the display; "banner" is a term of art | open |
-| `morePrompt` | `pausePrompt` | few | | proposed |
-| `get` and `getX` generally | drop `get` where nothing is set | | the rule behind several rows above | proposed |
+| `banner*` (16 functions) | `pane*` | 69 | they split the display into panes, such as the status line; "window" would clash with the browser's window | decided |
+| `morePrompt` | `pausePrompt` | few | | decided |
+| `get` and `getX` generally | drop `get` where what follows is a noun (`getArg` becomes `arg`, `getLocalCharSet` becomes `localCharSet`); a setter keeps `set` | | for every built-in; Hexad's own `get` methods are decided with Hexad | decided |
 
 ## 4. The language's own words
 
@@ -94,9 +96,9 @@ These change how every source looks, so each is its own decision. The counts are
 
 | Now | Possible | Uses | Notes | Status |
 |---|---|---|---|---|
-| `nil` | `null` | 4,340 | the largest change on this page. `nil` is also Ruby's, Lua's, Go's, and Swift's, so it is not unfamiliar; it means both "no value" and false, which `null` does not say | open, leaning keep |
-| `local` | `var` or `let` | 3,197 | `local` is Lua's word too and reads plainly | open, leaning keep |
-| `intrinsic` | `builtin` or `native` | 316 | only the system library's headers write it | proposed: `builtin` |
+| `nil` | keep | 4,340 | `nil` means both "no value" and false (`isOpen = nil`); `null` would say unknown rather than false, and need a separate `false`, a change of meaning and not of spelling. Ruby, Lua, Go, and Swift have `nil` too | keep |
+| `local` | keep | 3,197 | plain English, and Lua's word too | keep |
+| `intrinsic` | `builtin` | 316 | only the system library's headers write it | decided |
 | `propertyset` | keep | 45 | Hexad writes it once; handlers (`dobj Take { }`) replaced its common use | keep |
 | `targetprop`, `targetobj`, `definingobj`, `argcount` | keep | 33 | rare, and they say what they are | keep |
 | `inherited`, `delegated` | keep | 607 | plain English | keep |
@@ -116,8 +118,8 @@ Hexad's vocabulary is adv3Lite's, and it is what authors write most. Its words a
 | `Doer` | 69 | a rule that replaces or redirects a command; `Rule` or `CommandRule`? |
 | `verify`, `check`, `action`, `report` | | the four stages; plain already, but `verify` is unusual |
 
-## Open questions
+## Decided
 
-1. `nil` and `local`: keep, as leaning above, or change with the rest?
-2. `BigNumber` or `Decimal`; `banner` or `window`; `ofKind` or `isA`.
-3. Whether section 3's `get` rule is applied generally, or only to the names listed.
+1. `nil` and `local` stay (2026-11-24).
+2. `BigNumber` becomes `Decimal`, the `banner` functions become `pane` functions, and `ofKind` stays.
+3. The `get` rule applies to every built-in function and method. Hexad's own methods wait for Hexad's design.

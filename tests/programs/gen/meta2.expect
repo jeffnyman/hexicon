@@ -1,12 +1,12 @@
 image: none
 --- messages
-error: intrinsic class superclass "Collection" is not defined
+error: the superclass "Collection" is not defined
   --> meta2.hxn:1
   |
 1 | intrinsic class Vector 'vector/030005': Collection
   |
 
-error: intrinsic class superclass "Object" is not defined
+error: the superclass "Object" is not defined
   --> meta2.hxn:6
   |
 6 | intrinsic class String 'string/030008': Object

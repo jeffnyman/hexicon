@@ -60,7 +60,7 @@ error: expected property name in object definition, but found "local"
 10 |     local g = defined(1), h = defined(), i = defined(a, b);
    |
 
-error: invalid syntax for defined() operator - argument must be a symbol name
+error: invalid syntax for defined() operator - argument must be a name
   --> e_inl1.hxn:10
    |
 10 |     local g = defined(1), h = defined(), i = defined(a, b);

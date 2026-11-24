@@ -30,43 +30,43 @@ error: propertyset pattern string "''" is invalid
 6 |   propertyset '' { z0 = 1 }
   |
 
-error: missing right parenthesis ')' at end of formal parameter list - found "{"
+error: missing right parenthesis ')' at end of parameter list - found "{"
   --> e_propset1.hxn:7
   |
 7 |   propertyset 'a*' ( { }
   |
 
-error: invalid formal parameters in propertyset definition
+error: invalid parameters in propertyset definition
   --> e_propset1.hxn:7
   |
 7 |   propertyset 'a*' ( { }
   |
 
-error: expected a comma in formal parameter list, but found "y"
+error: expected a comma in parameter list, but found "y"
   --> e_propset1.hxn:8
   |
 8 |   propertyset 'b*' (x y, , *) { }
   |
 
-error: expected a symbol in formal parameter list, but found ","
+error: expected a name in parameter list, but found ","
   --> e_propset1.hxn:8
   |
 8 |   propertyset 'b*' (x y, , *) { }
   |
 
-error: missing parameter name at end of formal parameter list
+error: missing parameter name at end of parameter list
   --> e_propset1.hxn:9
   |
 9 |   propertyset 'c*' (x,) { }
   |
 
-error: invalid formal parameters in propertyset definition
+error: invalid parameters in propertyset definition
   --> e_propset1.hxn:9
   |
 9 |   propertyset 'c*' (x,) { }
   |
 
-error: invalid formal parameters in propertyset definition
+error: invalid parameters in propertyset definition
   --> e_propset1.hxn:10
    |
 10 |   propertyset 'd*' (*, *) { }

@@ -6,7 +6,7 @@ error: expected an operand, but found ";"
 47 | a: object p = static ;
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "static"
+error: expected integer, string, name, '[', or '(', but found "static"
   --> e_static1.hxn:48
    |
 48 | b: object p = static static 1;
@@ -30,7 +30,7 @@ error: expected '{' at start of method code body, but found "static"
 57 | d: object p(x) = static 1;
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "static"
+error: expected integer, string, name, '[', or '(', but found "static"
   --> e_static1.hxn:57
    |
 57 | d: object p(x) = static 1;

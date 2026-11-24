@@ -455,7 +455,7 @@ impl Vm {
     /// is not implemented yet.
     pub(crate) fn unimplemented_object(&self, id: ObjId, what: &str) -> VmError {
         let class = self.kind_of(id).map_or("unknown", |kind| kind.name());
-        VmError::unimplemented(format!("{what} for intrinsic class {class}"))
+        VmError::unimplemented(format!("{what} for built-in class {class}"))
     }
 
     // ---- list-like values ----

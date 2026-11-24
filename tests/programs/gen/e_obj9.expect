@@ -1,10 +1,11 @@
 image: none
 --- messages
-error: invalid lvalue - cannot assign to expression on left of "="
+error: can't assign to the expression on the left of "="
   --> e_obj9.hxn:2
   |
 2 | _main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }
   |
+  = only a variable, a property, or an element of a list can be given a value
 
 error: this constant expression cannot be called as a function
   --> e_obj9.hxn:2
@@ -12,11 +13,12 @@ error: this constant expression cannot be called as a function
 2 | _main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }
   |
 
-error: invalid lvalue - cannot apply "++" operator to expression
+error: can't apply "++" to this expression
   --> e_obj9.hxn:2
   |
 2 | _main(args) { a = 1; a(); a++; return a[1] + a.x.(a) + a.(a.x); }
   |
+  = "++" changes what it is applied to, so it needs a variable, a property, or an element of a list
 
 error: invalid '.' expression - right side is not a property
   --> e_obj9.hxn:2

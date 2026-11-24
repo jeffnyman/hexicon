@@ -1,5 +1,5 @@
 image: none
 --- messages
 error: duplicate export for external name "entry": "f" and "p"
-warning: undefined symbol "newProp" - assuming this is a property name
+warning: undefined name "newProp" - assuming this is a property name
 --- output

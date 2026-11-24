@@ -724,7 +724,7 @@ impl Reader<'_, '_> {
                     let name = &inner[..close];
                     match self.look_up_pp_sym(name) {
                         Some(value) => expanded.push_str(&value),
-                        None => problems.push(format!("undefined symbol \"{name}\"")),
+                        None => problems.push(format!("undefined name \"{name}\"")),
                     }
                     rest = &inner[close + 1..];
                     continue;
@@ -751,7 +751,7 @@ impl Reader<'_, '_> {
         if self.look_up_pp_sym(macro_name).is_none() {
             let shown = &macro_name[..macro_name.len().min(128)];
             self.messages.push(format!(
-                "{place}: library requires preprocessor symbol \"{shown}\" to be \
+                "{place}: library requires the macro \"{shown}\" to be \
                  defined; use -D {shown}=value to define it ({why})"
             ));
         }

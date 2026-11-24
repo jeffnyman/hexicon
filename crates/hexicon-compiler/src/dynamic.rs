@@ -230,7 +230,7 @@ pub fn compile_grammar(source: &[u8], context: &DynContext) -> Result<Vec<DynGra
         .map_or(0, |dynamic| dynamic.known_props);
     for prop in &prog.props[known..] {
         messages.push(format!(
-            "error: undefined symbol \"{}\"",
+            "error: undefined name \"{}\"",
             crate::pp::show_name(&prop.name)
         ));
     }
@@ -413,7 +413,7 @@ pub fn compile_dynamic(
         .map_or(0, |dynamic| dynamic.known_props);
     for prop in &prog.props[known..] {
         messages.push(format!(
-            "error: undefined symbol \"{}\"",
+            "error: undefined name \"{}\"",
             crate::pp::show_name(&prop.name)
         ));
     }

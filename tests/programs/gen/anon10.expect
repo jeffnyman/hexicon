@@ -6,7 +6,7 @@ error: expected ';' or expression after "return", but found "{"
 4 | f4(p1) { local x = 1; if (p1) { local y = 2; return {: x + y + p1 }; } return {: x }; }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon10.hxn:4
   |
 4 | f4(p1) { local x = 1; if (p1) { local y = 2; return {: x + y + p1 }; } return {: x }; }
@@ -24,7 +24,7 @@ error: expected ';' or expression after "return", but found "{"
 5 | f5() { local zz = 1, yy = 2, ab = 3, ba = 4, abc = 5, cab = 6; return {: zz + yy + ab + ba + abc + cab }; }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon10.hxn:5
   |
 5 | f5() { local zz = 1, yy = 2, ab = 3, ba = 4, abc = 5, cab = 6; return {: zz + yy + ab + ba + abc + cab }; }
@@ -42,7 +42,7 @@ error: expected ';' or expression after "return", but found "{"
 6 | f6() { local zz = 1, yy = 2, ab = 3, ba = 4, abc = 5, cab = 6; return {: {: cab + abc + ba + ab + yy + zz } }; }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon10.hxn:6
   |
 6 | f6() { local zz = 1, yy = 2, ab = 3, ba = 4, abc = 5, cab = 6; return {: {: cab + abc + ba + ab + yy + zz } }; }
@@ -73,7 +73,7 @@ error: expected ';' or expression after "return", but found "{"
 7 | f7() { local a = 1; local f = {: a }; local b = 2; local g = {: b }; local c = 3; return {: a + b + c + f() + g() }; }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon10.hxn:7
   |
 7 | f7() { local a = 1; local f = {: a }; local b = 2; local g = {: b }; local c = 3; return {: a + b + c + f() + g() }; }
@@ -91,7 +91,7 @@ error: expected ';' or expression after "return", but found "{"
 10 | f10() { local a = 1; return {: {: 1 } }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon10.hxn:10
    |
 10 | f10() { local a = 1; return {: {: 1 } }; }
@@ -122,7 +122,7 @@ error: expected ';' or expression after "return", but found "{"
 11 | f11() { local a = 1; return {: {: a } }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon10.hxn:11
    |
 11 | f11() { local a = 1; return {: {: a } }; }
@@ -201,7 +201,7 @@ error: expected ';' or expression after "return", but found "{"
 18 | f18(a) { local f = {: a }; local g = {: f }; return {: g }; }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon10.hxn:18
    |
 18 | f18(a) { local f = {: a }; local g = {: f }; return {: g }; }

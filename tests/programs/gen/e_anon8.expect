@@ -6,7 +6,7 @@ error: expected ';' or expression after "return", but found "{"
 2 |     m() { return function() { return {: ; }; }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> e_anon8.hxn:2
   |
 2 |     m() { return function() { return {: ; }; }
@@ -30,7 +30,7 @@ error: expected ';', but found "{"
 5 | _main(args) { return a.m() + function(; }
   |
 
-error: missing right parenthesis ')' at end of formal parameter list - found ";"
+error: missing right parenthesis ')' at end of parameter list - found ";"
   --> e_anon8.hxn:5
   |
 5 | _main(args) { return a.m() + function(; }

@@ -1,6 +1,6 @@
 image: none
 --- messages
-error: missing right parenthesis ')' at end of formal parameter list - found "{"
+error: missing right parenthesis ')' at end of parameter list - found "{"
   --> e_formal3.hxn:1
   |
 1 | f(a { } _main(args) { }

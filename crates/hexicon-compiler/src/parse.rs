@@ -1701,7 +1701,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         let tab = self.local_symtab.expect("a scope's own table");
         if self.find_direct(tab, name).is_some() {
             let what = if is_param {
-                "formal parameter"
+                "parameter"
             } else {
                 "local variable"
             };
@@ -2043,7 +2043,9 @@ impl<'p, 'a> Parser<'p, 'a> {
             match self.prog.globals.peek(&name).copied() {
                 Some(Global::Obj(obj)) => class_sym = Some(obj),
                 Some(_) => {
-                    self.error_curtok("symbol \"%\" is already defined - can't redefine as object");
+                    self.error_curtok(
+                        "the name \"%\" is already defined - can't redefine as object",
+                    );
                 }
                 None => {
                     // A class there has been no word of yet.
@@ -2216,7 +2218,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 match prop {
                     None => {
                         self.error(format!(
-                            "symbol \"{}\" in object template is not a property",
+                            "the name \"{}\" in object template is not a property",
                             Self::name(&prop_name)
                         ));
                         None
@@ -2659,9 +2661,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             }
         };
         if self.next() != Tok::Sym {
-            self.error_curtok(
-                "expected object name symbol in \"extern\" statement but found \"%\"",
-            );
+            self.error_curtok("expected object name in \"extern\" statement but found \"%\"");
             return self.skip_to_sem();
         }
         let name = self.cur_text();
@@ -2705,7 +2705,7 @@ impl<'p, 'a> Parser<'p, 'a> {
     fn parse_extern_function(&mut self) -> Parsed<()> {
         const NO_BODY: &str = "code body is not allowed in an \"extern function\" declaration";
         if self.next() != Tok::Sym {
-            self.error_curtok("expected symbol after 'function', but found \"%\"");
+            self.error_curtok("expected a name after 'function', but found \"%\"");
             return Ok(());
         }
         let name = self.cur_text();
@@ -2785,7 +2785,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     sym_line,
                     Severity::Error,
                     format!(
-                        "symbol \"{}\" is already defined - can't redefine as function",
+                        "the name \"{}\" is already defined - can't redefine as function",
                         Self::name(&name)
                     ),
                 );
@@ -2854,7 +2854,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 sym_line,
                 Severity::Error,
                 format!(
-                    "symbol \"{}\" is already defined - can't redefine as function",
+                    "the name \"{}\" is already defined - can't redefine as function",
                     Self::name(name)
                 ),
             ),
@@ -3056,7 +3056,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             self.next();
         }
         if self.cur() != Tok::Sym {
-            self.error_curtok("expected symbol after 'function', but found \"%\"");
+            self.error_curtok("expected a name after 'function', but found \"%\"");
             return Ok(());
         }
         let name = self.cur_text();
@@ -3124,7 +3124,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                     sym_line,
                     Severity::Error,
                     format!(
-                        "symbol \"{}\" is already defined - can't redefine as function",
+                        "the name \"{}\" is already defined - can't redefine as function",
                         Self::name(&name)
                     ),
                 );
@@ -3397,7 +3397,7 @@ impl Parser<'_, '_> {
         if self.cur() == Tok::LBrace {
             self.next();
         } else {
-            self.error_curtok("expected '{' after intrinsic name, but found \"%\"");
+            self.error_curtok("expected '{' after the function set's name, but found \"%\"");
         }
         let mut index = 0;
         loop {
@@ -3419,7 +3419,7 @@ impl Parser<'_, '_> {
                         self.next();
                     } else {
                         self.error_curtok(
-                            "expected '(' after function name in intrinsic list, but found \"%\"",
+                            "expected '(' after function name in the function set, but found \"%\"",
                         );
                     }
                     // Only the number of parameters matters.
@@ -3443,7 +3443,9 @@ impl Parser<'_, '_> {
                     index += 1;
                 }
                 _ => {
-                    self.error_curtok("expected function name in intrinsic list, but found \"%\"");
+                    self.error_curtok(
+                        "expected function name in the function set, but found \"%\"",
+                    );
                     self.next();
                 }
             }
@@ -3739,9 +3741,7 @@ impl Parser<'_, '_> {
                     self.next();
                 }
             } else {
-                self.error_curtok(
-                    "expected symbol name in local variable declaration, but found \"%\"",
-                );
+                self.error_curtok("expected a name in local variable declaration, but found \"%\"");
             }
         }
         if expr.is_none() || self.cur() != Tok::RBrace {
@@ -3940,7 +3940,7 @@ impl Parser<'_, '_> {
         } else {
             (
                 Tok::RPar,
-                "missing right parenthesis ')' at end of formal parameter list - found \"%\"",
+                "missing right parenthesis ')' at end of parameter list - found \"%\"",
             )
         };
         // Only the list this was set for can have types: the lists of
@@ -4161,12 +4161,12 @@ impl Parser<'_, '_> {
                             self.next();
                         }
                         Tok::Sem | Tok::RBrace | Tok::LBrace | Tok::Eq | Tok::Eof => {}
-                        Tok::Sym => self.error_curtok(
-                            "expected a comma in formal parameter list, but found \"%\"",
-                        ),
+                        Tok::Sym => {
+                            self.error_curtok("expected a comma in parameter list, but found \"%\"")
+                        }
                         _ => {
                             self.error_curtok(
-                                "expected a comma in formal parameter list, but found \"%\"",
+                                "expected a comma in parameter list, but found \"%\"",
                             );
                             self.next();
                         }
@@ -4177,7 +4177,7 @@ impl Parser<'_, '_> {
                     done = true;
                 }
                 tok if tok == end_tok => {
-                    self.error("missing parameter name at end of formal parameter list");
+                    self.error("missing parameter name at end of parameter list");
                     self.next();
                     done = true;
                 }
@@ -4188,9 +4188,7 @@ impl Parser<'_, '_> {
                     done = true;
                 }
                 _ => {
-                    self.error_curtok(
-                        "expected a symbol in formal parameter list, but found \"%\"",
-                    );
+                    self.error_curtok("expected a name in parameter list, but found \"%\"");
                     self.next();
                 }
             }
@@ -4221,7 +4219,7 @@ impl Parser<'_, '_> {
         }
         if self.cur() == Tok::Comma {
             self.next();
-            self.error("'...' cannot be followed by additional formal parameters");
+            self.error("'...' cannot be followed by additional parameters");
             false
         } else {
             self.error_curtok(missing_rpar);
@@ -4493,9 +4491,7 @@ impl Parser<'_, '_> {
                     break;
                 }
             } else {
-                self.error_curtok(
-                    "expected symbol name in local variable declaration, but found \"%\"",
-                );
+                self.error_curtok("expected a name in local variable declaration, but found \"%\"");
                 match self.cur() {
                     Tok::Sem => {
                         self.next();
@@ -4631,7 +4627,7 @@ impl Parser<'_, '_> {
                         }
                     } else {
                         self.error_curtok(
-                            "expected symbol name in local variable declaration, but found \"%\"",
+                            "expected a name in local variable declaration, but found \"%\"",
                         );
                     }
                 }
@@ -4849,7 +4845,7 @@ impl Parser<'_, '_> {
                     self.add_local(&name);
                 } else {
                     self.error_curtok(
-                        "expected symbol name in local variable declaration, but found \"%\"",
+                        "expected a name in local variable declaration, but found \"%\"",
                     );
                 }
             }
@@ -5329,7 +5325,7 @@ impl Parser<'_, '_> {
         };
         if !lhs.check_lvalue() {
             self.error(format!(
-                "invalid lvalue - cannot assign to expression on left of \"{}\"",
+                "can't assign to the expression on the left of \"{}\"",
                 op.text()
             ));
         }
@@ -5573,10 +5569,7 @@ impl Parser<'_, '_> {
 
     fn parse_inc_dec(&mut self, op: AsiOp, sub: Expr) -> Expr {
         if !sub.check_lvalue() {
-            self.error(format!(
-                "invalid lvalue - cannot apply \"{}\" operator to expression",
-                op.text()
-            ));
+            self.error(format!("can't apply \"{}\" to this expression", op.text()));
         }
         Expr::IncDec(op, Box::new(sub))
     }
@@ -5813,9 +5806,7 @@ impl Parser<'_, '_> {
                     value.ctc = true;
                     return Some(Expr::Const(value));
                 }
-                _ => self.error(
-                    "invalid syntax for defined() operator - argument must be a symbol name",
-                ),
+                _ => self.error("invalid syntax for defined() operator - argument must be a name"),
             }
         }
         // `__objref(name)` is the object, if the name is one's, and nil
@@ -5846,10 +5837,10 @@ impl Parser<'_, '_> {
                     }
                     if handling != 0 && !self.syntax_only {
                         let message = if global.is_none() {
-                            format!("undefined symbol \"{}\"", Self::name(name))
+                            format!("undefined name \"{}\"", Self::name(name))
                         } else {
                             format!(
-                                "symbol \"{}\" is not an object - illegal on left of '.'",
+                                "the name \"{}\" is not an object - illegal on left of '.'",
                                 Self::name(name)
                             )
                         };
@@ -6000,7 +5991,7 @@ impl Parser<'_, '_> {
                 Tok::Object => return self.parse_inline_object(false),
                 _ => {
                     self.error_curtok(
-                        "expected integer, string, symbol, '[', or '(', but found \"%\"",
+                        "expected integer, string, name, '[', or '(', but found \"%\"",
                     );
                     self.next();
                     Value::Int(self.tok.cur_token().int_val as i32)
@@ -6032,15 +6023,13 @@ impl Parser<'_, '_> {
                     name = Some(text);
                 }
                 Some(_) => self.error_curtok(
-                    "symbol \"%\" is already defined - can't redefine as intrinsic class",
+                    "the name \"%\" is already defined - can't redefine as built-in class",
                 ),
                 None => name = Some(text),
             }
             self.next();
         } else {
-            self.error_curtok(
-                "expected class name symbol after \"intrinsic class\", but found \"%\"",
-            );
+            self.error_curtok("expected class name after \"intrinsic class\", but found \"%\"");
         }
 
         if self.cur() == Tok::SStr {
@@ -6073,7 +6062,7 @@ impl Parser<'_, '_> {
                     if other != index {
                         let other = Self::name(&self.prog.metas[other].name);
                         self.error(format!(
-                            "intrinsic class has been previously defined as \"{other}\""
+                            "built-in class has been previously defined as \"{other}\""
                         ));
                     }
                 }
@@ -6082,28 +6071,23 @@ impl Parser<'_, '_> {
             }
             self.next();
         } else {
-            self.error_curtok(
-                "expected class name string after class name symbol, but found \"%\"",
-            );
+            self.error_curtok("expected class name string after class name, but found \"%\"");
         }
 
         if self.cur() == Tok::Colon {
             if self.next() != Tok::Sym {
-                self.error_curtok(
-                    "expected intrinsic superclass name after colon, but found \"%\"",
-                );
+                self.error_curtok("expected built-in superclass name after colon, but found \"%\"");
             } else {
                 match self.prog.globals.get(&self.cur_text()) {
                     None => {
-                        self.error_curtok("intrinsic class superclass \"%\" is not defined");
+                        self.error_curtok("the superclass \"%\" is not defined");
                     }
                     Some(Global::Meta(super_meta)) => {
                         if let Some(index) = sym {
                             self.prog.metas[index].super_meta = Some(*super_meta);
                         }
                     }
-                    Some(_) => self
-                        .error_curtok("intrinsic class superclass \"%\" is not an intrinsic class"),
+                    Some(_) => self.error_curtok("the superclass \"%\" is not a built-in class"),
                 }
                 self.next();
             }
@@ -6111,10 +6095,10 @@ impl Parser<'_, '_> {
         if self.cur() == Tok::LBrace {
             self.next();
         } else {
-            self.error_curtok("expected '{' after intrinsic class name, but found \"%\"");
+            self.error_curtok("expected '{' after built-in class name, but found \"%\"");
         }
 
-        const NEED_PROP: &str = "expected property name in intrinsic class list, but found \"%\"";
+        const NEED_PROP: &str = "expected property name in built-in class list, but found \"%\"";
         loop {
             match self.cur() {
                 Tok::RBrace => {
@@ -6139,7 +6123,7 @@ impl Parser<'_, '_> {
                             Some(Global::Prop(prop)) => Some(*prop),
                             Some(_) => {
                                 self.error_curtok(
-                                    "symbol \"%\" is already defined - can't redefine as property",
+                                    "the name \"%\" is already defined - can't redefine as property",
                                 );
                                 None
                             }
@@ -6175,7 +6159,7 @@ impl Parser<'_, '_> {
     /// any other. `enum token` makes them kinds of token as well.
     fn parse_enum(&mut self) {
         const NEED_SEM: &str = "expected ';', but found \"%\"";
-        const NEED_SYM: &str = "symbol expected in 'enum' list - found \"%\"";
+        const NEED_SYM: &str = "name expected in 'enum' list - found \"%\"";
         let mut is_token = false;
         self.next();
         if self.cur_is_sym(b"token") {
@@ -6193,7 +6177,7 @@ impl Parser<'_, '_> {
                             }
                         }
                         Some(_) => self.error_curtok(
-                            "symbol \"%\" is already defined - can't be used as an enum name",
+                            "the name \"%\" is already defined - can't be used as an enum name",
                         ),
                         None => {
                             self.prog
@@ -6215,9 +6199,7 @@ impl Parser<'_, '_> {
                             return;
                         }
                         _ => {
-                            self.error_curtok(
-                                "comma expected in 'enum' symbol list, but found \"%\"",
-                            );
+                            self.error_curtok("comma expected in 'enum' list, but found \"%\"");
                             self.next();
                         }
                     }
@@ -6300,7 +6282,7 @@ impl Parser<'_, '_> {
     /// property, object, or function the virtual machine is to know
     /// by name.
     fn parse_export(&mut self) {
-        const NEED_SYM: &str = "expected symbol in 'export' statement, but found \"%\"";
+        const NEED_SYM: &str = "expected a name in 'export' statement, but found \"%\"";
         match self.next() {
             Tok::Sym => {
                 let name = self.cur_text();
@@ -6735,7 +6717,7 @@ impl Parser<'_, '_> {
             Some(Global::Prop(prop)) => Some(*prop),
             Some(_) => {
                 self.error(format!(
-                    "symbol \"{}\" is already defined - can't redefine as property",
+                    "the name \"{}\" is already defined - can't redefine as property",
                     Self::name(name)
                 ));
                 None
@@ -6928,7 +6910,7 @@ impl Parser<'_, '_> {
                 None
             }
             Some(_) => {
-                self.error_curtok("symbol \"%\" is already defined - can't redefine as object");
+                self.error_curtok("the name \"%\" is already defined - can't redefine as object");
                 None
             }
             None => {
@@ -6990,7 +6972,7 @@ impl Parser<'_, '_> {
         // A rule compiled while the program runs can only name the
         // productions the program has.
         if self.prog.dynamic.is_some() {
-            self.error(format!("undefined symbol \"{}\"", show_name(name)));
+            self.error(format!("undefined name \"{}\"", show_name(name)));
             return None;
         }
         let obj = match self.prog.globals.get(name).copied() {
@@ -7024,14 +7006,14 @@ impl Parser<'_, '_> {
             }
             Some(Global::Obj(_)) => {
                 self.error(format!(
-                    "redefining symbol \"{}\" as grammar production object",
+                    "redefining \"{}\" as grammar production object",
                     Self::name(name)
                 ));
                 return None;
             }
             Some(_) => {
                 self.error(format!(
-                    "symbol \"{}\" is already defined - can't redefine as object",
+                    "the name \"{}\" is already defined - can't redefine as object",
                     Self::name(name)
                 ));
                 return None;
@@ -7353,7 +7335,7 @@ impl Parser<'_, '_> {
                         }
                         Some(_) => {
                             self.error_curtok(
-                                "object or property symbol required in 'grammar' token list \
+                                "object or property name required in 'grammar' token list \
                                  (found \"%\")",
                             );
                             None
@@ -7605,11 +7587,11 @@ impl Parser<'_, '_> {
                     // The reference reports these and then stops with
                     // a memory fault.
                     Some(Global::Obj(_)) => {
-                        self.error_curtok("redefining symbol \"%\" as dictionary object");
+                        self.error_curtok("redefining \"%\" as dictionary object");
                     }
                     Some(_) => {
                         self.error_curtok(
-                            "symbol \"%\" is already defined - can't redefine as object",
+                            "the name \"%\" is already defined - can't redefine as object",
                         );
                     }
                 }
@@ -7701,7 +7683,7 @@ impl Parser<'_, '_> {
                 self.plus_prop = self.look_up_prop(&name);
                 self.next();
             } else {
-                self.error_curtok("symbol expected after '+ property', but found \"%\" instead");
+                self.error_curtok("name expected after '+ property', but found \"%\" instead");
                 if self.cur() != Tok::Sem {
                     self.next();
                 }
@@ -8552,14 +8534,14 @@ impl Parser<'_, '_> {
                 match self.cur() {
                     Tok::LBrace | Tok::RBrace | Tok::Sem => {
                         self.error_curtok(
-                            "missing right parenthesis ')' at end of formal parameter list - \
+                            "missing right parenthesis ')' at end of parameter list - \
                              found \"%\"",
                         );
                         break;
                     }
                     Tok::RPar => {
                         if state == 2 {
-                            self.error("missing parameter name at end of formal parameter list");
+                            self.error("missing parameter name at end of parameter list");
                         }
                         self.next();
                         break;
@@ -8567,7 +8549,7 @@ impl Parser<'_, '_> {
                     Tok::Sym | Tok::Times => {
                         if state == 1 {
                             self.error_curtok(
-                                "expected a comma in formal parameter list, but found \"%\"",
+                                "expected a comma in parameter list, but found \"%\"",
                             );
                         }
                         state = 1;
@@ -8584,9 +8566,9 @@ impl Parser<'_, '_> {
                     }
                     _ => {
                         self.error_curtok(if state == 1 {
-                            "expected a comma in formal parameter list, but found \"%\""
+                            "expected a comma in parameter list, but found \"%\""
                         } else {
-                            "expected a symbol in formal parameter list, but found \"%\""
+                            "expected a name in parameter list, but found \"%\""
                         });
                         self.next();
                         // At the end of the source this goes round for
@@ -8599,7 +8581,7 @@ impl Parser<'_, '_> {
                 }
             }
             if stars != 1 {
-                self.error("invalid formal parameters in propertyset definition");
+                self.error("invalid parameters in propertyset definition");
             }
         }
         if self.cur() == Tok::LBrace {
@@ -9060,7 +9042,7 @@ impl Parser<'_, '_> {
                 let (native, super_meta) = (meta.props.contains(&prop), meta.super_meta);
                 if native {
                     self.error(format!(
-                        "intrinsic class property \"{}\" cannot be modified",
+                        "built-in class property \"{}\" cannot be modified",
                         Self::name(name)
                     ));
                 }

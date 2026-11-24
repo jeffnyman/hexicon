@@ -74,7 +74,7 @@ error: expected superclass name in object definition, but found "+"
 8 | + property loc, loc2;
   |
 
-error: expected integer, string, symbol, '[', or '(', but found "property"
+error: expected integer, string, name, '[', or '(', but found "property"
   --> e_plus2.hxn:8
   |
 8 | + property loc, loc2;

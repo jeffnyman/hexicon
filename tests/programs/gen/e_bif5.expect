@@ -1,12 +1,12 @@
 image: none
 --- messages
-error: expected '(' after function name in intrinsic list, but found ";"
+error: expected '(' after function name in the function set, but found ";"
   --> e_bif5.hxn:1
   |
 1 | intrinsic 'x' { f; g() 1; } _main(args) { }
   |
 
-error: missing right parenthesis ')' at end of formal parameter list - found ";"
+error: missing right parenthesis ')' at end of parameter list - found ";"
   --> e_bif5.hxn:1
   |
 1 | intrinsic 'x' { f; g() 1; } _main(args) { }
@@ -18,7 +18,7 @@ error: expected ';', but found "1"
 1 | intrinsic 'x' { f; g() 1; } _main(args) { }
   |
 
-error: expected function name in intrinsic list, but found "1"
+error: expected function name in the function set, but found "1"
   --> e_bif5.hxn:1
   |
 1 | intrinsic 'x' { f; g() 1; } _main(args) { }

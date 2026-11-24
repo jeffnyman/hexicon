@@ -36,7 +36,7 @@ error: expected comma in 'property' list, but found "export"
 4 | export;
   |
 
-error: expected symbol in 'export' statement, but found "1"
+error: expected a name in 'export' statement, but found "1"
   --> e_export1.hxn:5
   |
 5 | export 1;

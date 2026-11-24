@@ -1,4 +1,4 @@
 image: none
 --- messages
-error: symbol "f" (type: function) redefined in source file "b.hxn"
+error: the name "f" (type: function) redefined in source file "b.hxn"
 --- output

@@ -1,6 +1,6 @@
 image: none
 --- messages
-error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+error: expected integer, string, name, '[', or '(', but found "<End Of File>"
   --> e_param3.hxn:5
 
 error: expected ']' at end of subscript, but found "<End Of File>"

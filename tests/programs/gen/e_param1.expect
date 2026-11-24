@@ -6,19 +6,19 @@ error: parameter 'b' must be optional because it follows an optional parameter
 46 | f(a?, b) { }
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ","
+error: expected integer, string, name, '[', or '(', but found ","
   --> e_param1.hxn:47
    |
 47 | k(c = , d) { }
    |
 
-error: expected a comma in formal parameter list, but found ":"
+error: expected a comma in parameter list, but found ":"
   --> e_param1.hxn:48
    |
 48 | n(e?: , g) { }
    |
 
-error: expected a symbol in formal parameter list, but found ","
+error: expected a name in parameter list, but found ","
   --> e_param1.hxn:48
    |
 48 | n(e?: , g) { }
@@ -30,7 +30,7 @@ error: parameter 'g' must be optional because it follows an optional parameter
 48 | n(e?: , g) { }
    |
 
-error: expected a comma in formal parameter list, but found "j"
+error: expected a comma in parameter list, but found "j"
   --> e_param1.hxn:49
    |
 49 | h(i = 3 j) { }
@@ -60,19 +60,19 @@ error: expected an operand, but found "}"
 50 | h2(k2: = ) { }
    |
 
-error: expected a comma in formal parameter list, but found "h3"
+error: expected a comma in parameter list, but found "h3"
   --> e_param1.hxn:51
    |
 51 | h3(l3 ? m3) { }
    |
 
-error: expected a comma in formal parameter list, but found "("
+error: expected a comma in parameter list, but found "("
   --> e_param1.hxn:51
    |
 51 | h3(l3 ? m3) { }
    |
 
-error: expected a comma in formal parameter list, but found "m3"
+error: expected a comma in parameter list, but found "m3"
   --> e_param1.hxn:51
    |
 51 | h3(l3 ? m3) { }
@@ -114,7 +114,7 @@ error: expected ')' but found "::"
 53 | h5(o5:: p5) { }
    |
 
-error: expected a comma in formal parameter list, but found "::"
+error: expected a comma in parameter list, but found "::"
   --> e_param1.hxn:53
    |
 53 | h5(o5:: p5) { }
@@ -156,25 +156,25 @@ error: a pass-by-name argument value cannot use an ellipsis '...'
 62 |     print(1, a: [1,2]...);
    |
 
-error: expected a comma in formal parameter list, but found "::"
+error: expected a comma in parameter list, but found "::"
   --> e_param1.hxn:65
    |
 65 |     local y = {a: , b:: a + b};
    |
 
-error: formal parameter "a" defined more than once
+error: parameter "a" defined more than once
   --> e_param1.hxn:65
    |
 65 |     local y = {a: , b:: a + b};
    |
 
-error: expected a comma in formal parameter list, but found "+"
+error: expected a comma in parameter list, but found "+"
   --> e_param1.hxn:65
    |
 65 |     local y = {a: , b:: a + b};
    |
 
-error: formal parameter "b" defined more than once
+error: parameter "b" defined more than once
   --> e_param1.hxn:65
    |
 65 |     local y = {a: , b:: a + b};
@@ -192,7 +192,7 @@ error: expected an operand, but found "}"
 65 |     local y = {a: , b:: a + b};
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "?"
+error: expected integer, string, name, '[', or '(', but found "?"
   --> e_param1.hxn:67
    |
 67 |     local w = {a:?, b: a};
@@ -216,7 +216,7 @@ error: expected ',' or ';' after local variable, but found ":"
 67 |     local w = {a:?, b: a};
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> e_param1.hxn:67
    |
 67 |     local w = {a:?, b: a};

@@ -300,7 +300,7 @@ pub(crate) fn resolve_exports(prog: &Program, generated: &mut Generated) -> Reso
             problems.push((
                 Severity::Warning,
                 format!(
-                    "undefined symbol \"{}\" - assuming this is a property name",
+                    "undefined name \"{}\" - assuming this is a property name",
                     show_name(sym)
                 ),
             ));
@@ -335,7 +335,7 @@ pub(crate) fn resolve_exports(prog: &Program, generated: &mut Generated) -> Reso
             Some(Global::Func(func)) => (datatype::FUNCPTR, 0, Some(*func)),
             Some(_) => {
                 errors.push(format!(
-                    "symbol \"{}\" is not a valid type for export",
+                    "the name \"{}\" is not a valid type for export",
                     show_name(sym)
                 ));
                 problems.extend(errors.drain(..).map(|message| (Severity::Error, message)));
@@ -1444,7 +1444,7 @@ impl Gen<'_> {
                     });
                     bad_sc = true;
                     self.error(format!(
-                        "undefined symbol \"{}\" (used as superclass of \"{obj_name}\")",
+                        "undefined name \"{}\" (used as superclass of \"{obj_name}\")",
                         show_name(name)
                     ));
                 }
@@ -3338,7 +3338,7 @@ impl Gen<'_> {
                 line: catch.line,
                 severity: Severity::Error,
                 message: format!(
-                    "exception class symbol \"{}\" in \"catch\" clause is not an object",
+                    "exception class \"{}\" in \"catch\" clause is not an object",
                     show_name(&catch.class)
                 ),
             });
@@ -4740,7 +4740,7 @@ impl Gen<'_> {
         self.log(
             Severity::Warning,
             format!(
-                "undefined symbol \"{}\" - assuming this is a property name",
+                "undefined name \"{}\" - assuming this is a property name",
                 show_name(name)
             ),
         );
@@ -4807,7 +4807,7 @@ impl Gen<'_> {
             None if self.undefined_names.contains(name) => {
                 if !check_only {
                     self.error(format!(
-                        "invalid '.' expression - symbol \"{}\" is not a property",
+                        "invalid '.' expression - the name \"{}\" is not a property",
                         show_name(name)
                     ));
                 }
@@ -4834,7 +4834,7 @@ impl Gen<'_> {
             _ => {
                 if !check_only {
                     self.error(format!(
-                        "invalid '.' expression - symbol \"{}\" is not a property",
+                        "invalid '.' expression - the name \"{}\" is not a property",
                         show_name(name)
                     ));
                 }
@@ -5072,7 +5072,7 @@ impl Gen<'_> {
                     }
                     Some(_) => {
                         self.error(format!(
-                            "symbol \"{}\" is not an object - illegal on left of '.'",
+                            "the name \"{}\" is not an object - illegal on left of '.'",
                             show_name(name)
                         ));
                         return;
@@ -5145,7 +5145,7 @@ impl Gen<'_> {
                     Some(Global::Prop(prop)) => self.gen_prop_self(prop, false),
                     Some(Global::Obj(dict)) => return (false, Some(self.prog.objs[dict].id)),
                     Some(_) => self.error(format!(
-                        "symbol \"{}\" is not an object - illegal on left of '.'",
+                        "the name \"{}\" is not an object - illegal on left of '.'",
                         show_name(name)
                     )),
                     None => self.undefined(name),
@@ -5284,7 +5284,7 @@ impl Gen<'_> {
     /// undefined, and says nothing about it again.
     fn undefined(&mut self, name: &[u8]) {
         if self.undefined_names.insert(name.to_vec()) {
-            self.error(format!("undefined symbol \"{}\"", show_name(name)));
+            self.error(format!("undefined name \"{}\"", show_name(name)));
         }
     }
 
@@ -5384,7 +5384,7 @@ impl Gen<'_> {
         }
         let class = self.prog.globals.get(b"ProgramObject").copied();
         let Some(Global::Meta(program_object)) = class else {
-            self.error("\"ProgramObject\" is not defined or is not an intrinsic class");
+            self.error("\"ProgramObject\" is not defined or is not a built-in class");
             return;
         };
         let Some(create) = self.named_prop(b"createInstanceOf") else {
@@ -5445,7 +5445,7 @@ impl Gen<'_> {
             Some(Global::Prop(prop)) => Some(self.prog.props[*prop].id),
             _ => {
                 self.error(format!(
-                    "invalid '.' expression - symbol \"{}\" is not a property",
+                    "invalid '.' expression - the name \"{}\" is not a property",
                     show_name(name)
                 ));
                 None
@@ -5500,7 +5500,7 @@ impl Gen<'_> {
             }
             Some(_) => {
                 self.error(format!(
-                    "symbol \"{}\" is already defined - can't redefine as function",
+                    "the name \"{}\" is already defined - can't redefine as function",
                     show_name(name)
                 ));
                 None
@@ -5686,7 +5686,7 @@ impl Gen<'_> {
                         None | Some(Global::Obj(_)) => {
                             self.out
                                 .link_errors
-                                .push(format!("undefined symbol \"{}\"", show_name(kind)));
+                                .push(format!("undefined name \"{}\"", show_name(kind)));
                             continue 'funcs;
                         }
                         Some(_) => {
@@ -6566,13 +6566,10 @@ impl Gen<'_> {
                         typ,
                         AsiOp::PreInc | AsiOp::PreDec | AsiOp::PostInc | AsiOp::PostDec
                     ) {
-                        format!(
-                            "invalid lvalue - cannot apply \"{}\" operator to expression",
-                            typ.text()
-                        )
+                        format!("can't apply \"{}\" to this expression", typ.text())
                     } else {
                         format!(
-                            "invalid lvalue - cannot assign to expression on left of \"{}\"",
+                            "can't assign to the expression on the left of \"{}\"",
                             typ.text()
                         )
                     };

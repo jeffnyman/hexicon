@@ -1,6 +1,6 @@
 image: none
 --- messages
-error: missing right parenthesis ')' at end of formal parameter list - found "<End Of File>"
+error: missing right parenthesis ')' at end of parameter list - found "<End Of File>"
   --> e_eof3.hxn:2
 
 error: expected '{' at start of method code body, but found "<End Of File>"

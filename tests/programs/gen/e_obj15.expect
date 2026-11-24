@@ -6,7 +6,7 @@ error: expected an operand, but found ";"
 1 | a: object x = ;
   |
 
-error: missing right parenthesis ')' at end of formal parameter list - found "{"
+error: missing right parenthesis ')' at end of parameter list - found "{"
   --> e_obj15.hxn:2
   |
 2 | b: object m( { }

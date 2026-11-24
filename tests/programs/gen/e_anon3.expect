@@ -3,7 +3,7 @@ image: none
 error: missing colon at end of anonymous function formal list - found "<End Of File>"
   --> e_anon3.hxn:5
 
-error: expected integer, string, symbol, '[', or '(', but found "<End Of File>"
+error: expected integer, string, name, '[', or '(', but found "<End Of File>"
   --> e_anon3.hxn:5
 
 error: semicolon is not allowed in a short-form anonymous function

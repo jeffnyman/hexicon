@@ -48,7 +48,7 @@ error: expected ':' after production name, but found "'x'"
 7 | grammar np(b) 'x' : Match;
   |
 
-error: object or property symbol required in 'grammar' token list (found "f")
+error: object or property name required in 'grammar' token list (found "f")
   --> e_gram1.hxn:8
   |
 8 | grammar np(c): f : Match;
@@ -174,13 +174,13 @@ error: "f" is already the name of something else, so it cannot also name an obje
 23 | grammar f(a): 'x' : Match;
    |
 
-error: redefining symbol "Match" as grammar production object
+error: redefining "Match" as grammar production object
   --> e_gram1.hxn:24
    |
 24 | grammar Match(a): 'x' : Match;
    |
 
-error: redefining symbol "Match" as grammar production object
+error: redefining "Match" as grammar production object
   --> e_gram1.hxn:25
    |
 25 | grammar Match: 'x' : Match;

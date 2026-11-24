@@ -1,13 +1,13 @@
 image: none
 --- messages
 error: external name "LastProp" illegal in 'export' - reserved for compiler use
-warning: undefined symbol "a" - assuming this is a property name
+warning: undefined name "a" - assuming this is a property name
 error: external name "operator +" illegal in 'export' - reserved for compiler use
-warning: undefined symbol "b" - assuming this is a property name
+warning: undefined name "b" - assuming this is a property name
 error: external name "Constructor" illegal in 'export' - reserved for compiler use
-warning: undefined symbol "c" - assuming this is a property name
-warning: undefined symbol "d" - assuming this is a property name
+warning: undefined name "c" - assuming this is a property name
+warning: undefined name "d" - assuming this is a property name
 error: duplicate export for external name "same": "d" and "e"
 error: additional duplicate export for external name "same": "f"
-error: symbol "print" is not a valid type for export
+error: the name "print" is not a valid type for export
 --- output

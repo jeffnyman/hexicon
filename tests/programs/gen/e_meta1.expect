@@ -1,60 +1,60 @@
 image: none
 --- messages
-error: expected class name symbol after "intrinsic class", but found ";"
+error: expected class name after "intrinsic class", but found ";"
   --> e_meta1.hxn:1
   |
 1 | intrinsic class;
   |
 
-error: expected class name string after class name symbol, but found ";"
+error: expected class name string after class name, but found ";"
   --> e_meta1.hxn:1
   |
 1 | intrinsic class;
   |
 
-error: expected '{' after intrinsic class name, but found ";"
+error: expected '{' after built-in class name, but found ";"
   --> e_meta1.hxn:1
   |
 1 | intrinsic class;
   |
 
-error: expected property name in intrinsic class list, but found "intrinsic"
+error: expected property name in built-in class list, but found "intrinsic"
   --> e_meta1.hxn:2
   |
 2 | intrinsic class 1;
   |
 
-error: expected property name in intrinsic class list, but found "class"
+error: expected property name in built-in class list, but found "class"
   --> e_meta1.hxn:2
   |
 2 | intrinsic class 1;
   |
 
-error: expected property name in intrinsic class list, but found "1"
+error: expected property name in built-in class list, but found "1"
   --> e_meta1.hxn:2
   |
 2 | intrinsic class 1;
   |
 
-error: expected property name in intrinsic class list, but found "intrinsic"
+error: expected property name in built-in class list, but found "intrinsic"
   --> e_meta1.hxn:3
   |
 3 | intrinsic class A;
   |
 
-error: expected property name in intrinsic class list, but found "class"
+error: expected property name in built-in class list, but found "class"
   --> e_meta1.hxn:3
   |
 3 | intrinsic class A;
   |
 
-error: expected property name in intrinsic class list, but found "intrinsic"
+error: expected property name in built-in class list, but found "intrinsic"
   --> e_meta1.hxn:4
   |
 4 | intrinsic class B 'b/030000'
   |
 
-error: expected property name in intrinsic class list, but found "class"
+error: expected property name in built-in class list, but found "class"
   --> e_meta1.hxn:4
   |
 4 | intrinsic class B 'b/030000'
@@ -66,19 +66,19 @@ error: expected ';', but found "'b/030000'"
 4 | intrinsic class B 'b/030000'
   |
 
-error: expected property name in intrinsic class list, but found "'b/030000'"
+error: expected property name in built-in class list, but found "'b/030000'"
   --> e_meta1.hxn:4
   |
 4 | intrinsic class B 'b/030000'
   |
 
-error: expected property name in intrinsic class list, but found "intrinsic"
+error: expected property name in built-in class list, but found "intrinsic"
   --> e_meta1.hxn:5
   |
 5 | intrinsic class C 'c/030000': ;
   |
 
-error: expected property name in intrinsic class list, but found "class"
+error: expected property name in built-in class list, but found "class"
   --> e_meta1.hxn:5
   |
 5 | intrinsic class C 'c/030000': ;
@@ -90,25 +90,25 @@ error: expected ';', but found "'c/030000'"
 5 | intrinsic class C 'c/030000': ;
   |
 
-error: expected property name in intrinsic class list, but found "'c/030000'"
+error: expected property name in built-in class list, but found "'c/030000'"
   --> e_meta1.hxn:5
   |
 5 | intrinsic class C 'c/030000': ;
   |
 
-error: expected property name in intrinsic class list, but found ":"
+error: expected property name in built-in class list, but found ":"
   --> e_meta1.hxn:5
   |
 5 | intrinsic class C 'c/030000': ;
   |
 
-error: expected property name in intrinsic class list, but found "intrinsic"
+error: expected property name in built-in class list, but found "intrinsic"
   --> e_meta1.hxn:6
   |
 6 | intrinsic class D 'd/030000': Nosuch { }
   |
 
-error: expected property name in intrinsic class list, but found "class"
+error: expected property name in built-in class list, but found "class"
   --> e_meta1.hxn:6
   |
 6 | intrinsic class D 'd/030000': Nosuch { }
@@ -120,13 +120,13 @@ error: expected ';', but found "'d/030000'"
 6 | intrinsic class D 'd/030000': Nosuch { }
   |
 
-error: expected property name in intrinsic class list, but found "'d/030000'"
+error: expected property name in built-in class list, but found "'d/030000'"
   --> e_meta1.hxn:6
   |
 6 | intrinsic class D 'd/030000': Nosuch { }
   |
 
-error: expected property name in intrinsic class list, but found ":"
+error: expected property name in built-in class list, but found ":"
   --> e_meta1.hxn:6
   |
 6 | intrinsic class D 'd/030000': Nosuch { }
@@ -138,13 +138,13 @@ error: expected ';', but found "{"
 6 | intrinsic class D 'd/030000': Nosuch { }
   |
 
-error: expected property name in intrinsic class list, but found "{"
+error: expected property name in built-in class list, but found "{"
   --> e_meta1.hxn:6
   |
 6 | intrinsic class D 'd/030000': Nosuch { }
   |
 
-error: intrinsic class superclass "f" is not an intrinsic class
+error: the superclass "f" is not a built-in class
   --> e_meta1.hxn:8
   |
 8 | intrinsic class E 'e/030000': f { }

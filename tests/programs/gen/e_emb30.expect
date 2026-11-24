@@ -1,6 +1,6 @@
 image: none
 --- messages
-error: expected integer, string, symbol, '[', or '(', but found ">>"
+error: expected integer, string, name, '[', or '(', but found ">>"
   --> e_emb30.hxn:1
   |
 1 | _main(args) { "<<[>>"; "<<)>>"; "<<(>>"; "<<]>>"; }

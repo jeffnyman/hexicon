@@ -18,7 +18,7 @@ error: expected ';', but found "}"
 6 |     m2() { return delegated A.; }
   |
 
-error: expected integer, string, symbol, '[', or '(', but found "."
+error: expected integer, string, name, '[', or '(', but found "."
   --> e_deleg1.hxn:7
   |
 7 |     m4() { return delegated .who(); }

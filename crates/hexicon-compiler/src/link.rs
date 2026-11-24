@@ -70,10 +70,10 @@ struct Linker {
 fn kind_name(global: &Global) -> &'static str {
     match global {
         Global::Func(_) => "function",
-        Global::Bif(_) => "intrinsic function",
+        Global::Bif(_) => "built-in function",
         Global::Obj(_) => "object",
         Global::Prop(_) => "property",
-        Global::Meta(_) => "intrinsic class",
+        Global::Meta(_) => "built-in class",
         Global::Enum(_) => "enum",
         Global::DynLocal(_) => "local variable",
     }
@@ -244,12 +244,12 @@ impl Linker {
         let (old, new) = (kind_name(old), kind_name(new));
         self.error(if old == new {
             format!(
-                "symbol \"{}\" (type: {old}) redefined in source file \"{object_file}\"",
+                "the name \"{}\" (type: {old}) redefined in source file \"{object_file}\"",
                 show_name(name)
             )
         } else {
             format!(
-                "symbol \"{}\" (type: {old}) redefined (type: {new}) in source file \
+                "the name \"{}\" (type: {old}) redefined (type: {new}) in source file \
                  \"{object_file}\"",
                 show_name(name)
             )
@@ -301,7 +301,7 @@ impl Linker {
                 Some(have) => {
                     if base(have) != base(name) {
                         self.errors.push(format!(
-                            "conflicting intrinsic function set \"{}\" found in source file \
+                            "conflicting built-in function set \"{}\" found in source file \
                              \"{object_file}\"",
                             show_name(name)
                         ));
@@ -736,7 +736,7 @@ impl Linker {
                 let table = self.prog.find_or_add_meta(vm_name, Some(index));
                 if self.prog.metas[index].meta != table {
                     self.errors.push(format!(
-                        "intrinsic class \"{}\" in source file {object_file} out of order with \
+                        "built-in class \"{}\" in source file {object_file} out of order with \
                          previous definition",
                         show_name(&sym.name)
                     ));
@@ -758,7 +758,7 @@ impl Linker {
                 Some(have) if was_defined => {
                     if self.prog.props[have].name != *name {
                         self.errors.push(format!(
-                            "intrinsic class property \"{}\" does not match previous name \
+                            "built-in class property \"{}\" does not match previous name \
                              (\"{}\") in source file {object_file}",
                             show_name(name),
                             show_name(&self.prog.props[have].name)

@@ -6,13 +6,13 @@ error: variable-argument list parameter name expected, but found "1"
 1 | f([1]) { } _main(args) { }
   |
 
-error: expected a symbol in formal parameter list, but found "]"
+error: expected a name in parameter list, but found "]"
   --> e_formal8.hxn:1
   |
 1 | f([1]) { } _main(args) { }
   |
 
-error: missing parameter name at end of formal parameter list
+error: missing parameter name at end of parameter list
   --> e_formal8.hxn:1
   |
 1 | f([1]) { } _main(args) { }

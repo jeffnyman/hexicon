@@ -1,8 +1,9 @@
 image: none
 --- messages
-error: invalid lvalue - cannot apply "++" operator to expression
+error: can't apply "++" to this expression
   --> e_lvalue2.hxn:1
   |
 1 | _main(args) { 1++; }
   |
+  = "++" changes what it is applied to, so it needs a variable, a property, or an element of a list
 --- output

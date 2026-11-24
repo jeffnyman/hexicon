@@ -167,7 +167,7 @@ fn conditions_are_read_by_the_compilers_own_parser() {
             "main.hxn(1): error: extra characters at end of line",
             "main.hxn(3): error: extra characters at end of line",
             "main.hxn(5): error: preprocessor expression is not a constant value",
-            "main.hxn(7): error: expected integer, string, symbol, '[', or '(', but found \"<End Of File>\"",
+            "main.hxn(7): error: expected integer, string, name, '[', or '(', but found \"<End Of File>\"",
         ]
     );
 }
@@ -181,7 +181,7 @@ fn a_line_directive_takes_a_number_and_a_name() {
     assert_eq!(
         messages,
         [
-            "main.hxn(1): error: expected integer, string, symbol, '[', or '(', but found \"<End Of File>\"",
+            "main.hxn(1): error: expected integer, string, name, '[', or '(', but found \"<End Of File>\"",
             "main.hxn(1): error: string value required for #line",
             "main.hxn(2): error: integer value required for #line",
             "main.hxn(3): error: string value required for #line",
@@ -1190,7 +1190,7 @@ fn a_catch_names_a_class_of_exception() {
     assert_eq!(
         compile_messages("f() { }\n_main(args) { try { } catch (f e) { } catch (nosuch e) { } }\n"),
         [
-            "2: error: exception class symbol \"f\" in \"catch\" clause is not an object",
+            "2: error: exception class \"f\" in \"catch\" clause is not an object",
             "2: error: \"nosuch\" is not defined anywhere",
         ]
     );
@@ -1331,9 +1331,9 @@ fn a_built_in_class_is_declared_with_its_properties() {
              intrinsic class A 'a/030000': Nosuch { 1; }\n_main(args) { return A(); }\n"
         ),
         [
-            "2: error: \"f\" is already the name of something else, so it cannot also name an intrinsic class",
-            "3: error: intrinsic class superclass \"Nosuch\" is not defined",
-            "3: error: expected property name in intrinsic class list, but found \"1\"",
+            "2: error: \"f\" is already the name of something else, so it cannot also name a built-in class",
+            "3: error: the superclass \"Nosuch\" is not defined",
+            "3: error: expected property name in built-in class list, but found \"1\"",
         ]
     );
 }
@@ -1364,8 +1364,8 @@ fn exports_come_first_among_the_names_the_image_gives() {
         ),
         [
             "0: error: external name \"LastProp\" illegal in 'export' - reserved for compiler use",
-            "0: warning: undefined symbol \"a\" - assuming this is a property name",
-            "0: warning: undefined symbol \"b\" - assuming this is a property name",
+            "0: warning: undefined name \"a\" - assuming this is a property name",
+            "0: warning: undefined name \"b\" - assuming this is a property name",
             "0: error: duplicate export for external name \"same\": \"b\" and \"c\"",
         ]
     );
@@ -1540,13 +1540,13 @@ fn a_short_anonymous_function_has_its_own_mistakes() {
         ),
         [
             "3: error: semicolon is not allowed in a short anonymous function",
-            "4: error: expected a comma in formal parameter list, but found \"x\"",
-            "4: error: formal parameter \"x\" defined more than once",
+            "4: error: expected a comma in parameter list, but found \"x\"",
+            "4: error: parameter \"x\" defined more than once",
             "4: error: missing colon at end of anonymous function formal list - found \"}\"",
             "4: error: expected an operand, but found \"}\"",
             "5: error: 'multimethod' is not allowed here",
             "6: error: expected ';' or expression after \"return\", but found \"{\"",
-            "6: error: expected integer, string, symbol, '[', or '(', but found \":\"",
+            "6: error: expected integer, string, name, '[', or '(', but found \":\"",
             "6: error: expected ';', but found \"}\"",
         ]
     );
@@ -1678,8 +1678,8 @@ fn enum_values_are_numbered_in_the_order_of_the_table_of_names() {
     assert_eq!(
         compile_messages("f() { }\nenum f, ;\n_main(args) { }\n"),
         [
-            "2: error: symbol \"f\" is already defined - can't be used as an enum name",
-            "2: error: symbol expected in 'enum' list - found \";\"",
+            "2: error: the name \"f\" is already defined - can't be used as an enum name",
+            "2: error: name expected in 'enum' list - found \";\"",
         ]
     );
 }
@@ -1971,7 +1971,7 @@ fn plus_signs_put_an_object_in_the_one_before_with_one_fewer() {
         compile_messages("+ property loc;\na: object;\n+++ b: object;\n+ property 5;\n"),
         [
             "3: error: too many '+' signs in object definition - location not defined",
-            "4: error: symbol expected after '+ property', but found \"5\" instead",
+            "4: error: name expected after '+ property', but found \"5\" instead",
         ]
     );
 }
@@ -2049,7 +2049,7 @@ fn a_propertyset_gives_its_properties_a_pattern_for_their_names_and_parameters()
         [
             "2: error: propertyset pattern string \"'no star'\" is invalid",
             "3: error: expected property name pattern string after 'propertyset' - found \"5\"",
-            "4: error: invalid formal parameters in propertyset definition",
+            "4: error: invalid parameters in propertyset definition",
             "5: error: missing open brace '{' in propertyset definition - found \"w\"",
         ]
     );
@@ -2434,7 +2434,7 @@ fn dictionary_words_have_their_own_mistakes() {
         compile_messages("f() { }\na: object;\ndictionary f;\ndictionary a;\n_main(args) { }\n"),
         [
             "3: error: \"f\" is already the name of something else, so it cannot also name an object",
-            "4: error: redefining symbol \"a\" as dictionary object",
+            "4: error: redefining \"a\" as dictionary object",
         ]
     );
 }
@@ -2529,7 +2529,7 @@ fn grammar_statements_have_their_own_mistakes() {
              modify grammar np: 'x' : ;\n_main(args) { }\n"
         ),
         [
-            "3: error: object or property symbol required in 'grammar' token list (found \"f\")",
+            "3: error: object or property name required in 'grammar' token list (found \"f\")",
             "4: error: '->' in 'grammar' token list must be followed by a property name (found \"5\")",
             "4: error: invalid token \"5\" in 'grammar' token list",
             "5: error: '*' must be the last token in a 'grammar' alternative list (found \"'x'\")",
@@ -2586,7 +2586,7 @@ fn an_object_written_in_an_expression_is_made_when_it_is_evaluated() {
     // The program has to have declared the class of its own objects.
     assert_eq!(
         compile_messages("_main(args) { return object { x = 1 }; }\n"),
-        ["1: error: \"ProgramObject\" is not defined or is not an intrinsic class"]
+        ["1: error: \"ProgramObject\" is not defined or is not a built-in class"]
     );
     assert_eq!(
         compile_messages("class Thing: object;\n_main(args) { return object Thing { }; }\n")[..1],
@@ -2605,14 +2605,14 @@ fn a_question_about_a_name_is_answered_when_the_program_is_compiled() {
              return [defined(a), __objref(a), __objref(nope), x, y];\n}\n"
         ),
         [
-            "7: warning: symbol \"f\" is not an object - illegal on left of '.'",
+            "7: warning: the name \"f\" is not an object - illegal on left of '.'",
             "8: warning: \"nope\" is not defined anywhere",
         ]
     );
     assert_eq!(
         compile_messages("_main(args) { return [defined(1), __objref(1, 2, 3)]; }\n"),
         [
-            "1: error: invalid syntax for defined() operator - argument must be a symbol name",
+            "1: error: invalid syntax for defined() operator - argument must be a name",
             "1: error: invalid syntax for __objref() operator",
         ]
     );
@@ -2764,8 +2764,8 @@ fn what_two_files_both_define_is_found_when_they_are_put_together() {
     assert_eq!(
         messages_of(compile_files(&[("one.hxn", one), ("two.hxn", two)])),
         [
-            "(0): symbol \"f\" (type: function) redefined in source file \"two.hxn\"",
-            "(0): symbol \"o\" (type: object) redefined in source file \"two.hxn\"",
+            "(0): the name \"f\" (type: function) redefined in source file \"two.hxn\"",
+            "(0): the name \"o\" (type: object) redefined in source file \"two.hxn\"",
         ]
     );
 }
@@ -2901,7 +2901,7 @@ fn a_second_definition_has_to_come_after_the_first() {
             "two.hxn(1): \"y\" is given a value here, but nothing reads it",
             "(0): modified or replaced object \"later\" found in source file \"one.hxn\" \
              before original object definition was loaded",
-            "(0): symbol \"later\" (type: object) redefined in source file \"two.hxn\"",
+            "(0): the name \"later\" (type: object) redefined in source file \"two.hxn\"",
         ]
     );
     // The other way about, it is the object the first file defined
@@ -3290,7 +3290,7 @@ fn code_is_compiled_while_a_program_runs() {
 
     // A name the program does not have.
     let failed = compile_dynamic(b"test1.mUndef(1);", &context, DynMode::Auto, &mut host);
-    assert_eq!(failed, Err("error: undefined symbol \"mUndef\"".to_owned()));
+    assert_eq!(failed, Err("error: undefined name \"mUndef\"".to_owned()));
 
     // A variable of a running function, which hides a global name: read
     // and set through the object for the function's call.
@@ -3371,7 +3371,7 @@ fn grammar_rules_are_compiled_while_a_program_runs() {
     // A production the program does not have.
     assert_eq!(
         compile_grammar(b"nothing->t1", &context),
-        Err("error: undefined symbol \"nothing\"".to_owned())
+        Err("error: undefined name \"nothing\"".to_owned())
     );
 }
 
@@ -3477,7 +3477,7 @@ fn a_manifest_names_the_sources_and_the_libraries() {
     assert_eq!(project.options.include_paths[0], sys_path(&["game", "inc"]));
     // A macro the library needs that the game does not define.
     assert_eq!(project.messages.len(), 1, "{:?}", project.messages);
-    assert!(project.messages[0].contains("library requires preprocessor symbol \"VOICE\""));
+    assert!(project.messages[0].contains("library requires the macro \"VOICE\""));
 }
 
 #[test]

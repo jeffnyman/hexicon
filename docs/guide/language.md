@@ -43,7 +43,7 @@ main(args)
 | true and false | `true`, `nil` | `nil` is false, and also "nothing": the value of what has none |
 | list | `[1, 'two', nil]` | values in order |
 | object | `rex`, `new Animal()` | see [Objects](#objects-and-classes) |
-| property pointer | `&sound` | a property itself, rather than its value |
+| property reference | `&sound` | a property itself, rather than its value |
 | function | `{x: x * 2}` | see [Functions](#functions) |
 
 ```hexicon

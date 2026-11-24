@@ -1,24 +1,24 @@
 image: none
 --- messages
-error: intrinsic class property "length" cannot be modified
+error: built-in class property "length" cannot be modified
   --> e_modify3.hxn:49
    |
 49 | modify List length() { return 1; };
    |
 
-error: intrinsic class property "length" cannot be modified
+error: built-in class property "length" cannot be modified
   --> e_modify3.hxn:50
    |
 50 | modify List length = 1 createIterator() { } ofKind = 2 x = 3;
    |
 
-error: intrinsic class property "createIterator" cannot be modified
+error: built-in class property "createIterator" cannot be modified
   --> e_modify3.hxn:50
    |
 50 | modify List length = 1 createIterator() { } ofKind = 2 x = 3;
    |
 
-error: intrinsic class property "ofKind" cannot be modified
+error: built-in class property "ofKind" cannot be modified
   --> e_modify3.hxn:50
    |
 50 | modify List length = 1 createIterator() { } ofKind = 2 x = 3;

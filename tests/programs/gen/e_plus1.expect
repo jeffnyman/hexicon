@@ -6,19 +6,19 @@ error: too many '+' signs in object definition - location not defined
 1 | + a: object;
   |
 
-error: symbol expected after '+ property', but found ";" instead
+error: name expected after '+ property', but found ";" instead
   --> e_plus1.hxn:2
   |
 2 | + property;
   |
 
-error: symbol expected after '+ property', but found "5" instead
+error: name expected after '+ property', but found "5" instead
   --> e_plus1.hxn:3
   |
 3 | + property 5;
   |
 
-error: symbol expected after '+ property', but found "6" instead
+error: name expected after '+ property', but found "6" instead
   --> e_plus1.hxn:4
   |
 4 | + property 6
@@ -78,7 +78,7 @@ error: expected superclass name in object definition, but found "+"
 14 | + transient class C2: object;
    |
 
-error: expected integer, string, symbol, '[', or '(', but found "transient"
+error: expected integer, string, name, '[', or '(', but found "transient"
   --> e_plus1.hxn:14
    |
 14 | + transient class C2: object;

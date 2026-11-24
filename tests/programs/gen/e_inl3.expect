@@ -7,7 +7,7 @@ warning: "Nope" is not defined anywhere
   |
   = check how it is spelled, and that the file that defines it is among the sources
 
-warning: symbol "f" is not an object - illegal on left of '.'
+warning: the name "f" is not an object - illegal on left of '.'
   --> e_inl3.hxn:8
   |
 8 |     local e = __objref(Nope, warn), g = __objref(f, warn);

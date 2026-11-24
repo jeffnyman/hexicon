@@ -6,7 +6,7 @@ error: expected ';' or expression after "return", but found "{"
 12 |                 return {: a + b + c + x + y + z };
    |
 
-error: expected integer, string, symbol, '[', or '(', but found ":"
+error: expected integer, string, name, '[', or '(', but found ":"
   --> anon8.hxn:12
    |
 12 |                 return {: a + b + c + x + y + z };

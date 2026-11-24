@@ -6,13 +6,13 @@ error: semicolon is not allowed in a short anonymous function
 8 |     local h = {x: x; };
   |
 
-error: expected a comma in formal parameter list, but found "x"
+error: expected a comma in parameter list, but found "x"
   --> e_anon1.hxn:9
   |
 9 |     local i = {x x };
   |
 
-error: formal parameter "x" defined more than once
+error: parameter "x" defined more than once
   --> e_anon1.hxn:9
   |
 9 |     local i = {x x };
@@ -30,13 +30,13 @@ error: expected an operand, but found "}"
 9 |     local i = {x x };
   |
 
-error: expected a comma in formal parameter list, but found "b"
+error: expected a comma in parameter list, but found "b"
   --> e_anon1.hxn:10
    |
 10 |     local j = function(a b) { return a; };
    |
 
-error: expected a comma in formal parameter list, but found "a"
+error: expected a comma in parameter list, but found "a"
   --> e_anon1.hxn:11
    |
 11 |     local k = function(Thing a) { return a; };
@@ -48,7 +48,7 @@ error: 'multimethod' is not allowed here
 12 |     local l = function(a) multimethod { return a; };
    |
 
-error: missing parameter name at end of formal parameter list
+error: missing parameter name at end of parameter list
   --> e_anon1.hxn:17
    |
 17 |     local r = {x, : x};

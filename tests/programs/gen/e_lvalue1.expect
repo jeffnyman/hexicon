@@ -1,8 +1,9 @@
 image: none
 --- messages
-error: invalid lvalue - cannot assign to expression on left of "="
+error: can't assign to the expression on the left of "="
   --> e_lvalue1.hxn:1
   |
 1 | _main(args) { 1 = 2; }
   |
+  = only a variable, a property, or an element of a list can be given a value
 --- output

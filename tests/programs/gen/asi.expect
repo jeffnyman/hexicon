@@ -1,8 +1,9 @@
 image: none
 --- messages
-error: invalid lvalue - cannot assign to expression on left of "="
+error: can't assign to the expression on the left of "="
   --> asi.hxn:19
    |
 19 |     f = 1;
    |
+   = only a variable, a property, or an element of a list can be given a value
 --- output

@@ -1,12 +1,12 @@
 image: none
 --- messages
-error: expected a symbol in formal parameter list, but found "1"
+error: expected a name in parameter list, but found "1"
   --> e_formal4.hxn:1
   |
 1 | f(1) { } _main(args) { }
   |
 
-error: missing parameter name at end of formal parameter list
+error: missing parameter name at end of parameter list
   --> e_formal4.hxn:1
   |
 1 | f(1) { } _main(args) { }
