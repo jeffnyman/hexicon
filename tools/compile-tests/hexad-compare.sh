@@ -127,6 +127,16 @@ else
   fail=$((fail + 1)); echo "DIFF airport, importing Hexad: $(head -1 "$out/airport-hxn/dif")"
 fi
 
+# And so again with nothing but what is built into Hexicon: no -Fs, so
+# Hexad is the built-in one, and no -FL or -FI.
+( cd "$out/airport-hxn" && "$hex" build -o builtin.t3 ) > "$out/airport-hxn/builtin.msg" 2>&1 < /dev/null
+if python "$root/tools/image-diff.py" "$out/airport-hxn/builtin.t3" "$out/airport/hexad.t3" \
+    "$out/airport/hexad.skip" > "$out/airport-hxn/builtin.dif" 2>&1; then
+  pass=$((pass + 1)); echo "SAME airport, on the Hexad built into Hexicon: the same image"
+else
+  fail=$((fail + 1)); echo "DIFF airport, on the Hexad built into Hexicon: $(head -1 "$out/airport-hxn/builtin.dif")"
+fi
+
 # Airport again, with Hexicon's own system library and headers, which
 # are built into it, in place of the reference's (no -FL or -FI): the
 # same files, so the same image.

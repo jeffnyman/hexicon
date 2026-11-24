@@ -8,7 +8,7 @@ Hexicon's system library: what every program is built on, below any library such
 - `dynfunc.t`: functions compiled while a program runs.
 - The headers (`.h`): the virtual machine's built-in functions and classes, as a program sees them. `hexicon.h` gives the built-in functions Hexicon's names.
 
-The compiler has all of this built in. A build looks for the system library and its headers where it is told to (`-FL` and `-FI`, or `lib` and `include` beside the program), and then here, so a game builds with nothing else installed.
+The compiler has all of this built in, as it has Hexad. A build looks for the system library and its headers where it is told to (`-FL` and `-FI`, or `lib` and `include` beside the program), and then here, so a game builds with nothing else installed.
 
 ## What comes next
 

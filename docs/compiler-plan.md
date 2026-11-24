@@ -77,7 +77,8 @@ crates/
     src/manifest.rs       Hexicon's manifests (hexicon.toml), for games and libraries
     src/convert.rs        converting TADS 3 source, project files, and libraries to Hexicon
     src/names.rs          checked names: properties a game gives values that nothing reads
-    src/system.rs         the system library (lib/system), built into the compiler
+    src/builtin.rs        the libraries built into the compiler (lib/system, lib/hexad)
+    build.rs              their table, made from lib when the compiler is built
     src/link.rs           putting the source files of a program together: the numbers that
                           objects, properties, and enumerations have in the image
     src/image.rs          the image writer: pool layout, addresses, and the image's blocks

@@ -6,6 +6,12 @@ edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
+[features]
+default = ["built-in-libraries"]
+# The system library and Hexad, built into the compiler (lib/system,
+# lib/hexad), so that a game builds with nothing else installed.
+built-in-libraries = []
+
 [dependencies]
 hexicon-bignum = { path = "../hexicon-bignum" }
 hexicon-bytecode = { path = "../hexicon-bytecode" }

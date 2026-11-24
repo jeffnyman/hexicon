@@ -232,7 +232,7 @@ fn build_full_path(dir: &str, file: &str) -> String {
         file.to_owned()
     } else if dir.ends_with(|c| is_sep(c) || c == ':') {
         format!("{dir}{file}")
-    } else if crate::system::in_folder(dir) {
+    } else if crate::builtin::is_built_in(dir) {
         // The built-in files are named the same on every system.
         format!("{dir}/{file}")
     } else {
@@ -341,8 +341,8 @@ pub fn read_project(
     args: &[String],
     paths: &ProjectPaths,
 ) -> Result<Project, ProjectError> {
-    // The system library's files are part of the compiler.
-    let mut files = crate::system::WithSystem::new(files);
+    // The built-in libraries' files are part of the compiler.
+    let mut files = crate::builtin::WithBuiltIns::new(files);
     let mut reader = Reader {
         files: &mut files,
         user_source_paths: Vec::new(),
@@ -522,13 +522,18 @@ impl Reader<'_, '_> {
         if is_absolute(search) || self.files.exists(source) {
             return source.to_owned();
         }
-        let built_in = crate::system::FOLDER.to_owned();
+        // Last, the libraries built into the compiler: the system
+        // library's folder, and the folder with each library in it.
+        let built_in = [
+            crate::builtin::SYSTEM.to_owned(),
+            crate::builtin::ROOT.to_owned(),
+        ];
         let dirs: Vec<String> = self
             .user_source_paths
             .iter()
             .chain(&self.sys_source_paths)
             .chain(std::iter::once(&self.sys_library))
-            .chain(std::iter::once(&built_in))
+            .chain(&built_in)
             .cloned()
             .collect();
         for dir in dirs {
@@ -1025,7 +1030,7 @@ impl Reader<'_, '_> {
             // The system library's, or the one built in if it has none.
             let mut library = self.sys_library.clone();
             if !self.files.exists(&build_full_path(&library, "_main.t")) {
-                library = crate::system::FOLDER.to_owned();
+                library = crate::builtin::SYSTEM.to_owned();
             }
             let name = build_full_path(&library, "_main");
             self.modules.insert(

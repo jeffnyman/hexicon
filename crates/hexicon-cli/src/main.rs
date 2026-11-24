@@ -2,6 +2,7 @@
 
 mod build;
 mod convert;
+mod new;
 mod preprocess;
 mod resources;
 mod terminal;
@@ -22,6 +23,9 @@ const USAGE: &str = "\
 usage: hexicon <command>
 
 commands:
+  new <folder>                 start a game in a new folder: a manifest
+                               (hexicon.toml) and a first source
+                               (start.hxn) on Hexad, ready to build
   run [options] <image.t3> [args...]
                                run a program; the options are:
       --norand                 make the same random choices on every run,
@@ -184,6 +188,9 @@ fn main() -> ExitCode {
     }
     if let ["build", rest @ ..] = args.as_slice() {
         return build::run(rest, USAGE);
+    }
+    if let ["new", rest @ ..] = args.as_slice() {
+        return new::run(rest, USAGE);
     }
     if let ["convert", rest @ ..] = args.as_slice() {
         return convert::run(rest, USAGE);

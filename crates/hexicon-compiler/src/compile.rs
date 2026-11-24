@@ -341,8 +341,8 @@ pub fn compile_program(
     sources: &[&str],
     options: &CompileOptions,
 ) -> Compiled {
-    // The system library's files are part of the compiler.
-    let mut files = crate::system::WithSystem::new(files);
+    // The built-in libraries' files are part of the compiler.
+    let mut files = crate::builtin::WithBuiltIns::new(files);
     let files: &mut dyn SourceFiles = &mut files;
     let mut compiled = Compiled::default();
 

@@ -3699,23 +3699,80 @@ mod system_library {
     }
 
     #[test]
-    fn the_built_in_files_are_those_in_lib_system() {
-        let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../lib/system");
-        let mut on_disk: Vec<String> = std::fs::read_dir(&folder)
-            .unwrap()
-            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-            .filter(|name| name.ends_with(".h") || name.ends_with(".t") || name.ends_with(".toml"))
-            .collect();
+    fn the_built_in_files_are_those_in_lib() {
+        // Each library's folder, and the folders in it.
+        fn walk(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                let name = format!("{prefix}/{}", path.file_name().unwrap().to_string_lossy());
+                if path.is_dir() {
+                    walk(&path, &name, out);
+                } else if [".h", ".t", ".hxn", ".toml"]
+                    .iter()
+                    .any(|ext| name.ends_with(ext))
+                {
+                    out.push(name);
+                }
+            }
+        }
+        let lib = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+        let mut on_disk = Vec::new();
+        walk(&lib.join("system"), "system", &mut on_disk);
+        walk(&lib.join("hexad"), "hexad", &mut on_disk);
         on_disk.sort();
-        let built_in: Vec<&str> = crate::system::FILES.iter().map(|(name, _)| *name).collect();
+        let mut built_in: Vec<&str> = crate::builtin::FILES
+            .iter()
+            .map(|(name, _)| *name)
+            .collect();
+        built_in.sort_unstable();
         assert_eq!(built_in, on_disk);
-        for (name, data) in crate::system::FILES {
+        for (name, data) in crate::builtin::FILES {
             assert_eq!(
                 *data,
-                std::fs::read(folder.join(name)).unwrap().as_slice(),
+                std::fs::read(lib.join(name)).unwrap().as_slice(),
                 "{name}"
             );
         }
+    }
+
+    #[test]
+    fn hexad_is_found_with_no_library_paths() {
+        let mut files = Files::default()
+            .with(
+                "game/hexicon.toml",
+                "[game]\nlibraries = [\"system\", \"hexad\"]\nsources = [\"start\"]\n\n\
+                 [defines]\nLANGUAGE = \"english\"\n",
+            )
+            .with("game/start.hxn", "import hexad;\n");
+        let paths = crate::ProjectPaths {
+            system_include: "nowhere/include".to_owned(),
+            system_library: "nowhere/lib".to_owned(),
+            user_libraries: Vec::new(),
+        };
+        let args = ["-f".to_owned(), "game".to_owned()];
+        let project =
+            crate::read_project(&mut files, &args, &paths).unwrap_or_else(|e| panic!("{e:?}"));
+        assert!(
+            project
+                .sources
+                .contains(&"<hexicon>/hexad/thing.hxn".to_owned())
+        );
+        assert!(
+            project
+                .sources
+                .contains(&"<hexicon>/hexad/english/english.hxn".to_owned())
+        );
+        assert_eq!(
+            project
+                .options
+                .imports
+                .iter()
+                .find(|(name, _)| name == "hexad"),
+            Some(&(
+                "hexad".to_owned(),
+                Some("<hexicon>/hexad/advlite.h".to_owned())
+            ))
+        );
     }
 }
 

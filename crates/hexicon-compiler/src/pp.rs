@@ -2412,12 +2412,12 @@ impl<'a> Preprocessor<'a> {
         // Last, the system library's headers, which are part of the
         // compiler.
         let built_in = if full_name.is_none() {
-            crate::system::file(&name)
+            crate::builtin::system_header(&name)
         } else {
             None
         };
         if built_in.is_some() {
-            full_name = Some(format!("{}/{name}", crate::system::FOLDER));
+            full_name = Some(format!("{}/{name}", crate::builtin::SYSTEM));
         }
 
         let Some(full_name) = full_name else {

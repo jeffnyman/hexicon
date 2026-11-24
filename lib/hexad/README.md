@@ -25,7 +25,9 @@ adv3Lite's manual, templates, and cut-down variants (`adv3Liter`, `adv3Litest`) 
 
 ## Using it
 
-A game names Hexad among its libraries, after Hexicon's system library (`system`, which is built into Hexicon), with `LANGUAGE` defined:
+`hexicon new my-game` starts a game on Hexad, ready to build and play. Hexad is built into Hexicon, as its system library is, so a game needs nothing else.
+
+A game names Hexad among its libraries, after the system library (`system`), with `LANGUAGE` defined:
 
 ```toml
 [game]
@@ -34,10 +36,9 @@ sources = ["start"]
 
 [defines]
 LANGUAGE = "english"
-
-[build]
-library-paths = ["path/to/hexicon/lib"]
 ```
+
+A Hexad found where a build is told to look (`library-paths`, `-Fs`) comes before the built-in one, which is how this folder's copy is worked on.
 
 Each Hexicon source of the game imports it, which gives the file Hexad's header (`advlite.h`, named in Hexad's manifest):
 
