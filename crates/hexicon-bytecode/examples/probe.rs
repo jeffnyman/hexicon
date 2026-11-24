@@ -1,6 +1,6 @@
 //! Decodes instructions one after another from an address, without any of
 //! the checks a full disassembly makes. For investigating code the
-//! disassembler rejects. Usage: `probe <image.t3> <hex address> [count]`
+//! disassembler rejects. Usage: `probe <game.hxg> <hex address> [count]`
 
 use hexicon_bytecode::{MethodHeader, decode};
 use hexicon_image::Image;

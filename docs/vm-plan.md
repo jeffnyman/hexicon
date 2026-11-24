@@ -10,7 +10,7 @@ Build the Hexicon virtual machine in Rust. The first milestone target is running
 
 The Hexicon compiler comes later. Until it exists, all test programs are compiled with the reference TADS 3 compiler.
 
-Since 2026-11-24, what Hexicon builds is a Hexicon image: T3's layout, with the signature `HX-image` and Hexicon's identifiers for the function sets and the class of the program's objects (`hexicon-gen`, `hexicon-object`; see the language plan, change 0). Running TADS 3 games is no longer a goal. The VM still reads T3 images because the comparisons with the reference run them.
+Since 2026-11-24, what Hexicon builds is a Hexicon image: T3's layout, with the signature `HX-image` and Hexicon's identifiers for the function sets and the class of the program's objects (`hexicon-gen`, `hexicon-object`; see the language plan, change 0). Running TADS 3 games is no longer a goal, and since step 3 of the break (language plan, "Retiring TADS 3") the VM reads only Hexicon images and saved games.
 
 ## Scope
 

@@ -1,5 +1,5 @@
 //! Compares function discovery against the method header list of a debug
-//! build. Usage: `cargo run --example coverage -- <image.t3>...`
+//! build. Usage: `cargo run --example coverage -- <game.hxg>...`
 
 use std::collections::BTreeSet;
 

@@ -706,7 +706,7 @@ pub(crate) fn trace_alloc() -> bool {
 /// Count the bytes the reference allocates for a new object.
 fn count_object(object: &Object, vector_room: u32) {
     let kind = match object {
-        Object::Program(_) => "tads-object",
+        Object::Program(_) => "hexicon-object",
         Object::IntClassMod(_) => "int-class-mod",
         Object::String(_) => "string",
         Object::List(_) => "list",

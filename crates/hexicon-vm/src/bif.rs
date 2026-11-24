@@ -139,13 +139,12 @@ impl FunctionSet {
     pub(crate) fn from_image_name(image_name: &str) -> VmResult<Self> {
         let (name, version) = image_name.split_once('/').unwrap_or((image_name, "000000"));
         let (set, provided) = match name {
-            // Hexicon's names, and then a T3 image's for the same sets.
-            "hexicon-vm" | "t3vm" => (Self::Machine, "010006"),
-            "hexicon-vm-test" | "t3vmTEST" => (Self::MachineTest, "010000"),
-            "hexicon-gen" | "tads-gen" => (Self::Gen, "030008"),
-            "hexicon-io" | "tads-io" => (Self::Io, "030007"),
-            "hexicon-io-ext" | "tads-io-ext" => (Self::IoExt, "030000"),
-            "hexicon-net" | "tads-net" => (Self::Net, "030001"),
+            "hexicon-vm" => (Self::Machine, "010006"),
+            "hexicon-vm-test" => (Self::MachineTest, "010000"),
+            "hexicon-gen" => (Self::Gen, "030008"),
+            "hexicon-io" => (Self::Io, "030007"),
+            "hexicon-io-ext" => (Self::IoExt, "030000"),
+            "hexicon-net" => (Self::Net, "030001"),
             _ => {
                 return Err(VmError::with(
                     code::UNKNOWN_FUNC_SET,

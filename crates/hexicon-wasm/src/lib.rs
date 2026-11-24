@@ -5,7 +5,7 @@
 //! needs. The page supplies it and tells the game to carry on:
 //!
 //! ```js
-//! const game = new Game(imageBytes, "game.t3", timeZoneName);
+//! const game = new Game(imageBytes, "game.hxg", timeZoneName);
 //! let state = game.start();
 //! show(game.takeOutput());
 //! // state is "line", "key", "sleep", or "done". For "line":

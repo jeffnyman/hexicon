@@ -5,7 +5,7 @@
 //
 // Build first with: tools/build-web.sh nodejs
 //
-// usage: node tools/web-play.js <game.t3> <commands.txt>
+// usage: node tools/web-play.js <game.hxg> <commands.txt>
 //
 // Files the game writes, such as saved games, are kept in memory and are
 // gone when the run ends.
@@ -16,7 +16,7 @@ const { Game } = require("../build/web-nodejs/hexicon_wasm.js");
 
 const [imagePath, commandsPath] = process.argv.slice(2);
 if (!imagePath || !commandsPath) {
-  console.error("usage: node tools/web-play.js <game.t3> <commands.txt>");
+  console.error("usage: node tools/web-play.js <game.hxg> <commands.txt>");
   process.exit(2);
 }
 

@@ -26,8 +26,8 @@ commands:
                                (hexicon.toml) and a first source
                                (start.hxn) on Hexad, ready to build
   run [options] <game> [args...]
-                               play a game (a .hxg file, or a TADS 3
-                               game's .t3); the options are:
+                               play a game (a .hxg file); the options
+                               are:
       --norand                 make the same random choices on every run,
                                even when the program reseeds at random
       --plain                  treat a terminal as plain input and output:

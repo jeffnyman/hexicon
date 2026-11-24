@@ -88,7 +88,7 @@ impl ProgramObject {
         (self.ref_hash, self.ref_room) = ref_table(props);
         crate::heap::count(
             crate::heap::program_object_bytes(superclasses, self.ref_hash, self.ref_room),
-            "tads-object",
+            "hexicon-object",
         );
     }
 

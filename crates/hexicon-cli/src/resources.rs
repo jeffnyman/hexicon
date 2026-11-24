@@ -155,7 +155,7 @@ mod tests {
         // The files themselves, with a table of where each is.
         let mut image = empty_image();
         let mut steps = Vec::new();
-        bundle(&mut image, "game.t3", &resources, false, &mut |s| {
+        bundle(&mut image, "game.hxg", &resources, false, &mut |s| {
             steps.push(s.to_owned());
         })
         .unwrap();
@@ -174,7 +174,7 @@ mod tests {
 
         // In a build for debugging, links to them.
         let mut image = empty_image();
-        bundle(&mut image, "game.t3", &resources, true, &mut |_| {}).unwrap();
+        bundle(&mut image, "game.hxg", &resources, true, &mut |_| {}).unwrap();
         let block = &image[header + 10..image.len() - 10];
         assert_eq!(&image[header..header + 4], b"MREL");
         let mut expected = vec![1, 0, 11];
@@ -190,8 +190,8 @@ mod tests {
         }];
         let mut image = empty_image();
         assert_eq!(
-            bundle(&mut image, "game.t3", &missing, false, &mut |_| {}),
-            Err("game.t3: cannot open resource file \"no-such-file.png\"".to_owned())
+            bundle(&mut image, "game.hxg", &missing, false, &mut |_| {}),
+            Err("game.hxg: cannot open resource file \"no-such-file.png\"".to_owned())
         );
         let _ = std::fs::remove_dir_all(&dir);
     }

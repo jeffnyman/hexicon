@@ -33,7 +33,7 @@ impl Builder {
     }
 
     fn metaclasses(self) -> Self {
-        let name = b"tads-object/030005";
+        let name = b"hexicon-object/030005";
         let mut body = 1u16.to_le_bytes().to_vec();
         let entry_size = 2 + 1 + name.len() + 2 + 2 + 4;
         body.extend_from_slice(&(entry_size as u16).to_le_bytes());
@@ -48,8 +48,9 @@ impl Builder {
 
     fn function_sets(self) -> Self {
         let mut body = 1u16.to_le_bytes().to_vec();
-        body.push(11);
-        body.extend_from_slice(b"t3vm/010006");
+        let name = b"hexicon-vm/010006";
+        body.push(name.len() as u8);
+        body.extend_from_slice(name);
         self.block(b"FNSD", 1, &body)
     }
 
@@ -73,10 +74,10 @@ fn minimal_image() {
     assert_eq!(image.entry_point.method_header_size, 10);
     assert_eq!(image.entry_point.debug_frame_header_size, 8);
     assert_eq!(image.metaclasses.len(), 1);
-    assert_eq!(image.metaclasses[0].base_name(), "tads-object");
+    assert_eq!(image.metaclasses[0].base_name(), "hexicon-object");
     assert_eq!(image.metaclasses[0].version(), Some("030005"));
     assert_eq!(image.metaclasses[0].properties, [7, 9]);
-    assert_eq!(image.function_sets, ["t3vm/010006"]);
+    assert_eq!(image.function_sets, ["hexicon-vm/010006"]);
     assert_eq!(image.blocks.len(), 4);
     assert_eq!(image.blocks[3].kind, BlockKind::EOF);
 }
@@ -316,7 +317,7 @@ fn static_objects() {
     let second = &image.object_blocks[1];
     assert!(second.transient);
     assert_eq!(&*second.objects[0].data, b"large and transient");
-    assert_eq!(image.metaclass_of(second).name, "tads-object/030005");
+    assert_eq!(image.metaclass_of(second).name, "hexicon-object/030005");
 }
 
 #[test]
@@ -456,13 +457,12 @@ fn hostile_counts_do_not_allocate() {
 }
 
 #[test]
-fn reads_hexicon_and_t3_signatures_only() {
-    for signature in [SIGNATURE, T3_SIGNATURE] {
+fn reads_only_hexicons_signature() {
+    let data = Builder::new().entry_point().finish();
+    assert!(parse_header(&data).is_ok());
+    for other in [b"T3-image\r\n\x1a".as_slice(), b"XX-image\r\n\x1a"] {
         let mut data = Builder::new().entry_point().finish();
-        data[..signature.len()].copy_from_slice(signature);
-        assert!(parse_header(&data).is_ok());
+        data[..other.len()].copy_from_slice(other);
+        assert!(matches!(parse_header(&data), Err(ImageError::NotAnImage)));
     }
-    let mut data = Builder::new().entry_point().finish();
-    data[..2].copy_from_slice(b"XX");
-    assert!(matches!(parse_header(&data), Err(ImageError::NotAnImage)));
 }

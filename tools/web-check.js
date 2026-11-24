@@ -10,7 +10,7 @@
 // usage: node tools/web-check.js <browser.exe> <page address> <commands.txt>
 //
 // The page address names the game to load:
-//   http://127.0.0.1:8765/web/index.html?game=/build/web-test/sample.t3
+//   http://127.0.0.1:8765/web/index.html?game=/build/web-test/sample.hxg
 // The commands file has one command to a line.
 //
 // Two environment variables change what is checked:

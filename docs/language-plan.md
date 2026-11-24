@@ -32,7 +32,7 @@ TADS 3 is retired in stages, each one bought by having something else take over 
    The break, step 2b (2026-11-24): the TADS 3 dialect is removed (see "Two dialects, one compiler"). The compiler's unit tests are Hexicon programs, with Hexicon's names and words; those that compared the dialects keep their Hexicon half.
 
    The break, step 2a (2026-11-24): `hexicon convert` is removed. It did its work: Hexad, the system library, and the games kept for testing were made Hexicon with it. A game written in TADS 3 is now rewritten in Hexicon by hand, which suits the plan to rewrite games rather than run them. Where this plan speaks of the converter, that is what it did at the time.
-3. **Hexicon's VM goes its own way.** When a feature needs a change that T3 images cannot have, such as a new image format or a different object model, TADS 3 support is either dropped or kept as a frozen loader for old images. That is decided then, knowing what it costs. The games in the playground are all TADS 3 games, and dropping TADS 3 means they no longer play. Begun (2026-11-24): what Hexicon builds is a Hexicon image, with its own signature and names (below, under change 0). Decided with it: running TADS 3 games is no longer a goal. Games are to be rewritten in Hexicon from their sources instead. The VM still reads T3 images only because the comparisons with the reference run them.
+3. **Hexicon's VM goes its own way.** When a feature needs a change that T3 images cannot have, such as a new image format or a different object model, TADS 3 support is either dropped or kept as a frozen loader for old images. That is decided then, knowing what it costs. The games in the playground are all TADS 3 games, and dropping TADS 3 means they no longer play. Begun (2026-11-24): what Hexicon builds is a Hexicon image, with its own signature and names (below, under change 0). Decided with it: running TADS 3 games is no longer a goal. Games are to be rewritten in Hexicon from their sources instead. The break, step 3 (2026-11-24): the VM reads only Hexicon images. A T3 image (`.t3`) or a state a T3 VM saved is "not a game file", and the VM binds the built-in functions and the class of the program's objects by Hexicon's names alone (`hexicon-gen`, `hexicon-object`, `StackInfo`). The playground's TADS 3 games no longer play. What is left of TADS 3 is in the design (category 3: the image's layout and instruction set, the built-in classes' names and versions, the VM's error codes) and in what the VM matches of the reference while it runs (how it counts memory for collecting garbage, and the reference's quirks that programs can see).
 
 Stage 2 has to come before stage 3. Without the reference or tests of its own, nothing would tell us that the compiler or the VM is right.
 
@@ -66,7 +66,7 @@ Today every stage is checked against the reference. A Hexicon-only feature has n
 | Header | `.h` | None needed once modules exist (below). A `.h` can still be included. |
 | Library manifest | `.tl` | `hexicon.toml` |
 | Project | `.t3m` | `hexicon.toml` |
-| Game (the image) | `.t3` | `.hxg` (2026-11-24), a Hexicon image: T3's layout under its own signature, `HX-image`. `hexicon run` and the web player still take a `.t3` |
+| Game (the image) | `.t3` | `.hxg` (2026-11-24), a Hexicon image: T3's layout under its own signature, `HX-image`. Since step 3 of the break, `hexicon run` and the web player take nothing else |
 | Saved game | `.t3v` | `.t3v` while the format is T3 |
 
 The obvious names are taken: `.hex` is Intel HEX and `.hx` is Haxe. As far as I know, `.hxn` is not in common use.
@@ -196,7 +196,7 @@ Its sources are Hexicon's (`.hxn`), and it ships `reflect` as well as the five a
 | a saved game's, `T3-state-v000A` | `HX-state-v000A` |
 | the input font, `tads-input` | `hexicon-input` |
 
-A game built on Hexicon's system library has no TADS names in its image. The compiler writes `HX-image` for a program that depends on a `hexicon-` function set, and `T3-image` for one built on a TADS 3 installation's library, as the comparisons with the reference build, which keeps those images identical to the reference's. The VM takes both names for each set and both signatures, so it still runs those. The other built-in classes' identifiers (`string`, `list`, `vector`, and the rest) never named TADS, and are unchanged.
+A game built on Hexicon's system library has no TADS names in its image. At first the compiler also wrote `T3-image` for a program built on a TADS 3 installation's library, for the comparisons with the reference, and the VM took both names and both signatures. Since the break (steps 2b and 3), every image is a Hexicon image, and the VM takes nothing else. The other built-in classes' identifiers (`string`, `list`, `vector`, and the rest) never named TADS, and are unchanged.
 
 **Decided with it (2026-11-24): converted games move fully.** What is built in is Hexicon's alone. `hexicon convert` rewrites a game onto Hexicon's names, headers included, and it builds on the built-in system library with nothing installed. A TADS 3 game builds unconverted when pointed at a TADS 3 installation (`-FL`, `-FI`), as the reference checks do. The compiler takes either name for what it calls itself (`t3GetNamedArg` or `namedArg`, `TadsObject` or `ProgramObject`).
 

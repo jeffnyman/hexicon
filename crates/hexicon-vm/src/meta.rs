@@ -47,7 +47,7 @@ macro_rules! metaclasses {
 // its parent only to fit the table; `parent()` reports that it has none.
 metaclasses! {
     Root "root-object" "030004" Root;
-    ProgramObject "tads-object" "030005" Root;
+    ProgramObject "hexicon-object" "030005" Root;
     IntClassMod "int-class-mod" "030000" Root;
     IntrinsicClass "intrinsic-class" "030001" Root;
     String "string" "030008" Root;
@@ -82,13 +82,7 @@ metaclasses! {
 
 impl MetaKind {
     /// The class with a given name, ignoring any version suffix.
-    /// `hexicon-object` is a Hexicon image's name for `tads-object`.
     pub fn from_name(name: &str) -> Option<Self> {
-        let name = if name == "hexicon-object" {
-            "tads-object"
-        } else {
-            name
-        };
         Self::ALL.iter().copied().find(|kind| kind.name() == name)
     }
 }
