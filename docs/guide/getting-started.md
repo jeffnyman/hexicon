@@ -324,5 +324,5 @@ Line 42 is the key's `++ brassKey`, but the mistake is the line before it: the b
 ## Where to go next
 
 - Change *The Lighthouse*: add a room, a thing to find, something to ask the keeper about.
-- Read more about Hexad: [Things and Rooms](things-and-rooms.md), and [Containers, Surfaces, Doors, and Keys](containers-and-doors.md).
+- Read more about Hexad: [Things and Rooms](things-and-rooms.md), [Containers, Surfaces, Doors, and Keys](containers-and-doors.md), [Characters and Conversation](characters.md), and [Actions and Their Handlers](actions.md).
 - Hexad's classes are in its sources, which are part of Hexicon (`lib/hexad` in its source folder): `thing.hxn` for things, `travel.hxn` for rooms, exits, and doors, `actor.hxn` for characters and conversation.

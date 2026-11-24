@@ -1,0 +1,117 @@
+// The Belfry: the example of Hexad's actions and their handlers.
+
+import hexad;
+
+versionInfo: GameID
+    IFID = '2F8C6A1D-4E9B-4D27-8A63-5B0E1C7D9F42'
+    name = 'The Belfry'
+    byline = 'by the Hexicon guide'
+    version = '1'
+;
+
+gameMain: GameMainDef
+    initialPlayerChar = me
+;
+
+// A new action, RING, which takes one object.
+action Ring(dobj): TAction;
+
+// The words that mean it.
+VerbRule(Ring)
+    'ring' singleDobj
+    : VerbProduction
+    action = Ring
+    verbPhrase = 'ring/ringing (what)'
+    missingQ = 'what do you want to ring'
+;
+
+// What RING does to anything that has no handler of its own.
+modify Thing
+    dobj Ring
+    {
+        verify() { illogical(cannotRingMsg); }
+    }
+    cannotRingMsg = '{The subj dobj} {is} not something you can ring. '
+;
+
+// A new action, SING, which takes none.
+action Sing: IAction
+    execAction(cmd)
+    {
+        "Your voice echoes round the stone walls. ";
+    }
+;
+
+VerbRule(Sing)
+    'sing'
+    : VerbProduction
+    action = Sing
+    verbPhrase = 'sing/singing'
+;
+
+belfry: Room 'Belfry'
+    "A bare stone room under the bell. A rope hangs from it, beside a rusty
+    lever. "
+;
+
++ me: Player 'you'
+;
+
+++ rag: Thing 'oily rag'
+    "An oily rag. "
+
+    // Something to clean with: the rag accepts CLEAN ... WITH it.
+    iobj CleanWith
+    {
+        verify() { }
+    }
+;
+
+// The bell handles RING itself.
++ bell: Fixture 'bell; great bronze'
+    "A great bronze bell<<if timesRung > 0>>, still humming<<end>>. "
+    timesRung = 0
+
+    dobj Ring
+    {
+        verify() { }
+        action() { timesRung++; }
+        report() { "BONG. The note rolls out over the town. "; }
+    }
+;
+
+// Pulling the rope rings the bell.
++ rope: Fixture 'rope; bell'
+    "A thick bell rope. "
+
+    dobj Pull
+    {
+        verify() { }
+        action() { replaceAction(Ring, bell); }
+    }
+    dobj Ring as Pull
+;
+
+// A lever that works only once it is clean.
++ lever: Fixture 'lever; rusty'
+    "An iron lever, <<if isClean>>bright and clean<<else>>red with rust<<end>>. "
+    needsCleaning = true
+    mustBeCleanedWith = rag
+
+    makeCleaned(stat)
+    {
+        inherited(stat);
+        "The rust comes away on the rag. ";
+    }
+
+    dobj Pull
+    {
+        verify() { }
+        check()
+        {
+            if (!isClean)
+                "The lever is rusted solid. ";
+        }
+        action() { "A trapdoor opens in the floor, and the game is done. "; }
+    }
+;

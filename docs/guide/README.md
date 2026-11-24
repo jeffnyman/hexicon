@@ -8,8 +8,10 @@ Hexad, the library games are built on:
 
 - [Things and Rooms](things-and-rooms.md): what things are, what can be taken, what a room lists, the senses, hidden things, exits, and light and dark.
 - [Containers, Surfaces, Doors, and Keys](containers-and-doors.md): what holds what, a thing with several parts, things hidden under and behind, locks, keys, and doors.
+- [Characters and Conversation](characters.md): characters and their states, topic entries and what they answer, topics, revealing, and responses that change.
+- [Actions and Their Handlers](actions.md): how a command is carried out, a thing's own handlers, and new actions and their grammar.
 
-More is to come: characters and conversation, actions and their handlers, and Hexicon's language.
+More is to come, Hexicon's language among it.
 
 ## For the guide's writers
 

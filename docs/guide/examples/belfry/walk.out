@@ -1,0 +1,45 @@
+Belfry
+A bare stone room under the bell.  A rope hangs from it, beside a rusty lever.
+
+>look
+Belfry
+A bare stone room under the bell.  A rope hangs from it, beside a rusty lever.
+
+>ring bell
+BONG.  The note rolls out over the town.
+
+>x bell
+A great bronze bell, still humming.
+
+>ring rope
+BONG.  The note rolls out over the town.
+
+>pull rope
+BONG.  The note rolls out over the town.
+
+>ring rag
+The oily rag is not something you can ring.
+
+>ring
+What do you want to ring?
+
+>sing
+Your voice echoes round the stone walls.
+
+>pull lever
+The lever is rusted solid.
+
+>clean lever
+(with the oily rag)
+The rust comes away on the rag.
+
+>clean lever with rag
+The lever is already quite clean enough.
+
+>x lever
+An iron lever, bright and clean.
+
+>pull lever
+A trapdoor opens in the floor, and the game is done.
+
+>

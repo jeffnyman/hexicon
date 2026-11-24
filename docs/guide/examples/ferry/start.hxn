@@ -1,0 +1,96 @@
+// The Ferry: the example of Hexad's characters and conversation.
+
+import hexad;
+
+versionInfo: GameID
+    IFID = '6D4B2A8F-9C1E-4F37-B852-1E7A3C9D5F06'
+    name = 'The Ferry'
+    byline = 'by the Hexicon guide'
+    version = '1'
+;
+
+gameMain: GameMainDef
+    initialPlayerChar = me
+;
+
+riverbank: Room 'River Bank'
+    "Reeds and mud, and a wide grey river. "
+;
+
++ me: Player 'you'
+;
+
+++ penny: Thing 'penny; copper'
+    "A copper penny. "
+;
+
+++ map: Thing 'map; old'
+    "An old map of the river, with an island marked in the middle. "
+;
+
+// The ferryman, and the two states he can be in.
++ ferryman: Actor 'ferryman; old; man him'
+    "A lean old man in a patched coat. "
+;
+
+++ waitingState: ActorState
+    isInitState = true
+    specialDesc = "The ferryman leans on his pole by the water. "
+    stateDesc = "He is waiting for a fare. "
+;
+
+++ paidState: ActorState
+    specialDesc = "The ferryman stands in his boat, ready to push off. "
+    stateDesc = "He has been paid. "
+;
+
+// A topic in a state is used before those in the actor, while he is in it.
++++ AskTellTopic @tIsland
+    "<q>Sit down, and we'll be off,</q> he says. "
+;
+
+// Greetings, and goodbyes.
+++ HelloTopic
+    "<q>Crossing to the island?</q> he asks.<.reveal island> "
+;
+
+++ ByeTopic
+    "<q>Mind the mud,</q> he says. "
+;
+
+// One response after another, and then the last again.
+++ AskTopic, StopEventList @tRiver
+    [
+        '<q>Deep and cold,</q> he says. ',
+        '<q>Deep, I said. And cold.</q> ',
+        '<q>Ask me about something else.</q> '
+    ]
+;
+
+// Only once the island has been mentioned.
+++ AskTellTopic @tIsland
+    "<q>Nobody lives there now,</q> he says. <q>It's a penny to cross.</q> "
+    isActive = gRevealed('island')
+;
+
+// Things given and shown.
+++ GiveTopic @penny
+    topicResponse()
+    {
+        "He bites the penny, and nods. ";
+        penny.moveInto(nil);
+        ferryman.setState(paidState);
+    }
+;
+
+++ ShowTopic @map
+    "He squints at it. <q>Old,</q> he says, <q>but right.</q> "
+;
+
+// Anything else.
+++ DefaultAnyTopic
+    "He only grunts. "
+;
+
+tRiver: Topic 'river';
+tIsland: Topic 'island';

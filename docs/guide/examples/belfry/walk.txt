@@ -1,0 +1,14 @@
+<eventscript>
+<line>look
+<line>ring bell
+<line>x bell
+<line>ring rope
+<line>pull rope
+<line>ring rag
+<line>ring
+<line>sing
+<line>pull lever
+<line>clean lever
+<line>clean lever with rag
+<line>x lever
+<line>pull lever

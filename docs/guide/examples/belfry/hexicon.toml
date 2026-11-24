@@ -1,0 +1,8 @@
+[game]
+name = "The Belfry"
+libraries = ["system", "hexad"]
+sources = ["start"]
+image = "belfry.hxg"
+
+[defines]
+LANGUAGE = "english"

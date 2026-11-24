@@ -1,0 +1,17 @@
+<eventscript>
+<line>look
+<line>x ferryman
+<line>ask ferryman about island
+<line>talk to ferryman
+<line>ask ferryman about island
+<line>ask him about river
+<line>ask him about river
+<line>ask him about river
+<line>ask him about river
+<line>show map to ferryman
+<line>tell him about the weather
+<line>give penny to ferryman
+<line>x ferryman
+<line>look
+<line>ask him about island
+<line>bye

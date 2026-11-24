@@ -1,0 +1,62 @@
+River Bank
+Reeds and mud, and a wide grey river.
+
+The ferryman leans on his pole by the water.
+
+>look
+River Bank
+Reeds and mud, and a wide grey river.
+
+The ferryman leans on his pole by the water.
+
+>x ferryman
+A lean old man in a patched coat.  He is waiting for a fare.
+
+>ask ferryman about island
+“Crossing to the island?” he asks.
+
+He only grunts.
+
+>talk to ferryman
+You are already talking to the ferryman.
+
+>ask ferryman about island
+“Nobody lives there now,” he says.  “It’s a penny to cross.”
+
+>ask him about river
+“Deep and cold,” he says.
+
+>ask him about river
+“Deep, I said.  And cold.”
+
+>ask him about river
+“Ask me about something else.”
+
+>ask him about river
+“Ask me about something else.”
+
+>show map to ferryman
+He squints at it.  “Old,” he says, “but right.”
+
+>tell him about the weather
+He only grunts.
+
+>give penny to ferryman
+He bites the penny, and nods.
+
+>x ferryman
+A lean old man in a patched coat.  He has been paid.
+
+>look
+River Bank
+Reeds and mud, and a wide grey river.
+
+The ferryman stands in his boat, ready to push off.
+
+>ask him about island
+“Sit down, and we’ll be off,” he says.
+
+>bye
+“Mind the mud,” he says.
+
+>
