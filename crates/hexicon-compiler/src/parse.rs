@@ -876,6 +876,9 @@ pub(crate) struct Program {
     pub dict_props: Vec<usize>,
     /// The grammar productions, in the order they were first named.
     pub gramprods: Vec<GramProd>,
+    /// The properties declared (`property name;`): indexes into
+    /// [`Program::props`].
+    pub declared_props: Vec<usize>,
 }
 
 /// What is known of a body that others are nested in.
@@ -6204,7 +6207,9 @@ impl Parser<'_, '_> {
         loop {
             if self.cur() == Tok::Sym {
                 let name = self.cur_text();
-                self.look_up_prop(&name);
+                if let Some(prop) = self.look_up_prop(&name) {
+                    self.prog.declared_props.push(prop);
+                }
                 match self.next() {
                     Tok::Comma => {
                         self.next();

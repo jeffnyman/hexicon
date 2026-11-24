@@ -23,6 +23,7 @@ mod image;
 mod lex;
 mod link;
 mod manifest;
+mod names;
 mod parse;
 pub mod pp;
 mod project;

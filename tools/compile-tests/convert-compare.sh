@@ -81,6 +81,11 @@ for game in airport ditch3; do
   # The images are named here.
   sed -i '/^-o /d' "$orig/$game.t3m"
   sed -i '/^image = /d' "$conv/hexicon.toml"
+  # The converted game is checked for properties that are given values
+  # but never read, which the original is not, and Ditch Day has one.
+  # Its warning must not stop the build that is compared; it is shown
+  # below.
+  sed -i 's/^warnings-as-errors = true$/warnings-as-errors = false/' "$conv/hexicon.toml"
 
   # Without preinitialization: the same image. A file the program writes
   # when it is preinitialized, and bundles, is made empty in both.
@@ -94,6 +99,7 @@ for game in airport ditch3; do
       -o nopre.t3 --unspecified nopre.skip -f "$game.t3m" ) > "$out/$game-orig.nopre.msg" 2>&1 < /dev/null
   ( cd "$conv" && "$hex" build -cs cp1252 -FL "$LIB" -FI "$INC" "${conv_libs[@]}" \
       -o nopre.t3 ) > "$out/$game.nopre.msg" 2>&1 < /dev/null
+  grep -h "nothing reads it" "$out/$game.nopre.msg" | sed "s/^/  $game: /"
   python "$root/tools/image-diff.py" "$conv/nopre.t3" "$orig/nopre.t3" "$orig/nopre.skip" \
     > "$out/$game.nopre.dif" 2>&1
   check $? "$game image without preinitialization"

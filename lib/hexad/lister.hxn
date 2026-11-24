@@ -695,7 +695,7 @@ class ListGroupSuffixPrefix: ListGroupSorted
     }
     
     /* Display our group suffix. */
-    showGroupSuffix(pov, lst) { display(&groupSufffix); }
+    showGroupSuffix(pov, lst) { display(&groupSuffix); }
           
     /* Show our list of items (lst) using lister. */
     showList(lister, lst)

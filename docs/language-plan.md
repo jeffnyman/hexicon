@@ -166,6 +166,19 @@ TADS 3 creates a property the first time any source names it, so a misspelling i
 
 Once a program is linked, the compiler knows every property that anything defines, assigns, or declares. A property that is only ever read is almost always a misspelling. Hexicon files get a warning for it, with the nearest defined name as a suggestion. A program that builds property names at run time can declare them. The check changes no code, so there is nothing to lower.
 
+As built (milestone 3), the check is the other way round. A misspelled *read* is already reported, as an undefined symbol, because a name that nothing defines is not a property at all. What is silent is a misspelled *definition*: `isTakable = nil` defines a property that nothing reads, and the library's `isTakeable` keeps its inherited value. So the compiler reports a value given in a game's own Hexicon source to a property that:
+
+- nothing in the program reads, by name or by address (`&name`, which is how libraries ask whether a hook is defined);
+- no library gives a value, and no source declares (`property name;`);
+- is one slip from a property the program does read: a letter left out, added, or changed, two swapped, or a difference of case. Names that differ only in a final `_` or a final digit are a family, not a slip.
+
+```
+plane.hxn(725): warning: property "missinqQ" is given a value here, but nothing reads it - did you mean "missingQ"?
+start.hxn(536): warning: "dobjFor(ClimpUp)" defines handlers that nothing calls - did you mean "dobjFor(ClimbUp)"?
+```
+
+Libraries' sources are not checked: a library defines properties for games to read, and which it reads depends on what a game includes. TADS 3 sources are not checked either.
+
 ### 2. Actions and their handlers as declarations, not macros
 
 In both libraries an action is made with macros from `adv3.h` or `advlite.h`:
@@ -222,6 +235,15 @@ Both are large and neither is needed for Hexad. They are listed so that the earl
    - **Everything else** is copied.
 
    `tools/compile-tests/convert-compare.sh` checks the round trip for adv3, adv3Lite, Airport, and Ditch Day. Without preinitialization, the images are identical. With it, the objects the program makes while preinitializing are numbered differently. The converted program's tables of symbols and macros have the 13 names and 11 macros `hexicon.h` declares and nothing else new, and adv3Lite and Ditch Day's reflection keep those tables in the image. So the preinitialized builds are compared by play instead. Ditch Day's whole walkthrough (7,104 lines) and a short Airport script give the same transcripts. The compilers' messages are the same too: none.
-3. **Checked names.** Exit: no false warnings over adv3Lite, Hexad, and the converted games, and every misspelling a test plants is caught.
+3. **Checked names.** Exit: no false warnings over adv3Lite, Hexad, and the converted games, and every misspelling a test plants is caught. Done (2026-11-24), as described under change 1 (`crates/hexicon-compiler/src/names.rs`):
+   - **Over 15 games converted to Hexicon** (Airport, Ditch Day, the ten exercises of adv3Lite's manual, the adv3 sample game, and Heidi from *Getting Started in TADS 3*), on adv3, adv3Lite, and Hexad, it gives no false warnings. Every warning it gave was a real bug:
+     - Airport and Exercises 11 and 23: `missinqQ` where the library reads `missingQ`, so the question written for it is not the one used.
+     - Exercise 19: `travelBarrier = [alarmBarrier]` where the library reads `travelBarriers`, so the connector has no barrier.
+     - Exercise 21: `dobjFor(ClimpUp) asDobjFor(Board)`, which redirects an action that does not exist rather than CLIMB UP.
+     - Ditch Day: `openWhenRevaled` where the library reads `openWhenRevealed`, in a hint.
+     - Heidi: `is asExit(south)` where `in asExit(south)` was meant, so the room has no IN exit.
+   - **Planted misspellings are caught**, a property's and a handler's, in the unit tests.
+   - **Run over Hexad's own sources** while it was being built, it found two of adv3Lite's own slips, now fixed in Hexad (see the Hexad plan).
+   - **The comparisons that build Hexicon sources** (`convert-compare.sh`, `manifest-compare.sh`) show these warnings and leave them out of what they compare. The converted Ditch Day treats warnings as errors, so its comparison turns that off.
 4. **Action declarations.** Exit: the converter writes them for adv3Lite's actions, and the round trip still gives identical images.
 5. **Modules.** Exit: Hexad and a game built with `import` rather than headers, with identical images.

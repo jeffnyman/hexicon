@@ -1050,6 +1050,7 @@ impl Reader<'_, '_> {
         let modules = std::mem::take(&mut self.modules);
         let mut sources = Vec::new();
         let mut module_names = Vec::new();
+        let mut from_library = Vec::new();
         for (index, module) in modules.iter().enumerate() {
             if module.excluded {
                 continue;
@@ -1057,6 +1058,7 @@ impl Reader<'_, '_> {
             let path = self.find_source(&module.source, &module.search);
             sources.push(path);
             module_names.push((module.orig_name.clone(), index + 1));
+            from_library.push(!matches!(module.origin, Origin::Normal));
         }
         // What the macros come to: the last `-D` or `-U` of a name.
         let mut defines: Vec<(String, String)> = Vec::new();
@@ -1082,6 +1084,7 @@ impl Reader<'_, '_> {
                 default_charset: self.charset,
                 source_text_group: self.source_text_group,
                 module_names,
+                from_library,
                 debug: self.debug,
                 ..CompileOptions::default()
             },

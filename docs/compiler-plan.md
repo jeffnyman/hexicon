@@ -76,6 +76,7 @@ crates/
                           project files (.t3m), and libraries (.tl), as t3make reads them
     src/manifest.rs       Hexicon's manifests (hexicon.toml), for games and libraries
     src/convert.rs        converting TADS 3 source, project files, and libraries to Hexicon
+    src/names.rs          checked names: properties a game gives values that nothing reads
     include/hexicon.h     Hexicon's system header, built into the compiler
     src/link.rs           putting the source files of a program together: the numbers that
                           objects, properties, and enumerations have in the image

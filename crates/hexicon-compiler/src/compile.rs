@@ -30,6 +30,11 @@ pub struct CompileOptions {
     /// a source is named as it is given, and numbered by its place in
     /// the list.
     pub module_names: Vec<(String, usize)>,
+    /// For each source, whether a library brought it in. A game's own
+    /// Hexicon sources are checked for properties given values that
+    /// nothing reads (see [`crate::names`]); a library's are not.
+    /// Without them, no source is a library's.
+    pub from_library: Vec<bool>,
     /// Compile for debugging (`-d`): `__DEBUG` is defined, and the image
     /// says where in the source each statement's code came from.
     pub debug: bool,
@@ -45,6 +50,7 @@ impl Default for CompileOptions {
             timestamp: *b"Thu Jan  1 00:00:00 1970",
             source_text_group: false,
             module_names: Vec::new(),
+            from_library: Vec::new(),
             debug: false,
         }
     }
@@ -367,6 +373,13 @@ pub fn compile_program(
     // files are numbered after those of the modules before it, a file
     // that two modules read once for each.
     let mut source_files: Vec<String> = Vec::new();
+    // Names are checked when the game has a Hexicon source of its own.
+    let from_library = |index: usize| options.from_library.get(index) == Some(&true);
+    let checks_names = sources
+        .iter()
+        .enumerate()
+        .any(|(index, source)| Dialect::of(source) == Dialect::Hexicon && !from_library(index));
+    let mut names = crate::names::Checker::default();
     for (index, source) in sources.iter().enumerate() {
         let module = options
             .module_names
@@ -396,6 +409,14 @@ pub fn compile_program(
             return compiled;
         }
 
+        if checks_names {
+            names.add(
+                crate::names::collect(&prog),
+                Dialect::of(source) == Dialect::Hexicon && !from_library(index),
+                from_library(index),
+                &|file| pp.file_name(file).to_owned(),
+            );
+        }
         let mut generated = emit::generate(&mut prog, options.debug, source_files.len());
         source_files.extend(pp.file_names());
         for diagnostic in std::mem::take(&mut generated.diagnostics) {
@@ -432,6 +453,7 @@ pub fn compile_program(
         });
     }
 
+    compiled.diagnostics.extend(names.warnings());
     // Putting the program together: everything it refers to has to be
     // in it.
     let note = |compiled: &mut Compiled, severity: Severity, message: String| {

@@ -1223,7 +1223,7 @@ DefineIAction(Continue)
                 <<aHref('Continue','CONTINUE','Continue')>> or C. ')
     
  
-    optionsExcplained = nil
+    optionsExplained = nil
     
     explainOptions()
     {

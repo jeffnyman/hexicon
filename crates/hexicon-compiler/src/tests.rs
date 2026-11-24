@@ -3822,3 +3822,113 @@ fn a_manifest_can_give_its_modules_in_order_and_a_library_can_be_a_toml_file() {
         ]
     );
 }
+
+mod checked_names {
+    use super::{CompileOptions, Files, messages_of};
+    use crate::names::is_slip;
+
+    /// A library (TADS 3) and a game on it, the game as the source
+    /// named. The library reads `isTakeable` and the handlers of Take.
+    fn messages_with(library: &str, game_name: &str, game: &str) -> Vec<String> {
+        let mut files = Files::default()
+            .with("lib.t", library)
+            .with(game_name, game);
+        let options = CompileOptions {
+            from_library: vec![true, false],
+            ..CompileOptions::default()
+        };
+        messages_of(crate::compile_program(
+            &mut files,
+            &["lib.t", game_name],
+            &options,
+        ))
+    }
+
+    const LIBRARY: &str = "property propDefined, checkDobjTake;\n\
+                           class Thing: object isTakeable = true;\n\
+                           _main(args) {\n\
+                           \x20   local t = new Thing;\n\
+                           \x20   if (t.isTakeable && t.propDefined(&verifyDobjTake)) t.checkDobjTake();\n\
+                           }\n";
+
+    fn messages(game_name: &str, game: &str) -> Vec<String> {
+        messages_with(LIBRARY, game_name, game)
+    }
+
+    const GAME: &str = "rock: Thing\n\
+                        \x20   isTakable = nil\n\
+                        \x20   verifyDobjTakee() { } checkDobjTakee() { }\n\
+                        \x20   weight = 2\n\
+                        ;\n\
+                        f() { rock.isTakeable = nil; rock.isTakable = true; }\n";
+
+    #[test]
+    fn a_value_given_to_a_misspelled_property_is_reported() {
+        assert_eq!(
+            messages("game.hxn", GAME),
+            [
+                "game.hxn(2): property \"isTakable\" is given a value here, but nothing reads it \
+                 - did you mean \"isTakeable\"?",
+                "game.hxn(3): \"dobjFor(Takee)\" defines handlers that nothing calls - did you \
+                 mean \"dobjFor(Take)\"?",
+                "game.hxn(6): property \"isTakable\" is given a value here, but nothing reads it \
+                 - did you mean \"isTakeable\"?",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_tads_3_source_is_not_checked() {
+        assert_eq!(messages("game.t", GAME), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_name_declared_or_read_by_address_is_not_reported() {
+        let game = format!("property isTakable;\n{GAME}g() {{ return &verifyDobjTakee; }}\n");
+        let found = messages("game.hxn", &game);
+        assert!(
+            found.iter().all(|m| !m.contains("\"isTakable\"")),
+            "{found:?}"
+        );
+        // checkDobjTakee is still reported: only its sibling was read.
+        assert!(
+            found
+                .iter()
+                .any(|m| m.starts_with("game.hxn(4): \"dobjFor(Takee)\"")),
+            "{found:?}"
+        );
+    }
+
+    #[test]
+    fn a_name_a_library_gives_a_value_is_not_reported() {
+        let library = LIBRARY.replace("isTakeable = true;", "isTakeable = true isTakable = 1;");
+        let found = messages_with(&library, "game.hxn", GAME);
+        assert!(
+            found.iter().all(|m| !m.contains("\"isTakable\"")),
+            "{found:?}"
+        );
+        assert_eq!(found.len(), 1, "{found:?}");
+    }
+
+    #[test]
+    fn a_slip_is_one_letter_or_a_swap_but_not_a_family_of_names() {
+        for (a, b) in [
+            ("isTakable", "isTakeable"),
+            ("isTakebale", "isTakeable"),
+            ("missinqQ", "missingQ"),
+            ("isTakeAble", "isTakeable"),
+            ("is", "in"),
+        ] {
+            assert!(is_slip(a.as_bytes(), b.as_bytes()), "{a} {b}");
+        }
+        for (a, b) in [
+            ("num", "num_"),
+            ("room1", "room2"),
+            ("weight", "weight"),
+            ("isTkble", "isTakeable"),
+            ("stone", "store_x"),
+        ] {
+            assert!(!is_slip(a.as_bytes(), b.as_bytes()), "{a} {b}");
+        }
+    }
+}

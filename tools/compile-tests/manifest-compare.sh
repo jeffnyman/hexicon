@@ -95,7 +95,11 @@ EOF
 ( cd "$out/hxn" && "$hex" build -FL "$LIB" -FI "$INC" --unspecified hex.skip ) \
   > "$out/hxn.msg" 2>&1 < /dev/null
 tr -d '\r' < "$out/t3m.msg" | grep -v $'^\t' > "$out/t3m.txt"
-tr -d '\r' < "$out/hxn.msg" | grep -v $'^\t' > "$out/hxn.txt"
+# The Hexicon sources are checked for properties given values that
+# nothing reads, which the TADS 3 ones are not; Airport has one, given
+# twice. Those warnings are shown, and left out of the comparison.
+grep -h "nothing reads it" "$out/hxn.msg" | tr -d '\r' | sed 's/^/  /'
+tr -d '\r' < "$out/hxn.msg" | grep -v $'^\t' | grep -v "nothing reads it" > "$out/hxn.txt"
 if ! diff "$out/hxn.txt" "$out/t3m.txt" > "$out/msgdif"; then
   echo "DIFF messages ($(grep -c '^[<>]' "$out/msgdif") lines)"
   exit 1
