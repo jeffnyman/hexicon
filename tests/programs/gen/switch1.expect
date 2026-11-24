@@ -1,4 +1,4 @@
-image: 931b90931d77285c6b32e4d284f006a30b9bff027d699fd11581380ffe06883f
+image: 1d9a86378e00ba2256cafb59a91b08ca594eb6f7cb2a5896ac1d3ddc0ed13f53
 --- messages
 warning: label "there" is not referenced
   --> switch1.hxn:21

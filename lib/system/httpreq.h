@@ -56,7 +56,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
     getQuery();
 
     /*
-     *   Parse the query string.  This returns a LookupTable containing the
+     *   Parse the query string.  This returns a Map containing the
      *   parsed elements of the query.  The element table[1] is the base
      *   resource name: this is the part of the query string up to the first
      *   '?', if any, or the entire query string if there are no parameters.
@@ -97,7 +97,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
 
     /*
      *   Get the headers sent with the request by the client.  This returns a
-     *   LookupTable object: the keys are the header names, and the values
+     *   Map object: the keys are the header names, and the values
      *   are the corresponding header values.  For example, for a POST, there
      *   might be a 'Content-type' key with the corresponding value
      *   'application/x-www-form-urlencoded'.
@@ -120,7 +120,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
 
     /*
      *   Get the cookies sent with the request by the client.  This returns a
-     *   LookupTable of the cookies, with each key set to a cookie name and
+     *   Map of the cookies, with each key set to a cookie name and
      *   the corresponding value set to the cookie's text.  Cookies are
      *   assumed to contain only plan ASCII characters; any 8-bit characters
      *   in a cookie's name or value will be replaced by '?' characters.  
@@ -128,7 +128,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
     getCookies();
 
     /*
-     *   Get the form data-entry field values.  This returns a LookupTable
+     *   Get the form data-entry field values.  This returns a Map
      *   containing the field values sent with the request.  Each key in the
      *   table is a field name (given by the NAME property of the HTML
      *   <INPUT> tag for the field), and each corresponding value is a string
@@ -223,7 +223,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
      *   
      *   'body' is the content of the reply.  For example, for a request for
      *   an HTML page, this would contain the HTML text of the page.  This
-     *   can be a string or StringBuffer, in which case the string is sent as
+     *   can be a string or StringBuilder, in which case the string is sent as
      *   UTF-8 data; a ByteArray, in which case the raw bytes of the byte
      *   array are sent exactly as given; an integer, in which case the body
      *   will be a default HTML page automatically generated for the
@@ -290,7 +290,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
      *   the entire reply as a single string via sendReply(), for situations
      *   where you're generating the reply algorithmically and want to send a
      *   little bit at a time, rather than buffering up the entire reply in a
-     *   string or StringBuffer to send all at once.  This is particularly
+     *   string or StringBuilder to send all at once.  This is particularly
      *   useful for cases where the reply will take a while to generate,
      *   since it allows the client to interpret partial data before the
      *   entire reply is completed; and for very large reply bodies, where it
@@ -313,7 +313,7 @@ intrinsic class HTTPRequest 'http-request/030001': Object
      *   times after calling startChunkedReply() to send the pieces of a
      *   chunked reply.
      *   
-     *   'body' can be a string or StringBuffer, in which case the string
+     *   'body' can be a string or StringBuilder, in which case the string
      *   data are sent as UTF-8 text; or a ByteArray, in which case the raw
      *   bytes are sent.  
      */

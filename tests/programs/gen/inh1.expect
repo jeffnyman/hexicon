@@ -1,4 +1,4 @@
-image: d76ac9f213855c7d2cd69feb79cd1af63fb477526fc3436da377cbabbf633120
+image: 7ba42c0d7c00028b946ce1a1d3d11234a465eca1b5921280da31940f9512cb8e
 --- messages
 warning: "n" is given a value here, but nothing reads it
   --> inh1.hxn:8

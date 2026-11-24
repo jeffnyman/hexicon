@@ -203,7 +203,7 @@ beliefManager: PreinitObject
         
     }
     
-    /* Our LookupTable for finding the BelVal object corresponding to any belief values. */     
+    /* Our Map for finding the BelVal object corresponding to any belief values. */     
     bvTab = [
         true -> bTrue
     ]    

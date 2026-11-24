@@ -368,7 +368,7 @@ class AskConnector: TravelConnector
          */
         if(destTab == nil)
         {
-            destTab = new LookupTable();
+            destTab = new Map();
             
             foreach(local dest in dests)            
                 destTab[dest] = dest;                        

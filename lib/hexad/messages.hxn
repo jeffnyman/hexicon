@@ -539,7 +539,7 @@ class MessageCtx: object
                 return val.name;
             else if (val.ofKind(List) || val.ofKind(Vector))
                 return val.mapAll({ x: paramToString(x) }).join(', ');
-            else if (val.ofKind(BigNumber))
+            else if (val.ofKind(Decimal))
                 return toString(val);
             else
                 return '(object)';
@@ -557,7 +557,7 @@ class MessageCtx: object
 
     /*
      *   Convert a parameter value to a numeric representation.  If the
-     *   value is an integer or BigNumber, we return it as is; if a list or
+     *   value is an integer or Decimal, we return it as is; if a list or
      *   vector, we return the number of elements; if nil, 0; if a string,
      *   the parsed numeric value of the string; otherwise we simply return
      *   1.  
@@ -573,7 +573,7 @@ class MessageCtx: object
             return val;
 
         case TypeObject:
-            if (val.ofKind(BigNumber))
+            if (val.ofKind(Decimal))
                 return val;
             if (val.ofKind(List) || val.ofKind(Vector))
                 return val.length();
@@ -735,7 +735,7 @@ class MessageCtx: object
                 return lastParam.plural;
             else if (lastParam.ofKind(List) || lastParam.ofKind(Vector))
                 return lastParam.length() != 1;
-            else if (lastParam.ofKind(BigNumber))
+            else if (lastParam.ofKind(Decimal))
                 return lastParam != 1;
             else
                 return nil;
@@ -913,7 +913,7 @@ class CustomMessages: object
         CustomMessages.all += self;
 
         /* create the lookup table */
-        msgTab = new LookupTable(64, 128);
+        msgTab = new Map(64, 128);
 
         /* populate it with our key->string mappings */
         for (local i = 1, local len = messages.length() ; i <= len ; i += 2)
@@ -1260,7 +1260,7 @@ class MessageParams: object
         MessageParams.langObj = self;
 
         /* create the parameter table */
-        paramTab = new LookupTable(64, 128);
+        paramTab = new Map(64, 128);
         foreach (local p in params)
             paramTab[p[1]] = p;
     }

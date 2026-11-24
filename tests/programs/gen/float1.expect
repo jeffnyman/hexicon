@@ -1,6 +1,6 @@
-image: 04378af634e2b9253d3774353956784fc9a1af1d7a4def6d5c6cfa191ee836ff
+image: 0d2add34561d54bc5ad8c0f8ea015a5a6f25d378fc508f609cb6b15cbba2888e
 --- messages
-warning: constant value exceeds integer range; promoted to BigNumber
+warning: constant value exceeds integer range; promoted to Decimal
   --> float1.hxn:1
   |
 1 | _main(args) { local x = 1.5; local y = R"a+"; return [x, 2.25, y, 2147483647 + 1, 0x100000000, 3.0 * 2, 1e3, -2147483648, 4294967296 - 4294967295]; }

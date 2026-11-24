@@ -74,10 +74,10 @@ cmdTokenizer: Tokenizer
     rules_ = static
     [
         /* skip whitespace */
-        ['whitespace', new RexPattern('<Space>+'), nil, &tokCvtSkip, nil],
+        ['whitespace', new Regex('<Space>+'), nil, &tokCvtSkip, nil],
 
         /* certain punctuation marks */
-        ['punctuation', new RexPattern('<' + punctChars + '>'),
+        ['punctuation', new Regex('<' + punctChars + '>'),
          tokPunct, nil, nil],
 
         /*
@@ -87,21 +87,21 @@ cmdTokenizer: Tokenizer
          *   the digits word as separate tokens.
          */
         ['spelled number',
-         new RexPattern('<NoCase>(twenty|thirty|forty|fifty|sixty|'
+         new Regex('<NoCase>(twenty|thirty|forty|fifty|sixty|'
                         + 'seventy|eighty|ninety)-'
                         + '(one|two|three|four|five|six|seven|eight|nine)'
                         + '(?!<AlphaNum>)'),
          tokWord, &tokCvtSpelledNumber, nil],
 
         /* integer numbers */
-        ['integer', new RexPattern('[0-9]+' + endAssert),
+        ['integer', new Regex('[0-9]+' + endAssert),
          tokInt, nil, nil],
         
-//        ['real', new RexPattern('[0-9]+<period>[0-9]+' + endAssert), tokReal,
+//        ['real', new Regex('[0-9]+<period>[0-9]+' + endAssert), tokReal,
 //            nil, nil],
 
         /* numbers with a '#' preceding */
-        ['integer with #', new RexPattern('#[0-9]+' + endAssert),
+        ['integer with #', new Regex('#[0-9]+' + endAssert),
          tokPoundInt, nil, nil],
 
         /*
@@ -121,11 +121,11 @@ cmdTokenizer: Tokenizer
          *   ordinary word token rule.
          */
         ['three initials',
-         new RexPattern('<alpha><period><alpha><period><alpha><period>'),
+         new Regex('<alpha><period><alpha><period><alpha><period>'),
          tokWord, &tokCvtAbbr, &acceptAbbrTok],
 
         ['two initials',
-         new RexPattern('<alpha><period><alpha><period>'),
+         new Regex('<alpha><period><alpha><period>'),
          tokWord, &tokCvtAbbr, &acceptAbbrTok],
 
         /*
@@ -136,7 +136,7 @@ cmdTokenizer: Tokenizer
          *   including the period is in the dictionary.  
          */
         ['abbreviation',
-         new RexPattern('<AlphaNum|' + wordPunct + '>+<period>'),
+         new Regex('<AlphaNum|' + wordPunct + '>+<period>'),
          tokWord, &tokCvtAbbr, &acceptAbbrTok],
 
         /*
@@ -145,7 +145,7 @@ cmdTokenizer: Tokenizer
          *   apostrophe-s.
          */
         ['apostrophe-s word',
-         new RexPattern('<AlphaNum|' + wordPunct + '>+<' + squote + '>[sS]%>'),
+         new Regex('<AlphaNum|' + wordPunct + '>+<' + squote + '>[sS]%>'),
          tokWord, &tokCvtApostropheS, nil],
 
         /*
@@ -155,23 +155,23 @@ cmdTokenizer: Tokenizer
          *   alphabetics, digits, hyphens, ampersands, and apostrophes.
          */
         ['word',
-         new RexPattern('<AlphaNum|' + wordPunct + '|' + squote + '>+'),
+         new Regex('<AlphaNum|' + wordPunct + '|' + squote + '>+'),
          tokWord, nil, nil],
 
         /* strings with ASCII "straight" quotes */
         ['string ascii-quote',
-         new RexPattern('<min>([`\'"])(.*)%1' + endAssert),
+         new Regex('<min>([`\'"])(.*)%1' + endAssert),
          tokString, nil, nil],
 
         /* some people like to use single quotes like `this' */
         ['string back-quote',
-         new RexPattern('<min>`(.*)\'' + endAssert), tokString, nil, nil],
+         new Regex('<min>`(.*)\'' + endAssert), tokString, nil, nil],
 
         /* strings with Latin-1 curly quotes (single and double) */
         ['string curly single-quote',
-         new RexPattern('<min>\u2018(.*)\u2019'), tokString, nil, nil],
+         new Regex('<min>\u2018(.*)\u2019'), tokString, nil, nil],
         ['string curly double-quote',
-         new RexPattern('<min>\u201C(.*)\u201D'), tokString, nil, nil],
+         new Regex('<min>\u201C(.*)\u201D'), tokString, nil, nil],
 
         /*
          *   unterminated string - if we didn't just match a terminated
@@ -179,7 +179,7 @@ cmdTokenizer: Tokenizer
          *   match to the end of the line
          */
         ['string unterminated',
-         new RexPattern('([`\'"\u2018\u201C](.*)'), tokString, nil, nil],
+         new Regex('([`\'"\u2018\u201C](.*)'), tokString, nil, nil],
 
         /* 
          *   Accept any other group of characters, barring spaces and
@@ -188,7 +188,7 @@ cmdTokenizer: Tokenizer
          *   don't handle, and will just make a basic word out of any group
          *   of characters delimited by one of our normal delimiters.  
          */
-        ['any characters', new RexPattern('<^space|' + punctChars + '>+'),
+        ['any characters', new Regex('<^space|' + punctChars + '>+'),
          tokWord, nil, nil]
     ]
 
@@ -255,7 +255,7 @@ cmdTokenizer: Tokenizer
         /* add the part after the hyphen */
         toks.append([rexGroup(2)[3], typ, rexGroup(2)[3]]);
     }
-    patAlphaDashAlpha = static new RexPattern('(<alpha>+)-(<alpha>+)')
+    patAlphaDashAlpha = static new Regex('(<alpha>+)-(<alpha>+)')
 
     /*
      *   Check to see if we want to accept an abbreviated token - this is
@@ -368,11 +368,11 @@ cmdTokenizer: Tokenizer
     }
 
     /* some pre-compiled regular expressions */
-    patSpelledTens = static new RexPattern(
+    patSpelledTens = static new Regex(
         '<nocase>twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety')
-    patSpelledUnits = static new RexPattern(
+    patSpelledUnits = static new Regex(
         '<nocase>one|two|three|four|five|six|seven|eight|nine')
-    patPunct = static new RexPattern('[.,;:?!]')
+    patPunct = static new Regex('[.,;:?!]')
 ;
 
 

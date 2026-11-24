@@ -360,12 +360,12 @@ class CorrectionCandidate: object
  *   associated with.
  *   
  *   The standard dictionary contains all of these words as well, but it
- *   maps them all to the generic 'predicate' GrammarProd object.  That
+ *   maps them all to the generic 'predicate' GrammarRule object.  That
  *   doesn't help us identify which words are associated with which
  *   actions.  That information is sometimes needed, such as during
  *   spelling correction.
  *   
- *   Note that the system library file gramprod.hxn must be included in the
+ *   Note that the system library file grammarrule.hxn must be included in the
  *   build, so that GrammarAltInfo is defined.  
  */
 actionDictionary: PreinitObject
@@ -373,8 +373,8 @@ actionDictionary: PreinitObject
     execute()
     {
         /* get the table into a local for faster access */
-        local atab = wordToAction = new LookupTable(128, 256);
-        local xtab = xwords = new LookupTable(128, 256);
+        local atab = wordToAction = new Map(128, 256);
+        local xtab = xwords = new Map(128, 256);
         
         /* run through each predicate rule */
         foreach (local gi in predicate.getGrammarInfo())

@@ -1142,7 +1142,7 @@ class ScopeList: object
     find(obj)         
     { 
         if(status_ == nil)
-            status_ = new LookupTable(64, 128);
+            status_ = new Map(64, 128);
         
         return status_[obj] != nil; 
     }
@@ -1163,7 +1163,7 @@ class ScopeList: object
     vec_ = perInstance(new Vector(50))
 
     /* 
-     *   A LookupTable with the objects already added to the list.  We use
+     *   A Map with the objects already added to the list.  We use
      *   this to avoid redundantly scanning containment trees for objects
      *   that we've already added.  For each object, we set status_[obj] to
      *   a status indicator:
@@ -1172,7 +1172,7 @@ class ScopeList: object
      *.    1 - we've added the object only, not its contents
      *.    2 - we've added the object and its contents
      */
-    status_ = perInstance(new LookupTable(64, 128))
+    status_ = perInstance(new Map(64, 128))
 ;
 
 /*  

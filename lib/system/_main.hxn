@@ -13,7 +13,7 @@
 
 #include "hexicon.h"
 #include "reflect.h"
-#include "strbuf.h"
+#include "stringbuilder.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -634,8 +634,8 @@ dataTypeXlat(val)
     
     /* if it's an anonymous function, return TypeFuncPtr */
     if (t == TypeObject
-        && (val.ofKind(AnonFuncPtr)
-            || (defined(DynamicFunc) && val.ofKind(DynamicFunc))))
+        && (val.ofKind(Function)
+            || (defined(CompiledCode) && val.ofKind(CompiledCode))))
         return TypeFuncPtr;
 
     /* otherwise, just return the base type */
@@ -971,7 +971,7 @@ _default_display_fn(str) { _hexicon_io_say(str); }
 _outputCapture(func)
 {
     /* temporarily set the low-level string output to capture output */
-    local buf = new StringBuffer();
+    local buf = new StringBuilder();
     local oldSay = setSay({str: buf.append(str)});
 
     /* make sure we restore the "say" function on the way out */
@@ -1036,7 +1036,7 @@ class StackInfo: object
          */
         return ((func_ == nil && obj_ == nil)
                 || dataType(func_) == TypeBifPtr
-                || (obj_ != nil && IntrinsicClass.isIntrinsicClass(obj_)));
+                || (obj_ != nil && BuiltinClass.isBuiltinClass(obj_)));
     }
 
     /* 
@@ -1069,7 +1069,7 @@ class StackInfo: object
     argList_ = []
 
     /*
-     *   Local variables.  This is a LookupTable containing the local
+     *   Local variables.  This is a Map containing the local
      *   variables currently in scope at this stack level.  Each element in
      *   the table has a string key (index) giving the name of the local
      *   variable, and each corresponding value is the local's current
@@ -1082,7 +1082,7 @@ class StackInfo: object
     locals_ = nil
 
     /*
-     *   Named arguments.  This is a LookupTable containing the named
+     *   Named arguments.  This is a Map containing the named
      *   arguments passed in from this stack level.  Each element in the
      *   table has a string key (index) giving the name of the argument,
      *   and each corresponding value is the value of that argument.  If
@@ -1113,7 +1113,7 @@ class StackInfo: object
     srcInfo_ = nil
 
     /*
-     *   A StackFrameDesc object that can be used to get information from
+     *   A StackFrame object that can be used to get information from
      *   the frame and change local variables in the frame.  
      */
     frameDesc_ = nil

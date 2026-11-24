@@ -280,8 +280,8 @@ class LMentionable: object
         cmdDict.setComparator(Mentionable.dictComp);
 
         /* create the lookup table for the plurals and a/an words */
-        local plTab = irregularPlurals = new LookupTable(128, 256);
-        local anTab = specialAOrAn = new LookupTable(128, 256);
+        local plTab = irregularPlurals = new Map(128, 256);
+        local anTab = specialAOrAn = new Map(128, 256);
 
         /* set up the a/an pattern */
         local aAnPat = R'^(a|an)<space>+(.*)$';
@@ -1327,10 +1327,10 @@ class LMentionable: object
      *   A word is a preposition if it's in our preposition list, OR it's
      *   annotated explicitly with "[prep]" at the end. 
      */
-    prepWordPat = static new RexPattern(
+    prepWordPat = static new Regex(
         '^(<<prepList>>)$|.*<lsquare>prep<rsquare>$')
     
-    weakWordPat = static new RexPattern(
+    weakWordPat = static new Regex(
         '.*<lsquare>weak<rsquare>$')
 
     /* preposition list, as a regular expression OR pattern */
@@ -1820,7 +1820,7 @@ class LMentionable: object
      *   regular expression for separating the main phrase and
      *   prepositional phrase from a "noun prep noun" phrase 
      */
-    prepPhrasePat = static new RexPattern(
+    prepPhrasePat = static new Regex(
         '^(.+)(<space>+(<<prepList>>)<space>+.+)$')
 
     /* pattern for pulling the last word out of a phrase */
@@ -2490,7 +2490,7 @@ pronounPreinit: PreinitObject
         }
 
         /* create the pronoun map for LMentionable */
-        LMentionable.pronounMap = new LookupTable(16, 32);
+        LMentionable.pronounMap = new Map(16, 32);
         forEachInstance(Pronoun, function(p) {
             LMentionable.pronounMap[p.name] = p;
             if (p.objName != nil)
@@ -2985,16 +2985,16 @@ spellNumber(n)
     local dot = englishOptions.decimalPt;
     local comma = englishOptions.numGroupMark;
     
-    /* if it's a BigNumber with a fractional part, write as digits */
+    /* if it's a Decimal with a fractional part, write as digits */
     if (dataType(n) == TypeObject
-        && n.ofKind(BigNumber)
+        && n.ofKind(Decimal)
         && n.getFraction() != 0)
     {
         /* 
          *   format it, and convert decimals and group separators per the
          *   options 
          */
-        return n.formatString(n.getPrecision(), BignumCommas).findReplace(
+        return n.formatString(n.getPrecision(), DecimalCommas).findReplace(
             ['.', ','], [dot, comma]);
     }
 
@@ -3788,7 +3788,7 @@ andList(lst)
 genList(lst, conj)
 {
     /* start with an empty string */
-    local ret = new StringBuffer();
+    local ret = new StringBuilder();
 
     /* combine any duplicate items in the list */
     lst = mergeDuplicates(lst); 
@@ -4976,7 +4976,7 @@ englishMessageParams: MessageParams
     construct()
     {
         /* create the verb form table */
-        verbTab = new LookupTable(128, 256);
+        verbTab = new Map(128, 256);
 
         /* add the verb parameters for all CustomVocab objects */
         forEachInstance(CustomVocab, function(cv) {
@@ -6455,7 +6455,7 @@ modify SpecialVerb
 ;
 
 /* 
- *   Define a LookupTable that translates the names of various enums into their string equivalents.
+ *   Define a Map that translates the names of various enums into their string equivalents.
  *   This is used by the say() function to display the names of these enums. This is defined in the
  *   lnaguage-dependent part of the library to allow customization to other languages.
  */

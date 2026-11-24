@@ -24,7 +24,7 @@ modify Room
         inherited();
         
         /* 
-         *   Go through each direction property listed in the Direction.opposites LookupTable.
+         *   Go through each direction property listed in the Direction.opposites Map.
          */
         foreach(local dir in Direction.allDirections)
         {

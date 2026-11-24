@@ -2,35 +2,35 @@
 #pragma once
 
 /* 
- *   This header defines the BigNumber intrinsic class.  
+ *   This header defines the Decimal intrinsic class.  
  */
 
 /* include our base class definition */
 #include "systype.h"
 
 /*
- *   The BigNumber intrinsic class lets you perform floating-point and
- *   integer arithmetic with (almost) any desired precision.  BigNumber uses
+ *   The Decimal intrinsic class lets you perform floating-point and
+ *   integer arithmetic with (almost) any desired precision.  Decimal uses
  *   a decimal representation, which means that decimal values can be
  *   represented exactly (i.e., with no rounding errors, as can happen with
  *   IEEE 'double' and 'float' values that languages like C typically
- *   support).  BigNumber combines a varying-length mantissa with an
+ *   support).  Decimal combines a varying-length mantissa with an
  *   exponent; the length of the mantissa determines how many digits of
- *   precision a given BigNumber can store, and the exponent lets you
+ *   precision a given Decimal can store, and the exponent lets you
  *   represent very large or very small values with minimal storage.  You can
- *   specify the desired precision when you create a BigNumber explicitly;
- *   when BigNumber values are created implicitly by computations, the system
+ *   specify the desired precision when you create a Decimal explicitly;
+ *   when Decimal values are created implicitly by computations, the system
  *   chooses a precision based on the inputs to the calculations, typically
  *   equal to the largest of the precisions of the input values.
  *   
- *   The maximum precision for a BigNumber is about 64,000 digits, and the
+ *   The maximum precision for a Decimal is about 64,000 digits, and the
  *   exponent can range from -32768 to +32767.  Since this is a decimal
  *   exponent, this implies an absolute value range from 1.0e-32768 to
- *   1.0e+32767.  The more digits of precision stored in a given BigNumber
+ *   1.0e+32767.  The more digits of precision stored in a given Decimal
  *   value, the more memory the object consumes, and the more time it takes
  *   to perform calculations using the value.  
  */
-intrinsic class BigNumber 'bignumber/030001': Object
+intrinsic class Decimal 'bignumber/030001': Object
 {
     /* format to a string */
     formatString(maxDigits?, flags?,
@@ -104,7 +104,7 @@ intrinsic class BigNumber 'bignumber/030001': Object
 
     /* 
      *   Calculate the integer quotient and the remainder; returns a list
-     *   whose first element is the integer quotient (a BigNumber
+     *   whose first element is the integer quotient (a Decimal
      *   containing an integer value), and whose second element is the
      *   remainder (the value R such that dividend = quotient*x + R).
      *   
@@ -230,35 +230,35 @@ intrinsic class BigNumber 'bignumber/030001': Object
  */
 
 /* always show a sign, even if positive */
-#define BignumSign          0x0001
+#define DecimalSign          0x0001
 
 /* always show in exponential format (scientific notation, as in "1.0e20") */
-#define BignumExp           0x0002
+#define DecimalExp           0x0002
 
 /* always show a sign in the exponent, even if positive */
-#define BignumExpSign      0x0004
+#define DecimalExpSign      0x0004
 
 /* 
  *   show a zero before the decimal point - this is only relevant in
  *   non-exponential format when the number is between -1 and +1 
  */
-#define BignumLeadingZero  0x0008
+#define DecimalLeadingZero  0x0008
 
 /* always show a decimal point */
-#define BignumPoint         0x0010
+#define DecimalPoint         0x0010
 
 /* insert commas to denote thousands, millions, etc */
-#define BignumCommas        0x0020
+#define DecimalCommas        0x0020
 
 /* show a leading space if the number is positive */
-#define BignumPosSpace     0x0040
+#define DecimalPosSpace     0x0040
 
 /* 
  *   use European-style formatting: use a comma instead of a period for
  *   the decimal point, and use periods instead of commas to set off
  *   thousands, millions, etc 
  */
-#define BignumEuroStyle     0x0080
+#define DecimalEuroStyle     0x0080
 
 /* 
  *   "Compact" format: use the shorter of the regular format and scientific
@@ -266,20 +266,20 @@ intrinsic class BigNumber 'bignumber/030001': Object
  *   greater than or equal to the number of digits after the decimal point,
  *   we'll use scientific notation; otherwise we'll use the plain format. 
  */
-#define BignumCompact      0x0100
+#define DecimalCompact      0x0100
 
 /* 
  *   maxDigits counts only significant digits; leading zeros aren't counted
  *   against the maximum. 
  */
-#define BignumMaxSigDigits 0x0200
+#define DecimalMaxSigDigits 0x0200
 
 /* 
  *   Keep trailing zeros.  If there's a maxDigits value, this keeps enough
  *   trailing zeros so that the number of digits shown equals maxDigits.  By
  *   default, trailing zeros after the decimal point are removed. 
  */
-#define BignumKeepTrailingZeros 0x0400
+#define DecimalKeepTrailingZeros 0x0400
 
 
 /* ------------------------------------------------------------------------ */
@@ -295,7 +295,7 @@ intrinsic class BigNumber 'bignumber/030001': Object
 /* 
  *   Number type: "Not a number" (NaN).  This indicates that the value is the
  *   result of a calculation with invalid input(s).  Currently there are no
- *   BigNumber calculations that return NaNs, as all functions on invalid
+ *   Decimal calculations that return NaNs, as all functions on invalid
  *   inputs throw errors instead.  But it's possible to construct NaN value,
  *   such as by reading an IEEE 754-2008 NaN value from a file via
  *   unpackBytes().  
@@ -304,9 +304,9 @@ intrinsic class BigNumber 'bignumber/030001': Object
 
 /* 
  *   Number type: positive infinity, negative infinity.  These indicate a
- *   value that overflowed the capacity of the BigNumber type, or a
+ *   value that overflowed the capacity of the Decimal type, or a
  *   calculation that yields infinity (e.g., tan(pi/2)).  Currently there are
- *   no BigNumber calculations that return Infinities, as all functions where
+ *   no Decimal calculations that return Infinities, as all functions where
  *   an overflow is possible throw errors instead.  But it's possible to
  *   construct an Infinity value, such as by reading an IEEE 754-2008
  *   Infinity value from a file via unpackBytes().  
@@ -317,7 +317,7 @@ intrinsic class BigNumber 'bignumber/030001': Object
 
 /*
  *   Number type: zero, positive or negative.  Mathematically, zero is
- *   neither positive nor negative, but the BigNumber type retains a sign for
+ *   neither positive nor negative, but the Decimal type retains a sign for
  *   all values, even zeros.  Negative zeros can come from calculations
  *   that yield negative results with absolute values too small for the
  *   internal representation.  It's also possible to construct a negative

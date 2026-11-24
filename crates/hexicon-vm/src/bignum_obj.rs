@@ -557,7 +557,7 @@ impl Vm {
             }),
             _ => {
                 return Err(VmError::unimplemented(format!(
-                    "BigNumber.{}",
+                    "Decimal.{}",
                     METHODS[index as usize].0
                 )));
             }

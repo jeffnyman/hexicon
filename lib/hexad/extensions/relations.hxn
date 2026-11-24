@@ -43,7 +43,7 @@ class Relation: PreinitObject
     reciprocal = nil
     
     /*  
-     *   A LookupTable to hold data about the items related via this relation.
+     *   A Map to hold data about the items related via this relation.
      *   This is maintained by the library code and shouldn't normally be
      *   directly accessed via game code. [RELATIONS EXTENSION]
      */
@@ -90,7 +90,7 @@ class Relation: PreinitObject
         local vec = new Vector;
         
         /* 
-         *   Go through each key in the relTab LookupTable to see if a occurs in
+         *   Go through each key in the relTab Map to see if a occurs in
          *   its corresponding value (which should be a list). If so append cur
          *   to our vector.
          */
@@ -123,7 +123,7 @@ class Relation: PreinitObject
     {
         
         /* 
-         *   If we do not already have a LookupTable associated with our relTab
+         *   If we do not already have a Map associated with our relTab
          *   property, perform some sanity checks and then create one if all is
          *   okay.
          */
@@ -147,16 +147,16 @@ class Relation: PreinitObject
             }
             
             /* 
-             *   If we do not yet have a LookupTable attached to our relTab,
+             *   If we do not yet have a Map attached to our relTab,
              *   create it now.
              */
-            relTab = new LookupTable;
+            relTab = new Map;
             relTab.setDefaultValue([]);
         }
         
         /* 
          *   The obs parameter should have been supplied as a two element list,
-         *   [a, b]. When we add this to our relTab LookupTable the first item
+         *   [a, b]. When we add this to our relTab Map the first item
          *   in the list will be a key in the table and the second will be a
          *   value.
          */
@@ -188,7 +188,7 @@ class Relation: PreinitObject
             
             /* 
              *   Simce key is no longer related to anything, we can remove it
-             *   from the relTab LookupTable.
+             *   from the relTab Map.
              */
             relTab.removeElement(key);
             
@@ -237,9 +237,9 @@ class Relation: PreinitObject
             /* 
              *   If we're a one-to-one relation, we can simply set the new value
              *   corresponding to key to [val], either thereby creating a new
-             *   entry in the relTab LookupTable or overwriting the existing
+             *   entry in the relTab Map or overwriting the existing
              *   one. We make [val] a list since this is how the relTab
-             *   LookupTable stores its values.
+             *   Map stores its values.
              */
             relTab[key] = [val];          
             
@@ -300,7 +300,7 @@ class Relation: PreinitObject
      */
     makeUnique(key, val)
     {
-        /* Get a list of all the keys in the relTab LookupTable. */
+        /* Get a list of all the keys in the relTab Map. */
         local lst = relTab.keysToList();
         
         /* 
@@ -522,12 +522,12 @@ DerivedRelation: Relation
  */
 relationTable: PreinitObject
     /* 
-     *   LookupTable to restore data relating names to relations. Each key is a
+     *   Map to restore data relating names to relations. Each key is a
      *   string containing a relation name. Each corresponding value is a
      *   two-item list [rel, type] where rel is the name of the corresponding
      *   relation object and type is either normalRelation or reverseRelation.
      */
-    nameTab = static new LookupTable
+    nameTab = static new Map
     
     /*  
      *   Go through all the relations in the game and add their names and

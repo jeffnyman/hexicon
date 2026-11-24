@@ -2790,7 +2790,7 @@ modify Actor
     }
     
     /* 
-     *   A LookupTable containing our stance to various actors. It starts out with our stance
+     *   A Map containing our stance to various actors. It starts out with our stance
      *   towards the player character set to our initial stance, and to everyone else set to the
      *   default stance. Even if we don't want to track this actor's stance towards every other
      *   actor. it may be important to do so towards different potential player characters should
@@ -3825,7 +3825,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         
         /* If our actor doesn't yet have a convKeyTab, create one */
         if(actor.convKeyTab == nil)
-            actor.convKeyTab = new LookupTable;
+            actor.convKeyTab = new Map;
         
         /*  
          *   Go through every key in our convKeys list and add this
@@ -5470,9 +5470,9 @@ class SpecialTopic: ActorTopicEntry
      *   parentheses from the match pattern since these could be used to mark weak tokens in an
      *   ordinary name rather than indicating a regular expression.
      */    
-//    rex = static new RexPattern('<langle|rangle|star|dollar|vbar|percent|caret|lparen|rparen>')
+//    rex = static new Regex('<langle|rangle|star|dollar|vbar|percent|caret|lparen|rparen>')
     
-    rex = static new RexPattern('<langle|rangle|star|dollar|vbar|percent|caret')
+    rex = static new Regex('<langle|rangle|star|dollar|vbar|percent|caret')
     
     /* 
      *   If we want this SpecialTopic also to match an ASK ABOUT command, define
@@ -6661,7 +6661,7 @@ modify conversationManager
     convnodeSetTurn = 0
     
     /* regular expression pattern for our tags */
-    tagPat = static new RexPattern(
+    tagPat = static new Regex(
         '<nocase><langle><dot>'
         + '(reveal|unreveal|agenda|remove|state|known|activate|inform|convstay|topics'
         + (customTags != nil ? '|' + customTags : '')
@@ -6933,7 +6933,7 @@ modify conversationManager
     /* The key to use for the pending prompt-time inventory request */
     pendingTopicInventoryKey = nil
     
-    objNameTab = static new LookupTable
+    objNameTab = static new Map
 ;
 
 /* 

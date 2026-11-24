@@ -2,7 +2,7 @@
 #pragma once
 
 /* 
- *   The header defines the GrammarProd intrinsic class and some associated
+ *   The header defines the GrammarRule intrinsic class and some associated
  *   properties and constants.  
  */
 
@@ -11,33 +11,33 @@
 #include "systype.h"
 
 /*
- *   The GrammarProd intrinsic class is a specialized type that's designed
+ *   The GrammarRule intrinsic class is a specialized type that's designed
  *   for creating parsers.  An object of this type is created automatically
  *   by the compiler for each 'grammar' statement.  This class
  *   encapsulates the prototype token list and mapping information defined in
  *   a 'grammar' statement, and provides a method to match its prototype to
  *   an input token string.
  *   
- *   GrammarProd implements a "parser" in a limited computerese sense, which
+ *   GrammarRule implements a "parser" in a limited computerese sense, which
  *   is essentially a program that produces "sentence diagrams" a la
- *   elementary school grammar lessons.  GrammarProd is thus only a small
+ *   elementary school grammar lessons.  GrammarRule is thus only a small
  *   part of what we think of as "the parser" in an IF context.  The broader
- *   parser starts with the sentence diagrams that GrammarProd produces, and
+ *   parser starts with the sentence diagrams that GrammarRule produces, and
  *   must then interpret their meanings and carry out the intentions they
  *   express.
  *   
- *   Parsers built with GrammarProd trees can handle grammars with left or
+ *   Parsers built with GrammarRule trees can handle grammars with left or
  *   right recursion, and can handle ambiguous grammars (meaning that a
  *   single input can have multiple ways of matching the grammar).  This is
  *   especially important for natural language parsing, since virtually all
  *   natural languages have ambiguous grammars.  When a match is ambiguous, a
- *   GrammarProd parser builds all of the possible match trees, allowing you
+ *   GrammarRule parser builds all of the possible match trees, allowing you
  *   to choose the best match based on context and semantic content.
  *   
- *   You can also create new productions dynamically with new GrammarProd().
+ *   You can also create new productions dynamically with new GrammarRule().
  *   Use addAlt() to populate a new production with token matching rules.  
  */
-intrinsic class GrammarProd 'grammar-production/030002': Object
+intrinsic class GrammarRule 'grammar-production/030002': Object
 {
     /*
      *   Parse the token list, starting at this production, using the given
@@ -71,7 +71,7 @@ intrinsic class GrammarProd 'grammar-production/030002': Object
      *   token list will be automatically added to the dictionary if they're
      *   not already defined.
      *   
-     *   'symtab' is an optional LookupTable with the global symbol table.
+     *   'symtab' is an optional Map with the global symbol table.
      *   This must be provided if any symbolic tokens are used in the rule
      *   list (property names, sub-production names, etc).  In most cases
      *   this is simply the symbol table that globalSymbols() returns
@@ -145,10 +145,10 @@ intrinsic class GrammarProd 'grammar-production/030002': Object
  *   matchValues() result for each token match.  
  */
 property firstTokenIndex, lastTokenIndex, tokenList, tokenMatchList;
-export firstTokenIndex 'GrammarProd.firstTokenIndex';
-export lastTokenIndex  'GrammarProd.lastTokenIndex';
-export tokenList       'GrammarProd.tokenList';
-export tokenMatchList  'GrammarProd.tokenMatchList';
+export firstTokenIndex 'GrammarRule.firstTokenIndex';
+export lastTokenIndex  'GrammarRule.lastTokenIndex';
+export tokenList       'GrammarRule.tokenList';
+export tokenMatchList  'GrammarRule.tokenMatchList';
 
 /*
  *   For alternatives created at run-time with addAlt(), the system maintains
@@ -157,5 +157,5 @@ export tokenMatchList  'GrammarProd.tokenMatchList';
  *   stored in the grammarAltProps of the match object.
  */
 property grammarAltProps;
-export grammarAltProps 'GrammarProd.altProps';
+export grammarAltProps 'GrammarRule.altProps';
 

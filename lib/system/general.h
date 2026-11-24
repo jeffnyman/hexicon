@@ -221,20 +221,20 @@ intrinsic 'hexicon-gen/030008'
      *   the numeric base given by 'radix' (which can be any value from 2 to
      *   36), or base 10 (decimal) if 'radix' is omitted; nil or true, in
      *   which case the string 'nil' or 'true' is returned; a string, which
-     *   is returned unchanged; or a BigNumber, in which case the number is
+     *   is returned unchanged; or a Decimal, in which case the number is
      *   converted to a string representation in the given radix; a list or
      *   vector, in which case the individual elements are converted
      *   recursively, then the results concatenated together into a string
      *   with commas separating elements; or any of the built-in object types
-     *   with default string conversions (ByteArray, StringBuffer, FileName,
+     *   with default string conversions (ByteArray, StringBuilder, FileName,
      *   Date, TimeZone, FileName, etc).
      *   
-     *   Note that when working with BigNumber values, you might prefer to
-     *   use BigNumber.formatString(), as that gives you more control over
+     *   Note that when working with Decimal values, you might prefer to
+     *   use Decimal.formatString(), as that gives you more control over
      *   the formatting style.
      *   
      *   'radix' is only meaningful with numeric values (integers and
-     *   BigNumbers).  For BigNumbers, only whole integer values can be
+     *   Decimals).  For Decimals, only whole integer values can be
      *   displayed in a non-decimal radix; if the number has a fractional
      *   part, the radix will be ignored and the number will be shown in
      *   decimal.
@@ -250,7 +250,7 @@ intrinsic 'hexicon-gen/030008'
      *   which represents -1 as 0xFFFFFFFF, -2 as 0xFFFFFFFE, etc.  Most
      *   types other than integer don't have distinct signed and unsigned
      *   interpretations, so 'isSigned' isn't meaningful with most other
-     *   types.  With BigNumber in particular, the only effect is to omit the
+     *   types.  With Decimal in particular, the only effect is to omit the
      *   "-" sign for negative values.  
      */
     toString(val, radix?, isSigned?);
@@ -269,12 +269,12 @@ intrinsic 'hexicon-gen/030008'
      *   'val' is nil, or the string 'nil', the return value is 0.  Leading
      *   and trailing spaces are ignored for these strings.
      *   
-     *   If 'val' is a BigNumber value, the value is rounded to the whole
+     *   If 'val' is a Decimal value, the value is rounded to the whole
      *   number, and returned as an integer value.  A numeric overflow error
      *   occurs if the number is out of range for a 32-bit integer.  (If you
-     *   want to round a BigNumber to the nearest integer and get the result
-     *   as another BigNumber value, use the getWhole() method of the
-     *   BigNumber.)
+     *   want to round a Decimal to the nearest integer and get the result
+     *   as another Decimal value, use the getWhole() method of the
+     *   Decimal.)
      *   
      *   See also toNumber(), which can also parse floating point values and
      *   whole numbers too large for the ordinary integer type.  
@@ -316,7 +316,7 @@ intrinsic 'hexicon-gen/030008'
 
     /*
      *   Match a string to a regular expression pattern.  'pat' can be either
-     *   a string giving the regular expression, or can be a RexPattern
+     *   a string giving the regular expression, or can be a Regex
      *   object.  'str' is the string to match, and 'index' is the starting
      *   character index (the first character is at index 1) at which to
      *   start matching.  Returns the length in characters of the match, or
@@ -331,7 +331,7 @@ intrinsic 'hexicon-gen/030008'
     /*
      *   Search the given string for the given regular expression pattern.
      *   'pat' is a string giving the regular expression to find, or a
-     *   RexPattern object.  'str' is the string to search, and 'index' is
+     *   Regex object.  'str' is the string to search, and 'index' is
      *   the optional starting index (the first character is at index 1;
      *   negative indices are from the end of the string, so -1 is the last
      *   character, -2 is the second to last, and so on).  If a match to the
@@ -362,7 +362,7 @@ intrinsic 'hexicon-gen/030008'
 
     /*
      *   Search for the given regular expression pattern (which can be given
-     *   as a regular expression string or as a RexPattern object) within the
+     *   as a regular expression string or as a Regex object) within the
      *   given string, and replace one or more occurrences of the pattern
      *   with the given replacement text.
      *   
@@ -467,7 +467,7 @@ intrinsic 'hexicon-gen/030008'
      *   persistent objects in the given file.  Any existing file is
      *   overwritten.
      *   
-     *   'metatab' is an optional LookupTable containing string key/value
+     *   'metatab' is an optional Map containing string key/value
      *   pairs to be saved with the file as descriptive metadata.  The
      *   interpreter and other tools can display this information to the user
      *   when browsing a collection of saved game files, to help the user
@@ -543,7 +543,7 @@ intrinsic 'hexicon-gen/030008'
      *   toInteger(), but can parse strings containing floating point numbers
      *   and whole numbers too large for ordinary integers.
      *   
-     *   If 'val' is an integer or BigNumber value, the return value is
+     *   If 'val' is an integer or Decimal value, the return value is
      *   simply 'val'.
      *   
      *   If 'val' is a string, the function parses the string's contents as a
@@ -552,11 +552,11 @@ intrinsic 'hexicon-gen/030008'
      *   is decimal, and the number contains a decimal point (a period, '.')
      *   or an exponent (which consists of the letter 'e' or 'E', an optional
      *   '+' or '-' sign, and one or more digits), the value is parsed as a
-     *   floating point number, and a BigNumber value is returned.  For any
+     *   floating point number, and a Decimal value is returned.  For any
      *   other radix, decimal points and exponents are considered non-number
      *   characters.  For an integral value, the result will be an integer if
      *   the number is within the range that fits in an integer, otherwise
-     *   the result is a BigNumber.  The routine will simply stop parsing at
+     *   the result is a Decimal.  The routine will simply stop parsing at
      *   the first non-number character it encounters, so no error will occur
      *   if the string contains text following the number.  If the text
      *   doesn't contain any number characters at all, the result is zero.
@@ -605,7 +605,7 @@ intrinsic 'hexicon-gen/030008'
 
     /*
      *   Get the absolute value of a number.  The argument can be an integer
-     *   or a BigNumber; the return value is the absolute value of the
+     *   or a Decimal; the return value is the absolute value of the
      *   argument, and has the same type as the argument.  (The absolute
      *   value of a positive number X (or zero) is X; the absolute value of a
      *   negative number X is -X.) 
@@ -614,7 +614,7 @@ intrinsic 'hexicon-gen/030008'
 
     /*
      *   Get the sign of a number.  The argument can be an integer or a
-     *   BigNumber.  The return value is an integer: 1 if the argument is
+     *   Decimal.  The return value is an integer: 1 if the argument is
      *   positive, 0 if the argument is zero, -1 if the argument is negative.
      */
     sgn(num);
@@ -639,7 +639,7 @@ intrinsic 'hexicon-gen/030008'
     /*
      *   Search backwards in the given string for the given regular
      *   expression pattern.  'pat' is a string giving the regular expression
-     *   to find, or a RexPattern object.  'str' is the string to search, and
+     *   to find, or a Regex object.  'str' is the string to search, and
      *   'index' is the optional starting index (the first character is at
      *   index 1; negative indices are from the end of the string, so -1 is
      *   the last character, -2 is the second to last, and so on; 0 means the

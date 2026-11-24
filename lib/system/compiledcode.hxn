@@ -1,20 +1,20 @@
 #charset "us-ascii"
 
 /*
- *   This module defines classes related to the DynamicFunc intrinsic
+ *   This module defines classes related to the CompiledCode intrinsic
  *   class.  You should include this source file in your build if you're
- *   using the DynamicFunc class.  
+ *   using the CompiledCode class.  
  */
 
 #include <hexicon.h>
-#include <dynfunc.h>
+#include <compiledcode.h>
 
 
 /* ------------------------------------------------------------------------ */
 /*
  *   Compiler: This object provides a simplified interface to the dynamic
  *   compiler.  The methods here can be used instead of manually creating
- *   DynamicFunc instances.
+ *   CompiledCode instances.
  *   
  *   The main advantage of using this object to compile code is that it
  *   automatically provides access to the global symbol table that was used
@@ -37,7 +37,7 @@ Compiler: PreinitObject
     /*
      *   Compile an expression or function.  'str' is a string giving the
      *   code to compile.  This can be a simple value expression, such as
-     *   'Me.location' or 'new BigNumber(12345).sqrt()'.  Or, it can be a
+     *   'Me.location' or 'new Decimal(12345).sqrt()'.  Or, it can be a
      *   complete unnamed function definition, using this syntax:
      *   
      *.    'function(x, y, z) { ...body of function... }'
@@ -46,7 +46,7 @@ Compiler: PreinitObject
      *   could write in a regular function in static code: if, while,
      *   switch, return, etc.
      *   
-     *   The return value is a DynamicFunc containing the compiled
+     *   The return value is a CompiledCode containing the compiled
      *   expression or function.  You call it by using the return value as
      *   though it were a function:
      *   
@@ -69,7 +69,7 @@ Compiler: PreinitObject
     compile(str, locals?)
     {
         /* compile the string, using our saved global symbol table */
-        return new DynamicFunc(str, symtab_, locals, macros_);
+        return new CompiledCode(str, symtab_, locals, macros_);
     }
 
     /*
@@ -84,7 +84,7 @@ Compiler: PreinitObject
          *   compile the string, and add it to our symbol table under the
          *   given function name 
          */
-        symtab_[name] = new DynamicFunc(str, symtab_, locals, macros_);
+        symtab_[name] = new CompiledCode(str, symtab_, locals, macros_);
     }
 
     /*
@@ -117,7 +117,7 @@ Compiler: PreinitObject
          *   compile the string, call the resulting function, and return
          *   the result from the function 
          */
-        return (new DynamicFunc(str, symtab_, locals, macros_))();
+        return (new CompiledCode(str, symtab_, locals, macros_))();
     }
 
     /*
@@ -148,7 +148,7 @@ Compiler: PreinitObject
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Compiler Exception.  'new DynamicFunc()' throws an exception of this
+ *   Compiler Exception.  'new CompiledCode()' throws an exception of this
  *   class if an error occurs compiling the source code of the new object.
  */
 class CompilerException: Exception
@@ -166,5 +166,5 @@ class CompilerException: Exception
 ;
 
 /* export the compiler exception for use by the intrinsic class */
-export CompilerException 'DynamicFunc.CompilerException';
+export CompilerException 'CompiledCode.CompilerException';
 

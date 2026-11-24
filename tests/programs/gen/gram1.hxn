@@ -1,4 +1,4 @@
-#include <gramprod.h>
+#include <grammarrule.h>
 #include <hexicon.h>
 dictionary gDict;
 dictionary property noun, adjective;

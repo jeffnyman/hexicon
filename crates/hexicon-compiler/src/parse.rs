@@ -5662,7 +5662,7 @@ impl Parser<'_, '_> {
             elements.push(self.parse_asi_expr()?);
             if at_default && self.cur() != Tok::RBrack {
                 self.error_curtok(
-                    "LookupTable list must end after default *-> value, but found \"%\"",
+                    "a [key -> value] list must end after its default *-> value, but found \"%\"",
                 );
                 at_default = false;
                 // More pairs, it seems: a value to keep them in step.
@@ -5676,7 +5676,7 @@ impl Parser<'_, '_> {
                     // A key with no value.
                     if is_lookup && elements.len() % 2 != 0 {
                         self.error(format!(
-                            "missing -> in {} element in LookupTable list",
+                            "missing -> in the {} element of a [key -> value] list",
                             Self::ordinal(elements.len().div_ceil(2))
                         ));
                         elements.push(nil());
@@ -5700,7 +5700,7 @@ impl Parser<'_, '_> {
                     } else if elements.len() % 2 == 0 {
                         // A value with no key.
                         self.error(format!(
-                            "misplaced -> in LookupTable list after {} element - \
+                            "misplaced -> in a [key -> value] list after the {} element - \
                              expected comma",
                             Self::ordinal(elements.len() / 2)
                         ));
@@ -5711,7 +5711,7 @@ impl Parser<'_, '_> {
                     self.next();
                     if is_lookup && elements.len() % 2 != 0 && !at_default {
                         self.error(format!(
-                            "missing -> in {} element in LookupTable list",
+                            "missing -> in the {} element of a [key -> value] list",
                             Self::ordinal(elements.len().div_ceil(2))
                         ));
                     }
@@ -7006,7 +7006,7 @@ impl Parser<'_, '_> {
             }
             Some(Global::Obj(_)) => {
                 self.error(format!(
-                    "redefining \"{}\" as grammar production object",
+                    "redefining \"{}\" as a grammar rule",
                     Self::name(name)
                 ));
                 return None;
@@ -7415,15 +7415,16 @@ impl Parser<'_, '_> {
     /// fastest.
     fn parse_gram_or(&mut self, level: usize) -> Vec<Vec<SrcToken>> {
         if level == 0 && self.cur() == Tok::Colon && !self.syntax_only {
-            self.tok
-                .log_warning("grammar rule is empty (add '()' if this is intentional)");
+            self.tok.log_warning(
+                "an alternative of this grammar rule is empty (add '()' if this is intentional)",
+            );
         }
         let mut rows = self.parse_gram_cat(level + 1);
         while self.cur() == Tok::Or {
             self.next();
             if level == 0 && self.cur() == Tok::Colon && !self.syntax_only {
                 self.tok.log_warning(
-                    "grammar rule ends with '|' (add '()' if empty last rule is intentional)",
+                    "grammar rule ends with '|' (add '()' if an empty last alternative is intentional)",
                 );
             }
             rows.extend(self.parse_gram_cat(level + 1));

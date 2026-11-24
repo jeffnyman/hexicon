@@ -285,5 +285,5 @@ error_codes! {
     INVAL_DBG_EXPR = 2502, "invalid debugger expression";
     NO_IMAGE_DBG_INFO = 2503, "image file has no debugging information - recompile for debugging";
     BIGNUM_NO_REGS = 2600, "out of temporary floating point registers (calculation too complex)";
-    NO_BIGNUM_CONV = 2601, "cannot convert value to BigNumber";
+    NO_BIGNUM_CONV = 2601, "cannot convert value to Decimal";
 }

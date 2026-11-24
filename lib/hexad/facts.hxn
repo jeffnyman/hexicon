@@ -135,9 +135,9 @@ class Fact: object
     }
     
     /* 
-     *   Our RexPattern for searching for a string of characters between square brackets, e.g. [bob]
+     *   Our Regex for searching for a string of characters between square brackets, e.g. [bob]
      */
-    sourcepat = static new RexPattern('<lsquare><AlphaNum>*<rsquare>')
+    sourcepat = static new Regex('<lsquare><AlphaNum>*<rsquare>')
 
        
     /* The list of topics (Topics and Things, i.e. game objects) that this fact relates to.*/         
@@ -226,9 +226,9 @@ class Fact: object
     /* Add a source (of information) to our sourcesTab table. */
     addSource(source, actor = gPlayerChar)
     {
-        /* If we haven't created a sourceTab LookupTable yet, do so now. */
+        /* If we haven't created a sourceTab Map yet, do so now. */
         if(sourcesTab == nil)
-            sourcesTab = new LookupTable(5,5);
+            sourcesTab = new Map(5,5);
         
         /* 
          *   Retrieve the value from the sourcesTab table corresponding to actor (which will
@@ -247,9 +247,9 @@ class Fact: object
     /* Add a target to our targetTab table */
     addTarget(target, actor = gPlayerChar)
     {
-        /* If we haven't created a targetsTab LookupTable yet, do so now. */
+        /* If we haven't created a targetsTab Map yet, do so now. */
         if(targetsTab == nil)
-            targetsTab = new LookupTable(5,5);
+            targetsTab = new Map(5,5);
         
         /* 
          *   Retrieve the value from the sourcesTab table corresponding to actor (which will
@@ -396,7 +396,7 @@ class Fact: object
     {
         /* If we don't yet have a LookUpTable for pcComments, create one. */
         if(pcCommentTab == nil)
-            pcCommentTab = new LookupTable(5, 5);
+            pcCommentTab = new Map(5, 5);
             
         /* Set the actor's comment to txt. */ 
         pcCommentTab[actor] = txt;
@@ -485,9 +485,9 @@ factManager: PreinitObject
     /* Add a fact to our factTab */
     addFact(fact)
     {
-        /* If our LookupTable hasn't been created yet, create it now. */
+        /* If our Map hasn't been created yet, create it now. */
         if(factTab == nil)
-            factTab = new LookupTable(30, 30);
+            factTab = new Map(30, 30);
         
         /* Add the new Fact to our factTab. */
         factTab[fact.name] = fact;

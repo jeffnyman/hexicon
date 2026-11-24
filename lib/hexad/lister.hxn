@@ -158,8 +158,8 @@ class ItemLister: Lister
     
     findListGroups(lst)
     {
-        /* Create a new LookupTable for our table of ListGroups */
-        groupTab =  new LookupTable;
+        /* Create a new Map for our table of ListGroups */
+        groupTab =  new Map;
         
         /* 
          *   For every item we're due to list, if it has any ListGroups listed in its listWith

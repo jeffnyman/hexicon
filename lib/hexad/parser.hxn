@@ -859,7 +859,7 @@ class CommandList: object
     /*
      *   new CommandList(prod, toks, dict, wrapper) - construct a new
      *   CommandList object by parsing an input token list.  'prod' is the
-     *   GrammarProd to parse against; 'toks' is the token list; 'dict' is
+     *   GrammarRule to parse against; 'toks' is the token list; 'dict' is
      *   the main parser dictionary; 'wrapper' is a callback function that
      *   maps a parse tree to a Command object.
      *   
@@ -869,7 +869,7 @@ class CommandList: object
     construct([args])
     {
         /* check which argument list we have */        
-        if (args.matchProto([GrammarProd, Collection, Dictionary, TypeFuncPtr]))
+        if (args.matchProto([GrammarRule, Collection, Dictionary, TypeFuncPtr]))
         {
             /* retrieve the arguments */
             local prod = args[1], toks = args[2], dict = args[3],
@@ -1115,7 +1115,7 @@ class Question: object
  */
 class GramQuestion: Question
     /*
-     *   Create a simple question.  'prod' is the root GrammarProd to use
+     *   Create a simple question.  'prod' is the root GrammarRule to use
      *   for parsing the reply.  'func' is a callback function that carries
      *   out the action of the answering the question.  'func' is invoked
      *   with a single argument giving the Command object representing the
@@ -1148,7 +1148,7 @@ class GramQuestion: Question
      */
     makeCommand(prod) { return new FuncCommand(prod, answerFunc); }
 
-    /* the GrammarProd rule that we use to parse the answer */
+    /* the GrammarRule rule that we use to parse the answer */
     answerProd = nil
 
     /* the callback function that carries out the reply action */
@@ -1192,7 +1192,7 @@ class YesNoQuestion: GramQuestion
 class RexQuestion: Question
     /*
      *   Create - 'pat' is the regular expression pattern, as either a
-     *   string or a RexPattern object.  We'll parse an answer simply by
+     *   string or a Regex object.  We'll parse an answer simply by
      *   matching it against the regular expression; if we match, we'll
      *   take it as an answer.  'func' is a callback function that we'll
      *   call to carry out the action of answering the question.  We'll
@@ -3558,7 +3558,7 @@ class Production: object
     determiner = nil
 
     /* 
-     *   My parent production.  The low-level GrammarProd mechanism doesn't
+     *   My parent production.  The low-level GrammarRule mechanism doesn't
      *   set this up, so we set it up ourselves in the course of building
      *   out the tree.  In build(), just before we visit each
      *   sub-production, we set the sub-production's 'parent' property to
@@ -5106,7 +5106,7 @@ class NotUnderstoodError: ParseError
     /* 
      *   This is a general verb syntax error, so our best candidates will
      *   words that are used in verb phrases.  The next best is a corrected
-     *   word that's used in any GrammarProd, since the problem might
+     *   word that's used in any GrammarRule, since the problem might
      *   actually be in some other structural part of the command phrase
      *   above the verb phrase (a conjunction, for example).  
      */
@@ -5139,10 +5139,10 @@ class NotUnderstoodError: ParseError
             return 200 + maxAct*2 + (xbonus ? 1 : 0);
         }
 
-        /* okay, no predicate; how about any other GrammarProd word? */
+        /* okay, no predicate; how about any other GrammarRule word? */
         w = dict.findWord(txt);
         if (w.indexWhich(
-            { x: dataType(x) == TypeObject && x.ofKind(GrammarProd) }) != nil)
+            { x: dataType(x) == TypeObject && x.ofKind(GrammarRule) }) != nil)
             return 100;
 
         /* 
@@ -5355,7 +5355,7 @@ class ResolutionError: ParseError
         local w = dict.findWord(getTokVal(toks[idx]))
             .subset({ x: dataType(x) == TypeObject });
 
-        if (w.indexWhich({ x: x.ofKind(GrammarProd) && !x.ofKind(predicate) })
+        if (w.indexWhich({ x: x.ofKind(GrammarRule) && !x.ofKind(predicate) })
             != nil)
             return 90;
 
@@ -6241,7 +6241,7 @@ class SpecialVerb: object
 
 /* 
  *   The specialVerbMgr carries out various tasks needed for working with SpecialVerbs. In
- *   particular it preinitializes SpecialVerbs to add them to its LookupTable, and is responsible
+ *   particular it preinitializes SpecialVerbs to add them to its Map, and is responsible
  *   for matching SpecialVerbs to player input and translating and checking actions appropriately.
  *   Its methods and properties are entirely intended for internal use by the library and shouldn't
  *   normally be invoked or changed in user game code.
@@ -6405,10 +6405,10 @@ specialVerbMgr: PreinitObject
     }
     
     /* 
-     *   Our LookupTable containing lists of grammar tokens (e.g., ['ring'] or ['go', 'across']) as
+     *   Our Map containing lists of grammar tokens (e.g., ['ring'] or ['go', 'across']) as
      *   keys and a list of matching SpecialVerbs as values.
      */
-    specTable = static new LookupTable
+    specTable = static new Map
     
        
     /* 

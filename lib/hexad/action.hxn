@@ -572,7 +572,7 @@ class Action: ReplaceRedirector
         
         /* If we don't already have a verify table, create it */
         if(verifyTab == nil)
-            verifyTab = new LookupTable;
+            verifyTab = new Map;
         
         /* 
          *   If executing this verify routine didn't create an entry for this
@@ -622,7 +622,7 @@ class Action: ReplaceRedirector
         local verMsg;
         
         /* Make sure we start with a clean new verify table */
-        verifyTab = new LookupTable;
+        verifyTab = new Map;
         
         verResult = verify(obj, role);
         
@@ -742,7 +742,7 @@ class Action: ReplaceRedirector
          *   create a small lookup table for it 
          */
         if (extraMessageParams == nil)
-            extraMessageParams = new LookupTable(8, 8);
+            extraMessageParams = new Map(8, 8);
 
         /* add the parameter to the table, indexing by the parameter name */
         extraMessageParams[objName.toLower()] = obj;
@@ -1558,7 +1558,7 @@ class TAction: Action
     actionList = []
     
     /* 
-     *   A LookupTable containing the verify results for this action. This is
+     *   A Map containing the verify results for this action. This is
      *   keyes on the object being verified, with the value being the worst
      *   verify result encountered for that object so far.
      */
@@ -1695,8 +1695,8 @@ class TAction: Action
     execResolvedAction()
     {
                
-        /* Create a new LookupTable for our verify results. */
-        verifyTab = new LookupTable;
+        /* Create a new Map for our verify results. */
+        verifyTab = new Map;
         
         /* 
          *   We shouldn't really need to catch any signals here, but the author
@@ -2099,7 +2099,7 @@ class TAction: Action
          *   one
          */
         if(verifyTab == nil)
-            verifyTab = new LookupTable();
+            verifyTab = new Map();
         
         /* 
          *   Add this verify result to this action's verify table only if it

@@ -2158,8 +2158,8 @@ fn an_integer_too_large_to_be_one_is_a_number_that_is_not() {
              local c = -2147483648;\n    local d = 0x100000000;\n    return [a, b, c, d];\n}\n"
         ),
         [
-            "3: warning: constant value exceeds integer range; promoted to BigNumber",
-            "6: warning: constant value exceeds integer range; promoted to BigNumber",
+            "3: warning: constant value exceeds integer range; promoted to Decimal",
+            "6: warning: constant value exceeds integer range; promoted to Decimal",
         ]
     );
     // Only integers have bits.
@@ -2248,9 +2248,9 @@ fn a_list_of_keys_and_values_is_a_lookup_table() {
         ),
         [
             "3: error: unexpected -> found in list (after 2nd element)",
-            "4: error: missing -> in 2nd element in LookupTable list",
-            "5: error: misplaced -> in LookupTable list after 1st element - expected comma",
-            "6: error: LookupTable list must end after default *-> value, but found \",\"",
+            "4: error: missing -> in the 2nd element of a [key -> value] list",
+            "5: error: misplaced -> in a [key -> value] list after the 1st element - expected comma",
+            "6: error: a [key -> value] list must end after its default *-> value, but found \",\"",
         ]
     );
 }
@@ -2545,7 +2545,7 @@ fn grammar_statements_have_their_own_mistakes() {
         compile_messages(
             "class Match: object;\ngrammar np(a): nuon->n_ : Match;\n_main(args) { }\n"
         ),
-        ["0: error: grammar production \"nuon\" has no alternatives defined"]
+        ["0: error: grammar rule \"nuon\" has no alternatives defined"]
     );
 }
 
@@ -3593,7 +3593,7 @@ mod system_library {
                 "<hexicon>/system/_main.hxn",
                 "<hexicon>/system/file.hxn",
                 "<hexicon>/system/tok.hxn",
-                "<hexicon>/system/gramprod.hxn",
+                "<hexicon>/system/grammarrule.hxn",
                 "<hexicon>/system/multmeth.hxn",
                 &super::sys_path(&["game", "start.hxn"]),
             ]

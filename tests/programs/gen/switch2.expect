@@ -1,4 +1,4 @@
-image: 113841ba915b1ed5093c781168bcc511589af6ba2e58e94ac70d5fb53211de53
+image: 1ac0cfe8337d8f9a3f1232e94156eaeb9712600d80683db706f1296becbd9f3d
 --- messages
 warning: unreachable statement
   --> switch2.hxn:8

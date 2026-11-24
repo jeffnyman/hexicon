@@ -108,13 +108,13 @@ transient menuOutputStream: OutputStream
     execute()
     {
         inherited();
-        buf_ = new StringBuffer();
+        buf_ = new StringBuilder();
         addOutputFilter(typographicalOutputFilter);
         addOutputFilter(menuParagraphManager);
         addOutputFilter(styleTagFilter);
     }
 
-    /* our capture buffer (a StringBuffer object) */
+    /* our capture buffer (a StringBuilder object) */
     buf_ = nil
 ;
 

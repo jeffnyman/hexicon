@@ -25,7 +25,7 @@ intrinsic 'hexicon-io/030007'
      *   Each value can be a string, in which case the string is displayed as
      *   given (with HTML interpretation); an integer, in which case it's
      *   converted to a string, using a decimal (base 10) radix and
-     *   displayed; a BigNumber, in which case it's converted to a string
+     *   displayed; a Decimal, in which case it's converted to a string
      *   using the default formatting; or nil, in which case nothing is
      *   displayed.  
      */

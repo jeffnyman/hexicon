@@ -2237,8 +2237,8 @@ class Direction: object
      */
     name = nil
     
-    /*   Class property: a LookupTable matching names to direction objects. */
-    nameTab = static new LookupTable()
+    /*   Class property: a Map matching names to direction objects. */
+    nameTab = static new Map()
     
     /*  
      *   The name to use when departing via this direction, e.g. 'to the north'

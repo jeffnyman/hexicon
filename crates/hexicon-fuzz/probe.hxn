@@ -5,11 +5,11 @@
  */
 
 #include <hexicon.h>
-#include <bignum.h>
-#include <strbuf.h>
+#include <decimal.h>
+#include <stringbuilder.h>
 #include <bytearr.h>
 #include <dict.h>
-#include <dynfunc.h>
+#include <compiledcode.h>
 #include <date.h>
 
 dictionary probeDict;
@@ -50,23 +50,23 @@ build()
         probeDict.addWord(it, 'word' + i, &noun);
     }
     holder.vec = new Vector(10, holder.items.sublist(1, 10));
-    holder.table = new LookupTable(16, 32);
-    holder.weak = new WeakRefLookupTable(16, 32);
+    holder.table = new Map(16, 32);
+    holder.weak = new WeakMap(16, 32);
     for (local i = 1 ; i <= 20 ; ++i)
     {
         holder.table['k' + i] = holder.items[i];
         holder.weak[i] = new Item();
     }
-    holder.buf = new StringBuffer(64);
+    holder.buf = new StringBuilder(64);
     holder.buf.append('some text in a buffer');
-    holder.big = new BigNumber('3.14159265358979323846');
+    holder.big = new Decimal('3.14159265358979323846');
     holder.bytes = new ByteArray(32);
     for (local i = 1 ; i <= 32 ; ++i)
         holder.bytes[i] = i * 7;
-    holder.pat = new RexPattern('<alpha>+%d*');
+    holder.pat = new Regex('<alpha>+%d*');
     local base = 5;
     holder.fn = {x: x + base + holder.items.length()};
-    holder.dyn = new DynamicFunc('function(x) { return [x, x * 2]; }');
+    holder.dyn = new CompiledCode('function(x) { return [x, x * 2]; }');
     holder.when = new Date(2020, 5, 17);
 }
 

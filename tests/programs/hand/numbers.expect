@@ -1,12 +1,12 @@
-image: aa5bff1be151e60da5dcbfb8a8e76e347125ecdf61826051c917ea779740d16e
+image: 28ab17a1d3bcaa700eeee39c846b5fe20d8ef2ff27e1519e472088a5409b5515
 --- messages
-warning: constant value exceeds integer range; promoted to BigNumber
+warning: constant value exceeds integer range; promoted to Decimal
   --> numbers.hxn:36
    |
 36 |     line(2147483647 + 1);
    |
 
-warning: constant value exceeds integer range; promoted to BigNumber
+warning: constant value exceeds integer range; promoted to Decimal
   --> numbers.hxn:37
    |
 37 |     line(0x100000000);

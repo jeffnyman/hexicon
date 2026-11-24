@@ -125,7 +125,7 @@ class Command: object
 
         /* set up the reflexive antecedent table (if we didn't already) */
         if (reflexiveAnte == nil)
-            reflexiveAnte = new LookupTable(16, 32);
+            reflexiveAnte = new Map(16, 32);
     }
 
     /* clone - create a new Command based on this Command */
@@ -138,7 +138,7 @@ class Command: object
          *   make a copy of the antecedent table, so that changes made in
          *   the clone don't affect the original, and vice versa 
          */
-        cl.reflexiveAnte = new LookupTable(16, 32);
+        cl.reflexiveAnte = new Map(16, 32);
         reflexiveAnte.forEachAssoc({ key, val: cl.reflexiveAnte[key] = val });
 
         /* likewise the object list vectors, if any */

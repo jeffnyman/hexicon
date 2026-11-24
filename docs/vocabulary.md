@@ -1,6 +1,6 @@
 # Hexicon Vocabulary
 
-Status: decided, 2026-11-24. Messages done; the rest to come in the order below.
+Status: decided, 2026-11-24. Messages and built-in classes done; the rest to come in the order below.
 
 ## Goal
 
@@ -42,24 +42,28 @@ Done (2026-11-24). The compiler's messages and the VM's error messages use these
 | property pointer | property reference (`&name`) | the guide, and the VM's "property reference required" | done |
 | object file | (gone) | done in the break | done |
 
-Kept: "metaclass" in the messages about a damaged image file, and in `hexicon inspect`'s listings, where it names a part of the image format; "grammar production" until `GrammarProd` is renamed (section 2). The keyword is quoted as it is written (`"intrinsic class"`) until it changes (section 4).
+Kept: "metaclass" in the messages about a damaged image file, and in `hexicon dump`'s listings, where it names a part of the image format. The keyword is quoted as it is written (`"intrinsic class"`) until it changes (section 4).
 
 ## 2. Built-in classes
 
-| Now | Proposed | Uses | Notes | Status |
+Done (2026-11-24), in the system library, Hexad, the test programs, the guide, and the game tests. The headers that declare them are renamed with them: `map.h`, `decimal.h`, `stringbuilder.h`, `compiledcode.h` (and `.hxn`), and `grammarrule.h` (and `.hxn`). So are the names the VM finds in an image's exports (`GrammarRule.tokenList`, `CompiledCode.CompilerException`), and `BigNumber`'s formatting flags (`DecimalPoint`, `DecimalExp`, and the rest). The `[key -> value]` list makes a `Map`, and its messages say "a [key -> value] list".
+
+The identifiers in the image (`'lookuptable/030003'`, `'bignumber/030001'`) are unchanged, as is the VM's own Rust code, whose type names are its own business. A program's properties can be numbered differently after a rename, since the compiler numbers some of them in the order of their names; what a program does is the same.
+
+| Was | Now | Uses | Notes | Status |
 |---|---|---|---|---|
-| `LookupTable` | `Map` | 106 | | decided |
-| `WeakRefLookupTable` | `WeakMap` | 4 | | decided |
-| `LookupTableIterator` | `MapIterator` | few | | decided |
-| `BigNumber` | `Decimal` | 76 | it gives exact decimal digits at a chosen precision, as `Decimal` does in C# and Python; "big number" suggests large whole numbers | decided |
-| `StringBuffer` | `StringBuilder` | 21 | C#, Java, and Kotlin's name for the same thing | decided |
-| `RexPattern` | `Regex` | 73 | | decided |
-| `AnonFuncPtr` | `Function` | 5 | the class of a function value | decided |
-| `DynamicFunc` | `CompiledCode` | 18 | code compiled while the game runs | decided |
-| `GrammarProd` | `GrammarRule` | 39 | matches the guide's word, and `verb` declarations | decided |
-| `IntrinsicClass` | `BuiltinClass` | 8 | | decided |
-| `IntrinsicClassModifier` | `BuiltinClassModifier` | few | | decided |
-| `StackFrameDesc`, `StackFrameRef` | `StackFrame`, `StackFrameRef` | few | | decided |
+| `LookupTable` | `Map` | 106 | | done |
+| `WeakRefLookupTable` | `WeakMap` | 4 | | done |
+| `LookupTableIterator` | `MapIterator` | few | | done |
+| `BigNumber` | `Decimal` | 76 | it gives exact decimal digits at a chosen precision, as `Decimal` does in C# and Python; "big number" suggests large whole numbers | done |
+| `StringBuffer` | `StringBuilder` | 21 | C#, Java, and Kotlin's name for the same thing | done |
+| `RexPattern` | `Regex` | 73 | | done |
+| `AnonFuncPtr` | `Function` | 5 | the class of a function value | done |
+| `DynamicFunc` | `CompiledCode` | 18 | code compiled while the game runs | done |
+| `GrammarProd` | `GrammarRule` | 39 | matches the guide's word, and `verb` declarations | done |
+| `IntrinsicClass` | `BuiltinClass` | 8 | | done |
+| `IntrinsicClassModifier` | `BuiltinClassModifier` | few | | done |
+| `StackFrameDesc`, `StackFrameRef` | `StackFrame`, `StackFrameRef` | few | | done |
 | `Vector` | keep | | a growable list; the name is standard (C++, Rust) | keep |
 | `List`, `String`, `Object`, `Collection`, `Iterator`, `Date`, `TimeZone`, `File`, `FileName`, `TemporaryFile`, `ByteArray`, `CharacterSet`, `Dictionary`, `ProgramObject` | keep | | already plain | keep |
 

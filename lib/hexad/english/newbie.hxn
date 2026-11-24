@@ -408,7 +408,7 @@ somethingPreParser: StringPreParser
         }
         return str;
     }
-    pat = static new RexPattern('<NoCase>%<(someone|something|anyone|anything)%>')
+    pat = static new Regex('<NoCase>%<(someone|something|anyone|anything)%>')
 
    isActive = (gPlayerChar.currentInterlocutor == nil)
 ;
@@ -453,7 +453,7 @@ pleasePreParser: StringPreParser
         }
         return str;
     }
-    pat = static new RexPattern('<NoCase>%<(please|kindly)%>')
+    pat = static new Regex('<NoCase>%<(please|kindly)%>')
 ;
 
 /* 
@@ -532,12 +532,12 @@ pronounUsePreParser: StringPreParser
         }
         return str;
     }
-    pat = static new RexPattern('<NoCase>^(you|he|she|it|they|we|its|theyre' 
+    pat = static new Regex('<NoCase>^(you|he|she|it|they|we|its|theyre' 
                                 + '|youre|hes|shes)<Space|squote>')    
     
-    pat2 = static new RexPattern('<NoCase>^(i|im|i<squote>m)<Space>+%w')
+    pat2 = static new Regex('<NoCase>^(i|im|i<squote>m)<Space>+%w')
     
-    pat3 = static new RexPattern('<NoCase>^i<Space>+(wide|tall|hybrid|split)')
+    pat3 = static new Regex('<NoCase>^i<Space>+(wide|tall|hybrid|split)')
 ;
 
 
@@ -874,7 +874,7 @@ seekPreParser: StringPreParser
         
         return str;
     }
-    pat = static new RexPattern('^<NoCase>%<(find|look for|search for|hunt for)%>')
+    pat = static new Regex('^<NoCase>%<(find|look for|search for|hunt for)%>')
 ;
 
 /*  

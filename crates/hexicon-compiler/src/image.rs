@@ -22,9 +22,9 @@ const STATIC_INIT_STUB: [u8; 11] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x51];
 const EXPORTED_PROPS: [(&str, u16); 20] = [
     ("Constructor", 1),
     ("Destructor", 2),
-    ("GrammarProd.grammarInfo", 3),
-    ("GrammarProd.grammarTag", 4),
-    ("GrammarProd.miscVocab", 5),
+    ("GrammarRule.grammarInfo", 3),
+    ("GrammarRule.grammarTag", 4),
+    ("GrammarRule.miscVocab", 5),
     ("operator +", 11),
     ("operator -", 12),
     ("operator *", 13),

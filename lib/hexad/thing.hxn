@@ -1058,7 +1058,7 @@ class State: LState
     construct()
     {
         /* create the vocabulary table */
-        local tab = vocabTab = new LookupTable(8, 16);
+        local tab = vocabTab = new Map(8, 16);
 
         /* do the inherited work */
         inherited();
@@ -4063,7 +4063,7 @@ class Thing:  ReplaceRedirector, Mentionable
     setInformed(tag, val?)
     {
         if(informedNameTab == nil)
-            informedNameTab = new LookupTable(32, 32);
+            informedNameTab = new Map(32, 32);
                
         if(val == nil && informedNameTab[tag] == nil)        
             informedNameTab[tag] = true;

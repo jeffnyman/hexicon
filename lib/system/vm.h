@@ -8,10 +8,10 @@
  */
 
 /* 
- *   include the LookupTable intrinsic class, since globalSymbols()
+ *   include the Map intrinsic class, since globalSymbols()
  *   returns an instance of this class 
  */
-#include "lookup.h"
+#include "map.h"
 
 
 /*
@@ -107,7 +107,7 @@ intrinsic 'hexicon-vm/010006'
      *   default.
      *   
      *   If the requested symbol table is available, this returns a
-     *   LookupTable object; otherwise, it returns nil.
+     *   Map object; otherwise, it returns nil.
      *   
      *   The symbol tables are available under two conditions.  First, while
      *   pre-initialization is running during the program build (compiling)

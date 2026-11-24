@@ -1635,13 +1635,13 @@ impl Gen<'_> {
         for (index, (sym, alts)) in productions.iter().enumerate() {
             if alts.is_empty() && !self.prog.gramprods[index].declared {
                 self.out.link_errors.push(format!(
-                    "grammar production \"{}\" has no alternatives defined",
+                    "grammar rule \"{}\" has no alternatives defined",
                     show_name(&self.prog.objs[*sym].name)
                 ));
             }
             if alts.len() > 65535 {
                 self.out.link_errors.push(format!(
-                    "grammar production \"{}\" has too many (>65,535) rules",
+                    "grammar rule \"{}\" has too many (>65,535) alternatives",
                     show_name(&self.prog.objs[*sym].name)
                 ));
             }
@@ -1841,7 +1841,7 @@ impl Gen<'_> {
         if promoted {
             self.log(
                 Severity::Warning,
-                "constant value exceeds integer range; promoted to BigNumber",
+                "constant value exceeds integer range; promoted to Decimal",
             );
         }
         let id = self.prog.next_obj_id;
@@ -3786,11 +3786,11 @@ impl Gen<'_> {
                     }
                     match &value.value {
                         Value::Float { text, .. } => {
-                            self.gen_dynamic_from_text(b"BigNumber", text);
+                            self.gen_dynamic_from_text(b"Decimal", text);
                             return;
                         }
                         Value::ReStr(text) => {
-                            self.gen_dynamic_from_text(b"RexPattern", text);
+                            self.gen_dynamic_from_text(b"Regex", text);
                             return;
                         }
                         _ => {}

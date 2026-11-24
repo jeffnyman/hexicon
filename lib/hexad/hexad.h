@@ -24,11 +24,11 @@
 #include <tok.h>
 #include <vm.h>
 #include <vector.h>
-#include <strbuf.h>
+#include <stringbuilder.h>
 #include <file.h>
 #include <dict.h>
-#include <bignum.h>
-#include <gramprod.h>
+#include <decimal.h>
+#include <grammarrule.h>
 #include <strcomp.h>
 
 
@@ -1217,7 +1217,7 @@ CustomMessages template [messages] +priority?;
 #define gOutStream (outputManager.curOutputStream)
 
 #ifdef __DEBUG
-#include <dynfunc.h>
+#include <compiledcode.h>
 #endif
 
 /*

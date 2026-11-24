@@ -4,14 +4,14 @@
 #include <general.h>
 #include <io.h>
 #include <vm.h>
-#include <bignum.h>
+#include <decimal.h>
 
 // Results go one to a line.
 line(val) { print(toString(val)); print('\n'); }
 
 shelf: object
     // A number with a point or an exponent is an object of the class
-    // BigNumber, made when the program is compiled.
+    // Decimal, made when the program is compiled.
     width = 1.25
     weights = [0.5, 12, 3.75e2]
 
@@ -30,7 +30,7 @@ _main(args)
     line(1.5 < 2 ? 'less' : 'not less');
     line('half is ' + 0.5);
 
-    // An integer too large to be one is a BigNumber as well, and the
+    // An integer too large to be one is a Decimal as well, and the
     // compiler says so; if arithmetic brings it back in range, it is an
     // integer again.
     line(2147483647 + 1);

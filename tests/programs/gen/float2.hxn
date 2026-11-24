@@ -1,4 +1,4 @@
-#include <bignum.h>
+#include <decimal.h>
 #include <hexicon.h>
 obj: object
     half = 0.5

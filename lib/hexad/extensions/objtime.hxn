@@ -124,16 +124,16 @@ timeManager: InitObject
     *   from which trailing zeroes may be omitted.
     *
     *   interval may also be specified as an integer (in which case it will be
-    *   taken as the number of minutes to advance) or as a BigNumber (in which
+    *   taken as the number of minutes to advance) or as a Decimal (in which
     *   case it will be taken as the number of hours).
     */    
     addInterval(interval)
     {   
         /* 
-         *   If the interval is specified as a BigNumber, take that to be the
+         *   If the interval is specified as a Decimal, take that to be the
          *   number of hours.
          */
-        if(dataType(interval) == TypeObject && interval.ofKind(BigNumber))
+        if(dataType(interval) == TypeObject && interval.ofKind(Decimal))
            interval = [0, 0, 0, interval];
         
         /* 
@@ -232,7 +232,7 @@ modify SystemAction
  *   obj and prop are the same as for Fuse, i.e. when the Fuse fires it will
  *   call the prop property of obj.
  *
- *   interval may be speficied as a list, an integer, a BigNumber, a Date or a
+ *   interval may be speficied as a list, an integer, a Decimal, a Date or a
  *   single-quoted string. A string or a Date specifies the time at which the
  *   Fuse will execute. Anything else specifies the time after which the Fuse
  *   will execute.
@@ -244,7 +244,7 @@ modify SystemAction
  *   If interval is an integer then it specifies the number of minutes into the
  *   future that the Fuse will execute.
  *
- *   If interval is a BigNumber than it specifies the number of hours into the
+ *   If interval is a Decimal than it specifies the number of hours into the
  *   future that the Fuse will execute. E.g. 1.0 specifies 1 hour, while 2.5
  *   specifies 2 hours 30 minutes.
  *
@@ -275,7 +275,7 @@ class TimeFuse: Fuse
                                        timeManager.currentTime)[1];
             break;
         case TypeObject:
-            if(interval.ofKind(BigNumber))
+            if(interval.ofKind(Decimal))
             {
                 eventTime = timeManager.currentTime.addInterval(
                     [0, 0, 0, interval]);

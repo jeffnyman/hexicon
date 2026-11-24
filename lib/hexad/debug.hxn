@@ -21,7 +21,7 @@ DebugCtl: object
      *   to look at piles of debug output not relevant to the task you're
      *   currently working on.  
      */
-    enabled = static (new LookupTable(32, 64))
+    enabled = static (new Map(32, 64))
 
     /* list of all debugging options */
     all = ['spelling', 'messages', 'actions', 'doers']
@@ -35,8 +35,8 @@ DebugCtl: object
             "\t<<opt>> = <<enabled[opt] ? 'on' : 'off'>>\n";
     }
     
-    /* LookupTable used to avoid duplicate debug message reports */
-    messageIDs = static (new LookupTable(32, 64))    
+    /* Map used to avoid duplicate debug message reports */
+    messageIDs = static (new Map(32, 64))    
 ;
 
 /*
@@ -115,7 +115,7 @@ actionTab: PreinitObject
         return ctab[val];        
     }
     
-    /* A LookupTable of Actions and their corresponding string names */
+    /* A Map of Actions and their corresponding string names */
     ctab = [* -> '???']
         
     execute()

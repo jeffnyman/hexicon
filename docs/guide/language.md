@@ -166,10 +166,10 @@ A list never changes. `sort()` gives a new list, sorted, and leaves `lst` as it 
 
 ## Tables
 
-A `LookupTable` keeps values by keys:
+A `Map` keeps values by keys:
 
 ```hexicon
-    local ages = new LookupTable();
+    local ages = new Map();
     ages['Ada'] = 36;
     ages['Alan'] = 41;
     "<<ages['Ada']>> <<toString(ages.isKeyPresent('Alan'))>> <<toString(ages['Grace'])>>\n";

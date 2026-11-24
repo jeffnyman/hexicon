@@ -187,7 +187,7 @@ class GameMainDef: object
     }
 
     /*
-     *   Build a saved game metadata table.  This returns a LookupTable
+     *   Build a saved game metadata table.  This returns a Map
      *   containing string key/value pairs that are stored in saved game
      *   files, providing descriptive information that can be displayed to
      *   the user when browsing a collection of save files.  This is called
@@ -222,7 +222,7 @@ class GameMainDef: object
     getSaveDesc(userDesc)
     {
         /* create the lookup table */
-        local t = new LookupTable();
+        local t = new Map();
 
         /* store the user description, if provided */
         if (userDesc != nil)
@@ -891,7 +891,7 @@ libGlobal: object
      *   by the string naming the revelation; the value associated with
      *   each key is not used (we always just set it to true).  
      */
-    revealedNameTab = static new LookupTable(32, 32)
+    revealedNameTab = static new Map(32, 32)
     
     /*  
      *   The symbol table for every game object.
@@ -920,10 +920,10 @@ libGlobal: object
     agendaItem = nil
     
     /* 
-     *   our name table for parameter substitutions - a LookupTable that we set
+     *   our name table for parameter substitutions - a Map that we set
      *   up during preinit
      */
-    nameTable_ = static new LookupTable()  
+    nameTable_ = static new Map()  
     
     /* 
      *   Flag determining whether inventory listing should be in the wide (nil) or tall (true)
@@ -1463,11 +1463,11 @@ tryInt(val)
 {
     /* 
      *   If the value passed to the function is neither an integer nor a string
-     *   nor a BigNumber, return nil, since there can be no valid integer
+     *   nor a Decimal, return nil, since there can be no valid integer
      *   representation of it.
      */    
     if(dataType(val) not in (TypeInt, TypeSString, TypeObject)
-       || (dataType(val) == TypeObject && !(val.ofKind(BigNumber))))
+       || (dataType(val) == TypeObject && !(val.ofKind(Decimal))))
         return nil;
     
     /* Try converting val to an integer. */
@@ -1492,9 +1492,9 @@ tryInt(val)
     
        
     /* 
-     *   If val is a BigNumber or an integer, this is also a valid result, so
+     *   If val is a Decimal or an integer, this is also a valid result, so
      *   return it. Note that we need only test for whether val is an object,
-     *   since if it was any other kind of object than a BigNumber, this
+     *   since if it was any other kind of object than a Decimal, this
      *   function would have returned nil at the first test.
      */     
     if(dataType(val) is in (TypeInt, TypeObject))
@@ -1509,22 +1509,22 @@ tryInt(val)
 }
 
 /* 
- *   Try converting val to a number (integer or BigNumber); return the number if
+ *   Try converting val to a number (integer or Decimal); return the number if
  *   there is one, otherwise return nil.
  */
 tryNum(val)
 {
      /* 
      *   If the value passed to the function is neither an integer nor a string
-     *   nor a BigNumber, return nil, since there can be no valid numerical
+     *   nor a Decimal, return nil, since there can be no valid numerical
      *   representation of it.
      */    
     if(dataType(val) not in (TypeInt, TypeSString, TypeObject)
-       || (dataType(val) == TypeObject && !val.ofKind(BigNumber)))
+       || (dataType(val) == TypeObject && !val.ofKind(Decimal)))
         return nil;
     
-    /* If val is already a BigNumber, return it unchanged. */
-    if(dataType(val) == TypeObject && val.ofKind(BigNumber))
+    /* If val is already a Decimal, return it unchanged. */
+    if(dataType(val) == TypeObject && val.ofKind(Decimal))
         return val;
     
    
@@ -2129,7 +2129,7 @@ modify Vector
          *   set up a lookup table for the group keys - we want to assign
          *   each one an arbitrary integer value so that we can sort by it 
          */
-        local groups = new LookupTable(16, 32);
+        local groups = new Map(16, 32);
         local gnxt = 1;
         
         /* decorate each entry with its group index and ordering key */
@@ -2602,14 +2602,14 @@ libObjectInitializer: PreinitObject
     {
         /* build the reverse symbol table (indexed by object value) */
         local gtab = globalSymbols();
-        local otab = new LookupTable(128, 256);
+        local otab = new Map(128, 256);
         gtab.forEachAssoc({ key, val: otab[val] = key });
 
         /* save it in the PreinitObject class */
         PreinitObject.reverseGlobalSymbols = otab;
 
         /* create a lookup table tracking which objects we've initialized */
-        _initedTab = new LookupTable(256, 1024);
+        _initedTab = new Map(256, 1024);
 
         /* call classInit() on all classes */
         for (local o = firstObj(ProgramObject, ObjClasses) ; o != nil ;

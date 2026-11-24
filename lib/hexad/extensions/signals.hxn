@@ -89,7 +89,7 @@ Signal: Relation
     propList = []
     
 	/*
-	 *   A LookupTable liniking objects that might emit this signal (potential senders) to potential
+	 *   A Map liniking objects that might emit this signal (potential senders) to potential
 	 *   receivers of this signal, so that notifications can be sent from the former to the latter.
 	 *   Game code should not need to manipulate this table directly; it should instead be updated via
 	 *   the supplied connect() and unconnect() functions.
@@ -101,7 +101,7 @@ Signal: Relation
     addHandler(sender, receiver, handler)
     {
         if(dispatchTab == nil)
-            dispatchTab = new LookupTable();
+            dispatchTab = new Map();
         
         dispatchTab[[sender, receiver]] = handler;
     }
@@ -168,7 +168,7 @@ modify ProgramObject
     /*
 	 *   Dispatch a signal to the appropriate handler method on this object.
      *   We look up the property pointer to use on the signal's dispatchTab
-	 *   LookupTable. If we find one and the property is defined on this object
+	 *   Map. If we find one and the property is defined on this object
 	 *   then we use that property to handle the signal. Otherwise, we simply
 	 *   use our catch-all generic handle(sender, signal) method.
 	 *  

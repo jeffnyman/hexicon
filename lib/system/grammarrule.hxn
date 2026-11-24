@@ -1,24 +1,24 @@
 #charset "us-ascii"
 
 /*
- *   This module defines some classes used by the GrammarProd intrinsic
+ *   This module defines some classes used by the GrammarRule intrinsic
  *   class.  
  */
 
 #include <hexicon.h>
-#include <gramprod.h>
+#include <grammarrule.h>
 
 
 /* ------------------------------------------------------------------------ */
 /*
- *   GrammarProd descriptor classes.  The GrammarProd intrinsic class's
+ *   GrammarRule descriptor classes.  The GrammarRule intrinsic class's
  *   getGrammarInfo() method uses these classes to build its description of
  *   a grammar production.
  */
 
 /* export the classes so the intrinsic class can find them */
-export GrammarAltInfo 'GrammarProd.GrammarAltInfo';
-export GrammarAltTokInfo 'GrammarProd.GrammarAltTokInfo';
+export GrammarAltInfo 'GrammarRule.GrammarAltInfo';
+export GrammarAltTokInfo 'GrammarRule.GrammarAltTokInfo';
 
 
 /*
@@ -33,16 +33,16 @@ export GrammarAltTokInfo 'GrammarProd.GrammarAltTokInfo';
  *   When '|' symbols are grouped with parentheses in a 'grammar'
  *   statement, the compiler "flattens" the grouping by expanding out the
  *   parenthesized groups until it has entirely top-level alternatives.
- *   So, at the level of a GrammarProd object, there's no such thing as
+ *   So, at the level of a GrammarRule object, there's no such thing as
  *   parentheses or nested '|' symbols.  
  */
 class GrammarAltInfo: object
     /*
-     *   Constructor.  GrammarProd.getGrammarInfo() calls this once for
+     *   Constructor.  GrammarRule.getGrammarInfo() calls this once for
      *   each alternative making up the production, passing in the values
      *   that define the alternative.  Note that we have a '...' in our
      *   argument list so that we'll be compatible with any future
-     *   GrammarProd versions that add additional arguments - we won't do
+     *   GrammarRule versions that add additional arguments - we won't do
      *   anything with the extra arguments, but we'll harmlessly ignore
      *   them, so code compiled with this library version will continue to
      *   work correctly.  
@@ -63,7 +63,7 @@ class GrammarAltInfo: object
 
     /* 
      *   the "match object" class - this is the class that
-     *   GrammarProd.parseTokens() instantiates to represent a match to
+     *   GrammarRule.parseTokens() instantiates to represent a match to
      *   this alternative in the match list that the method returns 
      */
     gramMatchObj = nil
@@ -77,20 +77,20 @@ class GrammarAltInfo: object
 ;
 
 /*
- *   Grammar rule token descriptor.  GrammarProd.getGrammarInfo()
+ *   Grammar rule token descriptor.  GrammarRule.getGrammarInfo()
  *   instantiates one of these objects to represent each token slot in an
  *   alternative; a GrammarAltInfo object's gramTokens property has a list
  *   of these objects.
  */
 class GrammarAltTokInfo: object
     /*
-     *   Constructor.  GrammarProd.getGrammarInfo() calls this once for
+     *   Constructor.  GrammarRule.getGrammarInfo() calls this once for
      *   each token in each alternative in the production, passing in
      *   values to fully describe the token slot: the target property (in a
      *   'grammar' statement, this is the property after a '->' symbol);
      *   the token type; and extra information that depends on the token
      *   type.  Note that we use '...' at the end of the argument list so
-     *   that we'll be compatible with any future changes to GrammarProd
+     *   that we'll be compatible with any future changes to GrammarRule
      *   that add more arguments to this method.  
      */
     construct(prop, typ, info, ...)
@@ -111,7 +111,7 @@ class GrammarAltTokInfo: object
 
     /*
      *   The token type.  This is one of the GramTokTypeXxx values (see
-     *   gramprod.h) indicating what kind of token slot this is.  
+     *   grammarrule.h) indicating what kind of token slot this is.  
      */
     gramTokenType = nil
 
@@ -119,7 +119,7 @@ class GrammarAltTokInfo: object
      *   Detailed information for the token slot, which depends on the
      *   token type:
      *   
-     *   GramTokTypeProd - this gives the GrammarProd object defining the
+     *   GramTokTypeProd - this gives the GrammarRule object defining the
      *   sub-production that this token slot matches
      *   
      *   GramTokTypeSpeech - this is the property ID giving the
@@ -142,7 +142,7 @@ class GrammarAltTokInfo: object
 /*
  *   Dynamic match object interface.  This is a mix-in class that should be
  *   used as a superclass for any class used as the match object when
- *   creating new alternatives dynamically with GrammarProd.addAlt().
+ *   creating new alternatives dynamically with GrammarRule.addAlt().
  *   
  *   This class provides an implementation of grammarInfo() that works like
  *   the version the compiler generates for static match objects.  In this

@@ -20,8 +20,8 @@ intrinsic class Iterator 'iterator/030001': Object
 {
     getNext();
 }
-intrinsic class BigNumber 'bignumber/030001': Object { formatString(); }
-intrinsic class IntrinsicClass 'intrinsic-class/030001': Object { isIntrinsicClass(obj); }
+intrinsic class Decimal 'bignumber/030001': Object { formatString(); }
+intrinsic class BuiltinClass 'intrinsic-class/030001': Object { isBuiltinClass(obj); }
 intrinsic class ByteArray 'bytearray/030002': Object { }
 a: object x = 1;
 _main(args)

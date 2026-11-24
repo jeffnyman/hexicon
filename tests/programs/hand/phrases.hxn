@@ -5,7 +5,7 @@
 #include <io.h>
 #include <vm.h>
 #include <dict.h>
-#include <gramprod.h>
+#include <grammarrule.h>
 
 // Results go one to a line.
 line(val) { print(toString(val)); print('\n'); }

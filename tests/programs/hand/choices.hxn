@@ -4,7 +4,7 @@
 #include <general.h>
 #include <io.h>
 #include <vm.h>
-#include <lookup.h>
+#include <map.h>
 
 say(val) { print(val); }
 
@@ -57,7 +57,7 @@ _main(args)
     line(door.sounds['lock']);
     line(door.sizes[2]);
     line(door.sizes[3] == nil ? 'no such size' : 'a size');
-    line(door.sounds.ofKind(LookupTable) ? 'a table' : 'a list');
+    line(door.sounds.ofKind(Map) ? 'a table' : 'a list');
 
     // The keys and values can be worked out when the program runs.
     local key = 'k' + 1;

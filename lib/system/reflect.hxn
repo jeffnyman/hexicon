@@ -1,7 +1,7 @@
 #charset "us-ascii"
 
 #include <hexicon.h>
-#include <strbuf.h>
+#include <stringbuilder.h>
 #include "reflect.h"
 
 /* ------------------------------------------------------------------------ */
@@ -30,7 +30,7 @@ reflectionServices: PreinitObject
              *   the same size as the original table, so create it using
              *   the same statistics 
              */
-            reverseSymtab_ = new LookupTable(symtab_.getBucketCount(),
+            reverseSymtab_ = new Map(symtab_.getBucketCount(),
                                              symtab_.getEntryCount());
 
             /* 
@@ -76,7 +76,7 @@ reflectionServices: PreinitObject
                 return inherited();
 
             /* check for intrinsic classes */
-            if (IntrinsicClass.isIntrinsicClass(val))
+            if (BuiltinClass.isBuiltinClass(val))
             {
                 /* intrinsic classes should always be in the symbol table */
                 sym = reverseSymtab_[val];
@@ -125,7 +125,7 @@ reflectionServices: PreinitObject
      */
     formatStackFrame(fr, includeSourcePos)
     {
-        local ret = new StringBuffer();
+        local ret = new StringBuilder();
         
         /* see what kind of frame we have */
         if (fr.func_ != nil)
@@ -137,11 +137,11 @@ reflectionServices: PreinitObject
         {
             /* 
              *   It's an object.property.  Check for one special case we
-             *   want to show specially: if the object is an AnonFuncPtr
+             *   want to show specially: if the object is a Function
              *   object, ignore the property and just show it as an
              *   anonymous function. 
              */
-            if (fr.obj_.ofKind(AnonFuncPtr))
+            if (fr.obj_.ofKind(Function))
                 ret.append('{anonFunc}');
             else
             {
@@ -391,14 +391,14 @@ modify List
 
 /* ------------------------------------------------------------------------ */
 /*
- *   If desired, modify the BigNumber intrinsic class to provide a
+ *   If desired, modify the Decimal intrinsic class to provide a
  *   to-symbol mapping.  We only include this modification if the program
  *   is compiled with REFLECT_BIGNUM defined.  
  */
 #ifdef REFLECT_BIGNUM
-#include "bignum.h"
+#include "decimal.h"
 
-modify BigNumber
+modify Decimal
     valToSymbol()
     {
         /* use the default formatting */

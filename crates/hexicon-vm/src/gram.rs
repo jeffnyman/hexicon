@@ -1008,7 +1008,7 @@ impl Vm {
                             continue;
                         }
                         let native =
-                            self.native_call("GrammarProd.deleteAlt", Value::Obj(id), 4, argc);
+                            self.native_call("GrammarRule.deleteAlt", Value::Obj(id), 4, argc);
                         let value = self.call_prop(Value::Obj(class), tag_prop, 0, Some(native))?;
                         if self.as_str(value).is_some_and(|found| *found == *tag) {
                             marked[position] = true;

@@ -1,4 +1,4 @@
-image: 071bdc311d83aa1a1a21ff044c7c561db56ee55153fbdbf1ba1e8a2ee906a0c5
+image: f9562496451fa98675619c0f3c8dac7e7631cb61bea99966d19fdf0d3bfa808a
 --- messages
 warning: unreachable statement
   --> labels.hxn:10

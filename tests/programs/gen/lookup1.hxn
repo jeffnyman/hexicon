@@ -1,4 +1,4 @@
-#include <lookup.h>
+#include <map.h>
 #include <hexicon.h>
 obj: object
     tab = ['a' -> 1, 'b' -> 2]
@@ -18,5 +18,5 @@ _main(args)
     local e = [ ];
     local u = [f(1) -> f(2), * -> f(3)];
     print(u[1]); print(u[9]); print(e.length());
-    print([1 -> 2].ofKind(LookupTable) ? ' table' : ' list'); print(['a' -> 'b']['a']); print('\n');
+    print([1 -> 2].ofKind(Map) ? ' table' : ' list'); print(['a' -> 'b']['a']); print('\n');
 }

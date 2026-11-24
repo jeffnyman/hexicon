@@ -52,7 +52,7 @@
  *.          settings from setLocaleInfo() to match month names, weekday
  *.          names, etc; the default settings are for US English format.
  *
- *.   new Date(number, 'J') - 'number' can be an integer or a BigNumber.
+ *.   new Date(number, 'J') - 'number' can be an integer or a Decimal.
  *.          This creates a Date object representing the given number of
  *.          days after January 1, 4713 BCE on the Julian calendar, at
  *.          noon UTC.  The fractional part is the fraction of a day
@@ -60,11 +60,11 @@
  *.          represents 1/4 of a day, or 6 hours, so it represents a
  *.          clock time of 18:00 UTC (6 hours past noon).
  *   
- *.   new Date(number, 'U') - 'number' can be an integer or a BigNumber.
+ *.   new Date(number, 'U') - 'number' can be an integer or a Decimal.
  *.          This creates a Date object representing the given number of
  *.          seconds after standard Unix Epoch (1/1/1970 00:00:00 UTC),
  *.          or before the Epoch if the value is negative.  If 'number'
- *.          is a BigNumber, it can specify fractions of a second, which
+ *.          is a Decimal, it can specify fractions of a second, which
  *.          the Date object will round to the nearest milliseconds.
  *.          This constructor format is provided because "seconds since
  *.          1/1/1970" is the standard representation of time on Unix-like
@@ -96,15 +96,15 @@
  *   
  *.   Date + integer   - add days to the date
  *.   Date - integer   - subtract days from date
- *.   Date + BigNumber - add days (which can include fractional days)
- *.   Date - BigNumber - subtract days (which can include fractional days)
+ *.   Date + Decimal - add days (which can include fractional days)
+ *.   Date - Decimal - subtract days (which can include fractional days)
  *.   Date - Date      - number of days between dates (with fractional days)
  *   
- *   Adding an integer or BigNumber returns a new Date object representing
+ *   Adding an integer or Decimal returns a new Date object representing
  *   the result; Date objects are immutable, so the original Date value isn't
  *   changed by the operation.
  *   
- *   Subtracting one Date from another yields a BigNumber with the difference
+ *   Subtracting one Date from another yields a Decimal with the difference
  *   in days between the two dates.  Note that this might have a fractional
  *   part, because the difference might not be whole days; for example,
  *   subtracting 13:00 from 19:00 on the same day yields 0.25, which is 1/4
@@ -218,7 +218,7 @@ intrinsic class Date 'date/030000': Object
      *   calendar X and calendar Y, but you can almost always find a formula
      *   for converting between any given calendar and the Julian day system.
      *   
-     *   The return value is a BigNumber value giving the Julian day
+     *   The return value is a Decimal value giving the Julian day
      *   corresponding to this Date value, including a fractional part for
      *   the time past noon UTC on that date.
      *   
@@ -267,7 +267,7 @@ intrinsic class Date 'date/030000': Object
     /*
      *   Add an interval to this date, returning a new date object.  The
      *   interval is given as a list of integers: [years, months, days,
-     *   hours, minutes, seconds].  The 'seconds' value can be a BigNumber
+     *   hours, minutes, seconds].  The 'seconds' value can be a Decimal
      *   with a fractional part (but anything smaller than milliseconds is
      *   discarded).  Elements can be omitted from the end of the list; for
      *   example, [0, 2] adds two months.  An element can be negative: [-1]

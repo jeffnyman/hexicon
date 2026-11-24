@@ -12,7 +12,7 @@
 /*
  *   The Dictionary intrinsic class is a specialized lookup table class
  *   designed for storing the vocabulary table for a parser.  Dictionary
- *   works closely with GrammarProd to supply the vocabulary tokens for the
+ *   works closely with GrammarRule to supply the vocabulary tokens for the
  *   productions.
  *   
  *   The main difference between Dictionary and a more general hash table is

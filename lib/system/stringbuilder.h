@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- *   This module defines the StringBuffer intrinsic class.  StringBuffer is
+ *   This module defines the StringBuilder intrinsic class.  StringBuilder is
  *   essentialy a mutable version of String: you can append, insert, replace,
  *   and delete characters in place, without creating new objects as a
  *   result.  This is useful for complex string constructions that involve
@@ -12,10 +12,10 @@
  */
 
 /*
- *   A StringBuffer is a mutable character string object.  You can insert,
+ *   A StringBuilder is a mutable character string object.  You can insert,
  *   append, delete, and replace characters in the buffer in place.  These
  *   operations don't create new objects as they do with ordinary strings,
- *   but simply modify the existing StringBuffer object's contents.
+ *   but simply modify the existing StringBuilder object's contents.
  *   
  *   The object manages memory automatically.  When you first create the
  *   object, it allocates an initial buffer to hold its character contents.
@@ -25,19 +25,19 @@
  *   the added text.  The maximum size for the string contained in the buffer
  *   is about 32000 characters.
  *   
- *   Construction: new StringBuffer() creates a buffer with default initial
- *   size values.  new StringBuffer(length, increment) specifies the initial
+ *   Construction: new StringBuilder() creates a buffer with default initial
+ *   size values.  new StringBuilder(length, increment) specifies the initial
  *   buffer size in characters ('length'), and the minimum number of
  *   characters to add to the buffer each time it's automatically expanded
  *   ('increment').
  *   
- *   Passing a StringBuffer to an internal function or method that takes a
+ *   Passing a StringBuilder to an internal function or method that takes a
  *   String argument, such as print(), will automatically convert the
- *   object to a string.  To explicitly convert a StringBuffer to an ordinary
+ *   object to a string.  To explicitly convert a StringBuilder to an ordinary
  *   String, use the toString() function.  You can also create an ordinary
  *   string from a section of the buffer using the substr() method.  
  */
-intrinsic class StringBuffer 'stringbuffer/030000'
+intrinsic class StringBuilder 'stringbuffer/030000'
 {
     /*
      *   Get the length in characters of the current text in the buffer. 

@@ -800,7 +800,7 @@ commentPreParser: StringPreParser
      *   an empty string always matches zero characters, so it will prevent
      *   us from skipping any leading charactres in the player's input.  
      */
-    leadPat = static new RexPattern('<space>*')
+    leadPat = static new Regex('<space>*')
 
     /* warning count for entering comments without SCRIPT in effect */
     warningCount = 0

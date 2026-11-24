@@ -98,7 +98,7 @@ modify MenuItem
     getXML(from)
     {
         /* set up a string buffer for the xml */
-        local s = new StringBuffer();
+        local s = new StringBuilder();
         
         /* update the menu contents */
         updateContents();
@@ -253,7 +253,7 @@ modify MenuTopicItem
     getXML(from)
     {
         /* start with an empty result buffer */
-        local s = new StringBuffer();
+        local s = new StringBuilder();
 
         /* update our contents, as needed */
         updateContents();
@@ -312,7 +312,7 @@ modify MenuLongTopicItem
     getXML(from)
     {
         /* start with an empty result buffer */
-        local s = new StringBuffer();
+        local s = new StringBuilder();
 
         /* update our contents, as needed */
         updateContents();

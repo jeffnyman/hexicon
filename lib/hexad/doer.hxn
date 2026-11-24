@@ -863,7 +863,7 @@ class DoerParser: object
     {
         action_ = action;
         verb_ = v;
-        pat_ = new RexPattern('<space>*' + pat + '<space>*$');
+        pat_ = new Regex('<space>*' + pat + '<space>*$');
         roles_ = roles;
     }
 
@@ -932,7 +932,7 @@ class DoerParserTable: object
     }
 
     /* the lookup table */
-    ptab = perInstance(new LookupTable(64, 128))
+    ptab = perInstance(new Map(64, 128))
 ;
 
 /*
@@ -1079,7 +1079,7 @@ doerPreinit: PreinitObject
         tlst.sort(SortDesc, { a, b: a.compareTo(b) });
 
         /* build the master table of DoerCmd objects */
-        local dtab = DoerCmd.doerTab = new LookupTable(64, 128);
+        local dtab = DoerCmd.doerTab = new Map(64, 128);
         local seqno = 1;
         foreach (local d in tlst)
         {

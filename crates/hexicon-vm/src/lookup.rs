@@ -510,8 +510,8 @@ impl Vm {
             // as it is reached.
             3 | 4 | 7 => {
                 let name = match index {
-                    3 => "LookupTable.applyAll",
-                    4 => "LookupTable.forEach",
+                    3 => "Map.applyAll",
+                    4 => "Map.forEach",
                     // The reference VM's name for this one.
                     _ => "List.forEachAssoc",
                 };

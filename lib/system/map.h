@@ -2,8 +2,8 @@
 #pragma once
 
 /* 
- *   The header defines the LookupTable and WeakRefLookupTable intrinsic
- *   classes, as well as LookupTableIterator, the special Iterator type for
+ *   The header defines the Map and WeakMap intrinsic
+ *   classes, as well as MapIterator, the special Iterator type for
  *   these classes.  
  */
 
@@ -12,12 +12,12 @@
 #include "systype.h"
 
 /*
- *   The LookupTable intrinsic class provides a general-purpose hash table
- *   implementation.  LookupTable can be used syntactically as though it were
+ *   The Map intrinsic class provides a general-purpose hash table
+ *   implementation.  Map can be used syntactically as though it were
  *   a list, but the index values are arbitrary hash key values rather than
  *   being limited to sequential integers.  
  */
-intrinsic class LookupTable 'lookuptable/030003': Collection
+intrinsic class Map 'lookuptable/030003': Collection
 {
     /* 
      *   Determine if a given key is present in the table.  Returns true if
@@ -116,8 +116,8 @@ intrinsic class LookupTable 'lookuptable/030003': Collection
 }
 
 /*
- *   WeakRefLookupTable is a "weak reference" version of the basic lookup
- *   table.  This is similar to the regular LookupTable, and has the same
+ *   WeakMap is a "weak reference" version of the basic lookup
+ *   table.  This is similar to the regular Map, and has the same
  *   methods; the only difference is that this type of table references its
  *   values "weakly."  A value that is reachable only through weak references
  *   is subject to deletion by the garbage collector.  A weak-reference
@@ -128,15 +128,15 @@ intrinsic class LookupTable 'lookuptable/030003': Collection
  *   values, the key/value pair for the value is automatically deleted from
  *   the table.  
  */
-intrinsic class WeakRefLookupTable 'weakreflookuptable/030001': LookupTable
+intrinsic class WeakMap 'weakreflookuptable/030001': Map
 {
 }
 
 /*
- *   LookupTable iterator - this type of iterator is used for LookupTable and
- *   WeakRefLookupTable instances.  
+ *   Map iterator - this type of iterator is used for Map and
+ *   WeakMap instances.  
  */
-intrinsic class LookupTableIterator 'lookuptable-iterator/030000': Iterator
+intrinsic class MapIterator 'lookuptable-iterator/030000': Iterator
 {
 }
 

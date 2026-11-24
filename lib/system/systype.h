@@ -98,35 +98,35 @@ export objToString 'objToString';
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The IntrinsicClass intrinsic class.  Objects of this type represent the
+ *   The BuiltinClass intrinsic class.  Objects of this type represent the
  *   intrinsic classes themselves.  
  */
-intrinsic class IntrinsicClass 'intrinsic-class/030001': Object
+intrinsic class BuiltinClass 'intrinsic-class/030001': Object
 {
     /*
-     *   Class method: is the given value an IntrinsicClass object?  This
+     *   Class method: is the given value a BuiltinClass object?  This
      *   returns true if so, nil if not.  
      *   
-     *   It's not possible to determine if an object is an IntrinsicClass
-     *   object using x.ofKind(IntrinsicClass) or via x.getSuperclassList().
+     *   It's not possible to determine if an object is a BuiltinClass
+     *   object using x.ofKind(BuiltinClass) or via x.getSuperclassList().
      *   This is because those methods traverse the nominal class tree:
      *   [1,2,3] is a List, and List is an Object.  However, List and Object
-     *   themselves are represented by IntrinsicClass instances, and it's
+     *   themselves are represented by BuiltinClass instances, and it's
      *   occasionally useful to know if you're dealing with such an object.
      *   That's where this method comes in.
      *   
      *   This method returns nil for instances of an intrinsic class.  For
-     *   example, isIntrinsicClass([1,2,3]) returns nil, because [1,2,3] is a
+     *   example, isBuiltinClass([1,2,3]) returns nil, because [1,2,3] is a
      *   List instance.  If you get the superclass list for [1,2,3], though,
-     *   that will be [List], and isIntrinsicClass(List) returns true.
+     *   that will be [List], and isBuiltinClass(List) returns true.
      */
-    isIntrinsicClass(obj);
+    isBuiltinClass(obj);
 }
 
 /*
  *   Intrinsic class modifier object (for internal compiler use only) 
  */
-intrinsic class IntrinsicClassModifier 'int-class-mod/030000'
+intrinsic class BuiltinClassModifier 'int-class-mod/030000'
 {
 }
 
@@ -217,14 +217,14 @@ intrinsic class IndexedIterator 'indexed-iterator/030000': Iterator
 
 /* ------------------------------------------------------------------------ */
 /*
- *   AnonFuncPtr depends on Vector 
+ *   Function depends on Vector 
  */
 #include "vector.h"
 
 /*
  *   Anonymous function pointer intrinsic class 
  */
-intrinsic class AnonFuncPtr 'anon-func-ptr': Vector
+intrinsic class Function 'anon-func-ptr': Vector
 {
 }
 
@@ -369,7 +369,7 @@ intrinsic class String 'string/030008': Object
      *   Find a substring or pattern within the subject string (self),
      *   searching the string from left to right returning the index of the
      *   first match found.  If 'str' is a string, this searches for an exact
-     *   match to the substring.  If 'str' is a RexPattern object, this
+     *   match to the substring.  If 'str' is a Regex object, this
      *   searches for a match to the pattern.  Returns the character index of
      *   the start of the match if found (the first character is at index 1),
      *   or nil if no match is found.
@@ -433,7 +433,7 @@ intrinsic class String 'string/030008': Object
      *   
      *   'origStr' is the string to search for within 'self'.  This is
      *   treated as a literal text substring to find within 'self'.
-     *   'origStr' can alternatively be a RexPattern object, in which case
+     *   'origStr' can alternatively be a Regex object, in which case
      *   the regular expression is matched.
      *   
      *   'newStr' is the replacement text, as a string.  'newStr' can
@@ -518,7 +518,7 @@ intrinsic class String 'string/030008': Object
      *   
      *   'delim' is the delimiter.  It can be one of the following:
      *   
-     *   - A string or RexPattern, giving the delimiter where we split the
+     *   - A string or Regex, giving the delimiter where we split the
      *   string.  We search 'self' for matches to this string or pattern, and
      *   split it at each instance we find, returning a list of the resulting
      *   substrings.  For example, 'one,two,three'.split(',') returns the
@@ -801,8 +801,8 @@ intrinsic class String 'string/030008': Object
      *   find(), but searches in the reverse direction.  Returns the index of
      *   the match, or nil if no match is found.
      *   
-     *   'str' can be a string or a RexPattern.  If it's a string, we look
-     *   for an exact match to the substring.  If it's a RexPattern, we
+     *   'str' can be a string or a Regex.  If it's a string, we look
+     *   for an exact match to the substring.  If it's a Regex, we
      *   search for a match to the pattern.
      *   
      *   The optional 'index' specifies the starting index for the search.
@@ -829,8 +829,8 @@ intrinsic class String 'string/030008': Object
      *   Find all occurrences of substring or pattern within a string,
      *   returning a list of the results.
      *   
-     *   'str' can be a string or RexPattern object.  If it's a string, we
-     *   look for exact matches to the substring.  If it's a RexPattern, we
+     *   'str' can be a string or Regex object.  If it's a string, we
+     *   look for exact matches to the substring.  If it's a Regex, we
      *   search for matches to the pattern.
      *   
      *   'func' is an optional function used to process the results.  If this
@@ -858,10 +858,10 @@ intrinsic class String 'string/030008': Object
     findAll(str, func?);
 
     /*
-     *   Match the given string or RexPattern object to this string value,
+     *   Match the given string or Regex object to this string value,
      *   starting at the start of the string or at the given index, if
      *   specified.  If 'str' is a string, we check for a match to the
-     *   literal text of the string; if 'str' is a RexPattern, we try to
+     *   literal text of the string; if 'str' is a Regex, we try to
      *   match the regular expression.  'idx' is the optional starting
      *   position (1 is the first character; negative values are from the end
      *   of the string, with -1 as the last character, -2 as the second to
@@ -1192,21 +1192,21 @@ export length 'length';
 
 /* ------------------------------------------------------------------------ */
 /*
- *   'RexPattern' intrinsic class.  This class encapsulates a compiled
+ *   'Regex' intrinsic class.  This class encapsulates a compiled
  *   regular expression pattern.
  *   
- *   A RexPattern object can be passed to the regular expression functions
+ *   A Regex object can be passed to the regular expression functions
  *   (rexMatch, rexSearch, rexReplace) in place of a string pattern.  Since
  *   compiling a regular expression takes a non-trivial amount of time, it's
- *   more efficient to compile a pattern to a RexPattern object if the same
+ *   more efficient to compile a pattern to a Regex object if the same
  *   pattern will be used in multiple searches.  
  */
-intrinsic class RexPattern 'regex-pattern/030000': Object
+intrinsic class Regex 'regex-pattern/030000': Object
 {
     /*
      *   Constructor:
      *   
-     *   new RexPattern(patternString) - returns a RexPattern representing
+     *   new Regex(patternString) - returns a Regex representing
      *   the compiled pattern string.  
      */
 
@@ -1216,13 +1216,13 @@ intrinsic class RexPattern 'regex-pattern/030000': Object
 
 /* ------------------------------------------------------------------------ */
 /*
- *   StackFrameDesc intrinsic class.  This class provides access to a stack
+ *   StackFrame intrinsic class.  This class provides access to a stack
  *   frame.  It lets us retrieve the values of local variables and method
  *   context variables (self, definingobj, targetobj, targetprop).  It also
  *   allows us to assign new values to local variables.
  *   
  *   To get the value of a local variable in the frame, simply use
- *   frame[name], where 'frame' is the StackFrameDesc object for the frame,
+ *   frame[name], where 'frame' is the StackFrame object for the frame,
  *   and 'name' is a string giving the name of the local variable to
  *   retrieve.  If the frame is active, this retrieves the live value of the
  *   variable from the frame; otherwise it retrieves the value from a
@@ -1241,7 +1241,7 @@ intrinsic class RexPattern 'regex-pattern/030000': Object
  *   information on an active stack frame in the current call stack,
  *   including the frame object.  
  */
-intrinsic class StackFrameDesc 'stack-frame-desc/030000'
+intrinsic class StackFrame 'stack-frame-desc/030000'
 {
     /*
      *   Is the stack frame active?  A stack frame is active until the
@@ -1249,7 +1249,7 @@ intrinsic class StackFrameDesc 'stack-frame-desc/030000'
      *   routine returns, the frame becomes inactive.
      *   
      *   When the routine is about to return (so the frame is about to become
-     *   inacive), the StackFrameDesc object makes a private snapshot of the
+     *   inacive), the StackFrame object makes a private snapshot of the
      *   variables in the frame.  Subsequent access to the locals will
      *   automatically use the snapshot copy, so you can continue to access
      *   the locals as normal without worrying about whether or not the
@@ -1260,7 +1260,7 @@ intrinsic class StackFrameDesc 'stack-frame-desc/030000'
     isActive();
 
     /*
-     *   Get a LookupTable consisting of all of the variables (local
+     *   Get a Map consisting of all of the variables (local
      *   variables and parameters) in the frame.  Each element in the table
      *   is keyed by the name of a variable, and contains the current value
      *   of the variable.
@@ -1273,7 +1273,7 @@ intrinsic class StackFrameDesc 'stack-frame-desc/030000'
      *   affect the actual variable in the stack frame.
      *   
      *   To retrieve the current live value of a variable in the actual stack
-     *   frame, use frame[name], where 'frame' is the StackFrameDesc object
+     *   frame, use frame[name], where 'frame' is the StackFrame object
      *   for the frame, and 'name' is a string giving the variable name.  
      */
     getVars();
@@ -1305,7 +1305,7 @@ intrinsic class StackFrameDesc 'stack-frame-desc/030000'
 }
 
 /*
- *   A StackFrameRef is an internal object used with StackFrameDesc.  This
+ *   A StackFrameRef is an internal object used with StackFrame.  This
  *   type is used internally by the VM; user code can't create an instance of
  *   this class directly with 'new', and the class has no public methods.  
  */

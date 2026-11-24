@@ -647,7 +647,7 @@ class ParagraphManager: OutputFilter
      *   suppress a paragraph break following a blank line, because the
      *   default rendering would add a redundant blank line.  
      */
-    suppressBefore = static new RexPattern('\b')
+    suppressBefore = static new Regex('\b')
 
     /*
      *   Following suppression.  This is a regular expression that we
@@ -659,11 +659,11 @@ class ParagraphManager: OutputFilter
      *   By default, we suppress additional blank lines after a paragraph
      *   break.  
      */
-    suppressAfter = static new RexPattern('[\b\n]')
+    suppressAfter = static new Regex('[\b\n]')
 
     /* pre-compile some regular expression patterns we use a lot */
-    leadingMultiPat = static new RexPattern('(<langle><dot>[pP]0?<rangle>)+')
-    leadingSinglePat = static new RexPattern(
+    leadingMultiPat = static new Regex('(<langle><dot>[pP]0?<rangle>)+')
+    leadingSinglePat = static new Regex(
         '<langle><dot>([pP]0?|/[pP]0)<rangle>')
 
     /* process a string that's about to be written to the console */
@@ -1108,7 +1108,7 @@ doubleTypographicalQuoteTag: StyleTag 'dq'
  */
 styleTagFilter: OutputFilter, PreinitObject
     /* pre-compile our frequently-used tag search pattern */
-    tagPattern = static new RexPattern(
+    tagPattern = static new Regex(
         '<nocase><langle>%.(/?[a-z][a-z0-9]*)<rangle>')
 
     /* filter for a style tag */
@@ -1201,7 +1201,7 @@ styleTagFilter: OutputFilter, PreinitObject
     execute()
     {
         /* create a lookup table for our style table */
-        tagTable = new LookupTable();
+        tagTable = new Map();
         
         /* 
          *   Populate the table with all of the StyleTag instances.  Key
@@ -1283,7 +1283,7 @@ transient commandSequencer: OutputFilter
     }
 
     /* pre-compile our tag sequence pattern */
-    patNextTag = static new RexPattern(
+    patNextTag = static new Regex(
         '<nocase><langle><dot>'
         + 'command(sep|int|before|after|none|mid)'
         + '<rangle>')
@@ -1665,7 +1665,7 @@ quoteFilter: OutputFilter, InitObject
     quoteCount = 0 
     
     /* Our rex pattern to match <q> and </q> */
-    quotePat = static new RexPattern('<NoCase><langle>(<s|d>?q|/<s|d>?q)<rangle>')
+    quotePat = static new Regex('<NoCase><langle>(<s|d>?q|/<s|d>?q)<rangle>')
     
     
     /* In Initialize this filter */
@@ -1968,7 +1968,7 @@ typographicalOutputFilter: OutputFilter
      *   sentence-ending punctuation that's followed by a quoted space or
      *   any typographical space overrides this substitution.
      */
-    eosPattern = static new RexPattern(
+    eosPattern = static new Regex(
         '<case>'
         + '('
         +   '[.!?]'
@@ -1981,7 +1981,7 @@ typographicalOutputFilter: OutputFilter
         )
 
     /* pattern for abbreviations that were mistaken for sentence endings */
-    abbrevPat = static new RexPattern(
+    abbrevPat = static new Regex(
         '<nocase>%<(' + abbreviations + ')<dot>\u2002')
 
     /* 
@@ -2039,12 +2039,12 @@ cquoteOutputFilter: OutputFilter
     aggressive = true
 
     // Patterns for our searches
-    patIsHTMLTag = static new RexPattern('<langle><^rangle>+<squote|dquote><^rangle>*<rangle>')
-    patIsFormatTag = static new RexPattern('{[^}]+<squote>[^}]*}')
-    patAggressive = static new RexPattern('(<alphanum|punct>)<squote>')
-    patIsCont1Tag = static new RexPattern('(<alpha>)<squote>(s|m|d|ve|re|ll)')
-    patIsCont2Tag = static new RexPattern('(<alpha>)n<squote>t')
-    patIsPossTag = static new RexPattern('(<alpha>)s<squote>')
+    patIsHTMLTag = static new Regex('<langle><^rangle>+<squote|dquote><^rangle>*<rangle>')
+    patIsFormatTag = static new Regex('{[^}]+<squote>[^}]*}')
+    patAggressive = static new Regex('(<alphanum|punct>)<squote>')
+    patIsCont1Tag = static new Regex('(<alpha>)<squote>(s|m|d|ve|re|ll)')
+    patIsCont2Tag = static new Regex('(<alpha>)n<squote>t')
+    patIsPossTag = static new Regex('(<alpha>)s<squote>')
     
     filterText(ostr, val) {
 	local ret;
@@ -2267,7 +2267,7 @@ conversationManager: OutputFilter, PreinitObject
         return rexReplace(tagPat, txt, '', ReplaceAll);
     }
     
-    tagPat = static new RexPattern(
+    tagPat = static new Regex(
         '<nocase><langle><dot>'
         + '(reveal|unreveal'
         + (customTags != nil ? '|' + customTags : '')        

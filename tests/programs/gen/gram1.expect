@@ -1,6 +1,6 @@
-image: dee0d30eb16a790e260af0b788142302c8b80253a099245b544467f83aab32ef
+image: 5aeb6b50c64055af3e5a6db1aff02706a648f67769418a03a8d2f9d490d302e7
 --- messages
-warning: grammar rule is empty (add '()' if this is intentional)
+warning: an alternative of this grammar rule is empty (add '()' if this is intentional)
   --> gram1.hxn:18
    |
 18 | grammar empty: : object;

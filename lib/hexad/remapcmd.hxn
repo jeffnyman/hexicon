@@ -16,7 +16,7 @@
  */
 
 import hexad;
-#include <lookup.h>
+#include <map.h>
 
 /*
  *   The object put into your code
@@ -172,7 +172,7 @@ remapCmdDicts: PreinitObject
     
     /* The pre-init execution routine */
     execute() {
-        remapTbl = new LookupTable(50,50);
+        remapTbl = new Map(50,50);
         local scmp = new StringComparator(nil,true,nil);    // case-sensitive as lower anyway
         
         for(local obj = firstObj(RemapCmd); obj != nil; obj = nextObj(obj,RemapCmd)) {
@@ -1020,7 +1020,7 @@ modify Parser
 #if 0
 tok_test2()
 {    
-    local tmap = new LookupTable([tokWord,'word',tokString,'string',tokOp,'operator']);
+    local tmap = new Map([tokWord,'word',tokString,'string',tokOp,'operator']);
     
     // get grammar info
 //    local ginfo = remapCmdGrammar.getGrammarInfo();   
