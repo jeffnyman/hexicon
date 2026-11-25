@@ -904,7 +904,9 @@ pub(crate) fn preinit_image(
     }
     let result = vm.run_preinit(program_args);
     if let Err(error) = result {
-        let message = vm.error_message(&error, true);
+        // The program has shown an exception it did not handle, with
+        // where it happened; what is said here is what it was.
+        let message = vm.error_message(&error, false);
         vm.flush_output();
         return Err(message);
     }
@@ -967,7 +969,7 @@ fn preinit(args: &[&str]) -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(message) => {
-            eprintln!("{message}");
+            eprintln!("error: preinitialization failed: {message}");
             ExitCode::FAILURE
         }
     }

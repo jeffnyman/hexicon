@@ -254,8 +254,10 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
         );
         match crate::preinit_image(&name, &image, &compiled.unspecified, &[], Some(symbols)) {
             Ok(rebuilt) => (rebuilt.bytes, rebuilt.unspecified),
+            // No image is written: one would only run its failed
+            // preinitialization again when the game starts.
             Err(message) => {
-                eprintln!("{message}");
+                eprintln!("error: preinitialization failed: {message}");
                 return ExitCode::FAILURE;
             }
         }

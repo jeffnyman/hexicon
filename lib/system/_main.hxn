@@ -162,6 +162,14 @@ _mainCommon(args, restoreFile)
         
         /* display the unhandled exception */
         "\n<<exc.displayException()>>\n";
+
+        /*
+         *   In preinitialization, the exception goes on to the VM as well,
+         *   which fails the build: an image whose preinitialization failed
+         *   would only run it again when the game starts, and fail there.
+         */
+        if (inPreinit())
+            throw exc;
     }
     finally
     {
