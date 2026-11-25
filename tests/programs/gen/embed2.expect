@@ -1,4 +1,4 @@
-image: e360819c1dd5255b5de0d0a4a52cea4403ab023c7ca763b6311388b62050644e
+image: 08c22e4bf05e9d674a687ed8472f7deaad6609a3ce3e567752e7d295fc79912f
 --- messages
 --- output
 Unhandled exception: invalid index operation - this type of value cannot be indexed

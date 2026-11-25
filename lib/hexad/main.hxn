@@ -177,6 +177,19 @@ mainCommandLoop()
             
         }
         
+        /* 
+         *   A run-time error in a command is shown, with where it happened,
+         *   and the game goes on to the next command rather than ending.
+         *   UNDO puts back what the command had done before it failed.
+         */
+        catch(RuntimeError err)
+        {
+            if(err.isDebuggerSignal())
+                throw err;
+            "<.p>";
+            err.displayException();
+        }
+        
         /* Update the status line. */
         statusLine.showStatusLine();
         

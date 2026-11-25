@@ -724,15 +724,39 @@ class Exception: object
          */
         if (haveSrc || mainGlobal.reflectionObj != nil)
         {
+            /*
+             *   The levels in the game's own sources are always shown,
+             *   since they are where an author looks. The levels in the
+             *   built-in libraries (<hexicon>/...) are shown down to the
+             *   first of the game's, five at most, and the rest counted.
+             */
+            local seenGame = nil;
+            local shownLib = 0;
+            local hidden = 0;
             for (local i = 1, local cnt = stackList.length() ; i <= cnt ; ++i)
             {
                 local cur = stackList[i];
-                
-                /* show a mark next to level 1, spaces elsewhere */
-                if (i == 1)
-                    "--&gt;";
+                local inLibrary = (cur.srcInfo_ == nil
+                                   || cur.srcInfo_[1].startsWith('<hexicon>/'));
+                if (i > 1 && inLibrary && (seenGame || shownLib >= 5))
+                {
+                    ++hidden;
+                    continue;
+                }
+                if (inLibrary)
+                    ++shownLib;
                 else
-                    "\ \ \ ";
+                    seenGame = true;
+
+                /* 
+                 *   show a mark next to level 1, where the error happened,
+                 *   as the compiler's messages do; the levels it was called
+                 *   from line up under it 
+                 */
+                if (i == 1)
+                    "\ \ &#45;&#45;&gt;\ ";
+                else
+                    "\ \ \ \ \ \ ";
 
                 /* 
                  *   if there's a system reflection object, show symbolic
@@ -748,8 +772,12 @@ class Exception: object
                 else
                 {
                     /* no reflection information - show source only */
+                    /* 
+                     *   the file's name is text, not markup: a library's
+                     *   is <hexicon>/... 
+                     */
                     if (cur.srcInfo_ != nil)
-                        "<<cur.srcInfo_[1]>>, line <<cur.srcInfo_[2]>>";
+                        "<<cur.srcInfo_[1].escapeHtml()>>:<<cur.srcInfo_[2]>>";
                     else if (cur.isSystem())
                         "&lt;System&gt;";
                     else
@@ -759,6 +787,11 @@ class Exception: object
                 /* end the line */
                 "\n";
             }
+
+            /* say how many library levels were left out */
+            if (hidden > 0)
+                "\ \ \ \ \ \ (and <<hidden>> more in the built-in
+                libraries)\n";
         }
     }
 ;

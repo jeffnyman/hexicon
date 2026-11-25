@@ -1,4 +1,4 @@
-image: 31ca37c35a096fbfe6e1dd5b9cce976f64f16cc3b6064c69fdd4c2269ec8368a
+image: 1374ffb7fc2a5a632e250a4ae94bc7517e58a7d6784afb348301d0923672a2ff
 --- messages
 --- output
 hexicon: case.hxg: VM Error: this interpreter version cannot run this program (program requires built-in function set many/1, which is not available in this interpreter)

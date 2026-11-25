@@ -1,4 +1,4 @@
-image: d0b50864a87137ee0ddfe7a79328b6a64c95c8b5663e2dded66f1e396015fb28
+image: d41476d30519ae8bf1d7d35878fed3db16714d2323212e1ed7afe728a2f66e94
 --- messages
 warning: "a2" is given a value here, but nothing reads it
   --> template2.hxn:54

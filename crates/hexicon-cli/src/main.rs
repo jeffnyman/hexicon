@@ -78,10 +78,12 @@ commands:
       -nodef                   leave out the system library's _main
       -nopre, -pre             whether to run the program before the
                                image is written (default: -pre, unless -d)
-      -d                       build for debugging: no preinitialization
-                               by default, and resources linked to their
-                               files (the records for debugging are not
-                               written yet)
+      -d                       build for debugging: __DEBUG defined, no
+                               preinitialization by default, resources
+                               linked to their files, and the symbols and
+                               macros a debugger uses (every build records
+                               the line each statement is on, so that a
+                               run-time error says where it happened)
       -w0, -w1, -we            no warnings; warnings; warnings stop the
                                build
       -v                       list the sources as they are compiled

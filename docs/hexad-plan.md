@@ -164,7 +164,12 @@ The first port from adv3: the sample game of the Inform Designer's Manual, from 
 **What an author meets:**
 
 - **`steps` is a Hexad property**, so the stairway is `stoneSteps`; the message now says so plainly.
-- **A runtime error stops the game and says only what went wrong**, not where: "wrong number of arguments", "nil object reference". Both took reading the library to place. The VM could say which method, and the line in the game's source.
+- **A runtime error stopped the game and said only what went wrong**, not where: "wrong number of arguments", "nil object reference". Both took reading the library to place. Fixed the same day:
+  - **Every image records the line each statement is on** (the compiler's line records, which only `-d` wrote before), and names its source files. It costs about 14% of a game's size: 1.71 MB to 1.95 MB for a new game on Hexad. Only `-d` adds what a debugger needs as well (the symbols, the macros, and each line's address).
+  - **A runtime error shows where it happened**, as the compiler's messages do: `--> start.hxn:35`, then the lines of the game's own that led there. The built-in libraries' lines are shown down to the first of the game's, five at most, and the rest counted.
+  - **A function given the wrong number of arguments is named by where it is**, and what it takes: "wrong number of arguments: the function at start.hxn:51 takes 3, and was given 2".
+  - **Hexad's command loop shows the error and goes on** to the next command, rather than ending the game; UNDO takes back what the command had done.
+  - It found Exercise 23's old failure at once: the exercise's preinitialization fails while it is built, so it runs again when the game starts, where `globalSymbols()` is nil (`<hexicon>/hexad/misc.hxn:2780`).
 - **`goInstead` does not end the command it replaces**, so JUMP in the burial shaft went up and then "jumps on the spot, fruitlessly" as well; `exit` after it does.
 - **A connector's destination has to be a room.** One leading into the cage, a `Booth`, did nothing at all, silently.
 - **The actor of the command cannot be taken out of play during it.** Moving the warthog to nil while it acts stopped the game; it is hidden instead.

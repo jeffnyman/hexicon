@@ -39,8 +39,15 @@ pub struct CompileOptions {
     /// by name, with its header, or none if it names none.
     pub imports: Vec<(String, Option<String>)>,
     /// Compile for debugging (`-d`): `__DEBUG` is defined, and the image
-    /// says where in the source each statement's code came from.
+    /// has what a debugger needs: the global symbols, the macros, and
+    /// the address of each line's code.
     pub debug: bool,
+    /// The image says where in the source each statement's code came
+    /// from, so that a run-time error can say where it happened. On by
+    /// default, and always when compiling for debugging; off only where
+    /// the code alone matters, as in tests that two sources compile to
+    /// the same image.
+    pub line_records: bool,
 }
 
 impl Default for CompileOptions {
@@ -56,6 +63,7 @@ impl Default for CompileOptions {
             from_library: Vec::new(),
             imports: Vec::new(),
             debug: false,
+            line_records: true,
         }
     }
 }
@@ -399,7 +407,12 @@ pub fn compile_program(
                 &|file| pp.file_name(file).to_owned(),
             );
         }
-        let mut generated = emit::generate(&mut prog, options.debug, source_files.len());
+        let mut generated = emit::generate(
+            &mut prog,
+            options.debug,
+            options.line_records || options.debug,
+            source_files.len(),
+        );
         source_files.extend(pp.file_names());
         for diagnostic in std::mem::take(&mut generated.diagnostics) {
             // A problem that is nowhere in particular has no file. Nor
@@ -507,7 +520,6 @@ pub fn compile_program(
     let debug = options.debug.then(|| {
         let (macros, macros_unspecified) = debug_macros(&table);
         image::DebugRecords {
-            files: source_files,
             enum_ids: enum_ids.clone(),
             macros,
             macros_unspecified,
@@ -518,6 +530,11 @@ pub fn compile_program(
         generated,
         &options.timestamp,
         &TOOL_DATA,
+        if options.line_records || options.debug {
+            &source_files
+        } else {
+            &[]
+        },
         debug.as_ref(),
     ) {
         Ok(image) => {

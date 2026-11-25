@@ -1,4 +1,4 @@
-image: 3d6a998ec33ede9149b4efb011ea9adddae55d4fccf00d1d7528ec95114477fb
+image: fea97f5afc08a80677987680378db11ebfc9a83780069955cef3e618778f627e
 --- messages
 warning: "b" is given a value here, but nothing reads it
   --> a.hxn:4

@@ -543,9 +543,11 @@ struct Gen<'p> {
     in_defval: bool,
     /// The body being generated.
     cur_body: usize,
-    /// The program is compiled for debugging: the code has line
-    /// records, which say where in the source each statement's code is.
+    /// The program is compiled for debugging.
     debug: bool,
+    /// The code has line records, which say where in the source each
+    /// statement's code is.
+    lines: bool,
     /// The number the first source file of this module has among all
     /// the program's: the files of the modules before it come first.
     file_base: usize,
@@ -613,6 +615,7 @@ impl<'p> Gen<'p> {
             mm_count: 0,
             in_defval: false,
             debug: false,
+            lines: true,
             file_base: 0,
             line_recs: Vec::new(),
             top_stm_pos: None,
@@ -628,7 +631,12 @@ impl<'p> Gen<'p> {
 /// For a program compiled for debugging, the code has line records;
 /// `file_base` is the number of the first of this file's sources among
 /// the program's.
-pub(crate) fn generate(prog: &mut Program, debug: bool, file_base: usize) -> Generated {
+pub(crate) fn generate(
+    prog: &mut Program,
+    debug: bool,
+    lines: bool,
+    file_base: usize,
+) -> Generated {
     let mut bodies = std::mem::take(&mut prog.bodies);
     let mut objdefs = std::mem::take(&mut prog.objdefs);
     let top = prog.top.clone();
@@ -638,6 +646,7 @@ pub(crate) fn generate(prog: &mut Program, debug: bool, file_base: usize) -> Gen
     };
     let mut generator = Gen::new(prog, Generated::default(), enum_ids);
     generator.debug = debug;
+    generator.lines = lines;
     generator.file_base = file_base;
     generator.out.max_list_cnt = generator.prog.max_list_cnt;
     generator.last_labels = Rc::clone(&generator.prog.last_labels);
@@ -2241,14 +2250,15 @@ impl Gen<'_> {
                 tab.list_index = frame_cnt;
             }
         }
-        if frame_cnt == 0 && !self.debug {
+        if frame_cnt == 0 && self.line_recs.is_empty() && !self.debug {
             return;
         }
         let table_ofs = self.cg.ofs() - method_ofs;
         self.cg.write2_at(method_ofs + 8, table_ofs as u16);
-        // The line records, in a program compiled for debugging: where
-        // each starts, the source file and line, and the scope, the
-        // nearest one around it that is in the table if it is not.
+        // The line records: where each statement starts, the source file
+        // and line, and the scope, the nearest one around it that is in
+        // the table if it is not. Every program has them, so that a
+        // run-time error can say where it happened.
         let recs = std::mem::take(&mut self.line_recs);
         self.cg.write2(recs.len() as u16);
         for rec in &recs {
@@ -2949,11 +2959,12 @@ impl Gen<'_> {
         self.add_line_rec(file, line);
     }
 
-    /// Add a line record for what is generated next, in a program
-    /// compiled for debugging. The peephole optimizer is told not to
-    /// combine what is before it with what is after.
+    /// Add a line record for what is generated next. The peephole
+    /// optimizer is told not to combine what is before it with what is
+    /// after, so that each record starts where its statement does, and a
+    /// program's code is the same compiled for debugging or not.
     fn add_line_rec(&mut self, file: usize, line: u32) {
-        if self.debug {
+        if self.lines {
             self.cg.clear_peephole();
             self.add_line_rec_raw(file, line);
         }
@@ -2965,7 +2976,7 @@ impl Gen<'_> {
     fn add_line_rec_raw(&mut self, file: usize, line: u32) {
         // A place with no file, or line zero, which no line is, is no
         // place: what the parser has before it has seen a statement.
-        if !self.debug || file == usize::MAX || line == 0 {
+        if !self.lines || file == usize::MAX || line == 0 {
             return;
         }
         let ofs = self.cg.ofs() - self.method_ofs;

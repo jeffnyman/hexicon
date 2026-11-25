@@ -1,4 +1,4 @@
-image: 5621b685c0299f37c5da2899fe5973bfdf5685da01c46107833caeada7fb29af
+image: 347bdf017e8e86409c8305debff66dbcbeb3a53dce1c84f5e556a57b8a6709c3
 --- messages
 warning: code has "return" with value but also falls off end
   --> obj12.hxn:3

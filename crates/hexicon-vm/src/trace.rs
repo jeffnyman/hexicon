@@ -363,6 +363,26 @@ impl Vm {
         list
     }
 
+    /// Where a function is in the source, as `file:line` from its first
+    /// line record, or `None` if the image does not record it.
+    pub(crate) fn definition_place(&self, func: u32) -> Option<String> {
+        let header = self.function_header(func).ok()?;
+        if header.debug_records == 0 {
+            return None;
+        }
+        let table = (func + header.debug_records + self.layout.debug_table_header) as usize;
+        let bytes = |at: usize, len: usize| self.code.get(at..at + len);
+        let count = bytes(table, 2).map(|b| u16::from_le_bytes([b[0], b[1]]))?;
+        if count == 0 {
+            return None;
+        }
+        let entry = table + 2;
+        let source = bytes(entry + 2, 2).map(|b| u16::from_le_bytes([b[0], b[1]]))?;
+        let line = bytes(entry + 4, 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))?;
+        let file = self.debug.source_files.get(source as usize)?;
+        Some(format!("{}:{line}", file.name))
+    }
+
     /// Find the line record covering an offset within a function. Returns
     /// the source file index and line number.
     fn source_line(&self, func: u32, offset: u32) -> Option<(u16, u32)> {

@@ -25,14 +25,21 @@ pub struct RuntimeError {
     pub code: u32,
     /// Values for the message's `%` fields, in order.
     pub params: Vec<ErrParam>,
+    /// More about this occurrence, after the message: for a function
+    /// called with the wrong number of arguments, which one it was.
+    pub detail: Option<String>,
 }
 
 impl RuntimeError {
     /// The error's message with its parameters filled in.
     pub fn message(&self) -> String {
-        match code::message(self.code) {
+        let message = match code::message(self.code) {
             Some(template) => format_message(template, &self.params),
             None => format!("VM Error: code {}", self.code),
+        };
+        match &self.detail {
+            Some(detail) => format!("{message}: {detail}"),
+            None => message,
         }
     }
 }
@@ -66,12 +73,27 @@ impl VmError {
         Self::Runtime(RuntimeError {
             code,
             params: Vec::new(),
+            detail: None,
         })
     }
 
     /// A VM error with message parameters.
     pub fn with(code: u32, params: Vec<ErrParam>) -> Self {
-        Self::Runtime(RuntimeError { code, params })
+        Self::Runtime(RuntimeError {
+            code,
+            params,
+            detail: None,
+        })
+    }
+
+    /// A VM error with no message parameters and more about this
+    /// occurrence.
+    pub fn with_detail(code: u32, detail: String) -> Self {
+        Self::Runtime(RuntimeError {
+            code,
+            params: Vec::new(),
+            detail: Some(detail),
+        })
     }
 
     /// A report that a feature is missing.

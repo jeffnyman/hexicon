@@ -1,4 +1,4 @@
-image: 06107943158a57eaf1f1efea8feed7173e95a0803862aca08187dc5aedf37a08
+image: ad953166dd41252b5f0101a74b96c74ad8361a49e20cb037ff8698c86fc4cdf7
 --- messages
 warning: "foo" is not defined anywhere
   --> dict8.hxn:5

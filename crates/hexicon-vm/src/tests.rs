@@ -605,9 +605,14 @@ fn wrong_argument_count_is_an_error() {
         .op(Op::RetNil);
 
     let image = ImageBuilder::default().build(main, &code, &consts);
+    // Which function, and what it takes; this image has no line records
+    // to say where it is.
     assert_eq!(
         run(&image).1,
-        Err("Unhandled exception: wrong number of arguments".to_owned())
+        Err(
+            "Unhandled exception: wrong number of arguments: the function takes 2, and was given 1"
+                .to_owned()
+        )
     );
 }
 

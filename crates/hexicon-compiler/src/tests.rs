@@ -442,6 +442,18 @@ fn compile_text(text: &str) -> Compiled {
     compile(&mut files, "main.hxn", &CompileOptions::default())
 }
 
+/// Compile a program for its code alone, without the line records that
+/// say where each statement is: for tests of the code, and of two
+/// sources compiling to the same image.
+fn compile_code_only(text: &str) -> Compiled {
+    let mut files = Files::default().with("main.hxn", text);
+    let options = CompileOptions {
+        line_records: false,
+        ..CompileOptions::default()
+    };
+    compile(&mut files, "main.hxn", &options)
+}
+
 fn compile_messages(text: &str) -> Vec<String> {
     compile_text(text)
         .diagnostics
@@ -478,7 +490,7 @@ fn code(image: &[u8]) -> &[u8] {
 
 #[test]
 fn a_function_is_a_header_its_code_and_its_locals() {
-    let compiled = compile_text(
+    let compiled = compile_code_only(
         "_main(args) { local a = 1; local b = a + 2; return b * 3; }\n\
          foo(x, y) { if (x > y) return x; else return y; }\n",
     );
@@ -1605,7 +1617,7 @@ fn a_named_parameter_is_asked_for_by_name() {
         "{PARAM_SUPPORT}f(n:, m: = 3) {{ return n + m; }}\n\
          _main(args) {{ return f(m: 1, n: 2); }}\n"
     );
-    let compiled = compile_text(&source);
+    let compiled = compile_code_only(&source);
     assert!(
         compiled.diagnostics.is_empty(),
         "{:?}",
@@ -2017,13 +2029,13 @@ fn an_object_can_be_the_value_of_a_property_of_another() {
 #[test]
 fn a_propertyset_gives_its_properties_a_pattern_for_their_names_and_parameters() {
     // The same object written out in full makes the same image.
-    let grouped = compile_text(
+    let grouped = compile_code_only(
         "a: object\n    propertyset 'ver*Take' (actor, *, extra) {\n\
          Dobj(x) { return actor + x + extra; }\n        Iobj { return actor; }\n\
          val = 7\n        propertyset 'x*' (*, last) { A(q) { return q + last; } }\n    }\n;\n\
          _main(args) { return a.verDobjTake(1, 2, 3) + a.vervalTake; }\n",
     );
-    let written_out = compile_text(
+    let written_out = compile_code_only(
         "a: object\n    verDobjTake(actor, x, extra) { return actor + x + extra; }\n\
          verIobjTake(actor, extra) { return actor; }\n    vervalTake = 7\n\
          verxATake(actor, q, last, extra) { return q + last; }\n;\n\
@@ -4066,6 +4078,9 @@ mod imports {
                 ("old".to_owned(), None),
             ],
             include_paths: vec!["lib".to_owned()],
+            // The images are compared for their code, not for the lines
+            // each source has it on.
+            line_records: false,
             ..CompileOptions::default()
         };
         crate::compile_program(&mut files, &[name], &options)
@@ -4278,11 +4293,13 @@ mod verb_declarations {
             .with("macros.h", MACROS)
             .with(library_name, LIBRARY)
             .with(game_name, game);
-        crate::compile_program(
-            &mut files,
-            &[library_name, game_name],
-            &CompileOptions::default(),
-        )
+        // The images are compared for their code, not for the lines each
+        // source has it on.
+        let options = CompileOptions {
+            line_records: false,
+            ..CompileOptions::default()
+        };
+        crate::compile_program(&mut files, &[library_name, game_name], &options)
     }
 
     /// Hexad's macros for verb rules.

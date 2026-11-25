@@ -1,4 +1,4 @@
-image: 7ba42c0d7c00028b946ce1a1d3d11234a465eca1b5921280da31940f9512cb8e
+image: d4545cb5138b97d9dbaa2f102da5d89f645cdc128995f5ea9b260146bdb7447b
 --- messages
 warning: "n" is given a value here, but nothing reads it
   --> inh1.hxn:8
@@ -21,4 +21,4 @@ warning: "q" is given a value here, but nothing reads it
    |
    = did you mean "m"?
 --- output
-Unhandled exception: wrong number of arguments
+Unhandled exception: wrong number of arguments: the function at inh1.hxn:10 takes 1, and was given 2

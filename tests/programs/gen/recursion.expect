@@ -1,4 +1,4 @@
-image: 57ed1f9a126cb5169186bb2b3748643cc8a90d6e513b9ebd469f4d8fe58719b9
+image: 1784a7f8dcc6bdb3538f14ad095a07b69e87183a59e3857976efa9e137b8f66d
 --- messages
 --- output
 Unhandled exception: stack overflow

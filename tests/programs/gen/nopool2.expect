@@ -1,4 +1,4 @@
-image: 79ed9a08f27440074d0dbe8c967936b68b9b6eef329ede9a8434a961c66c0918
+image: 44325d686a40d7c66bf68e2f58626869067d302583cd7a46194cfd1ff2e72dc3
 --- messages
 --- output
 VM Error: argument mismatch calling Main entrypoint - function definition is incorrect

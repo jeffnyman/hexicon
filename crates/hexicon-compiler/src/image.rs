@@ -180,11 +180,9 @@ pub(crate) struct Image {
     pub func_addrs: std::collections::HashMap<usize, u32>,
 }
 
-/// What an image compiled for debugging has besides the program.
+/// What an image compiled for debugging has besides the program and
+/// its source files.
 pub(crate) struct DebugRecords {
-    /// The source files of all the modules, in order, a file that two
-    /// modules read once for each.
-    pub files: Vec<String>,
     /// The number each value of an enumeration has in the image.
     pub enum_ids: Vec<u32>,
     /// The macros, as the `MACR` block has them, and the stretches of
@@ -195,12 +193,16 @@ pub(crate) struct DebugRecords {
 
 /// Write the image. `timestamp` is the 24 characters that record when
 /// the program was compiled, and `tool_data` four bytes for the
-/// compiler's own use. A program compiled for debugging has `debug`.
+/// compiler's own use. `files` are the source files of all the modules,
+/// in order, a file that two modules read once for each: every image
+/// names them, for its line records. A program compiled for debugging
+/// has `debug`.
 pub(crate) fn write_image(
     prog: &Program,
     mut generated: Generated,
     timestamp: &[u8; 24],
     tool_data: &[u8; 4],
+    files: &[String],
     debug: Option<&DebugRecords>,
 ) -> Result<Image, String> {
     // Where the constants go. Pages are sized for twice the largest
@@ -656,21 +658,26 @@ pub(crate) fn write_image(
     }
     writer.block(b"SINI", true, &sini);
 
-    if let Some(debug) = debug {
-        // The functions in the order the reference made them, each with
-        // its address and its code: those a `replace` dropped are where
-        // they were, at address zero.
-        let mut methods: Vec<(usize, &[u8])> = Vec::new();
-        let mut dropped = generated.dropped_code.iter().peekable();
-        for (index, (anchor, &addr)) in generated.code_anchors.iter().zip(&code_addrs).enumerate() {
-            while let Some((_, code)) = dropped.next_if(|(before, _)| *before <= index) {
-                methods.push((0, code));
-            }
-            methods.push((addr, &generated.code[anchor.ofs..]));
+    // The functions in the order the reference made them, each with its
+    // address and its code: those a `replace` dropped are where they
+    // were, at address zero.
+    let mut methods: Vec<(usize, &[u8])> = Vec::new();
+    let mut dropped = generated.dropped_code.iter().peekable();
+    for (index, (anchor, &addr)) in generated.code_anchors.iter().zip(&code_addrs).enumerate() {
+        while let Some((_, code)) = dropped.next_if(|(before, _)| *before <= index) {
+            methods.push((0, code));
         }
-        methods.extend(dropped.map(|(_, code)| (0, code.as_slice())));
-        let srcf = source_files_block(debug, &methods);
+        methods.push((addr, &generated.code[anchor.ofs..]));
+    }
+    methods.extend(dropped.map(|(_, code)| (0, code.as_slice())));
+    // The source files, which the line records name, so that a run-time
+    // error can say where it happened.
+    if !files.is_empty() {
+        let srcf = source_files_block(files, &methods, debug.is_some());
         writer.block(b"SRCF", false, &srcf);
+    }
+
+    if let Some(debug) = debug {
         let func_addr = |func: usize| func_anchor_addr(&generated, &code_addrs, func);
         writer.block(
             b"GSYM",
@@ -712,19 +719,21 @@ pub(crate) fn write_image(
 /// lines that has any. The lines are read from the functions' tables,
 /// in the order of the functions; a line's first address is the one
 /// kept. A file that an earlier module read too has its lines with
-/// that one, and says which it is.
-fn source_files_block(debug: &DebugRecords, methods: &[(usize, &[u8])]) -> Vec<u8> {
-    let orig: Vec<usize> = (0..debug.files.len())
+/// that one, and says which it is. Only a debugger looks a line's
+/// address up, so outside a program compiled for debugging (`with_lines`
+/// false) the files are named with no lines.
+fn source_files_block(files: &[String], methods: &[(usize, &[u8])], with_lines: bool) -> Vec<u8> {
+    let orig: Vec<usize> = (0..files.len())
         .map(|index| {
-            debug.files[..index]
+            files[..index]
                 .iter()
-                .position(|name| *name == debug.files[index])
+                .position(|name| *name == files[index])
                 .unwrap_or(index)
         })
         .collect();
     let mut lines: Vec<std::collections::BTreeMap<u32, u32>> =
-        vec![std::collections::BTreeMap::new(); debug.files.len()];
-    for &(addr, code) in methods {
+        vec![std::collections::BTreeMap::new(); files.len()];
+    for &(addr, code) in methods.iter().filter(|_| with_lines) {
         let u16_at = |at: usize| usize::from(u16::from_le_bytes([code[at], code[at + 1]]));
         let table = u16_at(8);
         if table == 0 {
@@ -746,9 +755,9 @@ fn source_files_block(debug: &DebugRecords, methods: &[(usize, &[u8])]) -> Vec<u
         }
     }
     let mut block = Vec::new();
-    block.extend_from_slice(&(debug.files.len() as u16).to_le_bytes());
+    block.extend_from_slice(&(files.len() as u16).to_le_bytes());
     block.extend_from_slice(&8u16.to_le_bytes());
-    for (index, name) in debug.files.iter().enumerate() {
+    for (index, name) in files.iter().enumerate() {
         let start = block.len();
         block.extend_from_slice(&0u32.to_le_bytes());
         block.extend_from_slice(&(orig[index] as u16).to_le_bytes());

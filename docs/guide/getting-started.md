@@ -346,6 +346,23 @@ error: "Kye" is not defined anywhere
    = did you mean "Key"?
 ```
 
+Some mistakes show only when the game runs: a property asked of `nil`, or a method given the wrong number of arguments. The game then says what went wrong and where: the line in your source, then the lines of yours that led there, and how many lines inside Hexad it left out. Play goes on with the next command, and UNDO takes back what the failed one had done:
+
+```
+>x box
+It belongs to
+Runtime error: nil object reference
+  --> start.hxn:35
+      (and 29 more in the built-in libraries)
+```
+
+A method called with the wrong number of arguments is named by where it is, with what it takes:
+
+```
+Runtime error: wrong number of arguments: the function at start.hxn:51 takes 3,
+and was given 2
+```
+
 ## Where to go next
 
 - Change *The Lighthouse*: add a room, a thing to find, something to ask the keeper about.

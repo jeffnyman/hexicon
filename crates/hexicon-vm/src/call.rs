@@ -72,7 +72,27 @@ impl Vm {
                     code::WRONG_NUM_OF_ARGS_CALLING,
                     vec![ErrParam::Str(native.name.to_owned())],
                 ),
-                None => VmError::new(code::WRONG_NUM_OF_ARGS),
+                None => {
+                    let takes = if header.varargs {
+                        format!("at least {}", header.min_args)
+                    } else if header.opt_args > 0 {
+                        format!(
+                            "{} to {}",
+                            header.min_args,
+                            header.min_args + header.opt_args
+                        )
+                    } else {
+                        header.min_args.to_string()
+                    };
+                    let which = match self.definition_place(func) {
+                        Some(place) => format!("the function at {place}"),
+                        None => "the function".to_owned(),
+                    };
+                    VmError::with_detail(
+                        code::WRONG_NUM_OF_ARGS,
+                        format!("{which} takes {takes}, and was given {argc}"),
+                    )
+                }
             });
         }
         let base = self.stack.len() as u32;
@@ -702,6 +722,12 @@ impl Vm {
                             end -= 1;
                         }
                         text.truncate(end);
+                    }
+                    // More about this occurrence, such as which function
+                    // was called with the wrong number of arguments.
+                    if let Some(detail) = &error.detail {
+                        text.push_str(": ");
+                        text.push_str(detail);
                     }
                     text
                 }

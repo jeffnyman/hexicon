@@ -400,7 +400,9 @@ pub fn compile_dynamic(
         }
     }
 
-    let generated = crate::emit::generate(&mut prog, false, 0);
+    // Code compiled while the program runs has no source file of its
+    // own to point to, so it has no line records.
+    let generated = crate::emit::generate(&mut prog, false, false, 0);
     for diagnostic in &generated.diagnostics {
         note(&mut messages, diagnostic.severity, &diagnostic.message);
     }
