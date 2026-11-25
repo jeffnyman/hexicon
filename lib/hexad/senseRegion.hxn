@@ -359,7 +359,7 @@ modify Room
         foreach(local obj in specialVec1)        
         {
             obj.showRemoteSpecialDesc(pov);      
-            listRemoteContents(obj.contents, remoteSubContentsLister, pov);
+            listRemoteContents([obj], remoteSubContentsLister, pov);
         }
         
         
@@ -376,7 +376,7 @@ modify Room
         foreach(local obj in remoteSecondSpecialList)
         {
             obj.showRemoteSpecialDesc(pov); 
-            listRemoteContents(obj.contents, remoteSubContentsLister, pov);
+            listRemoteContents([obj], remoteSubContentsLister, pov);
         }
     }
     

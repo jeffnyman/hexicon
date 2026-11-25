@@ -6797,7 +6797,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(okay doff, 'Okay, {I}{\'m} no longer wearing {1}. ', 
+            showMsg(okay doff, 'Okay, {i}{\'m} no longer wearing {1}. ', 
                  now.actionListStr);
             
         }

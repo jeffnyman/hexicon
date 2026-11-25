@@ -8077,8 +8077,15 @@ suggestedTopicLister: object
     {
         local prfx = sectionIntro ? self.(sectionIntro) + ' ' : '';
         
-        /* Sort the list */
-        lst = lst.sort(SortAsc, {x, y: x.listOrder - y.listOrder});
+        /*
+         *   Sort the list by listOrder, keeping the order the topics were
+         *   defined in among those with the same listOrder: the sort itself
+         *   need not keep it.
+         */
+        local orig = lst;
+        lst = lst.sort(SortAsc, {x, y: x.listOrder != y.listOrder
+                                 ? x.listOrder - y.listOrder
+                                 : orig.indexOf(x) - orig.indexOf(y)});
         
         
         /* For each element in the list */
