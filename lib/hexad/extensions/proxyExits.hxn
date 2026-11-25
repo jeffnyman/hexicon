@@ -74,7 +74,7 @@ pathwayProxy: ProxyExit
     {
         verify()
         {
-            if(gVerbWord != 'take')
+            if(now.verbWord != 'take')
                 illogical(cannotTakeMsg);           
         }
         action() { doInstead(TravelVia, self); }

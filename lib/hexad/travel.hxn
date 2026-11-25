@@ -168,10 +168,10 @@ class Room: TravelConnector, Thing
          *   Note the actor's old travel info in case we have to restore it
          *   after a failed travel attempt.
          */
-        if(actor != gPlayerChar)
+        if(actor != now.player)
             local oldTravelInfo = actor.lastTravelInfo;
         
-        if(actor == gPlayerChar)
+        if(actor == now.player)
         {                  
             /* 
              *   Before carrying out the travel make a note of the room the
@@ -185,7 +185,7 @@ class Room: TravelConnector, Thing
          *   connector, note the fact on the actor, so that the information is
          *   available should the player character wish to follow the actor.
          */
-        else if(Q.canSee(gPlayerChar, actor))
+        else if(Q.canSee(now.player, actor))
             actor.lastTravelInfo = [oldLoc, conn];
         
         /*   
@@ -213,7 +213,7 @@ class Room: TravelConnector, Thing
             traveler.actionMoveInto(loc);    
 
         
-        if(gPlayerChar.isOrIsIn(traveler))
+        if(now.player.isOrIsIn(traveler))
         {
             /* 
              *   Notify any actors in the location that the player character has
@@ -224,7 +224,7 @@ class Room: TravelConnector, Thing
             {
                 local notifyList = allContents.subset({o: defined(Actor) && o.ofKind(Actor)});
                 
-                notifyList.forEach({a: a.pcArrivalTurn = gTurns });
+                notifyList.forEach({a: a.pcArrivalTurn = now.turns });
             }
             
             /* Show a room description if appropriate */
@@ -245,7 +245,7 @@ class Room: TravelConnector, Thing
          *   If we're not the player character and we failed to go anywhere,
          *   restore our old travel info.
          */
-        if(actor != gPlayerChar && actor.getOutermostRoom == oldLoc)
+        if(actor != now.player && actor.getOutermostRoom == oldLoc)
             actor.lastTravelInfo = oldTravelInfo;
     }
     
@@ -287,8 +287,8 @@ class Room: TravelConnector, Thing
     cannotGoThatWay(dir)
     {
         "<<cannotGoThatWayMsg>>";
-        if(gExitLister != nil)
-            gExitLister.cannotGoShowExits(gActor, self);
+        if(libGlobal.exitListerObj != nil)
+            libGlobal.exitListerObj.cannotGoShowExits(now.actor, self);
         
         "<.p>";
     }
@@ -311,8 +311,8 @@ class Room: TravelConnector, Thing
     cannotGoThatWayInDark(dir)
     {
         "<<cannotGoThatWayInDarkMsg>><.p>";
-        if(gExitLister != nil)
-            gExitLister.cannotGoShowExits(gActor, self);
+        if(libGlobal.exitListerObj != nil)
+            libGlobal.exitListerObj.cannotGoShowExits(now.actor, self);
         
         "<.p>";
     }
@@ -383,8 +383,8 @@ class Room: TravelConnector, Thing
     showStatuslineExits()
     {
         /* if we have a global exit lister, ask it to show the exits */
-        if (gExitLister != nil)
-            gExitLister.showStatuslineExits();
+        if (libGlobal.exitListerObj != nil)
+            libGlobal.exitListerObj.showStatuslineExits();
     }
 
     
@@ -427,7 +427,7 @@ class Room: TravelConnector, Thing
      */    
     roomDaemon() 
     {
-        if(ofKind(Script) &&!(noScriptAfterListen && gActionIs(Listen)))
+        if(ofKind(Script) &&!(noScriptAfterListen && now.actionIs(Listen)))
             doScript();
     }
     
@@ -698,7 +698,7 @@ class Room: TravelConnector, Thing
     /*  Going out of a Room is the same as executing an OUT command */
     dobj GetOutOf
     {
-        action() { GoOut.execAction(gCommand); }
+        action() { GoOut.execAction(now.command); }
     }
     
     /*  
@@ -709,9 +709,9 @@ class Room: TravelConnector, Thing
     {
         action()
         {
-            gCommand.verbProd.dirMatch = object { dir = outDir; };
-            gAction = PushTravelDir;
-            PushTravelDir.execAction(gCommand);
+            now.command.verbProd.dirMatch = object { dir = outDir; };
+            libGlobal.curAction = PushTravelDir;
+            PushTravelDir.execAction(now.command);
         }
     }
  
@@ -932,9 +932,9 @@ class Door: TravelConnector, Thing
              *   the door via an implicit action and display the result as an
              *   implicit action report.
              */
-            if(gPlayerChar.isOrIsIn(traveler) &&  tryImplicitAction(Open, self))
+            if(now.player.isOrIsIn(traveler) &&  tryImplicitAction(Open, self))
             {                
-                "<<gAction.buildImplicitActionAnnouncement(true)>>";
+                "<<now.action.buildImplicitActionAnnouncement(true)>>";
             }
             
             /*   
@@ -947,10 +947,10 @@ class Door: TravelConnector, Thing
                  *   If the player character can see the traveler open the door,
                  *   report the fact that the traveler does so.
                  */
-                if(gPlayerChar.canSee(traveler))
+                if(now.player.canSee(traveler))
                     sayTravelerOpensDoor(traveler);
                 
-                else if(otherSide && gPlayerChar.canSee(otherSide))                
+                else if(otherSide && now.player.canSee(otherSide))                
                     sayDoorOpens();                                
                 
             }
@@ -962,10 +962,10 @@ class Door: TravelConnector, Thing
              *   be carried out, provided the player char can see the traveler.
              */
             
-            else if(gPlayerChar.canSee(traveler))            
+            else if(now.player.canSee(traveler))            
             {
                 local obj = self;
-                gMessageParams(obj);                
+                messageParams(obj);                
                 
                 say(cannotGoThroughClosedDoorMsg);
             }
@@ -986,9 +986,9 @@ class Door: TravelConnector, Thing
      */
     sayTravelerOpensDoor(traveler)
     {
-        gMessageParams(traveler);
+        messageParams(traveler);
         local obj = self;
-        gMessageParams(obj);
+        messageParams(obj);
         showMsg(npc opens door, '{The subj traveler} open{s/ed} {the
             obj}. ');
         
@@ -1001,7 +1001,7 @@ class Door: TravelConnector, Thing
     sayDoorOpens()
     {
         local obj = otherSide;
-        gMessageParams(obj);
+        messageParams(obj);
         showMsg(door opens, '{The subj obj} open{s/ed}. ');
     }
     
@@ -1019,7 +1019,7 @@ class Door: TravelConnector, Thing
          *   that the player character now knows where both sides of the door
          *   lead to.
          */
-        if(otherSide != nil && actor == gPlayerChar &&
+        if(otherSide != nil && actor == now.player &&
            actor.isIn(destination))
         { 
             otherSide.isDestinationKnown = true;
@@ -1130,7 +1130,7 @@ class Door: TravelConnector, Thing
     {
         preCond = [travelPermitted, touchObj, objOpen]
         
-        action() { travelVia(gActor); }
+        action() { travelVia(now.actor); }
     }
     
     /*  Entering a door is the same as going through it. */
@@ -1154,7 +1154,7 @@ class Door: TravelConnector, Thing
      */
     sayDeparting(traveler)
     {
-        gMessageParams(traveler);
+        messageParams(traveler);
         showMsg(say departing through door, '{The subj traveler} {leaves} through
             {1}. ', theName);
     }
@@ -1166,7 +1166,7 @@ class Door: TravelConnector, Thing
     sayActorFollowing(follower, leader)
     {
         /* Create message parameter substitutions for the follower and leader */
-        gMessageParams(follower, leader);  
+        messageParams(follower, leader);  
         
         showMsg(say following through door, '{The subj follower} follow{s/ed} {the
             leader} through {1}. ', theName);
@@ -1190,10 +1190,10 @@ class DSBase: object
     
     /* Short service methods that can be used to abbreviate game code */
     /* Test whether the player character is in our room1 */
-    inRoom1 = (room1 && gPlayerChar.isIn(room1))
+    inRoom1 = (room1 && now.player.isIn(room1))
     
     /* Test whether the player character is in our room2 */
-    inRoom2 = (room2 && gPlayerChar.isIn(room2)) 
+    inRoom2 = (room2 && now.player.isIn(room2)) 
     
     /* return a or b depending on which room the player char is in */
     byRoom(args) { return inRoom1 ? args[1] : args[2]; }
@@ -1245,7 +1245,7 @@ class DSBase: object
     doorDir()
     {
          /* Get the player character's current room location. */
-        local loc = gPlayerChar.getOutermostRoom;
+        local loc = now.player.getOutermostRoom;
         
         /* 
          *   Return the direction that points to us from the player character's current location.
@@ -1304,7 +1304,7 @@ class DSCon: DSBase, MultiLoc
      *   Our destination depends on which room the actor going through us starts out in. If it's
      *   room1 our destination is room2, otherwise it's room1.
      */
-//    destination = gActor.getOutermostRoom == room1 ? room2 : room1
+//    destination = now.actor.getOutermostRoom == room1 ? room2 : room1
     
     /* 
      *   By default we can vary the description of the passage according to the
@@ -1315,7 +1315,7 @@ class DSCon: DSBase, MultiLoc
      */
     desc() 
     {
-        if(gActor.isIn(room1))
+        if(now.actor.isIn(room1))
             room1Desc;
         else
             room2Desc;
@@ -1416,7 +1416,7 @@ class DSDoor: DSCon, Door
      *   appropriate to the location of the current actor. If you want the same lockability for both
      *   sides of the door, simply override lockability accordingly. 
      */
-    lockability = (gActor.getOutermostRoom == room1 ? room1Lockability : room2Lockability)
+    lockability = (now.actor.getOutermostRoom == room1 ? room1Lockability : room2Lockability)
     
     /*
      *   Our lockability on the room1 side of the door. 
@@ -1478,7 +1478,7 @@ class TravelConnector: object
      *   If this connector apparerent from loc? (In other words if we're in loc, do we know of its
      *   existence?)
      */
-    connectorApparent(loc = gRoom)
+    connectorApparent(loc = now.room)
     {
         /* 
          *   This TravelConnector should be treated as apparent if its isConnectorApparent property
@@ -1495,7 +1495,7 @@ class TravelConnector: object
      */
     isConnectorVisible()
     {
-        local actor = gActor ?? gPlayerChar;
+        local actor = now.actor ?? now.player;
         local loc = actor.getOutermostRoom();
         local dest = getDestination(loc);
         return (connectorApparent(loc) && 
@@ -1542,7 +1542,7 @@ class TravelConnector: object
      */    
     isDestinationKnown()
     {
-        local loc = gPlayerChar.getOutermostRoom();
+        local loc = now.player.getOutermostRoom();
         local dest = getDestination(loc);
         return (dest != nil && dest.isDestinationKnown);
     }
@@ -1629,7 +1629,7 @@ class TravelConnector: object
              *   method fails to display any output, instead display a report
              *   that this connector doesn't lead anywhere.
              */
-            if(gOutStream.watchForOutput({:noteTraversal(actor)}) == nil)
+            if(now.outputStream.watchForOutput({:noteTraversal(actor)}) == nil)
                 sayNoDestination();
         }
     }
@@ -1654,7 +1654,7 @@ class TravelConnector: object
      */
     noteTraversal(actor)
     {
-        if(actor == gPlayerChar && !(gAction.isPushTravelAction && suppressTravelDescForPushTravel))
+        if(actor == now.player && !(now.action.isPushTravelAction && suppressTravelDescForPushTravel))
         {                
             travelDesc;
             "<.p>";
@@ -1688,7 +1688,7 @@ class TravelConnector: object
     }    
     
     /* Have we been traversed by the player character? Return true if and only if we have. */
-    traversed = (hasBeenTraversedBy(gPlayerChar))
+    traversed = (hasBeenTraversedBy(now.player))
     
     /* Carry out the before travel notifications for this actor. */
     beforeTravelNotifications(actor)
@@ -1789,7 +1789,7 @@ class TravelConnector: object
          */
         if(hasProp(&checkReach))
         {    
-            if(gOutStream.watchForOutput({: checkReach(traveler)}))
+            if(now.outputStream.watchForOutput({: checkReach(traveler)}))
                return nil;
         }
         
@@ -1848,7 +1848,7 @@ class TravelConnector: object
     sayDeparting(traveler)
     {       
         /* Create a message parameter substitution for the traveler */
-        gMessageParams(traveler);        
+        messageParams(traveler);        
         
         /* Find the direction to which this connector is attached. */
         local depdir = getDepartingDirection(traveler);
@@ -1869,7 +1869,7 @@ class TravelConnector: object
     sayActorFollowing(follower, leader)
     {
         /* Create a message parameter substitution for the traveler */
-        gMessageParams(follower, leader);        
+        messageParams(follower, leader);        
         
         /* Find the direction to which this connector is attached. */
         local depdir = getDepartingDirection(follower);
@@ -1889,7 +1889,7 @@ class TravelConnector: object
      */
     traversalMsg()
     {
-        local depDir = getDepartingDirection(gActor);
+        local depDir = getDepartingDirection(now.actor);
         
         return  msgText(traverse connector, '{1}', depDir.departureName);
     }
@@ -1923,7 +1923,7 @@ class TravelConnector: object
      */
     sayNotInStagingLocation(traveler)
     {
-        gMessageParams(traveler);
+        messageParams(traveler);
         showMsg(not in staging location, '{The subj traveler} {can\'t} access that exit from
             {his traveler} current location. ' );
     }
@@ -1954,7 +1954,7 @@ class TravelConnector: object
              *   TravelConnector. Subsequentlly we might add appropriate code
              *   for the other action phases.
              */
-            travelVia(gActor);
+            travelVia(now.actor);
         }
     }
     
@@ -1984,8 +1984,8 @@ class TravelConnector: object
          *   Only go on to check those for the item being pushed if the actor
          *   can travel, so we don't see the same messages twice.
          */
-        if(checkTravelBarriers(gActor))        
-            checkTravelBarriers(gDobj);      
+        if(checkTravelBarriers(now.actor))        
+            checkTravelBarriers(now.dobj);      
     }
     
     
@@ -2021,10 +2021,10 @@ class VarDest: object
          *   If we're no longer on the same turn as when we last calculated our destination,
          *   recalculate it, cache the result, and update our own turn count.
          */
-        if(lastTurn != gTurns)
+        if(lastTurn != now.turns)
         {
             /* Note which turn we're on. */
-            lastTurn = gTurns;
+            lastTurn = now.turns;
             
             /* Calculate our current destination and store the result. */
             currentDest = calcDest();
@@ -2164,7 +2164,7 @@ class UnlistedProxyConnector: TravelConnector
     {      
         preCond = [travelPermitted]   
         
-        action { travelVia(gActor); }
+        action { travelVia(now.actor); }
     }
 ;
 
@@ -2834,9 +2834,9 @@ nonTravel(loc, dir)
          *   that way isn't possible.
          */
     case TypeNil:
-        if(illum && gActor == gPlayerChar)
+        if(illum && now.actor == now.player)
             loc.cannotGoThatWay(dir);
-        else if(gActor == gPlayerChar)
+        else if(now.actor == now.player)
             loc.cannotGoThatWayInDark(dir);            
         break;
         
@@ -2855,7 +2855,7 @@ nonTravel(loc, dir)
              *   Since we don't have a connector object to pass to the beforeTravel notifications,
              *   we use the direction object instead.
              */
-            Q.scopeList(gActor).toList.forEach({x: x.beforeTravel(gActor,
+            Q.scopeList(now.actor).toList.forEach({x: x.beforeTravel(now.actor,
                 dir)});
             
             
@@ -2872,7 +2872,7 @@ nonTravel(loc, dir)
                 dest = nil;
             
             if(dest && dest.ofKind(Room))
-                loc.notifyDeparture(gActor, dest);
+                loc.notifyDeparture(now.actor, dest);
             
             /*  
              *   Then execute the method or display the double-quoted string and note the return
@@ -2896,7 +2896,7 @@ nonTravel(loc, dir)
                  *   character, display the standard can't travel message (as if the connector
                  *   wasn't there.
                  */
-                else if(illum && gActor == gPlayerChar)
+                else if(illum && now.actor == now.player)
                     loc.cannotGoThatWay(dir);                
                 
             }
@@ -2906,7 +2906,7 @@ nonTravel(loc, dir)
              *   character, display the string.
              */
             if(typeOf(conn) == TypeString 
-               && TravelAction.displayStrRet(loc, dir, dest, conn, gActor))
+               && TravelAction.displayStrRet(loc, dir, dest, conn, now.actor))
                 say(conn);
             
             
@@ -2915,16 +2915,16 @@ nonTravel(loc, dir)
              *   if the actor is the player character note where the method took the actor to so
              *   that the pathfinder can find a route via this exit.
              */
-            if(gActor == gPlayerChar)
+            if(now.actor == now.player)
                 libGlobal.addExtraDestInfo(loc, dir,
-                                           gActor.getOutermostRoom);
+                                           now.actor.getOutermostRoom);
             
             /*  Hook to allow further processing of the return avalue in user code. */
-            TravelAction.noteRetval(loc, dir, dest, conn, gActor);
+            TravelAction.noteRetval(loc, dir, dest, conn, now.actor);
             
             
         }
-        else if(gActor == gPlayerChar)
+        else if(now.actor == now.player)
             loc.cannotGoThatWayInDark(dir);
         break;
         
@@ -2934,14 +2934,14 @@ nonTravel(loc, dir)
          *   that way in the dark. If the actor isn't the player character, do nothing.
          */
     case TypeString:
-        if(gActor == gPlayerChar)
+        if(now.actor == now.player)
         {
             conn = loc.(dir.dirProp);
             if(illum)
             {
                 say(conn);
                 libGlobal.addExtraDestInfo(loc, dir,
-                                           gActor.getOutermostRoom); 
+                                           now.actor.getOutermostRoom); 
             }
             else
                 loc.cannotGoThatWayInDark(dir);

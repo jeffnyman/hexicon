@@ -91,7 +91,7 @@ turnEndRules: RuleBook
     follow()
     {
         /* Execute the player character's current location's roomDaemon. */
-        gPlayerChar.getOutermostRoom.roomDaemon();  
+        now.player.getOutermostRoom.roomDaemon();  
     }
     priority = 9000
 ;
@@ -118,7 +118,7 @@ turnEndRules: RuleBook
     follow()
     {
         /* Advance the turn counter */
-        libGlobal.totalTurns += gAction.turnsTaken;
+        libGlobal.totalTurns += now.action.turnsTaken;
     }
     priority = 50
 ;
@@ -161,7 +161,7 @@ checkIlluminationRule: AfterRule
          */
         local ac = currentAction;
         
-        if(ac.oldRoom == gActor.getOutermostRoom)
+        if(ac.oldRoom == now.actor.getOutermostRoom)
         {
             if(ac.oldRoom.isIlluminated)
             {
@@ -200,7 +200,7 @@ roomNotifyAfterRule: AfterRule
          *   Call the afterAction notification on the current room and its
          *   regions.
          */
-        gActor.getOutermostRoom.notifyAfter();
+        now.actor.getOutermostRoom.notifyAfter();
     }
     
     priority = 8000
@@ -215,7 +215,7 @@ scopeListNotifyAfterRule: AfterRule
          *   that we have to recalculate the scope list here in case the action
          *   has changed it.
          */
-        foreach(local cur in Q.scopeList(gActor))
+        foreach(local cur in Q.scopeList(now.actor))
         {
             cur.afterAction();
         }
@@ -281,7 +281,7 @@ actorActionRule: BeforeRule
          *   Call the before action handling on the current actor (in its
          *   capacity as actor)
          */
-        gActor.actorAction();
+        now.actor.actorAction();
     }
     
     priority = 9000
@@ -316,7 +316,7 @@ roomNotifyBeforeRule: BeforeRule
          *   Call roomBeforeAction() on the current actor's location, and
          *   regionBeforeAction() on all the regions it's in.
          */        
-        gActor.getOutermostRoom.notifyBefore();   
+        now.actor.getOutermostRoom.notifyBefore();   
     }
     
     priority = 7000
@@ -524,7 +524,7 @@ replace mainCommandLoop()
      *   Set the current actor to the player character at the start of the game
      *   (to ensure we have a current actor defined).
      */
-    gActor = gPlayerChar;
+    libGlobal.curActor = now.player;
     
     /* 
      *   Repeat this loop, which asks for a command and then parses it, until

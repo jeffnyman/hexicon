@@ -70,6 +70,13 @@ object 'nobody' "Nobody in particular.";
 // Not saved with the rest, and so not restored either.
 transient session: Thing 'session' 'this session';
 
+// After @, a value's properties can follow it without parentheses;
+// a list after them is a value of its own.
+here: object
+    room = vault
+;
+annex: Room 'annex' @here.room [lobby, office];
+
 describe(thing)
 {
     say(thing.name);
@@ -99,4 +106,6 @@ _main(args)
     line(box.weight);
     line(new Room().name);
     line(lobby.ofKind(Thing) ? 'a room is a thing' : 'a room is not a thing');
+    describe(annex);
+    line(annex.exits.length());
 }

@@ -776,7 +776,7 @@ action Instructions: SystemAction
         character&rsquo;s current location.";
 
         /* if the exit lister module is active, mention the EXITS command */
-        if (gExitLister != nil)
+        if (libGlobal.exitListerObj != nil)
             "\bEXITS: Shows the list of obvious exits from the current
             location.
             \bEXITS ON/OFF/STATUS/LOOK: Controls the way the game

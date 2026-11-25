@@ -2355,6 +2355,31 @@ impl<'p, 'a> Parser<'p, 'a> {
     /// with any, and give them to the properties a template says they
     /// are for: a template of one of the object's classes, or failing
     /// that one any object can use.
+    /// Read what follows a template value's operator (`@`, `+`, `->`, and
+    /// the rest): a value, and any properties of it by name, so that
+    /// `@now.player` needs no parentheses. Nothing else can follow, so a
+    /// list after it is a template value of its own.
+    fn parse_template_operand(&mut self) -> Option<Expr> {
+        let mut value = self.parse_primary()?;
+        while self.cur() == Tok::Dot {
+            let after = self.next();
+            self.tok.unget_token();
+            if after != Tok::Sym {
+                break;
+            }
+            self.next();
+            let name = self.cur_text();
+            self.next();
+            value = Expr::Member {
+                obj: Box::new(value),
+                prop: Box::new(Expr::Sym(name)),
+                prop_is_expr: false,
+                args: None,
+            };
+        }
+        Some(value)
+    }
+
     fn parse_obj_template(&mut self, def: &mut ObjDef) -> Parsed<()> {
         const STARTS: [Tok; 16] = [
             Tok::SStr,
@@ -2398,7 +2423,7 @@ impl<'p, 'a> Parser<'p, 'a> {
                 Tok::Eof => return Ok(()),
                 _ if STARTS.contains(&def_tok) => {
                     self.next();
-                    self.parse_primary()
+                    self.parse_template_operand()
                 }
                 _ => {
                     self.cur_code_body = saved;

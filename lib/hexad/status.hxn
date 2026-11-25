@@ -180,7 +180,7 @@ transient statusLine: object
         local oldStr;
 
         /* if the status line isn't active, or there's no PC, skip this */
-        if (statusDispMode == nil || gPlayerChar == nil)
+        if (statusDispMode == nil || now.player == nil)
             return;
 
        
@@ -275,8 +275,8 @@ transient statusLine: object
         "<./a></a><<statusHTML(2)>>";
         
         /* add the status-line exit list, if desired */
-        if (gPlayerChar.location!= nil)
-            gPlayerChar.location.showStatuslineExits();
+        if (now.player.location!= nil)
+            now.player.location.showStatuslineExits();
     }
 
     /*
@@ -300,8 +300,8 @@ transient statusLine: object
         ht = 1;
 
         /* add in the estimated height of the exits display, if appropriate */
-        if (gPlayerChar.location != nil)
-            ht += gPlayerChar.location.getStatuslineExitsHeight();
+        if (now.player.location != nil)
+            ht += now.player.location.getStatuslineExitsHeight();
 
         /* return the result */
         return ht;
@@ -337,7 +337,7 @@ transient statusLine: object
         local actor;
 
         /* get the player character actor */
-        actor = gPlayerChar;
+        actor = now.player;
 
         "<.statusroom>";
 

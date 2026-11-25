@@ -240,7 +240,7 @@ remapCmdDicts: PreinitObject
         /* scan the items that fit */
         foreach(obj in remapTbl[ahash]) {
             // support list of locations???
-            if(obj.where != nil && valToList(obj.where).indexWhich({x:gLocation.isOrIsIn(x)}) == nil ) continue; // ECSE mod
+            if(obj.where != nil && valToList(obj.where).indexWhich({x:now.location.isOrIsIn(x)}) == nil ) continue; // ECSE mod
             if(!obj.when) continue; // ECSE mod
             if(obj.during != nil && valToList(obj.during).indexWhich({s:s.isHappening}) == nil) continue; // ECSE mod
             for(v = 1; v <= obj.cmdTermHash.length(); ++v) {
@@ -442,7 +442,7 @@ modify Parser
          *   question the actor may already have been resolved.
          */
         if(question == nil)
-            gActor = gPlayerChar;        
+            libGlobal.curActor = now.player;        
         
         /* no spelling corrections have been attempted yet */
         local history = new transient SpellingHistory(self);
@@ -672,12 +672,12 @@ modify Parser
                      *   doesn't match a possible action.
                      */
                     
-                    if(gPlayerChar.currentInterlocutor != nil
+                    if(now.player.currentInterlocutor != nil
                        && cmdLst.length == 0 
-                       && Q.canTalkTo(gPlayerChar,
-                                      gPlayerChar.currentInterlocutor)
+                       && Q.canTalkTo(now.player,
+                                      now.player.currentInterlocutor)
                        && str.find(',') == nil
-                       && gPlayerChar.currentInterlocutor.allowImplicitSay())
+                       && now.player.currentInterlocutor.allowImplicitSay())
                     {
                          l = new CommandList(
                             topicPhrase, toks, cmdDict,

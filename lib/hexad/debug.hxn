@@ -53,8 +53,8 @@ verb Debug 'debug' literalDobj:
 action Debug: SystemAction
     execAction(cmd)
     {
-        gLiteral = cmd.dobj.name.toLower;
-        switch(gLiteral)
+        now.action.literal = cmd.dobj.name.toLower;
+        switch(now.literal)
         {       
         case 'status':
             DebugCtl.status();
@@ -66,9 +66,9 @@ action Debug: SystemAction
             DebugCtl.status();
             break;
         default:
-            if(DebugCtl.all.indexOf(gLiteral))
+            if(DebugCtl.all.indexOf(now.literal))
             {
-                DebugCtl.enabled[gLiteral] = !DebugCtl.enabled[gLiteral];
+                DebugCtl.enabled[now.literal] = !DebugCtl.enabled[now.literal];
                 DebugCtl.status();               
             }
             else                
@@ -181,8 +181,8 @@ action GoNear(dobj): TAction
 action FiatLux: IAction
     execAction(cmd)
     {
-        gPlayerChar.isLit = !gPlayerChar.isLit;
-        showMsg(fiat lux, '{I} suddenly {1} glowing. ', gPlayerChar.isLit ? 'start'
+        now.player.isLit = !now.player.isLit;
+        showMsg(fiat lux, '{I} suddenly {1} glowing. ', now.player.isLit ? 'start'
              :  'stop' );
     }
     
@@ -489,8 +489,8 @@ action AssertPlayerInRoom: SystemAction
 
     execAction(cmd)
     {
-        if (gActor.isPlayerChar && gRoom != gDobj) {
-            allNewTests.fail('Expected player in room "<<gDobj>>" but was located in "<<gRoom>>"
+        if (now.actor.isPlayerChar && now.room != now.dobj) {
+            allNewTests.fail('Expected player in room "<<now.dobj>>" but was located in "<<now.room>>"
                 instead');
         }
         else
@@ -515,11 +515,11 @@ action AssertPlayerHasItem: SystemAction
 
 	execAction(cmd)
 	{       
-        if(gDobj.ofKind(Fixture) || gDobj.ofKind(Immovable) || gDobj.ofKind(Decoration)) {
-            allNewTests.fail('INVALID: Can never have item "<<gDobj>>"!<.p>');
+        if(now.dobj.ofKind(Fixture) || now.dobj.ofKind(Immovable) || now.dobj.ofKind(Decoration)) {
+            allNewTests.fail('INVALID: Can never have item "<<now.dobj>>"!<.p>');
         }
-		else if (gActor.isPlayerChar && !gDobj.isIn(gActor)) {
-            allNewTests.fail('Expected player to have item \"<<gDobj>>\" but does not!');
+		else if (now.actor.isPlayerChar && !now.dobj.isIn(now.actor)) {
+            allNewTests.fail('Expected player to have item \"<<now.dobj>>\" but does not!');
 		}
         else
             allNewTests.succeed();
@@ -543,11 +543,11 @@ action AssertPlayerLacksItem: SystemAction
 
 	execAction(cmd)
 	{       
-        if(gDobj.ofKind(Fixture) || gDobj.ofKind(Immovable) || gDobj.ofKind(Decoration)) {
-            allNewTests.fail('INVALID: Can never have item "<<gDobj>>"!');
+        if(now.dobj.ofKind(Fixture) || now.dobj.ofKind(Immovable) || now.dobj.ofKind(Decoration)) {
+            allNewTests.fail('INVALID: Can never have item "<<now.dobj>>"!');
         }
-		else if (gActor.isPlayerChar && gDobj.isIn(gActor)) {
-            allNewTests.fail('Expected player to NOT have item \"<<gDobj>>\" but
+		else if (now.actor.isPlayerChar && now.dobj.isIn(now.actor)) {
+            allNewTests.fail('Expected player to NOT have item \"<<now.dobj>>\" but
                 does!');
 		}
         else
@@ -572,9 +572,9 @@ action AssertPlayerRoomHasItem: SystemAction
        
     execAction(cmd)
     {
-        if (gActor.isPlayerChar && !gDobj.isIn(gActor.getOutermostRoom)) 
+        if (now.actor.isPlayerChar && !now.dobj.isIn(now.actor.getOutermostRoom)) 
         {
-            allNewTests.fail('Expected player\'s room to have item \"<<gDobj>>\" but does not!');
+            allNewTests.fail('Expected player\'s room to have item \"<<now.dobj>>\" but does not!');
         }
         else
             allNewTests.succeed();
@@ -599,8 +599,8 @@ action AssertPlayerRoomLacksItem: SystemAction
         
     execAction(cmd)
     {
-        if (gActor.isPlayerChar && gDobj.isIn(gActor.getOutermostRoom)) {
-            allNewTests.fail('Expected player\'s room not to have item \"<<gDobj>>\" but
+        if (now.actor.isPlayerChar && now.dobj.isIn(now.actor.getOutermostRoom)) {
+            allNewTests.fail('Expected player\'s room not to have item \"<<now.dobj>>\" but
                 it does!');
         }
         else
@@ -619,7 +619,7 @@ action Assert: SystemAction
     exec(cmd)
     {
         /* Recreate the literal text */
-        local f = gCommandToks.cdr();
+        local f = now.commandTokens.cdr();
         local expr = f.join('');
         local msg = 'assert FAILED';
         local res = nil;
@@ -689,7 +689,7 @@ verb AssertMsgClear 'assertMsgClear':
 action AssertMsg: SystemAction
     exec(cmd)
     {
-        local f = gCommandToks.cdr();
+        local f = now.commandTokens.cdr();
         local expr = f.join(' ').toLower();
         local fnd = allNewTests.lastMsg.toLower();
 
@@ -786,7 +786,7 @@ class Test: object
     getHolding()
     {
         foreach (local x in testHolding) {
-            x.moveInto(gActor);
+            x.moveInto(now.actor);
             x.isHidden = nil;   // otherwise cannot see or interact with it
 
         }
@@ -826,13 +826,13 @@ class Test: object
          *   If a location is specified, first move the actor into that
          *   location.
          */
-        if (location && gPlayerChar.location != location)
+        if (location && now.player.location != location)
         {
-            gPlayerChar.moveInto(location);	
+            now.player.moveInto(location);	
             
             /* If we want to report the move, show the new room description */
             if(reportMove)
-                gPlayerChar.getOutermostRoom.lookAroundWithin();
+                now.player.getOutermostRoom.lookAroundWithin();
         }
         
         /*   Move any required objects into the actor's inventory */
@@ -1230,7 +1230,7 @@ allNewTests: object
         PostRestoreObject.classExec();
 
         /* Ensure the current actor is defined. */
-        gActor = gActor ?? gPlayerChar;
+        libGlobal.curActor = now.actor ?? now.player;
         
         return true;
     }

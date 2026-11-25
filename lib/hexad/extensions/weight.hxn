@@ -76,7 +76,7 @@ modify Thing
     sayTooHeavy(obj)
     {
           /* Create a message parameter substitution. */
-        gMessageParams(obj);
+        messageParams(obj);
         
         showMsg(too heavy, '{The subj obj} {is} too heavy to go {1} {2}. ', 
                  objInPrep, theName);
@@ -88,7 +88,7 @@ modify Thing
         local this = self;
         
           /* Create a message parameter substitution. */
-        gMessageParams(obj, this);
+        messageParams(obj, this);
         
         showMsg(cant bear more weight, '{The subj this} {can\'t} bear any more
             weight. ');
@@ -112,7 +112,7 @@ modify Thing
          *   First check whether this item is individually too heavy for the
          *   actor to carry.
          */
-        if(tWeight > gActor.maxSingleWeight || tWeight > gActor.weightCapacity)
+        if(tWeight > now.actor.maxSingleWeight || tWeight > now.actor.weightCapacity)
             showMsg(too heavy to carry, '{The subj dobj} {is} too heavy for {me} to
                 carry. ');
                
@@ -121,7 +121,7 @@ modify Thing
          *   otherwise check that the actor has sufficient spare carrying
          *   capacity.
          */
-        else if(tWeight > gActor.weightCapacity - gActor.getCarriedWeight())
+        else if(tWeight > now.actor.weightCapacity - now.actor.getCarriedWeight())
             showMsg(cannot carry any more weight, '{I} {can\'t} carry that much
                 more weight. ');
     }
@@ -164,12 +164,12 @@ modify Thing
              *   If the inherited handling would cause this action to fail,
              *   there's no need for any additional checks.
              */
-            if(gOutStream.watchForOutput({: inherited() }))
+            if(now.outputStream.watchForOutput({: inherited() }))
                 return;
             
             if(contType != In 
-               && gDobj.totalWeight > maxWeightHiddenIn - getWeightHiddenIn)
-                sayTooHeavyToHide(gDobj, In);
+               && now.dobj.totalWeight > maxWeightHiddenIn - getWeightHiddenIn)
+                sayTooHeavyToHide(now.dobj, In);
         }
     }
     
@@ -185,12 +185,12 @@ modify Thing
              *   If the inherited handling would cause this action to fail,
              *   there's no need for any additional checks.
              */
-            if(gOutStream.watchForOutput({: inherited() }))
+            if(now.outputStream.watchForOutput({: inherited() }))
                 return;
             
             if(contType != Under
-               && gDobj.totalWeight > maxWeightHiddenUnder - getWeightHiddenUnder)
-                sayTooHeavyToHide(gDobj, Under);
+               && now.dobj.totalWeight > maxWeightHiddenUnder - getWeightHiddenUnder)
+                sayTooHeavyToHide(now.dobj, Under);
         }
     }
     
@@ -206,12 +206,12 @@ modify Thing
              *   If the inherited handling would cause this action to fail,
              *   there's no need for any additional checks.
              */
-            if(gOutStream.watchForOutput({: inherited() }))
+            if(now.outputStream.watchForOutput({: inherited() }))
                 return;
             
             if(contType != Behind
-               && gDobj.totalWeight > maxWeightHiddenBehind - getWeightHiddenBehind)
-                sayTooHeavyToHide(gDobj, Behind);
+               && now.dobj.totalWeight > maxWeightHiddenBehind - getWeightHiddenBehind)
+                sayTooHeavyToHide(now.dobj, Behind);
         }
     }
     
@@ -221,7 +221,7 @@ modify Thing
      */
     sayTooHeavyToHide(obj, insType)
     {
-        gMessageParams(obj);
+        messageParams(obj);
         
         showMsg(too heavy to hide, '{The sub obj} {is} too heavy to hide {1} {2}. ',
              insType.prep, theName);

@@ -104,7 +104,7 @@ class FueledLightSource: object
     {
         /* Create a convenient message parameter substitution */
         local obj = self;        
-        gMessageParams(obj);
+        messageParams(obj);
         
         /* Say that we've gone out. */
         say(burnedOutMsg);
@@ -112,14 +112,14 @@ class FueledLightSource: object
         /* 
          *   If our going out has left the player character in darkness, say so.
          */
-        if(!gPlayerChar.location.litWithin && fromDaemon)
+        if(!now.player.location.litWithin && fromDaemon)
             say(plungedIntoDarknessMsg);
         ". ";
     }
     
     burnedOutMsg = msgText(say burned out, '{The subj obj} {goes} out')
     plungedIntoDarknessMsg = msgText(plunged into darkness, ', plunging {1} into
-        darkness', gPlayerChar.theName)
+        darkness', now.player.theName)
     
     /* Modifications to the makeLit() method for FueledLightSource [FUELED EXTENSION] */
     makeLit(stat)

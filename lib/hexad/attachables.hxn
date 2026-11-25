@@ -136,7 +136,7 @@ class SimpleAttachable: Thing
             inherited; 
             
             /* We can't be attached while we're already attached */
-            if(attachedTo == gVerifyIobj)
+            if(attachedTo == now.verifyIobj)
                 illogicalNow(alreadyAttachedMsg);
             else if(attachedTo != nil)
                 illogicalNow(cannotAttachToMoreMsg);
@@ -144,7 +144,7 @@ class SimpleAttachable: Thing
         
         action()
         {            
-            attachTo(gIobj);
+            attachTo(now.iobj);
         }
         
         report()
@@ -157,7 +157,7 @@ class SimpleAttachable: Thing
     
     
     okayAttachMsg = msgText(okay attach, '{I} attach{es/ed} {1} to {the iobj}. ',
-                         gActionListStr) 
+                         now.actionListStr) 
     
     alreadyAttachedMsg = msgText(already attached, '{The subj dobj} {is} already
         attached to {1}. ', attachedTo.theName)
@@ -179,7 +179,7 @@ class SimpleAttachable: Thing
              *   If we don't allow the dobj to be attached to us, rule out the
              *   attachment.
              */
-            if(!allowAttach(gVerifyDobj))
+            if(!allowAttach(now.verifyDobj))
                 illogical(cannotBeAttachedMsg);
         }
     }
@@ -212,7 +212,7 @@ class SimpleAttachable: Thing
         
     }
     
-    okayDetachMsg = msgText(okay detach, '{I} detach{es/ed} {1}. ', gActionListStr)
+    okayDetachMsg = msgText(okay detach, '{I} detach{es/ed} {1}. ', now.actionListStr)
     
     
     dobj DetachFrom
@@ -229,7 +229,7 @@ class SimpleAttachable: Thing
                 illogicalNow(notAttachedMsg);  
             
             /* We can't be detached from the iobj if we're not attached to it */
-            else if(!isAttachedTo(gVerifyIobj))
+            else if(!isAttachedTo(now.verifyIobj))
                 illogicalNow(notAttachedToThatMsg);
             
             /* Carry out the inherited handling. */
@@ -240,7 +240,7 @@ class SimpleAttachable: Thing
         
         action()
         {
-            detachFrom(gIobj);            
+            detachFrom(now.iobj);            
         }
         
         report()
@@ -250,7 +250,7 @@ class SimpleAttachable: Thing
     }
     
     okayDetachFromMsg = msgText(okay detach from, '{I} detach{es/ed} {1} from
-        {the iobj}. ',  gActionListStr)
+        {the iobj}. ',  now.actionListStr)
     
     cannotDetachMsg = msgText(cannot detach this, '{The subj dobj} {cannot} be
         detached from {1}. ', location.theName)
@@ -273,7 +273,7 @@ class SimpleAttachable: Thing
              *   object.             
              */
             
-            else if(attachments.overlapsWith(gTentativeDobj))
+            else if(attachments.overlapsWith(now.tentativeDobj))
                 logicalRank(120);
             
                 
@@ -348,7 +348,7 @@ class SimpleAttachable: Thing
      */
     sayCannotMoveWhileAttached(other)
     {
-        gMessageParams(other);            
+        messageParams(other);            
         showMsg(cannot move while attached, '{The subj cobj} {cannot} be moved
             while {he cobj} {is} attached to {the other}. ');   
     }
@@ -619,7 +619,7 @@ class Attachable: NearbyAttachable
         {
             inherited Thing;  
             
-            if(isAttachedTo(gVerifyIobj))
+            if(isAttachedTo(now.verifyIobj))
             {                            
                 illogicalNow(alreadyAttachedToIobjMsg);
             }
@@ -633,7 +633,7 @@ class Attachable: NearbyAttachable
                       
     
     alreadyAttachedToIobjMsg = msgText(alreadt attached to iobj, '{The subj dobj} {is} already
-        attachd to {1}. ', gVerifyIobj.theName) 
+        attachd to {1}. ', now.verifyIobj.theName) 
     
     /* 
      *   I'm attached to obj in the broad sense of having an attachement
@@ -655,8 +655,8 @@ class Attachable: NearbyAttachable
 reverseAttachableCommandRule: CommandRule 'attach SimpleAttachable to Attachable'
     execAction(c)
     {
-        if(gIobj.reverseConnect(gDobj))
-            doInstead(Attach, gIobj, gDobj);
+        if(now.iobj.reverseConnect(now.dobj))
+            doInstead(Attach, now.iobj, now.dobj);
         else
             inherited(c);            
     }    
@@ -745,9 +745,9 @@ class PlugAttachable: object
      */
     okayAttachMsg ()
     {
-        if(reportAttachAsPlug || gActionIn(PlugIn, PlugInto))        
+        if(reportAttachAsPlug || now.actionIn(PlugIn, PlugInto))        
             return  msgText(okay plug, '{I} plug{s/?ed} {1} into {the iobj}. ',
-                         gActionListStr) ;
+                         now.actionListStr) ;
         else
             return inherited;
     }
@@ -771,7 +771,7 @@ class PlugAttachable: object
              *   If the direct object is not one that can be plugged into us,
              *   rule out the action with an appropriate message.
              */                 
-            if(!allowAttach(gVerifyDobj))
+            if(!allowAttach(now.verifyDobj))
                 illogical(cannotBeAttachedMsg);
         }
         
@@ -826,7 +826,7 @@ class PlugAttachable: object
              *   If we're not attached to the direct object of the command, we
              *   can't be unplugged from it.
              */
-            else if(attachedTo != gVerifyIobj)
+            else if(attachedTo != now.verifyIobj)
                 illogicalNow(notAttachedToThatMsg);
             
         }
@@ -843,7 +843,7 @@ class PlugAttachable: object
     }
     
     okayDetachFromMsg = msgText(okay unplug from, '{I} unplug{s/?ed} {1} from
-        {the iobj}. ', gActionListStr)
+        {the iobj}. ', now.actionListStr)
     
     notAttachedMsg = msgText(not plugged in, '{The subj dobj} {isn\'t} plugged into
         anything. ') 
@@ -881,7 +881,7 @@ class PlugAttachable: object
         report() { say(okayDetachMsg); }
     }
     
-    okayDetachMsg = msgText(okay unplug, '{I} unplug{s/?ed} {1}. ', gActionListStr)
+    okayDetachMsg = msgText(okay unplug, '{I} unplug{s/?ed} {1}. ', now.actionListStr)
     
     dobj PlugIn
     {
@@ -919,8 +919,8 @@ class PlugAttachable: object
         
         report() 
         { 
-            if(reportAttachAsPlug || gActionIn(PlugIn, PlugInto))            
-                showMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', gActionListStr); 
+            if(reportAttachAsPlug || now.actionIn(PlugIn, PlugInto))            
+                showMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', now.actionListStr); 
             else
                 inherited();
         }

@@ -18,10 +18,10 @@ concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
      /* A Fact concerns all the topics listed in its topics property. */
     relatedTo(a)
     {
-        if(gFact(a) == nil)
+        if(now.fact(a) == nil)
             return [];
         
-        return gFact(a).topics;        
+        return now.fact(a).topics;        
     }
     
     /* 
@@ -55,10 +55,10 @@ concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
     /* A topic a is inversely related to a fact b if it occurs in b's topics property. */
     isInverselyRelated(a, b)
     {
-        if(gFact(b) == nil)
+        if(now.fact(b) == nil)
             return nil;
         
-        return gFact(b).topics.find(a);
+        return now.fact(b).topics.find(a);
     }    
 ;
 
@@ -69,9 +69,9 @@ abutting: DerivedRelation 'abuts' @manyToMany
     /* Fact a abuts Fact b if their topics lists have any topics in common. */
     isRelated(a, b)
     {
-        if(!gFact(a) || !gFact(b) )
+        if(!now.fact(a) || !now.fact(b) )
             return nil;
-        return gFact(a).topics.overlapsWith(gFact(b).topics);  
+        return now.fact(a).topics.overlapsWith(now.fact(b).topics);  
     }
     
     /* 
@@ -244,7 +244,7 @@ class FactAgendaItem: ConvAgendaItem
     /* Get the fact we want out path calculation to start from. */
     getStart()
     {
-        local startFact = gLastFact;
+        local startFact = now.lastFact;
         
         /* If we can't find a last mentioned fact, try starting from the last mentioned topic .*/
         if(startFact == nil)
@@ -252,11 +252,11 @@ class FactAgendaItem: ConvAgendaItem
             /* 
              *   If there's no last mentioned topic, there's nothing more we can try, so return nil.
              */
-            if(gLastTopic == nil)
+            if(now.lastTopic == nil)
                 return nil;
             
             /* Obtained a list of facts that reference this topic. */
-            local fList = related(gLastTopic, 'referenced by');
+            local fList = related(now.lastTopic, 'referenced by');
             
             /* If we succeed in obtaining such a list, return its first element. */
             if(fList && fList.length() > 0)
@@ -388,7 +388,7 @@ class FactAgendaItem: ConvAgendaItem
              *   Try to find the latest step (fact name) in our current path that relates to the
              *   topic just matched by our caller.
              */
-            local step = curPath.lastValWhich({x: gFact(x).topics.indexOf(calledBy.topicMatched)});
+            local step = curPath.lastValWhich({x: now.fact(x).topics.indexOf(calledBy.topicMatched)});
             
             /*  If we found one, return it. */
             if(step)
@@ -455,7 +455,7 @@ class FactAgendaItem: ConvAgendaItem
      *   Our endCondition is the state we must reach for us to have reached our goal, so that we can
      *   set our isDone to true. By default this is when we've reached the end of our path, which is
      *   when our next step would be the one at the end of our path. Game could override this, say,
-     *   to either gRevaled(target) or gInformed(target) or some similar condition.
+     *   to either gRevaled(target) or getActor.informedAbout(target) or some similar condition.
      */
     endCondition = (curPath && curPath[curPath.length] == nextStep)
  
@@ -574,7 +574,7 @@ modify ActorTopicEntry
              *   last fact matched is referenced by the topic we just matched, in which case we may
              *   as well retain it.
              */             
-            if(related(gLastFact, 'referenced by').indexOf(topicMatched) == nil)
+            if(related(now.lastFact, 'referenced by').indexOf(topicMatched) == nil)
                 libGlobal.lastFactMentioned = nil;
             
             /* 
@@ -713,7 +713,7 @@ modify AltTopic
 /* Modification to Actor to work better with Fact Relations extension */
 modify Actor
     /* 
-     *   We need to update gLastTopic so that any FactAgendaItem can reference it when checking its
+     *   We need to update now.lastTopic so that any FactAgendaItem can reference it when checking its
      *   isReady property before any TopicEntry has handled the topic.
      */
     handleTopic(prop, topic, defaultProp = &noResponseMsg)
@@ -731,8 +731,8 @@ modify Actor
             top = top ?? topic[1];
         }
          
-        /* Updte gLastTopic */
-        gLastTopic = top;
+        /* Updte now.lastTopic */
+        libGlobal.lastTopicMentioned = top;
         
         /* Then carry out the inherited handling and return the result. */ 
         return inherited(prop, topic, defaultProp);
@@ -759,7 +759,7 @@ modify Thing
     checkForContradictions(tag, val)
     {
         /* Get the fact corresponding to tag. */
-        local fact = gFact(tag);
+        local fact = now.fact(tag);
         
         /* If we don't find a fact or our informedTab is empty, there's nothing left to do. */
         if(fact == nil || informedNameTab == nil)

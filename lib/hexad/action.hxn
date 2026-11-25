@@ -61,7 +61,7 @@ class Action: ReplaceRedirector
         libGlobal.curActor = cmd.actor;
         
         /* Note the location of the current actor */
-        oldRoom = gActor.getOutermostRoom;
+        oldRoom = now.actor.getOutermostRoom;
         
         /* 
          *   Note whether the current actor's location starts out illuminated;
@@ -167,7 +167,7 @@ class Action: ReplaceRedirector
                  *   If we fail the check method on any precondition object,
                  *   note the failure and stop the iteration.
                  */
-                if(cur.checkPreCondition(gActor, true) == nil)
+                if(cur.checkPreCondition(now.actor, true) == nil)
                 {
                     checkOkay = nil;
                     break;
@@ -218,7 +218,7 @@ class Action: ReplaceRedirector
          *   Call the before action handling on the current actor (in its
          *   capacity as actor/
          */
-        gActor.actorAction();
+        now.actor.actorAction();
         
         
         /* 
@@ -231,7 +231,7 @@ class Action: ReplaceRedirector
          *   Call roomBeforeAction() on the current actor's location, and
          *   regionBeforeAction() on all the regions it's in.
          */        
-        gActor.getOutermostRoom.notifyBefore();
+        now.actor.getOutermostRoom.notifyBefore();
                
         /* 
          *   If we don't already have a scope list for the current action, build
@@ -274,7 +274,7 @@ class Action: ReplaceRedirector
          *   either show a room description or announce the onset of darkness,
          *   as appropriate.
          */
-        if(oldRoom == gActor.getOutermostRoom)
+        if(oldRoom == now.actor.getOutermostRoom)
         {
             if(oldRoom.isIlluminated)
             {
@@ -299,14 +299,14 @@ class Action: ReplaceRedirector
          *   Call the afterAction notification on the current room and its
          *   regions.
          */
-        gActor.getOutermostRoom.notifyAfter();
+        now.actor.getOutermostRoom.notifyAfter();
         
         /* 
          *   Call the afterAction notification on every object in scope. Note
          *   that we have to recalculate the scope list here in case the action
          *   has changed it.
          */
-        foreach(local cur in Q.scopeList(gActor))
+        foreach(local cur in Q.scopeList(now.actor))
         {
             cur.afterAction();
         }
@@ -326,7 +326,7 @@ class Action: ReplaceRedirector
     {
         
         /* Execute the regionDaemon on every region in which the player character is located. */        
-        local lst = gPlayerChar.getOutermostRoom.allRegions();
+        local lst = now.player.getOutermostRoom.allRegions();
         
         foreach(local reg in lst)
         {
@@ -337,7 +337,7 @@ class Action: ReplaceRedirector
         
         "<.p>";
         /* Execute the player character's current location's roomDaemon. */
-        gPlayerChar.getOutermostRoom.roomDaemon();                 
+        now.player.getOutermostRoom.roomDaemon();                 
         
         /* 
          *   If the events.hxn module is included, execute all current Daemons and
@@ -553,7 +553,7 @@ class Action: ReplaceRedirector
              *   every object role (dobj && iob on a TIAction), but this is what we want.
              */
             if(hasProp(&mmVerify))
-                mmVerify(gVerifyDobj, gVerifyIobj, verifyObj);
+                mmVerify(now.verifyDobj, now.verifyIobj, verifyObj);
             
             
             
@@ -642,7 +642,7 @@ class Action: ReplaceRedirector
              *   it clear which one is being referred to.
              */
             if(announceMultiVerify && role == DirectObject &&
-               gCommand.dobjs.length > 1)
+               now.command.dobjs.length > 1)
                 announceObject(obj);
             
             /* 
@@ -705,11 +705,11 @@ class Action: ReplaceRedirector
         {
         case 'pc':
             /* return the player character */
-            return gPlayerChar;
+            return now.player;
             
         case 'actor':
             /* return the current actor */
-            return gActor;
+            return now.actor;
             
         case 'cobj':
             /* return the current object, if there is one */
@@ -863,8 +863,8 @@ class Action: ReplaceRedirector
         local bestResult = nil;
         local verResult;
         
-        gAction = cmd.action;
-        gActor = cmd.actor;
+        libGlobal.curAction = cmd.action;
+        libGlobal.curActor = cmd.actor;
         
         foreach (local i in lst)
         {
@@ -945,7 +945,7 @@ class Action: ReplaceRedirector
     buildScopeList(whichRole = DirectObject)
     {
         /* Start with the scope list supplied by the Query object */
-        scopeList = Q.scopeList(gActor).toList();
+        scopeList = Q.scopeList(now.actor).toList();
         
         /* Add any additional items to scope as special cases if desired. */
         addExtraScopeItems(whichRole);
@@ -960,7 +960,7 @@ class Action: ReplaceRedirector
      */    
     addExtraScopeItems(role?)
     {
-        gActor.getOutermostRoom.addExtraScopeItems(self);
+        now.actor.getOutermostRoom.addExtraScopeItems(self);
     }
     
     /* Our currently cached list of items in scope for this action. */         
@@ -1040,7 +1040,7 @@ class Action: ReplaceRedirector
     getPostImplicitReports()
     {
         local rep = '';
-        foreach(local prp in gCommand.postImplicitReports)
+        foreach(local prp in now.command.postImplicitReports)
         {
             if(typeOf(prp) == TypeString && prp.length > 0)
                 rep += ('\n' + prp);
@@ -1183,7 +1183,7 @@ class IAction: Action
          *   Capture the output from this action in case we don't want to
          *   display it (if we're an implicit action).
          */
-        local str = gOutStream.captureOutput({: execAction(gCommand) });
+        local str = now.outputStream.captureOutput({: execAction(now.command) });
         
         /* 
          *   If this action is being performed implicitly, we should display an
@@ -1284,7 +1284,7 @@ class TravelAction: Action
     outOfNestedInstead()
     {
         
-        if(!gActor.location.ofKind(Room) && direction == outDir)
+        if(!now.actor.location.ofKind(Room) && direction == outDir)
         {
             /* Set up a local variable to hold the action we'll use to get out. */
             local getOutAction;
@@ -1293,13 +1293,13 @@ class TravelAction: Action
              *   If the actor is on something, s/he needs to get off it, other s/he needs to get out
              *   of it.
              */
-            getOutAction = gActor.location.contType == On ? GetOff : GetOutOf;
+            getOutAction = now.actor.location.contType == On ? GetOff : GetOutOf;
             
             /* 
              *   Replace our original action (Out) with the appropriate action for getting out of
              *   our immediate container.
              */
-            replaceAction(getOutAction, gActor.location);
+            replaceAction(getOutAction, now.actor.location);
             
             /* Then return true to say we've handled the command. */
             return true;
@@ -1322,11 +1322,11 @@ class TravelAction: Action
             stagLocs = [Room];
             
  
-        while(!gActor.location.ofKind(Room) && !gActor.location.isVehicle &&
-              stagLocs.indexWhich({x: gActor.location.ofKind(x)}) == nil)
+        while(!now.actor.location.ofKind(Room) && !now.actor.location.isVehicle &&
+              stagLocs.indexWhich({x: now.actor.location.ofKind(x)}) == nil)
         {
             /* Note the actor's current location. */
-            local loc = gActor.location;
+            local loc = now.actor.location;
             
             /* 
              *   The action needed to remove the actor from its immediate
@@ -1348,7 +1348,7 @@ class TravelAction: Action
              *   if the command didn't work, quit the loop or we'll be stuck in
              *   it forever.
              */
-            if(gActor.location == loc)
+            if(now.actor.location == loc)
                 exit;
             
         }
@@ -1364,7 +1364,7 @@ class TravelAction: Action
          *   Capture the output from this action in case we don't want to
          *   display it (if we're an implicit action).
          */
-        local str = gOutStream.captureOutput({: execAction(gCommand) });
+        local str = now.outputStream.captureOutput({: execAction(now.command) });
         
         /* 
          *   If this action is being performed implicitly, we should display an
@@ -1398,7 +1398,7 @@ class TravelAction: Action
     doTravel()
     {
         /* Note the actor's current location. */
-        local loc = gActor.getOutermostRoom;  
+        local loc = now.actor.getOutermostRoom;  
         
         /*   
          *   If we point to an object, assume it's a travel connector and attempt travel via the
@@ -1436,14 +1436,14 @@ class TravelAction: Action
          *   Otherwise if there's light enough to travel and the actor is the player character,
          *   display the standard can't travel message (as if the connector wasn't there.
          */
-        else if(illum && gActor == gPlayerChar)
+        else if(illum && now.actor == now.player)
             loc.cannotGoThatWay(direction);
         
         /* 
          *   Otherwise if the actor is the player character, display the standard message forbidding
          *   travel in the dark.
          */
-        else if(gActor == gPlayerChar)
+        else if(now.actor == now.player)
             loc.cannotGoThatWayInDark(direction);
     }
     
@@ -1455,14 +1455,14 @@ class TravelAction: Action
        
                 
         /* if the actor is the player char, just carry out the travel */
-        if(gActor == gPlayerChar)                 
-            conn.travelVia(gActor);        
+        if(now.actor == now.player)                 
+            conn.travelVia(now.actor);        
         
         /* 
          *   otherwise carry out the travel and display the appropriate travel notifications.
          */
         else
-            gActor.travelVia(conn);
+            now.actor.travelVia(conn);
     }       
     
     
@@ -1480,7 +1480,7 @@ class TravelAction: Action
     checkActionPreconditions() 
     {
          /* Note the actor's current location. */
-        local loc = gActor.getOutermostRoom;  
+        local loc = now.actor.getOutermostRoom;  
         
         /*   
          *   If we point to an object, assume it's a travel connector and attempt travel via the
@@ -1514,7 +1514,7 @@ class TravelAction: Action
      */
     displayStrRet(loc, dir, dest, val, actor)
     {
-        return actor == gPlayerChar;
+        return actor == now.player;
     }
 
 ;
@@ -1529,12 +1529,12 @@ class TravelAction: Action
 noHalt()
 {
     /* 
-     *   If we have a current gAction, set its haltOnMessageCheck property to nil. Note that this
+     *   If we have a current now.action, set its haltOnMessageCheck property to nil. Note that this
      *   property is set to true near the start of TAction.check() so that it starts out true and
      *   remains so unless noHalt() intervenes during the course of the check() stage.
      */
-    if(gAction)
-        gAction.haltOnMessageInCheck = nil;
+    if(now.action)
+        now.action.haltOnMessageInCheck = nil;
 }
 
 
@@ -1814,10 +1814,10 @@ class TAction: Action
              *   multimethod to  do the checking.
              */
             if(typeOf(obj) == TypeList)
-                checkMsg = gOutStream.captureOutputIgnoreExit({: self.(checkProp)(obj[1], obj[2])});
+                checkMsg = now.outputStream.captureOutputIgnoreExit({: self.(checkProp)(obj[1], obj[2])});
             
             else
-                checkMsg = gOutStream.captureOutputIgnoreExit({: obj.(checkProp)});
+                checkMsg = now.outputStream.captureOutputIgnoreExit({: obj.(checkProp)});
             
             if(typeOf(checkMsg) == TypeInt)
                 return checkMsg;
@@ -1867,7 +1867,7 @@ class TAction: Action
              *   check stage and our Command is processing more than one direct object, and we don't
              *   want to report failed attempts after successful ones, announce the object.
              */ 
-            if(announceMultiCheck && gCommand.dobjs.length > 1 && !reportFailureAfterSuccess)
+            if(announceMultiCheck && now.command.dobjs.length > 1 && !reportFailureAfterSuccess)
                 announceObject(obj);
             
             /* 
@@ -1887,10 +1887,10 @@ class TAction: Action
              *   reportAfter() so that the failure reports come after the report of any actions that
              *   were successful, otherwise display the failure message straight away.
              */
-            if(gCommand.dobjs.length > 1 && reportFailureAfterSuccess)
+            if(now.command.dobjs.length > 1 && reportFailureAfterSuccess)
             {
                 if(announceMultiCheck)
-                    checkMsg = gOutStream.captureOutputIgnoreExit({: announceObject(obj)}) + 
+                    checkMsg = now.outputStream.captureOutputIgnoreExit({: announceObject(obj)}) + 
                     checkMsg;
                 
                 reportAfter(checkMsg);
@@ -1992,7 +1992,7 @@ class TAction: Action
          *   If we're iterating over several objects and we're the kind of
          *   action which wants to announce objects in this context, do so.
          */        
-         if(announceMultiAction && gCommand.dobjs.length > 1)
+         if(announceMultiAction && now.command.dobjs.length > 1)
             announceObject(curDobj);       
             
         
@@ -2020,7 +2020,7 @@ class TAction: Action
          *   creates far more hassle than it's worth!!!!
          */            
             
-        msg = gOutStream.watchForOutput({: doAction() });
+        msg = now.outputStream.watchForOutput({: doAction() });
         
         
         /* 
@@ -2216,7 +2216,7 @@ class TAction: Action
      *   iobj (indirect object) parameter is not used, but definined here so that the method can be
      *   called on either a TAction or a TIAction.
      */
-    requiresTouching(dobj = gDobj, iobj?)
+    requiresTouching(dobj = now.dobj, iobj?)
     {
         /* 
          *   Return whether or not dobj's preCond property includes the touchObj preCondition or
@@ -2469,7 +2469,7 @@ class TIAction: TAction
          *   If we're iterating over several objects and we're the kind of
          *   action which wants to announce objects in this context, do so.
          */        
-        if(announceMultiAction && gCommand.dobjs.length > 1)
+        if(announceMultiAction && now.command.dobjs.length > 1)
             announceObject(curDobj);
         
         
@@ -2488,7 +2488,7 @@ class TIAction: TAction
             buildImplicitActionAnnouncement(true, nil);
         
         
-        msgForMM = gOutStream.watchForOutput({:mmAction(curDobj, curIobj)});
+        msgForMM = now.outputStream.watchForOutput({:mmAction(curDobj, curIobj)});
         
         if(msgForMM != 2)
         {
@@ -2502,7 +2502,7 @@ class TIAction: TAction
              *   hassle than it's worth!!!!
              */
             msgForDobj =
-                gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+                now.outputStream.watchForOutput({:curDobj.(actionDobjProp)});
             
             
             
@@ -2519,7 +2519,7 @@ class TIAction: TAction
              *   so that a report method on the dobj can report on actions handled on the iobj.
              */        
             msgForIobj =
-                gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
+                now.outputStream.watchForOutput({:curIobj.(actionIobjProp)});
         }
         
        
@@ -2547,10 +2547,10 @@ class TIAction: TAction
     /* 
      *   Determine whether or not this action requires touching dobj or iobj. If obj is not supplied
      *   (or is supplied as nil) it will default to dobj.  This allows, for example, using
-     *   gAction.requireesTouching(vase) to test whether the current action would require the actor
+     *   now.action.requireesTouching(vase) to test whether the current action would require the actor
      *   to be able to touch the vase as either dobj or iobj.
      */
-    requiresTouching(dobj = gDobj, iobj?)
+    requiresTouching(dobj = now.dobj, iobj?)
     {
         /* 
          *   Return whether or not dobj's preCond property includes the touchObj or the objHeld
@@ -2702,7 +2702,7 @@ class TopicTAction: TAction
     
     /*   
      *   We also store the current ResolvedTopic in the curTopic property so it
-     *   can be found by the gTopic macro.
+     *   can be found by the now.topic macro.
      */
     curTopic = nil
     
@@ -2868,7 +2868,7 @@ tryImplicitAction(action, [objs])
     action.isImplicit = true;
     
     /* Note the previous action being executed. */
-    oldAction = gAction;
+    oldAction = now.action;
     
     /* install the resolved objects in the action */
     action.setResolvedObjects(objs...);
@@ -2888,10 +2888,10 @@ tryImplicitAction(action, [objs])
     /* 
      *   Note that the previous current action is our new action's parent action
      */
-    action.parentAction = gAction;
+    action.parentAction = now.action;
     
     /* Make our new action the current action. */
-    gAction = action;
+    libGlobal.curAction = action;
     
     try
     {
@@ -2921,13 +2921,13 @@ tryImplicitAction(action, [objs])
     finally
     {
         /* Restore the original current action. */
-        gAction = oldAction;       
+        libGlobal.curAction = oldAction;       
     }
     
 }
 
 /* 
- *   Have an actor other than the current gActor try an implicit action (e.g. if
+ *   Have an actor other than the current now.actor try an implicit action (e.g. if
  *   an npc moving as the result of an AgendaItem needs to implicitly open a
  *   door to proceed): actor is the actor performing the action, action is the
  *   action object to be performs, [objs] is the list of objects (if any) on
@@ -2942,13 +2942,13 @@ tryImplicitActorAction(actor, action, [objs])
     local res = nil;
     
     /*  Make a note of the current actor of the current main command. */
-    local oldActor = gActor;
+    local oldActor = now.actor;
     
     
     try
     {
-        /* Temporarily make gActor the actor passed to this function. */
-        gActor = actor;
+        /* Temporarily make now.actor the actor passed to this function. */
+        libGlobal.curActor = actor;
         
         /* Try the implicit action with this actor and store the result. */
         res = tryImplicitAction(action, objs...);
@@ -2956,8 +2956,8 @@ tryImplicitActorAction(actor, action, [objs])
     
     finally
     {
-        /* Restore the original gActor */
-        gActor = oldActor;
+        /* Restore the original now.actor */
+        libGlobal.curActor = oldActor;
     }
     
     /* Return the result of attempting the implicit action. */
@@ -2971,7 +2971,7 @@ tryImplicitActorAction(actor, action, [objs])
 replaceAction(action, [objs])
 {
     /* run the replacement action as a nested action */
-    execNestedAction(true, gActor, action, objs...);
+    execNestedAction(true, now.actor, action, objs...);
 
     /* the invoking command is done */
     exit;;
@@ -3001,7 +3001,7 @@ nestedActorAction(actor, action, [objs])
 /* Run a nested action for the current actor. */
 nestedAction(action, [objs])
 {
-    execNestedAction(nil, gActor, action, objs...);
+    execNestedAction(nil, now.actor, action, objs...);
 }
 
 
@@ -3012,7 +3012,7 @@ nestedAction(action, [objs])
  *   'isReplacement' indicates whether the action is a full replacement or
  *   an ordinary nested action.  If it's a replacement, then we use the
  *   game time taken by the replacement, and set the enclosing action
- *   (i.e., the current gAction) to take zero time.  If it's an ordinary
+ *   (i.e., the current now.action) to take zero time.  If it's an ordinary
  *   nested action, then we consider the nested action to take zero time,
  *   using the current action's time as the overall command time.  
  *   
@@ -3023,7 +3023,7 @@ nestedAction(action, [objs])
 execNestedAction(isReplacement, actor, action, [objs])
 {
     local oldAction;
-    local oldActor = gActor;
+    local oldActor = now.actor;
     
     /* 
      *   Create a new instance of the desired action, so we don't override the
@@ -3032,28 +3032,28 @@ execNestedAction(isReplacement, actor, action, [objs])
     action = action.createInstance();
     
     /* Make the new action make a note of its parent action */
-    action.parentAction = gAction;
+    action.parentAction = now.action;
     
     /* 
      *   Treat us an an implicit action if the current (parent) action is
      *   implicit.
      */
-    action.isImplicit = gAction.isImplicit;   
+    action.isImplicit = now.action.isImplicit;   
 
     /* Note the previous (calling) action. */
-    oldAction = gAction;
+    oldAction = now.action;
     
     /* Set the current actor to the value of our actor parameter. */
-    gActor = actor;
+    libGlobal.curActor = actor;
     
     /* Install the new actor on the current Command object. */
-    gCommand.actor = actor;
+    now.command.actor = actor;
     
     /* 
      *   Change the current Command object's action to the new action with its
      *   new objects.
      */
-    gCommand.changeAction(action, objs.element(1), objs.element(2),
+    now.command.changeAction(action, objs.element(1), objs.element(2),
                           objs.element(3));
     
     /* If our objects aren't in scope we can't proceed with the action. */ 
@@ -3063,7 +3063,7 @@ execNestedAction(isReplacement, actor, action, [objs])
     try
     {
         /* Execute the new action */
-        action.execAction(gCommand);
+        action.execAction(now.command);
         
         /* 
          *   In principle we only want to show the reportAction report if we're
@@ -3078,8 +3078,8 @@ execNestedAction(isReplacement, actor, action, [objs])
          *   displayed immediately after the object name (by displaying the
          *   report straight away here).
          */        
-        if(!isReplacement || gActor != oldActor || 
-         (action.parentAction.announceMultiAction && gCommand.dobjs.length > 1))
+        if(!isReplacement || now.actor != oldActor || 
+         (action.parentAction.announceMultiAction && now.command.dobjs.length > 1))
         {    
             /* report the outcome of the action. */
             action.reportAction();
@@ -3116,7 +3116,7 @@ execNestedAction(isReplacement, actor, action, [objs])
     {
         /* 
          *   If we're not a replacement action we need to restore the old
-         *   gAction when we're done; and if we're a nested action and not
+         *   now.action when we're done; and if we're a nested action and not
          *   implicit, then we should show our action reports (if any) before
          *   handing back to the main action. We also need to do this if we've
          *   changed actor, since unpredictable results could occur from
@@ -3126,19 +3126,19 @@ execNestedAction(isReplacement, actor, action, [objs])
          *   if possible we want all aspects of the new action, including its
          *   reporting and after action processing.
          */        
-        if(!isReplacement || gActor != oldActor)        
+        if(!isReplacement || now.actor != oldActor)        
         {            
             /* Restore the original action on the current Command object. */
-            gCommand.action = gCommand.originalAction;
+            now.command.action = now.command.originalAction;
             
             /* Restore the original current action. */
-            gAction = oldAction;
+            libGlobal.curAction = oldAction;
             
             /* Restore the original actor. */
-            gActor = oldActor;
+            libGlobal.curActor = oldActor;
             
             /* Restore the original actor on the Command object. */
-            gCommand.actor = oldActor;
+            now.command.actor = oldActor;
         }
     }
 }
@@ -3153,20 +3153,20 @@ askMissingObject(action, role, findBest = true)
      
         
     /* Make action the current action for the current Command. */    
-    gCommand.action = action;
-    gCommand.action.reset(); 
+    now.command.action = action;
+    now.command.action.reset(); 
     
     /* 
      *   Store the current objects of the current action in the new action, in case
      *   action.scoreObjects() needs to refer to them below.
      */
-    action.curDobj = gDobj;
-    action.curIobj = gIobj;
-    action.curAobj = gAobj;
+    action.curDobj = now.dobj;
+    action.curIobj = now.iobj;
+    action.curAobj = now.aobj;
     
-    gCommand.dobj = action.curDobj;
-    gCommand.iobj = action.curIobj;
-    gCommand.acc = action.curAobj;
+    now.command.dobj = action.curDobj;
+    now.command.iobj = action.curIobj;
+    now.command.acc = action.curAobj;
     
    
     
@@ -3175,13 +3175,13 @@ askMissingObject(action, role, findBest = true)
      *   do this because otherwise the Command object will overwrite our new
      *   action with its original one before we're done.
      */
-    gCommand.originalAction = action;
+    now.command.originalAction = action;
   
     /* 
      *   Slot the new action's verbRule into the Command's verbProd, so that the
      *   Command has a verbProd appropriate to the action.
      */
-    gCommand.verbProd = action.verbRule;    
+    now.command.verbProd = action.verbRule;    
     
     
     /* 
@@ -3212,7 +3212,7 @@ askMissingObject(action, role, findBest = true)
         if(matchList.length > 0)
         {
             /* Score all the objects in scope */
-            action.scoreObjects(gCommand, role, matchList);
+            action.scoreObjects(now.command, role, matchList);
             
             /* Sort the list of objects in descending order of score */
             matchList = matchList.sort(SortDesc, {a, b: a.score - b.score});
@@ -3251,13 +3251,13 @@ askMissingObject(action, role, findBest = true)
                  *   Slot our best choice of object into the appropriate object property of the
                  *   current command object.
                  */
-                gCommand.(role.objProp) = bestObj;
+                now.command.(role.objProp) = bestObj;
                 
                 
                 /* Execute the new action with the new set of objects. */
                 
                 
-                gCommand.execCommandRule([action, gCommand.dobj, gCommand.iobj]);            
+                now.command.execCommandRule([action, now.command.dobj, now.command.iobj]);            
                 
                 
                 /* 
@@ -3279,7 +3279,7 @@ askMissingObject(action, role, findBest = true)
      *   First create a new error for a missing object for our Command in the
      *   desired role.
      */
-    local err = new EmptyNounError(gCommand, role);
+    local err = new EmptyNounError(now.command, role);
     
 
     /* 
@@ -3287,7 +3287,7 @@ askMissingObject(action, role, findBest = true)
      *   nound for the role we're asking about here, so tell the command which
      *   role we want to resolve for.
      */    
-    gCommand.npToResolve = role;
+    now.command.npToResolve = role;
     
     /* 
      *   Display the corresponding error message (which will be a request to
@@ -3318,32 +3318,32 @@ askChooseObject(action, role, msg)
      *   Store the current objects of the current action in the new action, in
      *   case action.scoreObjects() needs to refer to them below.
      */
-    action.curDobj = gDobj;
-    action.curIobj = gIobj;
-    action.curAobj = gAobj;
+    action.curDobj = now.dobj;
+    action.curIobj = now.iobj;
+    action.curAobj = now.aobj;
     
     /* Make action the current action for the current Command. */
-    gCommand.action = action;
-    gCommand.dobj = (role == DirectObject ? nil : gDobj);
-    gCommand.iobj = (role == IndirectObject ? nil : gIobj);
-    gCommand.acc = (role == AccessoryObject ? nil : gAobj);
+    now.command.action = action;
+    now.command.dobj = (role == DirectObject ? nil : now.dobj);
+    now.command.iobj = (role == IndirectObject ? nil : now.iobj);
+    now.command.acc = (role == AccessoryObject ? nil : now.aobj);
     
     if(role == DirectObject)
     {
-        gCommand.dobjNPs = [];
-        gCommand.dobjs = new Vector();        
+        now.command.dobjNPs = [];
+        now.command.dobjs = new Vector();        
     }
     
     if(role == IndirectObject)
     {
-        gCommand.iobjNPs = [];
-        gCommand.iobjs = new Vector();        
+        now.command.iobjNPs = [];
+        now.command.iobjs = new Vector();        
     }
     
     if(role == AccessoryObject)
     {
-        gCommand.accNPs = [];
-        gCommand.accs = new Vector();        
+        now.command.accNPs = [];
+        now.command.accs = new Vector();        
     }
     
     /* 
@@ -3351,15 +3351,15 @@ askChooseObject(action, role, msg)
      *   do this because otherwise the Command object will overwrite our new
      *   action with its original one before we're done.
      */
-    gCommand.originalAction = action;
+    now.command.originalAction = action;
   
     /* 
      *   Slot the new action's verbRule into the Command's verbProd, so that the
      *   Command has a verbProd appropriate to the action.
      */
-    gCommand.verbProd = action.verbRule;
+    now.command.verbProd = action.verbRule;
     
-    local err = new EmptyNounError(gCommand, role);
+    local err = new EmptyNounError(now.command, role);
     
     say(msg);
     

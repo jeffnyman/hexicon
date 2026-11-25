@@ -175,7 +175,7 @@ modify MenuItem
             }
 
             /* show the main prompt */
-            gLibMessages.textMenuMainPrompt(topMenu.keyList);
+            libGlobal.libMessageObj.textMenuMainPrompt(topMenu.keyList);
 
             /* main input loop */
             do
@@ -525,7 +525,7 @@ modify MenuItem
         say(heading);
 
         /* show our keyboard assignments */
-        gLibMessages.menuInstructions(topMenu.keyList, prevMenuLink);
+        libGlobal.libMessageObj.menuInstructions(topMenu.keyList, prevMenuLink);
         
         /* finish up according to our mode */
         switch (statusLine.statusDispMode)
@@ -619,7 +619,7 @@ modify MenuTopicItem
 
         /* show our heading and instructions */
         "\n<b><<heading>></b>";
-        gLibMessages.textMenuTopicPrompt();
+        libGlobal.libMessageObj.textMenuTopicPrompt();
 
         /* 
          *   Show all of the items up to and including the last one we
@@ -901,7 +901,7 @@ modify MenuTopicItem
         say(typeOf(item) == TypeString ? item : item.getItemText());
 
         /* add the [n/m] indicator */
-        gLibMessages.menuTopicProgress(idx, menuContents.length());
+        libGlobal.libMessageObj.menuTopicProgress(idx, menuContents.length());
 
         /* 
          *   if this is the last item we're going to display before asking
@@ -1090,7 +1090,7 @@ modify MenuLongTopicItem
         if (nxt != nil)
         {
             /* show the navigation */
-            gLibMessages.menuNextChapter(topMenu.keyList, nxt.title,
+            libGlobal.libMessageObj.menuNextChapter(topMenu.keyList, nxt.title,
                                          'next', 'menu');
         }
         else

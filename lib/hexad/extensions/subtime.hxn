@@ -141,7 +141,7 @@ clockManager: PreinitObject
         curTime = curTime.addInterval([0, 0, 0, 0, mm]);
 
         /* the current turn is now the last commit point */
-        turnLastCommitted = gTurns;
+        turnLastCommitted = now.turns;
         
         /* 
          *   If the timeManager exists and its time is earlier than the time we
@@ -363,7 +363,7 @@ clockManager: PreinitObject
          *   we're committing to an exact wall-clock time, so remember the
          *   current turn counter as the last commit point 
          */
-        turnLastCommitted = gTurns;
+        turnLastCommitted = now.turns;
         
         /*   Note that the event has been reached */
         evt.hasBeenReached = true;

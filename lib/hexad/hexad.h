@@ -266,104 +266,13 @@ enum rmcDisambig;
 #define STRINGIZE(x)  _STRINGIZE(x)
 
 
-
-
 /* ------------------------------------------------------------------------ */
 /*
- *   Parser global variables giving information on the command currently
- *   being performed.  These are valid through doAction processing.  These
- *   should never be changed except by the parser.
+ *   The command being performed: its actor, its action and objects, the
+ *   player character, and the rest of the current turn's values are
+ *   properties of the object now, in misc.hxn (now.actor, now.dobj,
+ *   now.player).
  */
-
-/* the actor performing the current command */
-#define gActor (libGlobal.curActor)
-
-/*
- *   For convenience, define some macros that return the current direct and
- *   indirect objects from the current action.  The library only uses direct
- *   and indirect objects, so games that define additional command objects
- *   will have to add their own similar macros for those.  
- */
-#define gDobj (gAction.curDobj)
-#define gIobj (gAction.curIobj)
-#define gLiteral (gAction.literal)
-#define gNumber (gAction.num)
-
-
-/* the Action object of the command being executed */
-#define gAction (libGlobal.curAction)
-#define gCommand (libGlobal.curCommand)
-
-#define gTentativeDobj (gCommand.dobjs.mapAll({x: x.obj}).toList)
-#define gTentativeIobj (gCommand.iobjs.mapAll({x: x.obj}).toList)
-
-/* 
- *   the probable Action objects of the command being executed for use in verify routines when
- *   resolution of both objects may not be complete. If the gDobj or gIobj is non-nil, use that,
- *   otherwise use the first object in the tentative resolution list if the list has any items,
- *   otherwisse evaluate to failVerifyObj.
- */
-#define gVerifyDobj (gDobj ?? (gTentativeDobj.length > 0 ? gTentativeDobj[1] : failVerifyObj))
-#define gVerifyIobj (gIobj ?? (gTentativeIobj.length > 0 ? gTentativeIobj[1] : failVerifyObj))
-
-/* 
- *   An alternative way of dealing with the potential object not yet resolved problem, by testing
- *   whether any of the objects in lst are in the Tentative Object List.
- */
-#define gTentativeDobjIn(lst)  (gTentativeDobj.overlapsWith(lst))
-#define gTentativeIobjIn(lst)  (gTentativeIobj.overlapsWith(lst))
-
-/* The previous action and command */
-#define gLastAction (libGlobal.lastAction)
-#define gLastCommand (libGlobal.lastCommand)
-
-/*
- *   Determine if the current global action is the specified action.  Only
- *   the action prefix is needed - so use "Take" rather than "TakeAction"
- *   here.
- *   
- *   This tests to see if the current global action is an instance of the
- *   given action class - we test that it's an instance rather than the
- *   action class itself because the parser creates an instance of the
- *   action when it matches the action's syntax.  
- */
-#define gActionIs(action) \
-    (gAction != nil && gAction.ofKind(action))
-
-/* is the current global action ANY of the specified actions? */
-#define gActionIn(action...) \
-    (gAction != nil \
-     && (action#foreach/gAction.ofKind(action)/||/))
-
-/* is the current action a Travel action going dirn */
-#define gTravelActionIs(dirn) \
-  (gAction != nil && gAction.ofKind(Travel) && gAction.direction == dirn ## Dir)
-
-/* the list of objects involved in the action just completed */
-#define gActionList (nilToList(gCommand.action.actionList))
-
-/* a displaying string version of the above */
-#define gActionListStr makeListStr(gCommand.action.reportList, &theName)
-
-/* 
- *   an object that is singular or plural according to whether gActionList
- *   represents a single object of a plurality of objects, and which picks
- *   up the correct gender if there is only a single object.
- */
-
-#define gActionListObj (object: Thing \
-             { \
-                 plural = (gAction.reportList.length > 1 || \
-                           gAction.reportList[1].plural); \
-                 isIt = (gAction.reportList.length == 1 ? \
-                    gAction.reportList[1].isIt : nil);\
-                 isHim = (gAction.reportList.length == 1 ? \
-                    gAction.reportList[1].isHim : nil);\
-                 isHer = (gAction.reportList.length == 1 ? \
-                    gAction.reportList[1].isHer : nil);\
-                 name = gActionListStr; \
-                 qualified = true; \
-             } )
 
 
 /* ------------------------------------------------------------------------ */
@@ -371,34 +280,13 @@ enum rmcDisambig;
  *   Miscellaneous macros
  */
 
-/* get the current player character Actor object */
-#define gPlayerChar (libGlobal.playerChar)
-
-/* get the player character's location */
-#define gLocation (getPlayerChar().location)
-
-/* get the current turn count */
-#define gTurns (libGlobal.totalTurns)
-
-/* 
- *   get the player character's current room (which may or may not be the same
- *   as his/her location)
- */
-#define gRoom (getPlayerChar().getOutermostRoom)
-
-/* Get the current actor's curren room (which may not be the same as its location) */
-#define gActorRoom (gActor.getOutermostRoom)
-
 #define objFor(which, action) propertyset '*' ## #@which ## #@action
 
 #define dobjFor(action) objFor(Dobj, action)
 #define iobjFor(action) objFor(Iobj, action)
-#define gTopic (gAction.curTopic)
-#define gTopicText (gTopic.getTopicText)
-#define gTopicMatch (gTopic.getBestMatch)
 
-#define reportAfter(msg) gCommand.afterReports += msg
-#define reportPostImplicit(msg) gCommand.postImplicitReports += msg
+#define reportAfter(msg) now.command.afterReports += msg
+#define reportPostImplicit(msg) now.command.postImplicitReports += msg
 
 /* 
  *   Defined for the sake of authors who may be more used to using
@@ -409,7 +297,6 @@ enum rmcDisambig;
 #define sLoc(which) subLocation = &remap##which
 
 #define UsePronoun 1
-
 
 
 /*
@@ -507,8 +394,6 @@ enum rmcDisambig;
 
 #define goInstead(dirn) doInstead(Go, dirn##Dir)
 #define goNested(dirn) doNested(Go, dirn##Dir)
-
-
 
 
 #define asExit(dir) : UnlistedProxyConnector { direction = dir##Dir }
@@ -747,8 +632,6 @@ enum rmcDisambig;
 #define asAobjFor(action) asObjFor(Aobj, action)
 #define accFor(action) objFor(Aobj, action)
 #define asAccFor(action) asObjFor(Aobj, action)
-#define gAobj gAction.curAobj
-#define gAcc gAction.curAobj
 
 
 /* 
@@ -756,15 +639,14 @@ enum rmcDisambig;
  *   results
  */
 
-#define gVerifyList gAction.verifyList
 
-#define logical gAction.addVerifyResult (new VerifyResult(100, '', true, verobj))
+#define logical now.action.addVerifyResult (new VerifyResult(100, '', true, verobj))
     
 #define illogical(msg) \
-    gAction.addVerifyResult(new VerifyResult(30, msg, nil, verobj))
+    now.action.addVerifyResult(new VerifyResult(30, msg, nil, verobj))
 
 #define illogicalNow(msg) \
-    gAction.addVerifyResult(new VerifyResult(40, msg, nil, verobj))
+    now.action.addVerifyResult(new VerifyResult(40, msg, nil, verobj))
 
 
 /* 
@@ -775,25 +657,25 @@ enum rmcDisambig;
  *   out an action. We now give it a slightly higher logical rank than illogicalNow().
  */
 #define illogicalAlready(msg) \
-    gAction.addVerifyResult(new VerifyResult(45, msg, nil, verobj))
+    now.action.addVerifyResult(new VerifyResult(45, msg, nil, verobj))
 
 #define illogicalSelf(msg) \
-    gAction.addVerifyResult(new VerifyResult(20, msg, nil, verobj))
+    now.action.addVerifyResult(new VerifyResult(20, msg, nil, verobj))
 
 #define logicalRank(score) \
-    gAction.addVerifyResult(new VerifyResult(score, '', true, verobj))
+    now.action.addVerifyResult(new VerifyResult(score, '', true, verobj))
 
 #define inaccessible(msg) \
-    gAction.addVerifyResult(new VerifyResult(10, msg, nil, verobj))
+    now.action.addVerifyResult(new VerifyResult(10, msg, nil, verobj))
 
 #define implausible(msg) \
-    gAction.addVerifyResult(new VerifyResult(35, msg, nil, verobj))
+    now.action.addVerifyResult(new VerifyResult(35, msg, nil, verobj))
 
 #define nonObvious \
-    gAction.addVerifyResult(new VerifyResult(30, '', true, verobj, nil))
+    now.action.addVerifyResult(new VerifyResult(30, '', true, verobj, nil))
 
 #define dangerous \
-    gAction.addVerifyResult(new VerifyResult(90, '', true, verobj, nil))
+    now.action.addVerifyResult(new VerifyResult(90, '', true, verobj, nil))
 
 
 /* ------------------------------------------------------------------------ */
@@ -823,14 +705,12 @@ enum rmcDisambig;
 #define AHREF_Plain  0x0001    /* plain text hyperlink (no underline/color) */
 
 
-
 /* ------------------------------------------------------------------------ */
 /*
  *   An achievement defines its descriptive text.  It can also optionally
  *   define the number of points it awards.  
  */
 Achievement template +points? "desc";
-
 
 
 /* ------------------------------------------------------------------------ */
@@ -1003,7 +883,6 @@ Test template 'testName' [testList] [testHolding]? @location?;
 #define DefaultTopicReason 3
 
 
-
 /* ------------------------------------------------------------------------ */
 /*
  *   Command interruption signal macros.  
@@ -1026,9 +905,9 @@ enum masculine, feminine, neuter;
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The current library messages object.  This is the source object for
- *   messages that don't logically relate to the actor carrying out the
- *   comamand.  It's mostly used for meta-command replies, and for text
+ *   libGlobal.libMessageObj: the current library messages object.  This
+ *   is the source object for messages that don't logically relate to the
+ *   actor carrying out the comamand.  It's mostly used for meta-command replies, and for text
  *   fragments that are used to construct descriptions.
  *   
  *   This message object isn't generally used for parser messages or action
@@ -1043,26 +922,6 @@ enum masculine, feminine, neuter;
  *   libMessages' instead.  This variable is designed for cases where you
  *   want to *dynamically* change the standard messages during the game.)  
  */
-#define gLibMessages (libGlobal.libMessageObj)
-
-/* 
- *   the exit lister object - if the exits module isn't included in the
- *   game, this will be nil 
- */
-#define gExitLister (libGlobal.exitListerObj)
-
-/*
- *   the hint manager object - if the hints module isn't included in the
- *   game, this will be nil 
- */
-#define gHintManager (libGlobal.hintManagerObj)
-
-
-/*
- *   the extra hint manager object - if the hints module isn't included in the
- *   game, this will be nil 
- */
-#define gExtraHintManager (libGlobal.extraHintManagerObj)
 
 
 /* ------------------------------------------------------------------------ */
@@ -1142,7 +1001,6 @@ enum OtherObject;
 CustomMessages template [messages] +priority?;
 
 
-
 /* ------------------------------------------------------------------------ */
 /*
  *   showMsg() - default English library message cover macro.
@@ -1214,7 +1072,6 @@ CustomMessages template [messages] +priority?;
 # define IfDebug(key, code)
 #endif
 
-#define gOutStream (outputManager.curOutputStream)
 
 #ifdef __DEBUG
 #include <compiledcode.h>
@@ -1230,14 +1087,14 @@ CustomMessages template [messages] +priority?;
  *   parameters whose names exactly match their local variable names.  In
  *   other words, if you call this macro like this:
  *   
- *   gMessageParams(obj, cont)
+ *   messageParams(obj, cont)
  *   
  *   then you'll get one parameter with the text name 'obj' whose expansion
  *   will be the value of the local variable obj, and another with text name
  *   'cont' whose expansion is the value of the local variable cont.  
  */
-#define gMessageParams(var...) \
-    (gAction.setMessageParams(var#foreach/#@var, var/,/))
+#define messageParams(var...) \
+    (now.action.setMessageParams(var#foreach/#@var, var/,/))
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1283,8 +1140,6 @@ Scenery template @location? [scenList];
 /* template and macros for Facts module */
 Fact template 'name' [topics]? 'desc' [initiallyKnownBy]?;
 
-#define gFact(tag) (factManager.getFact(tag))
-#define gFactDesc(tag) (factManager.getFactDesc(tag))
 
 /* Convenient synonyms for two ActorTopicEntry properties used in conjunction with Facts. */
 #define rTag aTag
@@ -1342,7 +1197,6 @@ Fact template 'name' [topics]? 'desc' [initiallyKnownBy]?;
 #define isPushTravelable canPushTravel
 
 
-
 /*  
  *   Conversely, authors alive to the Latin root of edible might try the
  *   latinate isPotable instead of isDrinkable.
@@ -1364,24 +1218,7 @@ string template << the list of * >> makeTheListStr;
 string template << is list of * >> isListStr;
 string template << exclude * >> makeMentioned;
 
-/* ------------------------------------------------------------------------*/
-/*
- *   Some useful macros for command text.
- */
 
-/* Get the first word the player entered for the current command. */
-#define gVerbWord (gCommand == nil || gCommand.verbProd == nil ? '' \
-    : getTokVal(gCommand.verbProd.tokenList[1]))
-
-/* Get the command tokens for the current command. */
-#define gCommandToks (gCommand == nil || gCommand.verbProd == nil ? [] \
-    : gCommand.verbProd.tokenList.mapAll({t: getTokVal(t)}))
-
-/* Test for the presence of tok among the command tokens entered by the player. */
-#define gToksInclude(tok) gCommandToks.indexOf(tok)
-
-/* Get the command phrase for the current command. */
-#define gVerbPhrase (gCommand.getCommandPhrase())
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1453,34 +1290,14 @@ string template <<add * secs>> addTime;
  *   Conversation manager macros
  */
 
-/* has a topic key been revealed through <.reveal>? */
-#define gRevealed(key)  (libGlobal.getRevealed(key)) 
-
-/* reveal a topic key, as though through <.reveal> */
-#define gReveal(key, args...) (libGlobal.setRevealed(key, ## args))
-
-/* remove a topic key, as though through <.unreveal> */
-#define gUnreveal(key) (libGlobal.setUnrevealed(key))
-
-/* mark a Topic/Thing as known/seen by the player character */
-#define gSetKnown(obj) (gPlayerChar.setKnowsAbout(obj))
-#define gSetSeen(obj) (gPlayerChar.setHasSeen(obj))
 
 /* does the player character know about obj? */
-#define gKnown(obj) (gPlayerChar.knowsAbout(obj))
-#define pcKnows(obj) (gPlayerChar.knowsAbout(obj))
+#define pcKnows(obj) (now.player.knowsAbout(obj))
 
-/* has a topic key been revealed to an NPC through <.inform>? */
-#define gInformed(key) (getActor.informedAbout(key))
 
 /* is the topic key or object known to the NPC we're in conversaation with? */
 #define npcKnows(obj) (getActor.knowsAbout(obj))
 
-/* the last topic mentioned in the course of the current conversation */
-#define gLastTopic (libGlobal.lastTopicMentioned)
-
-/* the last fact mentioned in the course of the current conversation */
-#define gLastFact (libGlobal.lastFactMentioned)
 
 /* Associated knowledge enums */
 
@@ -1614,9 +1431,6 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
     name_ ## Mood: Mood \
     name = #@name_ 
 
-/* Is the actor whose agenda item, topic entry or whatever we're looking from in this stance? */
-#define gStance (getActor().stance)
-#define gStanceIs(st_) (getActor().stance == st_ ## Stance)
 
 /* What stance is this actor in? */
 #define aStance(actor) (actor.stance)
@@ -1625,17 +1439,9 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
 #define aStanceIs(actor, st_) (actor.stance == st_ ## Stance)
 
 /* Is actor in one of these stances? */
-#define gStanceIn(st_...) \
-    (gStance is in (st_#foreach: st_##Stance:, :))
 
 #define aStanceIn(actor, st_...) \
     (actor.stance is in (st_#foreach: st_##Stance:, ))
-
-/* What mood is getActor in? */
-#define gMood (getActor().mood)
-
-/* Is getActor in one of these moods? */
-#define gMoodIs(mood_) (getActor().mood == mood_ ## Mood)
 
 
 /* What mood is actor in? */
@@ -1644,20 +1450,15 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
 /* Is actor in this mood? */
 #define aMoodIs(actor, mood_) (actor.mood == mood_ ## Mood)
 
-/* Is getActor in one of these moods? */
-#define gMoodIn(mood_...) \
-    (gMood is in (mood_#foreach: mood_ ## Mood:, :))
 
 /* Is actor in one of these moods? */
 #define aMoodIn(actor, mood_...) \
     (actor.mood is in (mood_#foreach: mood_##Mood:, :))
 
 /* Set stances towards the player character */
-#define gSetStance(st_) (getActor.setStanceToward(gPlayerChar, st_ ## Stance))
-#define aSetStance(actor, st_) (actor.setStanceToward(gPlayerChar, st_ ## Stance))
+#define aSetStance(actor, st_) (actor.setStanceToward(now.player, st_ ## Stance))
 
 /* Set moods */
-#define gSetMood(mood_) (getActor.setMood(mood_ ## Mood))
 #define aSetMood(actor, mood_) (actor.setMood(mood_ ## Mood))
 
 #define Sta(a, b, c) [a, b ## Stance, c]

@@ -203,7 +203,7 @@ modify Room
         inherited(traveler, dest);
         
         /* then update the vocab on our destination's SymPassages */        
-        if(gPlayerChar.isOrIsIn(traveler))
+        if(now.player.isOrIsIn(traveler))
             dest.updateSymVocab();
     }
 ;
@@ -227,7 +227,7 @@ modify DirState
 symVocabPreinit: PreinitObject
     exec()
     {
-        gPlayerChar.getOutermostRoom.updateSymVocab();
+        now.player.getOutermostRoom.updateSymVocab();
     }
     
     /* 
@@ -496,7 +496,7 @@ noExit: TravelConnector
      */
     explainTravelBarrier(actor) 
     {
-        actor.getOutermostRoom.cannotGoThatWay(gAction.direction);
+        actor.getOutermostRoom.cannotGoThatWay(now.action.direction);
     }
 ;
 

@@ -95,7 +95,7 @@ class Lister: object
      */
     buildList(lst)
     {
-        local str = gOutStream.captureOutput({: show(lst, 0, nil) });
+        local str = now.outputStream.captureOutput({: show(lst, 0, nil) });
         
         return str;
     }
@@ -300,7 +300,7 @@ class ItemLister: Lister
      *   Flag, so we want to list contents of contents when using this lister;
      *   by default we do.
      */
-    listRecursively = (gActor == gPlayerChar)   
+    listRecursively = (now.actor == now.player)   
 ;
 
 
@@ -467,7 +467,7 @@ inventoryTallLister: ItemLister
      *   Flag, so we want to list contents of contents when using this lister;
      *   by default we do if the actor is the player character.
      */
-    listRecursively = (gActor == gPlayerChar)
+    listRecursively = (now.actor == now.player)
     
     showListPrefix(lst, pl, paraCnt)  { showMsg(list tall prefix, '\n{I} {am} carrying:\n '); }
     
@@ -697,7 +697,7 @@ class ListGroupSuffixPrefix: ListGroupSorted
     showList(lister, lst)
     {
         /* Display our group prefix. */
-        showGroupPrefix(gActor, lst); 
+        showGroupPrefix(now.actor, lst); 
         
         /* Sort out list */
         lst = sortList(lst);
@@ -712,7 +712,7 @@ class ListGroupSuffixPrefix: ListGroupSorted
         " ";
         
         /* Show the group suffix. */
-        showGroupSuffix(gActor, lst);
+        showGroupSuffix(now.actor, lst);
     }        
         
 ;

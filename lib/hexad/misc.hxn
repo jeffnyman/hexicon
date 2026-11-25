@@ -95,8 +95,8 @@ class GameMainDef: object
     newGame()
     {
         /*   Create an action context in case any startup code needs it */
-        gAction = Look.createInstance();
-        gActor = initialPlayerChar;
+        libGlobal.curAction = Look.createInstance();
+        libGlobal.curActor = initialPlayerChar;
 
         
         /* 
@@ -229,7 +229,7 @@ class GameMainDef: object
             t['UserDesc'] = userDesc;
 
         /* start our auto description with the current room name */
-        desc = gPlayerChar.outermostVisibleParent().roomTitle + '; ';
+        desc = now.player.outermostVisibleParent().roomTitle + '; ';
         
         /* if we're keeping score, include the score */
         if (libGlobal.scoreObj != nil)
@@ -454,7 +454,7 @@ hexadPreinit: PreinitObject
     {
 
         /* set the initial player character, as specified in gameMain */
-        gPlayerChar = gameMain.initialPlayerChar;
+        libGlobal.playerChar = gameMain.initialPlayerChar;
         
 
         
@@ -829,7 +829,7 @@ libGlobal: object
             revealedNameTab[tag] = arg;
         
         /* If we're in a conversation, update the last fact mentioned. */
-        if(gPlayerChar.currentInterlocutor)
+        if(now.player.currentInterlocutor)
             lastFactMentioned = tag;
         
         /* 
@@ -837,7 +837,7 @@ libGlobal: object
          *   update PC and NPC knowledge.
          */
         if(informOnReveal)
-            gPlayerChar.setInformed(tag, arg);
+            now.player.setInformed(tag, arg);
     }
     
     /* 
@@ -878,7 +878,7 @@ libGlobal: object
     {
         revealedNameTab.removeElement(tag);
         
-//        local tab = gPlayerChar.informedNameTab;
+//        local tab = now.player.informedNameTab;
 //        
 //        if(tab)
 //            tab.removeElement[tag];        
@@ -951,6 +951,177 @@ libGlobal: object
      *   the library and shouldn't normally be changed by game code.
      */
     altVocabLst = []   
+;
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   The current turn's values: the actor carrying out the command, the
+ *   action and its objects, the player character, and the rest, as
+ *   now.actor, now.dobj, now.player. They are valid while a command is
+ *   carried out. A game reads them; only the parser changes what they
+ *   stand for, which it keeps in libGlobal and in the current action.
+ */
+now: object
+    /* the actor performing the current command */
+    actor = (libGlobal.curActor)
+
+    /* the Action object of the command being executed, and the command */
+    action = (libGlobal.curAction)
+    command = (libGlobal.curCommand)
+
+    /*
+     *   The current action's direct, indirect, and accessory objects, and
+     *   the literal and the number it was given. A game that defines more
+     *   kinds of command object reads them from now.action.
+     */
+    dobj = (libGlobal.curAction.curDobj)
+    iobj = (libGlobal.curAction.curIobj)
+    aobj = (libGlobal.curAction.curAobj)
+    literal = (libGlobal.curAction.literal)
+    number = (libGlobal.curAction.num)
+
+    /* the objects the parser has tentatively matched to each role */
+    tentativeDobj = (libGlobal.curCommand.dobjs.mapAll({x: x.obj}).toList)
+    tentativeIobj = (libGlobal.curCommand.iobjs.mapAll({x: x.obj}).toList)
+
+    /*
+     *   The probable objects of the command, for verify routines, when
+     *   resolving both objects may not be complete: the object if there is
+     *   one, otherwise the first in the tentative list, otherwise
+     *   failVerifyObj.
+     */
+    verifyDobj = (dobj ?? (tentativeDobj.length > 0 ? tentativeDobj[1] : failVerifyObj))
+    verifyIobj = (iobj ?? (tentativeIobj.length > 0 ? tentativeIobj[1] : failVerifyObj))
+
+    /*
+     *   Another way of dealing with an object not yet resolved: is any of
+     *   the objects in lst in the tentative list?
+     */
+    tentativeDobjIn(lst) { return tentativeDobj.overlapsWith(lst); }
+    tentativeIobjIn(lst) { return tentativeIobj.overlapsWith(lst); }
+
+    /* the verify results of the current action */
+    verifyList = (libGlobal.curAction.verifyList)
+
+    /* the previous action and command */
+    lastAction = (libGlobal.lastAction)
+    lastCommand = (libGlobal.lastCommand)
+
+    /*
+     *   Is the current action the given one? Give the action as it is
+     *   declared: now.actionIs(Take). The parser makes an instance of the
+     *   action when it matches the action's words, so this asks whether
+     *   the current action is of that kind.
+     */
+    actionIs(cls)
+    {
+        local cur = libGlobal.curAction;
+        return cur != nil && cur.ofKind(cls);
+    }
+
+    /* is the current action any of the given ones? now.actionIn(Take, Drop) */
+    actionIn([classes])
+    {
+        local cur = libGlobal.curAction;
+        return cur != nil && classes.indexWhich({c: cur.ofKind(c)}) != nil;
+    }
+
+    /* is the current action travel in the direction dir? now.travelActionIs(northDir) */
+    travelActionIs(dir)
+    {
+        local cur = libGlobal.curAction;
+        return cur != nil && cur.ofKind(Travel) && cur.direction == dir;
+    }
+
+    /* the list of objects involved in the action just completed */
+    actionList = (nilToList(libGlobal.curCommand.action.actionList))
+
+    /* a string to display for the list */
+    actionListStr = (makeListStr(libGlobal.curCommand.action.reportList, &theName))
+
+    /*
+     *   An object that is singular or plural according to whether
+     *   actionList is one object or more, and that takes the object's
+     *   gender if there is only one.
+     */
+    actionListObj()
+    {
+        return object: Thing
+        {
+            plural = (now.action.reportList.length > 1 ||
+                      now.action.reportList[1].plural);
+            isIt = (now.action.reportList.length == 1 ?
+                    now.action.reportList[1].isIt : nil);
+            isHim = (now.action.reportList.length == 1 ?
+                     now.action.reportList[1].isHim : nil);
+            isHer = (now.action.reportList.length == 1 ?
+                     now.action.reportList[1].isHer : nil);
+            name = now.actionListStr;
+            qualified = true;
+        };
+    }
+
+    /* the player character */
+    player = (libGlobal.playerChar)
+
+    /* the player character's location */
+    location = (getPlayerChar().location)
+
+    /*
+     *   The player character's room, which may not be its location, and
+     *   the current actor's.
+     */
+    room = (getPlayerChar().getOutermostRoom)
+    actorRoom = (libGlobal.curActor.getOutermostRoom)
+
+    /* the number of turns so far */
+    turns = (libGlobal.totalTurns)
+
+    /* the current action's topic, its text, and its best match */
+    topic = (libGlobal.curAction.curTopic)
+    topicText = (topic.getTopicText)
+    topicMatch = (topic.getBestMatch)
+
+    /* the current output stream */
+    outputStream = (outputManager.curOutputStream)
+
+    /* the first word the player typed for the current command */
+    verbWord = (libGlobal.curCommand == nil || libGlobal.curCommand.verbProd == nil ? ''
+                : getTokVal(libGlobal.curCommand.verbProd.tokenList[1]))
+
+    /* the words of the current command */
+    commandTokens = (libGlobal.curCommand == nil || libGlobal.curCommand.verbProd == nil ? []
+                     : libGlobal.curCommand.verbProd.tokenList.mapAll({t: getTokVal(t)}))
+
+    /* where tok is among the words of the current command, or nil */
+    tokensInclude(tok) { return commandTokens.indexOf(tok); }
+
+    /* the phrase for the current command */
+    verbPhrase = (libGlobal.curCommand.getCommandPhrase())
+
+    /* has a topic key been revealed, through <.reveal>? */
+    revealed(key) { return libGlobal.getRevealed(key); }
+
+    /* reveal a topic key, as <.reveal> does */
+    reveal(key, [args]) { return libGlobal.setRevealed(key, args...); }
+
+    /* take a topic key back, as <.unreveal> does */
+    unreveal(key) { return libGlobal.setUnrevealed(key); }
+
+    /* mark a topic or thing as known to, or seen by, the player character */
+    setKnown(obj) { return libGlobal.playerChar.setKnowsAbout(obj); }
+    setSeen(obj) { return libGlobal.playerChar.setHasSeen(obj); }
+
+    /* does the player character know about obj? */
+    known(obj) { return libGlobal.playerChar.knowsAbout(obj); }
+
+    /* the last topic, and the last fact, mentioned in the current conversation */
+    lastTopic = (libGlobal.lastTopicMentioned)
+    lastFact = (libGlobal.lastFactMentioned)
+
+    /* the fact with the tag, and its description */
+    fact(tag) { return factManager.getFact(tag); }
+    factDesc(tag) { return factManager.getFactDesc(tag); }
 ;
 
 
@@ -1037,7 +1208,7 @@ finishGameMsg(msg, extra)
 
         /* if it's a library message property, look it up */
         if (typeOf(msg) == TypeProp)
-            msg = gLibMessages.(msg);
+            msg = libGlobal.libMessageObj.(msg);
     }
 
     /* if we have a message, display it */
@@ -1052,7 +1223,7 @@ finishGameMsg(msg, extra)
         libGlobal.scoreObj.showScore();
         "<.p>";
     }
-    gActor = gPlayerChar;
+    libGlobal.curActor = now.player;
 
     /* start with the standard options */
     lst = [finishOptionRestore, finishOptionRestart];
@@ -1329,7 +1500,7 @@ finishOptionUndo: FinishOption
         {
             
             
-            gPlayerChar.outermostVisibleParent().lookAroundWithin();
+            now.player.outermostVisibleParent().lookAroundWithin();
             
             
             /* 
@@ -1689,16 +1860,16 @@ findMatchingTopic(voc, cls = Topic)
 setPlayer(actor, person = 2)
 {    
     /* Note the old player character */
-    local other = gPlayerChar;
+    local other = now.player;
     
     /* Note the name of the actor the pc is about to become */
     local newName = actor.theName;
     
     /* Change the player character to actor */
-    gPlayerChar = actor;
+    libGlobal.playerChar = actor;
     
     /* Change the player character person to person. */
-    gPlayerChar.person = person;
+    now.player.person = person;
     
     /* Change the person of the previous player character to 3 */
     other.person = 3;
@@ -1708,7 +1879,7 @@ setPlayer(actor, person = 2)
      *   they can be reinitialized.
      */
     other.name = nil;
-    gPlayerChar.name = nil;
+    now.player.name = nil;
     
     /*   
      *   Reinitialize the names of both actors, so that the player character can
@@ -1716,14 +1887,14 @@ setPlayer(actor, person = 2)
      *   his/her third-person name.
      */
     other.initVocab();
-    gPlayerChar.initVocab();
+    now.player.initVocab();
     
     /*   Note the name (e.g. 'Bob' or 'Mary') of the new player character */
     libGlobal.playerCharName = newName;
     
     /*   Make the current actor the new player character */
-    gActor = gPlayerChar;
-    gCommand.actor = gPlayerChar;
+    libGlobal.curActor = now.player;
+    now.command.actor = now.player;
     
     
     /* 
@@ -1869,7 +2040,7 @@ modify Object
          *   If attempting to display the prop property results in some output,
          *   return true to inform our caller of the fact.
          */
-        if(gOutStream.watchForOutput({: display(prop) }))
+        if(now.outputStream.watchForOutput({: display(prop) }))
             return true;
         
         
@@ -2791,7 +2962,7 @@ objOfKind(obj, cls) { return dataTypeXlat(obj) == TypeObject && obj.ofKind(cls);
 getPlayerChar()
 {
     /* 
-     *   If gPleyarChar is not nil, return gPlayerChar, otherwise if gameMain.initialPlayerChar is
+     *   If gPleyarChar is not nil, return now.player, otherwise if gameMain.initialPlayerChar is
      *   not nil, return gameMain.initialPlayerChar, otherwise call the findPlayerChar() function
      *   and return whatever that comes up with.
      */    
@@ -2802,9 +2973,9 @@ getPlayerChar()
  *   The findPlayerChar() function is intended for internal library use only, to be called by
  *   getPlayerChar() nothing else has yet defined the player character. The findPlayerChar()
  *   function first iterates through every Thing defined in the game until it finds one that defines
- *   isInitialPlayChar =  true. If it finds one it sets gPlayerChar to this value and returns the
+ *   isInitialPlayChar =  true. If it finds one it sets now.player to this value and returns the
  *   player char object. Otherwise it creaates a new Player object, moves it into the first room it
- *   finds, sets gPlayerChar to the new Player object, issues a warning to the game author that no
+ *   finds, sets now.player to the new Player object, issues a warning to the game author that no
  *   player char object has been explicitly defined in game code, and returns the new Player object.
  *   This enaures that the calling function, getPlsyerChar(), will always be able to return a
  *   non-nil object.
@@ -2824,7 +2995,7 @@ findPlayerChar()
                 gameMain.initialPlayerChar = obj;
                 
                 /* Set the player char to the objec we've found. */
-//                gPlayerChar = obj;
+//                libGlobal.playerChar = obj;
                 
                 /* Return our player char object. */
                 return obj;
@@ -2845,8 +3016,8 @@ findPlayerChar()
     /* Move our new player character into that room */
     pc.moveInto(loc);
     
-    /* Set gPlayerChar to our new player character. */
-//    gPlayerChar = pc;
+    /* Set now.player to our new player character. */
+//    libGlobal.playerChar = pc;
     
 #ifdef __DEBUG 
     say('<.p><FONT COLOR=RED><b>WARNING!</b></FONT> No Player Character Defined.<.p>
@@ -3121,8 +3292,8 @@ transient displayProbe: object
 
 
 /*  
- *   The failVerifyObj is intended for internal library use only as a fallback value for gVerifyIobj
- *   or gVerifyDobj when these might otherwise evailuate to nil and potentially cause nil object
+ *   The failVerifyObj is intended for internal library use only as a fallback value for now.verifyIobj
+ *   or now.verifyDobj when these might otherwise evailuate to nil and potentially cause nil object
  *   reference runtime errors. Since this is never intended to be a valid verify result,
  *   failVerifyObj is designed to fail the verify stage of any action.
  */

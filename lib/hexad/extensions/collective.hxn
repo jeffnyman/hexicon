@@ -259,11 +259,11 @@ class DispensingCollective: Collective
              *   Check that the actor has room to hold obj, and stop the action
              *   if not.
              */
-            if(gOutStream.watchForOutput({: obj.checkRoomToHold() }))
+            if(now.outputStream.watchForOutput({: obj.checkRoomToHold() }))
                 exit;
             
             /*  Move the object into the actor's inventory. */
-            obj.actionMoveInto(gActor);           
+            obj.actionMoveInto(now.actor);           
             
             
             /*  
@@ -382,14 +382,14 @@ class DispensingCollective: Collective
     {
         verify()
         {
-            if(dispensedObjs && gTentativeDobj.overlapsWith(dispensedObjs))
+            if(dispensedObjs && now.tentativeDobj.overlapsWith(dispensedObjs))
                 logical;
             
-            else if(dispensedClass && gTentativeDobj.indexWhich({o:
+            else if(dispensedClass && now.tentativeDobj.indexWhich({o:
                 o.ofKind(dispensedClass) } ))
                 logical;
             
-            else if(gTentativeDobj.indexOf(self))
+            else if(now.tentativeDobj.indexOf(self))
                 logicalRank(120);    
             
             else
@@ -406,7 +406,7 @@ class DispensingCollective: Collective
     {
         verify()
         {
-            if(gIobj == self)
+            if(now.iobj == self)
                 logicalRank(120);
             else
                 inherited;

@@ -337,7 +337,7 @@ class MenuItem: MenuObject
      *   parent; if we have no parent, we use the standard keys from the
      *   library messages.
      */
-    keyList = (location != nil ? location.keyList : gLibMessages.menuKeyList)
+    keyList = (location != nil ? location.keyList : libGlobal.libMessageObj.menuKeyList)
 
     /* 
      *   the current key list - we'll set this on entry to the start of
@@ -353,7 +353,7 @@ class MenuItem: MenuObject
      *   a link at all.  Note that this can contain an HTML fragment; for
      *   example, you could use an <IMG> tag to display an icon here.  
      */
-    prevMenuLink = (location != nil ? gLibMessages.prevMenuLink : nil)
+    prevMenuLink = (location != nil ? libGlobal.libMessageObj.prevMenuLink : nil)
 
     /* 
      *   Update our contents.  By default, we'll do nothing; subclasses
@@ -419,7 +419,7 @@ class MenuTopicItem: MenuItem
     heading = (title)
 
     /* hyperlink text for showing the next menu */
-    nextMenuTopicLink = (gLibMessages.nextMenuTopicLink)
+    nextMenuTopicLink = (libGlobal.libMessageObj.nextMenuTopicLink)
 
     /* 
      *   A list of strings and/or MenuTopicSubItem items.  Each one of
@@ -440,7 +440,7 @@ class MenuTopicItem: MenuItem
     chunkSize = 6
 
     /* we'll display this after we've shown all of our items */
-    menuTopicListEnd = (gLibMessages.menuTopicListEnd)
+    menuTopicListEnd = (libGlobal.libMessageObj.menuTopicListEnd)
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -483,5 +483,5 @@ class MenuLongTopicItem: MenuItem
     isChapterMenu = nil
 
     /* the message we display at the end of our text */
-    menuLongTopicEnd = (gLibMessages.menuLongTopicEnd)
+    menuLongTopicEnd = (libGlobal.libMessageObj.menuLongTopicEnd)
 ;

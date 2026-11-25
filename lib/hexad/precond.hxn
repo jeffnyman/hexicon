@@ -116,7 +116,7 @@ containerOpen: PreCondition
          *   If we reach here obj is closed and we weren't allowed to try to
          *   open it; display a message explaining the problem.
          */
-        gMessageParams(obj);
+        messageParams(obj);
         showMsg(container needs to be open, '{The subj obj} need{s/ed} to be open
             for that. ');
         
@@ -147,7 +147,7 @@ containerInteriorVisible: containerOpen
          *   If the object is transparent or the actor is inside it, thie preconidition is met, so
          *   we return true.
          */
-        if(obj.isTransparent || gActor.isIn(obj))
+        if(obj.isTransparent || now.actor.isIn(obj))
             return true;
         
         /* Otherwse use the containerOpen handling. */
@@ -174,7 +174,7 @@ containerInteriorAccessible: containerOpen
          *   If the actor is inside us, thie preconidition is met, so
          *   we return true.
          */
-        if(gActor.isIn(obj))
+        if(now.actor.isIn(obj))
             return true;
         
         /* Otherwse use the containerOpen handling. */
@@ -237,7 +237,7 @@ objOpen: PreCondition
          *   If we reach here obj is closed and we weren't allowed to try to
          *   open it; display a message explaining the problem.
          */
-        gMessageParams(obj);
+        messageParams(obj);
         showMsg(object needs to be open, '{The subj obj} need{s/ed} to be open for
             that. ');
         
@@ -306,7 +306,7 @@ objClosed: PreCondition
          *   If we reach here obj is open and we weren't allowed to try to
          *   close it; display a message explaining the problem.
          */
-        gMessageParams(obj);        
+        messageParams(obj);        
         showMsg(obj needs to be closed, '{The subj obj} need{s/ed} to be closed for
             that. ');
         
@@ -430,7 +430,7 @@ objHeld: PreCondition
          *   no point in trying. BUT we also have to check for the case that the
          *   object is directly in the player (perhaps because a body part).
          */        
-        if(obj.isFixed && !obj.isDirectlyIn(gActor))
+        if(obj.isFixed && !obj.isDirectlyIn(now.actor))
             illogical(obj.cannotTakeMsg);
         
         
@@ -438,7 +438,7 @@ objHeld: PreCondition
          *   If the actor isn't carrying the object it's slightly less likely to
          *   be the one the player means.
          */        
-        if(!obj.isIn(gActor))
+        if(!obj.isIn(now.actor))
             logicalRank(90);
         
     }
@@ -448,7 +448,7 @@ objHeld: PreCondition
         /* 
          *   if the object is already held, we're already done.
          */
-        if (obj == nil || obj.isDirectlyIn(gActor))
+        if (obj == nil || obj.isDirectlyIn(now.actor))
             return true;
         
         
@@ -468,7 +468,7 @@ objHeld: PreCondition
              *   If obj is now held by the actor return true to signal that this
              *   precondition has now been met.
              */
-            if(obj.isDirectlyIn(gActor))
+            if(obj.isDirectlyIn(now.actor))
               return true;   
             
             /* 
@@ -487,7 +487,7 @@ objHeld: PreCondition
          *   allowed to try to take it; display a message explaining the
          *   problem.
          */
-        gMessageParams(obj);
+        messageParams(obj);
         showMsg(need to hold, '{I} need{s/ed} to be holding {the obj} to do that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -502,7 +502,7 @@ objNotWorn: PreCondition
         /* 
          *   if the object is not being worn, we're already done.
          */
-        if (obj == nil || obj.wornBy != gActor)
+        if (obj == nil || obj.wornBy != now.actor)
             return true;
         
         /* 
@@ -540,7 +540,7 @@ objNotWorn: PreCondition
          *   If we reach here obj is still being worn and we weren't allowed to
          *   try to take it off; display a message explaining the problem.
          */
-        gMessageParams(obj);
+        messageParams(obj);
         showMsg(cannot do that while wearing, '{I} {can\'t} do that while
             {he actor}{\'m} wearing {the obj}. ');
         
@@ -555,11 +555,11 @@ objVisible: PreCondition
     verifyPreCondition(obj)
     {
         /* If it's too dark to see then we can't examine the object */        
-        if(!(gActor.outermostVisibleParent().isIlluminated || obj.visibleInDark))
+        if(!(now.actor.outermostVisibleParent().isIlluminated || obj.visibleInDark))
             inaccessible(obj.tooDarkToSeeMsg);
         
         /* If the actor can't see the obj then we can't examine the object. */
-        if(!Q.canSee(gActor, obj))
+        if(!Q.canSee(now.actor, obj))
             inaccessible(msgText(cannot see obj, '{I} {can\'t} see {1}. ',
                          obj.theName));
     }   
@@ -573,17 +573,17 @@ objAudible: PreCondition
         *   Construct a list of objects that are blocking the sound path between
         *   the actor and obj.
         */
-        local lst = Q.soundBlocker(gActor, obj);
+        local lst = Q.soundBlocker(now.actor, obj);
         
         /* 
          *   If the actor cannot hear obj and there's at least one object
          *   blocking the sound path between them, construct an appropriate
          *   error message and block the action.
          */      
-        if(!Q.canHear(gActor, obj) && lst.length > 0)
+        if(!Q.canHear(now.actor, obj) && lst.length > 0)
         {            
             local errMsg;
-            gMessageParams(obj);
+            messageParams(obj);
          
             /* 
              *   If the blocking object is a Room, then obj is in a remote
@@ -616,17 +616,17 @@ objSmellable: PreCondition
         *   Construct a list of objects that are blocking the scent path between
         *   the actor and obj.
         */
-        local lst = Q.scentBlocker(gActor, obj);
+        local lst = Q.scentBlocker(now.actor, obj);
         
         /* 
          *   If the actor cannot hear obj and there's at least one object
          *   blocking the sound path between them, construct an appropriate
          *   error message and block the action.
          */      
-        if(!Q.canSmell(gActor, obj) && lst.length > 0)
+        if(!Q.canSmell(now.actor, obj) && lst.length > 0)
         {            
             local errMsg;
-            gMessageParams(obj);
+            messageParams(obj);
          
             /* 
              *   If the blocking object is a Room, then obj is in a remote
@@ -661,9 +661,9 @@ touchObj: PreCondition
     {
         /* 
          *   Store any issues that the Query object finds with reaching obj from
-         *   gActor
+         *   now.actor
          */
-        local reachIssues = Q.reachProblemVerify(gActor, obj);
+        local reachIssues = Q.reachProblemVerify(now.actor, obj);
         
         /*  Run the verify method of any issues we found */
         foreach(local issue in reachIssues)        
@@ -676,10 +676,10 @@ touchObj: PreCondition
     {
         /* 
          *   Obtain any issues the Query object finds with reaching obj from
-         *   gActor at the check stage.
+         *   now.actor at the check stage.
          */
         
-        local reachIssues = Q.reachProblemCheck(gActor, obj);
+        local reachIssues = Q.reachProblemCheck(now.actor, obj);
         
         /* 
          *   Go through each stored issue in turn running its check method; if
@@ -765,7 +765,7 @@ objDetached: PreCondition
          *   problem.
          */
         local att = obj.attachedTo;
-        gMessageParams(obj, att);
+        messageParams(obj, att);
         
         showMsg(cannot do that while attached, '{I} {can\'t} do that while {the subj
             obj} is attached to {the att}. ');
@@ -820,7 +820,7 @@ class ObjectPreCondition: PreCondition
 actorInStagingLocation: PreCondition
     checkPreCondition(obj, allowImplicit)
     {
-        local loc = gActor.location;
+        local loc = now.actor.location;
         local stagingLoc = obj.stagingLocation;
         local action;
         
@@ -830,7 +830,7 @@ actorInStagingLocation: PreCondition
         
         if(stagingLoc == nil)
         {
-            gMessageParams(obj);
+            messageParams(obj);
             showMsg(no staging loc, '{The subj obj} {can\'t} be reached. ');
             return nil;
         }
@@ -843,10 +843,10 @@ actorInStagingLocation: PreCondition
             {
                 action = loc.contType == In ? GetOutOf : GetOff;
                 tried = tryImplicitAction(action, loc);
-                if(gActor.location == loc)
+                if(now.actor.location == loc)
                     break;
                 
-                loc = gActor.location;
+                loc = now.actor.location;
             }
                                   
             if(stagingLoc == loc)
@@ -865,11 +865,11 @@ actorInStagingLocation: PreCondition
             {
                 action = step.contType == In ? Enter : Board;
                 tried = tryImplicitAction(action, step);                
-                if(gActor.location != step)
+                if(now.actor.location != step)
                     break;
             }
             
-            if(stagingLoc == gActor.location)
+            if(stagingLoc == now.actor.location)
                 return true;
             
             if(tried)
@@ -878,7 +878,7 @@ actorInStagingLocation: PreCondition
             
         }
         
-        gMessageParams(stagingLoc);
+        messageParams(stagingLoc);
         
         showMsg(not in staging location, '{I} need{s/ed} to be <<if
               stagingLoc.ofKind(Room)>> directly <<end>>
@@ -897,7 +897,7 @@ actorInStagingLocation: PreCondition
 actorOutOfNested: PreCondition
     checkPreCondition(obj, allowImplicit)
     {
-        local loc = gActor.location;
+        local loc = now.actor.location;
         local action;
         
         /* 
@@ -913,10 +913,10 @@ actorOutOfNested: PreCondition
             {
                 action = loc.contType == In ? GetOutOf : GetOff;
                 tried = tryImplicitAction(action, loc);
-                if(gActor.location == loc)
+                if(now.actor.location == loc)
                     break;
                 
-                loc = gActor.location;                
+                loc = now.actor.location;                
             }
             
             /* If the actor is now in a Room, we've succeeded. */
@@ -931,7 +931,7 @@ actorOutOfNested: PreCondition
                 return nil;            
         }
         
-        gMessageParams(loc);
+        messageParams(loc);
         showMsg(still in nested, '{I} {can\'t} do that while {he actor} {is} 
             {in loc}. ');
         return nil;
@@ -947,7 +947,7 @@ actorOutOfSubNested: PreCondition
     checkPreCondition(obj, allowImplicit)
     {
         /* First stache the actor's current location. */
-        local loc = gActor.location;
+        local loc = now.actor.location;
         
         /* 
          *   If we're allowed to perform an implicit action, then try moving the actor out of any
@@ -968,11 +968,11 @@ actorOutOfSubNested: PreCondition
                     return nil;
                 
                 /* If the actor hasn't moved, break out of the loop. */
-                if(gActor.location == loc)
+                if(now.actor.location == loc)
                     break;
                 
                 /* Note the actor's new location. */
-                loc = gActor.location;                
+                loc = now.actor.location;                
             }          
         }
         
@@ -1006,10 +1006,10 @@ travelPermitted: PreCondition
     checkPreCondition(obj, allowImplicit) 
     { 
       
-        obj.beforeTravelNotifications(gActor);
+        obj.beforeTravelNotifications(now.actor);
         
-        if(gAction.isPushTravelAction)        
-            obj.beforeTravelNotifications(gDobj);
+        if(now.action.isPushTravelAction)        
+            obj.beforeTravelNotifications(now.dobj);
         
         return true;
     }
@@ -1032,14 +1032,14 @@ objCarried: PreCondition
          *   no point in trying. BUT we also have to check for the case that the
          *   object is directly in the player (perhaps because a body part).
          */        
-        if(obj.isFixed && !obj.isDirectlyIn(gActor))
+        if(obj.isFixed && !obj.isDirectlyIn(now.actor))
             illogical(obj.cannotTakeMsg);
         
         
         /* 
          *   If the actor isn't carrying the object it's not in the actor's inventory,
          */        
-        else if(!obj.isIn(gActor))
+        else if(!obj.isIn(now.actor))
             illogicalNow(obj.notHoldingMsg);
         
         /*
@@ -1047,7 +1047,7 @@ objCarried: PreCondition
          *   objects to be dropoped from it, then it doesn't count as being in the actor's inventory
          *   for the purpose of dropping.
          */
-        else if(obj.location != gActor && !obj.location.canDropContents)
+        else if(obj.location != now.actor && !obj.location.canDropContents)
             illogicalNow(obj.notHoldingMsg);
         
         
@@ -1065,7 +1065,7 @@ objCarried: PreCondition
         /* 
          *   if the object is already held, we're already done.
          */
-        if (obj == nil || obj.isDirectlyIn(gActor))
+        if (obj == nil || obj.isDirectlyIn(now.actor))
             return true;
         
         
@@ -1085,7 +1085,7 @@ objCarried: PreCondition
              *   If obj is now held by the actor return true to signal that this
              *   precondition has now been met.
              */
-            if(obj.isDirectlyIn(gActor))
+            if(obj.isDirectlyIn(now.actor))
               return true;   
             
             /* 
@@ -1104,7 +1104,7 @@ objCarried: PreCondition
          *   allowed to try to take it; display a message explaining the
          *   problem.
          */
-        gMessageParams(obj);
+        messageParams(obj);
         showMsg(not held, '{I} {am} not holding {the obj}. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -1119,12 +1119,12 @@ canTalkToObj: PreCondition
         if(!obj.canTalkToMe)
             illogical(obj.cannotTalkToMsg); 
         
-        else if(!gActor.canTalkTo(obj))
+        else if(!now.actor.canTalkTo(obj))
         {
             local errMsg;
-            gMessageParams(obj);
+            messageParams(obj);
             
-            if(!obj.isIn(gActorRoom))
+            if(!obj.isIn(now.actorRoom))
                 errMsg = msgText(too far away to talk, '{The subj obj} {is} too far away to talk to. ');
             else
                 errMsg = msgText(cannot talk to obj, '{I} {can\'t} talk to {the obj} just {now}. ');

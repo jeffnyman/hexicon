@@ -284,20 +284,20 @@ class Event: object
          *   player doesn't see messages relating to events the player character
          *   cannot perceive.
          */
-        if(senseObj_ == nil || Q.(senseProp_)(gPlayerChar, senseObj_))
+        if(senseObj_ == nil || Q.(senseProp_)(now.player, senseObj_))
             obj_.(prop_);
         
         /* Otherwise capture the output from executing obj_.(prop_) */
         else
         {
-            captureText = gOutStream.captureOutput({: obj_.(prop_) });
+            captureText = now.outputStream.captureOutput({: obj_.(prop_) });
             
             /* 
              *   It's possible that executing the Event changes the sensory
              *   context, so we need to check whether the object in question can
              *   now be sensed, and if so, display the text we've just captured.
              */            
-            if(Q.(senseProp_)(gPlayerChar, senseObj_))
+            if(Q.(senseProp_)(now.player, senseObj_))
                 say(captureText);
         }
     }

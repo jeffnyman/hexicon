@@ -86,7 +86,7 @@ mainCommon(prop, [args])
  *   This routine doesn't return until the game ends.
  *   
  *   Before calling this routine, the caller should already have set the
- *   global variable gPlayerChar to the player character actor.
+ *   global variable now.player to the player character actor.
  *   
  *   'look' is a flag indicating whether or not to look around; if this is
  *   true, we'll show a full description of the player character's initial
@@ -98,9 +98,9 @@ runGame(look)
     /* show the starting location */
     if (look)
     {
-        gActor = gPlayerChar;
+        libGlobal.curActor = now.player;
         /* run the initial "look around" in a dummy command context */
-        gPlayerChar.outermostVisibleParent().lookAroundWithin();
+        now.player.outermostVisibleParent().lookAroundWithin();
         
         /* 
          *   execute the sceneManager (if it exists) to for any Scene that's
@@ -134,7 +134,7 @@ mainCommandLoop()
      *   Set the current actor to the player character at the start of the game
      *   (to ensure we have a current actor defined).
      */
-    gActor = gPlayerChar;
+    libGlobal.curActor = now.player;
     
     /* 
      *   Repeat this loop, which asks for a command and then parses it, until

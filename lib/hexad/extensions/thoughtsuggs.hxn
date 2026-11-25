@@ -27,13 +27,13 @@ modify Think
     execAction(cmd)
     {
         /* Note our current interlocutor. */
-        local interlocutor = gPlayerChar.currentInterlocutor;
+        local interlocutor = now.player.currentInterlocutor;
         
         try           
         {
             
             /* Set the current interlocutor to nil. */
-            gPlayerChar.currentInterlocutor = nil;       
+            now.player.currentInterlocutor = nil;       
             
             /* 
              *   If we have an associated RuleBook and following it returns a non-nil value, assume
@@ -67,7 +67,7 @@ modify Think
         finally
         {
             /* Restore the current interlocutor. */
-            gPlayerChar.currentInterlocutor = interlocutor;
+            now.player.currentInterlocutor = interlocutor;
         }       
     } 
     
@@ -82,7 +82,7 @@ thoughtSuggestionLister: suggestedTopicLister
     /* The message to display if there are no thought topics to suggest. */
     showListEmpty(explicit)  
     { 
-        gCommand.actor = gPlayerChar;
+        now.command.actor = now.player;
         if(explicit)
             showMsg(no thought in mind, '{I} {have} nothing in mind to think about just {then}. ');
     }

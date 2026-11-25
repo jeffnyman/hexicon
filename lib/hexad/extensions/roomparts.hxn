@@ -43,7 +43,7 @@ class RoomPart: MultiLoc, Decoration
          *   Construct a list of all the items directly in the current room for
          *   whom we're the associated roomPart.
          */
-        local lst = gPlayerChar.getOutermostRoom.contents.subset(
+        local lst = now.player.getOutermostRoom.contents.subset(
             { o: o.roomPart == self });
         
         /* Show the roomPartDesc for every item in our list. */

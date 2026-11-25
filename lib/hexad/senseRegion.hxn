@@ -130,7 +130,7 @@ class SenseRegion: Region
         /*  
          *   Restrict the extra scope items to those that the actor knows about.
          */
-        extraScope = extraScope.subset({o: gActor.knowsAbout(o)} );
+        extraScope = extraScope.subset({o: now.actor.knowsAbout(o)} );
               
         
         /* 
@@ -156,7 +156,7 @@ class SenseRegion: Region
     familiar()
     {
         local fam = nil;
-        local loc = gPlayerChar.getOutermostRoom;
+        local loc = now.player.getOutermostRoom;
         
         if(canSeeAcross && loc.isIn(self) && loc.isIlluminated)
             fam = true;
@@ -306,7 +306,7 @@ modify Room
          *   pov object.
          */
         local lst = contents.subset({o: o.isVisibleFrom(pov) && !o.isHidden
-                                    && gActor.canSee(o)});
+                                    && now.actor.canSee(o)});
         
         /* 
          *   Sort the objects to be listed into three separate lists: those with
@@ -515,10 +515,10 @@ modify Room
     {
         action()
         {
-            if(gActor.isIn(self))
+            if(now.actor.isIn(self))
                 inherited();
             else
-                remoteDesc(gActor);
+                remoteDesc(now.actor);
                 
         }
     }
@@ -887,7 +887,7 @@ modify Thing
              *   If the actor doing the examining is in the same room as this
              *   object, simply carry out the inherited handling.
              */
-            if(isIn(gActor.getOutermostRoom))            
+            if(isIn(now.actor.getOutermostRoom))            
                 inherited;
             
             /* Otherwise, if we're being examined from a remote location... */
@@ -899,7 +899,7 @@ modify Thing
                  */
                 if(hasProp(&remoteDesc))
                 {
-                    remoteDesc(gActor);
+                    remoteDesc(now.actor);
                     "<.p>";
                 }
                 
@@ -941,7 +941,7 @@ modify Thing
              *   If the actor doing the listening is in the same room as this
              *   object, simply carry out the inherited handling.
              */
-            if(isIn(gActor.getOutermostRoom))
+            if(isIn(now.actor.getOutermostRoom))
                 inherited;
             
             /* Otherwise, if we're being listened to from a remote location... */
@@ -954,7 +954,7 @@ modify Thing
                  */
                 if(hasProp(&remoteListenDesc))
                 {
-                    remoteListenDesc(gActor);
+                    remoteListenDesc(now.actor);
                     "<.p>";                   
                 }
                 
@@ -984,7 +984,7 @@ modify Thing
     
     /* 
      *   Modify the effect of a Read action to prevent this item being read from
-     *   a remote location unless isReadableFrom(gActor) is true.
+     *   a remote location unless isReadableFrom(now.actor) is true.
      */    
     dobj Read
     {
@@ -992,7 +992,7 @@ modify Thing
         {
             inherited;
             
-            if(!isIn(gActor.getOutermostRoom) && !isReadableFrom(gActor))
+            if(!isIn(now.actor.getOutermostRoom) && !isReadableFrom(now.actor))
                 illogicalNow(tooFarAwayToReadMsg);
         }
     }
@@ -1015,7 +1015,7 @@ modify Thing
              *   If the actor doing the smelling is in the same room as this
              *   object, simply carry out the inherited handling.
              */
-            if(isIn(gActor.getOutermostRoom))
+            if(isIn(now.actor.getOutermostRoom))
                 inherited;
             
             /* Otherwise, if we're being smelled from a remote location... */
@@ -1028,7 +1028,7 @@ modify Thing
                  */                
                 if(hasProp(&remoteSmellDesc))
                 {
-                    remoteSmellDesc(gActor);
+                    remoteSmellDesc(now.actor);
                     "<.p>";
                 }
                 
@@ -1064,7 +1064,7 @@ modify Thing
              *   If the Query object reckons that the throw is possible, carry
              *   out the inherited handling.
              */
-            if(Q.canThrowTo(gActor, self))
+            if(Q.canThrowTo(now.actor, self))
                 inherited;
             
             /* 
@@ -1073,7 +1073,7 @@ modify Thing
              */
             else
             {
-                gDobj.moveInto(gActor.getOutermostRoom);
+                now.dobj.moveInto(now.actor.getOutermostRoom);
                 say(throwFallsShortMsg);
             }
         }
@@ -1088,7 +1088,7 @@ modify Thing
     { 
         inherited(np, cmd, mode);
         
-        local loc = gActor.getOutermostRoom, prop;
+        local loc = now.actor.getOutermostRoom, prop;
         
         /* 
          *   If we haven't been picked up by a general command that may not have
@@ -1125,8 +1125,8 @@ modify Thing
          *   us from the list of matches.
          */
         if(valToList(self.(prop)).indexOf(objVisible)             
-           && !gActor.canSee(self)
-           && np.matches.indexWhich({m: gActor.canSee(m.obj)}))
+           && !now.actor.canSee(self)
+           && np.matches.indexWhich({m: now.actor.canSee(m.obj)}))
            np.matches = np.matches.subset({m: m.obj != self});   
         
         
@@ -1156,8 +1156,8 @@ modify Thing
      */
     areContentsListedInExamine()
     {
-        return inherited && (contentsVisibleFrom(gActor) || getOutermostRoom ==
-                             gActor.getOutermostRoom);
+        return inherited && (contentsVisibleFrom(now.actor) || getOutermostRoom ==
+                             now.actor.getOutermostRoom);
     }
      
     dobj LookIn
@@ -1170,8 +1170,8 @@ modify Thing
              *   The actor can't look into us from a remote location if our contents aren't visible
              *   from their POV.
              */
-            if(gActor.getOutermostRoom != getOutermostRoom &&
-               ! contentsVisibleFrom(gActor))
+            if(now.actor.getOutermostRoom != getOutermostRoom &&
+               ! contentsVisibleFrom(now.actor))
                 showMsg(cant see in from here, '{I} {can\'t} see in {the dobj} from {here}.');
         }
     }
@@ -1199,7 +1199,7 @@ modify Smell
     getRemoteSmellList() 
     { 
         /* Note the actor's location */
-        local loc = gActor.getOutermostRoom;
+        local loc = now.actor.getOutermostRoom;
         
         /* Create a new vector */
         local vec = new Vector(10);
@@ -1215,7 +1215,7 @@ modify Smell
              *   Create a list of objects that are in rm that can be smelt by
              *   the actor.
              */
-            local sList = rm.allContents.subset({o: Q.canSmell(gActor, o)});
+            local sList = rm.allContents.subset({o: Q.canSmell(now.actor, o)});
             
             /* 
              *   Create a sublist of that list containing all the items with a
@@ -1249,9 +1249,9 @@ modify Smell
             /* If the item defined a remoteSmellDesc property, display it */
             if(cur.hasProp(&remoteSmellDesc))
             {
-                remoteDisplayed = gOutStream.watchForOutput(
+                remoteDisplayed = now.outputStream.watchForOutput(
                     {:
-                    cur.remoteSmellDesc(gActor)
+                    cur.remoteSmellDesc(now.actor)
                     });
                 
                 if(remoteDisplayed)
@@ -1262,7 +1262,7 @@ modify Smell
                      *   If the actor is the player character, the player
                      *   character now knows of the existence of this object.
                      */
-                    if(gActor == gPlayerChar)
+                    if(now.actor == now.player)
                         setKnown(cur);
                 }
                 
@@ -1279,7 +1279,7 @@ modify Smell
                      *   If the actor is the player character, the player
                      *   character now knows of the existence of this object.
                      */
-                    if(gActor == gPlayerChar)
+                    if(now.actor == now.player)
                         setKnown(cur);
                 }
             }
@@ -1305,7 +1305,7 @@ modify Listen
     getRemoteSoundList() 
     { 
         /* Note the actor's location */
-        local loc = gActor.getOutermostRoom;
+        local loc = now.actor.getOutermostRoom;
         
         /* Create a new vector */
         local vec = new Vector(10);
@@ -1321,7 +1321,7 @@ modify Listen
              *   Create a list of objects in the room that can be heard by the
              *   actor.
              */
-            local sList = rm.allContents.subset({o: Q.canHear(gActor, o)});
+            local sList = rm.allContents.subset({o: Q.canHear(now.actor, o)});
             
             /* 
              *   Create a sublist of that list containing all the items with a
@@ -1357,9 +1357,9 @@ modify Listen
             /* If the item defined a remoteListenDesc property, display it */
             if(cur.hasProp(&remoteListenDesc))
             {
-                remoteDisplayed = gOutStream.watchForOutput(
+                remoteDisplayed = now.outputStream.watchForOutput(
                     {:
-                    cur.remoteListenDesc(gActor)
+                    cur.remoteListenDesc(now.actor)
                     });
                 
                 if(remoteDisplayed)
@@ -1370,7 +1370,7 @@ modify Listen
                      *   If the actor is the player character, the player
                      *   character now knows of the existence of this object.
                      */
-                    if(gActor == gPlayerChar)
+                    if(now.actor == now.player)
                         setKnown(cur);
                 }
             }
@@ -1386,7 +1386,7 @@ modify Listen
                      *   If the actor is the player character, the player
                      *   character now knows of the existence of this object.
                      */
-                    if(gActor == gPlayerChar)
+                    if(now.actor == now.player)
                         setKnown(cur);
                 }
             }
@@ -1404,9 +1404,9 @@ modify SmellSomething
         inherited(whichRole);
         
         local odorList = [];
-        for(local rm in gActor.getOutermostRoom.smellableRooms)            
+        for(local rm in now.actor.getOutermostRoom.smellableRooms)            
             odorList += rm.allContents.subset(
-            { o: o.ofKind(Odor) && Q.canSmell(gActor, o) } );
+            { o: o.ofKind(Odor) && Q.canSmell(now.actor, o) } );
         
         scopeList = scopeList.appendUnique(odorList);
     }
@@ -1419,9 +1419,9 @@ modify ListenTo
         inherited(whichRole);
         
         local noiseList = [];
-        for(local rm in gActor.getOutermostRoom.audibleRooms)            
+        for(local rm in now.actor.getOutermostRoom.audibleRooms)            
             noiseList += rm.allContents.subset(
-            { o: o.ofKind(Noise) && Q.canHear(gActor, o) } );
+            { o: o.ofKind(Noise) && Q.canHear(now.actor, o) } );
         
         scopeList = scopeList.appendUnique(noiseList);
     }
@@ -1772,7 +1772,7 @@ class ReachProblemRemote: ReachProblem
              *   If the actor isn't in the destination room, return nil to tell
              *   our caller we failed.
              */
-            if(!gActor.isIn(destRoom))
+            if(!now.actor.isIn(destRoom))
                 return nil;               
         }
         else
@@ -1827,7 +1827,7 @@ modify touchObj
          *   checking for any other obstacles, since if the move is successful
          *   it may change the status of other potential obstacles.
          */
-        local remoteCheck = new ReachProblemRemote(gActor, obj);
+        local remoteCheck = new ReachProblemRemote(now.actor, obj);
         
         if(!remoteCheck.check(allowImplicit))
             return nil;

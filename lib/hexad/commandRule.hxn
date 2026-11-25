@@ -107,7 +107,7 @@ class Redirector: object
         if(altAction.ofKind(TIAction) || altAction.ofKind(LiteralTAction) ||
            altAction.ofKind(TopicTAction))
         {
-            redirect(gCommand, altAction, dobj: dobj, iobj: iobj, aobj: aobj,
+            redirect(now.command, altAction, dobj: dobj, iobj: iobj, aobj: aobj,
                      isReplacement: isReplacement);
             return;
         }
@@ -129,7 +129,7 @@ class Redirector: object
         if(altAction.ofKind(TAction) || altAction.ofKind(LiteralAction) ||
            altAction == Go || altAction.ofKind(TopicAction))
         {
-            redirect(gCommand, altAction, dobj: dobj, isReplacement:
+            redirect(now.command, altAction, dobj: dobj, isReplacement:
                      isReplacement);
             return;
         }      
@@ -138,7 +138,7 @@ class Redirector: object
          *   Otherwise call redirect with the new action alone (it's some form
          *   of intransitve action).
          */
-        redirect(gCommand, altAction, isReplacement: isReplacement);
+        redirect(now.command, altAction, isReplacement: isReplacement);
     }
     
     /* Ask for a missing literal and retry action with the literal in role. */
@@ -146,10 +146,10 @@ class Redirector: object
     {
         local obj;
         
-        if(objOfKind(gDobj,Thing))
-            obj = gDobj;
-        else if(objOfKind(gIobj, Thing))
-            obj = gIobj;  
+        if(objOfKind(now.dobj,Thing))
+            obj = now.dobj;
+        else if(objOfKind(now.iobj, Thing))
+            obj = now.iobj;  
         
         /* Ask for the missing literal */
         askMissingLiteralQ(action, role);
@@ -329,18 +329,18 @@ class CommandRule: Redirector
             checkDirection(curCmd);
 	
         /*   
-         *   Temporarily set gDobj and gIobj to the dobj and iobj of the curCmd
+         *   Temporarily set now.dobj and now.iobj to the dobj and iobj of the curCmd
          *   so that they're available to be passed as parameters
          */        
-        gAction.curDobj = curCmd.dobj;
-        gAction.curIobj = curCmd.iobj;
-        gAction.curAobj = curCmd.acc;
+        now.action.curDobj = curCmd.dobj;
+        now.action.curIobj = curCmd.iobj;
+        now.action.curAobj = curCmd.acc;
         
         /* 
          *   If the command is an action to be carried out by the player
          *   character, execute the action in the normal manner.
          */
-        if(curCmd.actor == gPlayerChar)
+        if(curCmd.actor == now.player)
         {
             /* 
              *   If our execAction() method is going to handle the action in
@@ -362,18 +362,18 @@ class CommandRule: Redirector
                      *   Change the current action to the one we're notionally
                      *   handling.
                      */
-                    gAction = handleAction;
+                    libGlobal.curAction = handleAction;
                     
                     /*  
-                     *   Set the objects of the new gAction in case we need them
+                     *   Set the objects of the new now.action in case we need them
                      */
-                    gAction.curDobj = curCmd.dobj;
-                    gAction.curIobj = curCmd.iobj;
-                    gAction.curAobj = curCmd.acc;
+                    now.action.curDobj = curCmd.dobj;
+                    now.action.curIobj = curCmd.iobj;
+                    now.action.curAobj = curCmd.acc;
                 }
                    
                 /* Send the beforeAction notifications. */                
-                gAction.beforeAction();                
+                now.action.beforeAction();                
                 
             }
             
@@ -474,13 +474,13 @@ class CommandRule: Redirector
         
         /* 
          *   Get the current command to change its current action to altAction
-         *   performed on dobj and iobj. Note that this will change gAction to
+         *   performed on dobj and iobj. Note that this will change now.action to
          *   altAction.
          */
         curCmd.changeAction(altAction, dobj, iobj, aobj);
         
         /* Execute the command on our new action. */
-        gAction.exec(curCmd);
+        now.action.exec(curCmd);
     }
     
     /* 
@@ -617,10 +617,10 @@ class CommandRuleCmd: object
          */
            
         
-        if (gCommand != nil && commandRule.strict && gCommand.verbProd && gCommand.verbProd.tokenList !=
+        if (now.command != nil && commandRule.strict && now.command.verbProd && now.command.verbProd.tokenList !=
             nil)
         {
-            local cmdToks = gCommand.verbProd.tokenList.mapAll( {x:
+            local cmdToks = now.command.verbProd.tokenList.mapAll( {x:
                 getTokVal(x) });
             local commandRuleToks = commandRule.cmd.split(' ');
             
@@ -783,7 +783,7 @@ class CommandRuleCmd: object
              *   char's current location, we don't meet the where condition, so
              *   return nil
              */
-            if(whereLst.indexWhich( {loc: gPlayerChar.isIn(loc)}) == nil)
+            if(whereLst.indexWhich( {loc: now.player.isIn(loc)}) == nil)
                 return nil;
         }
         
@@ -805,7 +805,7 @@ class CommandRuleCmd: object
              *   If we can't match any item in the who list to the current
              *   actor, we don't meet the who condition, so return nil
              */
-            if(whoLst.indexOf(gCommand.actor) == nil)
+            if(whoLst.indexOf(now.command.actor) == nil)
                 return nil;
         }
         
@@ -829,7 +829,7 @@ class CommandRuleCmd: object
         if(commandRule.hasProp(&direction) && cmd[1] is in (Travel,
             PushTravelDir, ThrowDir))
             return valToList(commandRule.direction).indexOf(
-                gCommand.verbProd.dirMatch.dir) != nil;
+                now.command.verbProd.dirMatch.dir) != nil;
         
         /* 
          *   If we haven't failed any of the conditions, we're okay to match, so

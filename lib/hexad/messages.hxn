@@ -460,7 +460,7 @@ class MessageCtx: object
         self.args = args;
 
         /* if there's a Command among the arguments, note it */
-        cmd = gCommand;
+        cmd = now.command;
 
         /* if there's no command, use the placeholder */
         if (cmd == nil)
@@ -757,7 +757,7 @@ class MessageCtx: object
     actorIsPC()
     {
         return cmd == nil || cmd.actor == nil
-            || cmd.actor == gPlayerChar;
+            || cmd.actor == now.player;
     }
 
     /* the last parameter value */
@@ -817,7 +817,7 @@ class MessageCtx: object
  */
 messageDummyCommand: object
     /* use the player character as the actor */
-    actor = (gPlayerChar)
+    actor = (now.player)
     
 ;
 
@@ -1183,10 +1183,10 @@ class MessageParams: object
     {
         local targetObj;
         
-        if (gAction != nil)
+        if (now.action != nil)
         {
             /* get the target object by name through the action */
-            targetObj = gAction.getMessageParam(src);
+            targetObj = now.action.getMessageParam(src);
         }
         else
         {

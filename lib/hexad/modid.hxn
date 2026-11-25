@@ -573,7 +573,7 @@ class GameID: GameInfoModuleID
     showCredit()
     {
         /* by default, just show the game's name and by-line */
-        gLibMessages.showCredit(name, htmlByline);
+        libGlobal.libMessageObj.showCredit(name, htmlByline);
     }
 
     /* 

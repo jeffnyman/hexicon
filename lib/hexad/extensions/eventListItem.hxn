@@ -88,7 +88,7 @@ class EventListItem: PreinitObject
         ++fireCt;
         
         //keep track of when we fired last
-        lastClock = gTurns;
+        lastClock = now.turns;
         
         // automatically remove if we have exceeded our maxFireCt or met our doneWhen condition
         if((maxFireCt && fireCt >= maxFireCt) || doneWhen)
@@ -143,7 +143,7 @@ class EventListItem: PreinitObject
          *   to fire with our own response this turn.
          */
         if(!isDone && missedTurn == nil)
-            missedTurn = gTurns;
+            missedTurn = now.turns;
     }
     
     /* 
@@ -169,7 +169,7 @@ class EventListItem: PreinitObject
      */
     canFire()
     {
-        return isReady && !isDone && gTurns >= readyTime;
+        return isReady && !isDone && now.turns >= readyTime;
     }
     
     /* Have we finished with this EventListItem? */
@@ -226,7 +226,7 @@ class EventListItem: PreinitObject
      */
     setDelay(turns)    
     {
-        readyTime = gTurns + turns;
+        readyTime = now.turns + turns;
         return self;    
     }
     

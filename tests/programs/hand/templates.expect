@@ -1,4 +1,4 @@
-image: d25712489355c9d33beb1f527600738da6c932a38f7505c2d294b17e5829e424
+image: bacfad058753d2943b6518221ea7f84bf41ec25c8cf3095400bec4f3549d2889
 --- messages
 --- output
 Lobby: A wide lobby with a marble floor.
@@ -17,3 +17,5 @@ Lobby
 9
 thing
 a room is a thing
+annex in the Vault: Nothing special.
+2

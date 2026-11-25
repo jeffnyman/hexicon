@@ -86,7 +86,7 @@ class Lever: Thing
         action() { makePulled(true); }
         
         /* The default report to display after pulling one or more levers */
-        report() { showMsg(okay pulled, 'Done. |{I} pull{s/ed} {1}. ', gActionListStr); }
+        report() { showMsg(okay pulled, 'Done. |{I} pull{s/ed} {1}. ', now.actionListStr); }
         
     }
     
@@ -111,7 +111,7 @@ class Lever: Thing
         action() { makePulled(nil); }
         
         /* The default report to display after pushing one or more levers */
-        report() { showMsg(okay pushed, 'Done. |{I} push{es/ed} {1}. ', gActionListStr); }
+        report() { showMsg(okay pushed, 'Done. |{I} push{es/ed} {1}. ', now.actionListStr); }
     }
     
     /* The message to display when we can't be pushed any further */
@@ -184,14 +184,14 @@ class Settable: Thing
              *   If the player is trying to set us to our current setting,
              *   display a message to that effect (which will halt the action).
              */
-            if(curSetting == canonicalizeSetting(gLiteral))
+            if(curSetting == canonicalizeSetting(now.literal))
                 say(alreadySetMsg); 
             
             /*   
              *   If the player is trying to set us to an invalid setting,
              *   display a message to that effect (which will halt the action).
              */
-            if(!isValidSetting(gLiteral))
+            if(!isValidSetting(now.literal))
                 say(invalidSettingMsg);
         }
         
@@ -333,7 +333,7 @@ class BagOfHolding: object
     tryHolding(obj)
     {
         /* Obtain a Vector containing the BagsOfHolding carried by the actor. */
-        local bohVec = gActor.contents.subset({x: x.ofKind(BagOfHolding)});
+        local bohVec = now.actor.contents.subset({x: x.ofKind(BagOfHolding)});
         
         /* 
          *   If the actor is not carrying a BagOfHolding, there's nothing more
@@ -343,18 +343,18 @@ class BagOfHolding: object
             return;
         
         /*  The amount of bulk we need to free up */
-        local bulkToFree = gActor.getCarriedBulk + obj.bulk -
-            gActor.bulkCapacity;
+        local bulkToFree = now.actor.getCarriedBulk + obj.bulk -
+            now.actor.bulkCapacity;
         
            
         
         local idx = 1;
         
         /* The number of items we need to free up */
-        local carriedList = gActor.directlyHeld;
+        local carriedList = now.actor.directlyHeld;
         
          /* The number of items we need to free up */
-        local itemsToFree = gActor.directlyHeld.length() - gActor.maxItemsCarried + 1;
+        local itemsToFree = now.actor.directlyHeld.length() - now.actor.maxItemsCarried + 1;
         
         while((bulkToFree > 0  || itemsToFree > 0) && carriedList.length >= idx)
         {
@@ -420,11 +420,11 @@ class BagOfHolding: object
             
             /*  Recalculate the amount of bulk left to free */
             
-            bulkToFree = gActor.getCarriedBulk + obj.bulk -
-            gActor.bulkCapacity;        
+            bulkToFree = now.actor.getCarriedBulk + obj.bulk -
+            now.actor.bulkCapacity;        
             
             /* Recalculate the number of items we need to free */
-            itemsToFree = gActor.directlyHeld.length() - gActor.maxItemsCarried + 1;
+            itemsToFree = now.actor.directlyHeld.length() - now.actor.maxItemsCarried + 1;
             
             
         }

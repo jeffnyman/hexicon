@@ -133,33 +133,33 @@ action Version: SystemAction
 action Exits: SystemAction
     execAction(cmd)
     {
-        if(gExitLister == nil)
+        if(libGlobal.exitListerObj == nil)
             sayNoExitLister();
         else
-            gExitLister.showExitsCommand();
+            libGlobal.exitListerObj.showExitsCommand();
     }
 ;
 
 action ExitsMode: SystemAction
     execAction(cmd)
     {
-        if(gExitLister == nil)
+        if(libGlobal.exitListerObj == nil)
         {
             sayNoExitLister();
             return;
         }
         
         if(cmd.verbProd.on_ != nil)
-            gExitLister.exitsOnOffCommand(true, true);
+            libGlobal.exitListerObj.exitsOnOffCommand(true, true);
         
         if(cmd.verbProd.off_ != nil)
-            gExitLister.exitsOnOffCommand(nil, nil);
+            libGlobal.exitListerObj.exitsOnOffCommand(nil, nil);
         
         if(cmd.verbProd.look_ != nil)
-            gExitLister.exitsOnOffCommand(nil, true);
+            libGlobal.exitListerObj.exitsOnOffCommand(nil, true);
         
         if(cmd.verbProd.stat_ != nil)
-            gExitLister.exitsOnOffCommand(true, nil);
+            libGlobal.exitListerObj.exitsOnOffCommand(true, nil);
     }
         
 ;
@@ -167,7 +167,7 @@ action ExitsMode: SystemAction
 action ExitsColour: SystemAction
     execAction(cmd)
     {
-        if(gExitLister == nil)
+        if(libGlobal.exitListerObj == nil)
         {
             sayNoExitLister(); 
             return;
@@ -363,10 +363,10 @@ action HyperlinkSuggestions: SystemAction
 action Hints: SystemAction
     execAction(cmd)
     {
-        if(gHintManager == nil)
+        if(libGlobal.hintManagerObj == nil)
             sayHintsNotPresent();
         else        
-            gHintManager.showHints();
+            libGlobal.hintManagerObj.showHints();
         
     }
     
@@ -381,18 +381,18 @@ action Hints: SystemAction
 action HintsOff: SystemAction
     execAction(cmd)
     {
-        if(gHintManager == nil)
+        if(libGlobal.hintManagerObj == nil)
             showMsg(no hints to disable, '<.parser>This game doesn\'t have any
                 hints to turn off.<./parser> ');
         else
-            gHintManager.disableHints();
+            libGlobal.hintManagerObj.disableHints();
     }
 ;
 
 action ExtraHints: SystemAction
     execAction(cmd)
     {
-        if(gExtraHintManager == nil || !gExtraHintManager.extraHintsExist())
+        if(libGlobal.extraHintManagerObj == nil || !libGlobal.extraHintManagerObj.extraHintsExist())
         {
             showMsg(no extra hints, 'Sorry, there are no extra hints in this game.
                 ');
@@ -411,9 +411,9 @@ action ExtraHints: SystemAction
         onOff = onOff.toLower();
         
         if(onOff == hintsOff)
-            gExtraHintManager.deactivate();
+            libGlobal.extraHintManagerObj.deactivate();
         else
-            gExtraHintManager.activate();
+            libGlobal.extraHintManagerObj.activate();
         
         showMsg(extra hints on or off, 'Okay; extra hints are now {1}. ', onOff );
     }
@@ -435,7 +435,7 @@ action ExtraHints: SystemAction
             return;
     }
     
-    extraHintsActive = (gExtraHintManager != nil && gExtraHintManager.activated)
+    extraHintsActive = (libGlobal.extraHintManagerObj != nil && libGlobal.extraHintManagerObj.activated)
     
     onOrOff(stat) { return stat ? hintsOn : hintsOff; }
     
@@ -544,10 +544,10 @@ action Inventory: IAction
         if(splitListing)
         {
             /* Construct a list of what the actor is wearing */
-            local wornList = gActor.contents.subset({o: o.wornBy == gActor });
+            local wornList = now.actor.contents.subset({o: o.wornBy == now.actor });
             
             /* Construst a list of what the actor is carrying */
-            local carriedList = gActor.contents.subset({o: o.wornBy == nil &&
+            local carriedList = now.actor.contents.subset({o: o.wornBy == nil &&
                 o.isFixed == nil});
             
             /* Note whether we've displayed the worn list */
@@ -559,7 +559,7 @@ action Inventory: IAction
              */
             if(wornList.length > 0)
             {               
-                gActor.myWornLister.show(wornList, 0, nil);
+                now.actor.myWornLister.show(wornList, 0, nil);
                 
                 /* 
                  *   If nothing is being carried, terminate the list with a full
@@ -581,15 +581,15 @@ action Inventory: IAction
              *   message.
              */
             if(carriedList.length > 0 || wornList.length == 0)
-                gActor.myInventoryLister.show(carriedList, wornListShown);
+                now.actor.myInventoryLister.show(carriedList, wornListShown);
         }
         else
         {
-            gActor.myInventoryLister.show(gActor.contents, 0);
+            now.actor.myInventoryLister.show(now.actor.contents, 0);
         }
         
         /* Mark eveything just listed as having been seen. */
-        gActor.contents.forEach({x: x.noteSeen()});
+        now.actor.contents.forEach({x: x.noteSeen()});
     }
    
         
@@ -607,7 +607,7 @@ action Inventory: IAction
 action Look: IAction
     execAction(cmd)
     {
-        gActor.outermostVisibleParent().lookAroundWithin();
+        now.actor.outermostVisibleParent().lookAroundWithin();
     }
 
 ;
@@ -622,7 +622,7 @@ action Wait: IAction
 
 Jump: SpecialTravelAction
         
-    preCond = (gActor.location && gActor.location.getOutToJump ?
+    preCond = (now.actor.location && now.actor.location.getOutToJump ?
                [actorOutOfNested]: nil)
     travelProp = &jump
     
@@ -650,11 +650,11 @@ action Smell: IAction
          *   smellDesc property that will display something and (2) whose
          *   isProminentSmell property is true
          */
-        local s_list = gActor.getOutermostRoom.allContents.subset(
-            {x: Q.canSmell(gActor, x)  &&  x.isProminentSmell});
+        local s_list = now.actor.getOutermostRoom.allContents.subset(
+            {x: Q.canSmell(now.actor, x)  &&  x.isProminentSmell});
         
         /* Include the current room in the list. */
-        s_list += gActor.getOutermostRoom;
+        s_list += now.actor.getOutermostRoom;
         
         s_list = s_list.getUnique();
         
@@ -706,11 +706,11 @@ action Listen: IAction
          *   I may be able to hear things that aren't technically in scope,
          *   since they may be hidden in containers that allow sound through.
          */        
-        local s_list = gActor.getOutermostRoom.allContents.subset(
-            {x: Q.canHear(gActor,x) && x.isProminentNoise});
+        local s_list = now.actor.getOutermostRoom.allContents.subset(
+            {x: Q.canHear(now.actor,x) && x.isProminentNoise});
         
         /* Include the current room in the list. */
-        s_list += gActor.getOutermostRoom;
+        s_list += now.actor.getOutermostRoom;
         
         s_list = s_list.getUnique();
         
@@ -766,11 +766,11 @@ GoOut: TravelAction
     
     execAction(cmd)
     {
-        if(!gActor.location.ofKind(Room))
+        if(!now.actor.location.ofKind(Room))
         {
             local getOffAction;
-            getOffAction = gActor.location.contType == On ? GetOff : GetOutOf;
-            replaceAction(getOffAction, gActor.location);
+            getOffAction = now.actor.location.contType == On ? GetOff : GetOutOf;
+            replaceAction(getOffAction, now.actor.location);
         }
         else
         {
@@ -855,7 +855,7 @@ Go: TravelAction
     execAction(cmd)
     {
         /* Note the current actor's room. */
-        local loc = gActor.getOutermostRoom;
+        local loc = now.actor.getOutermostRoom;
         local conn;
         
         /* 
@@ -890,7 +890,7 @@ Go: TravelAction
             if(conn.ofKind(TravelConnector) && conn.isConnectorApparent)
             {
                 getOutOfNested(conn);
-                conn.travelVia(gActor);
+                conn.travelVia(now.actor);
             }
             else
                 /* If it's any other kind of object, just display our noGoodHereMsg. */
@@ -912,7 +912,7 @@ Go: TravelAction
             if(objOfKind(conn, TravelConnector))
             {
                 getOutOfNested(conn);
-                conn.travelVia(gActor);       
+                conn.travelVia(now.actor);       
             }
             /* Otherwise let out noteRetval() method handle the value returned. */
             else 
@@ -999,8 +999,8 @@ ClimbVague: SpecialTravelAction
 action Stand: IAction
     execAction(cmd)
     {
-        if(!gActor.location.ofKind(Room))
-            replaceAction(GetOff, gActor.location);
+        if(!now.actor.location.ofKind(Room))
+            replaceAction(GetOff, now.actor.location);
         else
         {
             showMsg(already standing, '{I} {am} standing. ');
@@ -1049,7 +1049,7 @@ action GoBack: IAction
         }
         
         pathBack = defined(routeFinder) ? 
-             routeFinder.findPath(gActor.getOutermostRoom,
+             routeFinder.findPath(now.actor.getOutermostRoom,
                 libGlobal.lastLoc) : nil;
                
         
@@ -1069,7 +1069,7 @@ action GoBack: IAction
         
         showMsg(going back dir, '(going {1})\n', dir.name);
         
-        gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
+        now.actor.getOutermostRoom.(dir.dirProp).travelVia(now.actor);
         
     }
 ;
@@ -1123,12 +1123,12 @@ action Continue: IAction
             return;
         }
         
-        local idx = path.indexWhich({x: x[2] == gActor.getOutermostRoom});
+        local idx = path.indexWhich({x: x[2] == now.actor.getOutermostRoom});
         
         if(idx == nil)
         {
             path = defined(pcRouteFinder) ?
-                pcRouteFinder.findPath(gActor.getOutermostRoom,
+                pcRouteFinder.findPath(now.actor.getOutermostRoom,
                                        pcRouteFinder.currentDestination) : nil;
             
             if(path == nil)
@@ -1143,7 +1143,7 @@ action Continue: IAction
         
         if(idx == path.length)
         {
-            say(gActor.getOutermostRoom.alreadyThereMsg);
+            say(now.actor.getOutermostRoom.alreadyThereMsg);
             return;
         }
         
@@ -1159,7 +1159,7 @@ action Continue: IAction
         
         local path = defined(pcRouteFinder) ? pcRouteFinder.cachedRoute : nil;
         
-        local idx = path.indexWhich({x: x[2] == gActor.getOutermostRoom});
+        local idx = path.indexWhich({x: x[2] == now.actor.getOutermostRoom});
         /* 
          *   If we are in fastGo mode and we want each step of the journey to take a turn, then
          *   carry out the before action processing, provided it's not the first step when the
@@ -1177,19 +1177,19 @@ action Continue: IAction
          *   Note where the actor is before we attempt to move the actor so we can check whether the
          *   next step succeeded.
          */
-        local oldLoc = gActor.getOutermostRoom;
+        local oldLoc = now.actor.getOutermostRoom;
         
         /* Attempt to move the actor in the direction dictated by our next step. */
-        gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
+        now.actor.getOutermostRoom.(dir.dirProp).travelVia(now.actor);
         
         /* 
          *   If the actor hasn't changed room then there's a barrier to travel so we'd better stop
          *   there.
          */
-        if(gActor.getOutermostRoom == oldLoc)
+        if(now.actor.getOutermostRoom == oldLoc)
             exit;
         
-        if(!gActor.isIn(dest) && !fastGo)           
+        if(!now.actor.isIn(dest) && !fastGo)           
         {
             htmlSay(contMsg);
             if(!optionsExplained)
@@ -1237,7 +1237,7 @@ action Continue: IAction
 action Topics: SystemAction
     execAction(cmd)
     {
-        local otherActor = gPlayerChar.currentInterlocutor;
+        local otherActor = now.player.currentInterlocutor;
         
         if(otherActor == nil)
             showMsg(no interlocutor, '{I}{\'m} not talking to anyone. ');
@@ -1280,9 +1280,9 @@ action ExamineOrGoTo(dobj): TAction
         else
             cmd.action = Examine;
         
-        gAction = cmd.action;
-        gAction.reset();
-        gAction.exec(cmd);     
+        libGlobal.curAction = cmd.action;
+        now.action.reset();
+        now.action.exec(cmd);     
     }
     
     
@@ -1321,8 +1321,8 @@ action SmellSomething(dobj): TAction
     {
         if(defined(Odor))
         {
-            local odorList = gActor.getOutermostRoom.allContents.subset(
-                { o: o.isOdor && Q.canSmell(gActor, o) } );
+            local odorList = now.actor.getOutermostRoom.allContents.subset(
+                { o: o.isOdor && Q.canSmell(now.actor, o) } );
             
             scopeList = scopeList.appendUnique(odorList);
         }
@@ -1339,8 +1339,8 @@ action ListenTo(dobj): TAction
     {
         if(defined(Noise))
         {
-            local noiseList = gActor.getOutermostRoom.allContents.subset(
-                { n: n.isNoise && Q.canHear(gActor, n) } );
+            local noiseList = now.actor.getOutermostRoom.allContents.subset(
+                { n: n.isNoise && Q.canHear(now.actor, n) } );
             
             scopeList = scopeList.appendUnique(noiseList);
         }
@@ -1683,7 +1683,7 @@ action Doff(dobj): TAction
     
     getAll(cmd, role)
     {
-        return scopeList.subset({ x: x.wornBy == gActor});
+        return scopeList.subset({ x: x.wornBy == now.actor});
     }
 ;
 
@@ -1877,7 +1877,7 @@ putAllScope(iobj, slist)
     
     /* If there are none, return the scope list less the actor and any rooms */
     if(portables.length < 1)
-        return slist.subset({x: !x.ofKind(Room) && x != gActor});
+        return slist.subset({x: !x.ofKind(Room) && x != now.actor});
     
     /* 
      *   Get a list of suitable objects, i.e. portable objects that are not in
@@ -1995,9 +1995,9 @@ action TakeFrom(dobj, iobj): TIAction
          *   If the player tried to TAKE ALL FRMO IOBJ and there was nothing to
          *   take we need to report this
          */
-        else if(gCommand.matchedAll)
+        else if(now.command.matchedAll)
             showMsg(nothing to take, 'There{dummy}{\'s} nothing available to
-                    take from {1}. ', gCommand.iobj.theName);
+                    take from {1}. ', now.command.iobj.theName);
     }
     
     getAll(cmd, role)
@@ -2037,8 +2037,8 @@ action ThrowDir(dobj): TAction
 action JumpOffIntransitive: IAction    
     execAction(cmd)
     {
-        if(gActor.location.contType == On)
-            replaceAction(JumpOff, gActor.location);
+        if(now.actor.location.contType == On)
+            replaceAction(JumpOff, now.actor.location);
         else
             showMsg(not on anything, '{I}{\'m} not on anything. ');
     }    
@@ -2213,7 +2213,7 @@ action PushTravelDir(dobj): TAction
         direction = cmd.verbProd.dirMatch.dir;
         
         /* Note the actor's location. */
-        local loc = gActor.getOutermostRoom; 
+        local loc = now.actor.getOutermostRoom; 
         
 //        /* Note whether we meed the lighting conditions to permit travel */
 //        local illum = loc.allowDarkTravel || loc.isIlluminated;
@@ -2252,7 +2252,7 @@ action PushTravelDir(dobj): TAction
              *   PushTravelClimbUp).
              */
             if(conn.PushTravelVia)
-                replaceAction(conn.PushTravelVia, gDobj, conn);
+                replaceAction(conn.PushTravelVia, now.dobj, conn);
             
             /* 
              *   Maybe conn looks like an object but is actually an anonymous or dynamic function,
@@ -2359,13 +2359,13 @@ action TalkTo(dobj): TAction
 class MiscConvAction: IAction
     execAction(cmd)
     {
-        if(gPlayerChar.currentInterlocutor == nil 
-           || !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))
+        if(now.player.currentInterlocutor == nil 
+           || !Q.canTalkTo(now.player, now.player.currentInterlocutor))
             sayNotTalking();
         else
         {           
-            curObj = gPlayerChar.currentInterlocutor;
-            gPlayerChar.currentInterlocutor.handleTopic(responseProp, 
+            curObj = now.player.currentInterlocutor;
+            now.player.currentInterlocutor.handleTopic(responseProp, 
                 [topicObj]);
         }
             
@@ -2447,13 +2447,13 @@ Goodbye: IAction
     
     execAction(cmd)
     {
-        curObj = gPlayerChar.currentInterlocutor;
+        curObj = now.player.currentInterlocutor;
     
-        if(gPlayerChar.currentInterlocutor == nil ||
-           !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))	
+        if(now.player.currentInterlocutor == nil ||
+           !Q.canTalkTo(now.player, now.player.currentInterlocutor))	
             sayNotTalking();
         else if(defined(endConvBye) &&
-            gPlayerChar.currentInterlocutor.endConversation(endConvBye));
+            now.player.currentInterlocutor.endConversation(endConvBye));
     }    
     
     curObj = nil   
@@ -2473,7 +2473,7 @@ Hello: IAction
          *   if the pc isn't already talking to someone then this is an attempt
          *   to engage a new interlocutor in conversation.
          */
-        if(gPlayerChar.currentInterlocutor == nil)
+        if(now.player.currentInterlocutor == nil)
         {
             /* 
              *   Ascertain how many actors other than the player char are in
@@ -2490,7 +2490,7 @@ Hello: IAction
             
             if(cls)                
                 greetList = scopeList.subset(
-                    { x: x.ofKind(cls) && x != gPlayerChar });            
+                    { x: x.ofKind(cls) && x != now.player });            
             else
                 greetList = [];
             
@@ -2523,7 +2523,7 @@ Hello: IAction
          */
         else
         {            
-            gPlayerChar.currentInterlocutor.sayHello();
+            now.player.currentInterlocutor.sayHello();
         }
     }
     
@@ -2578,7 +2578,7 @@ action QueryAbout(dobj): TopicTAction
     qType = nil
     
     #ifdef __DEBUG    
-    iqinfo = (gCommand.verbProd.qtype)
+    iqinfo = (now.command.verbProd.qtype)
     #endif
     
     isConversational = true
@@ -2592,7 +2592,7 @@ action SayTo(dobj): TopicTAction
 action GiveTo(dobj, iobj): TIAction     
     /* 
      *   The summaryReport can be set by a GiveTopic to a single-quoted string in
-     *   msgText format, with {1} standing in for gActionListStr, in order to
+     *   msgText format, with {1} standing in for now.actionListStr, in order to
      *   report on a whole set of objects given at once; e.g. '{I} {give} Bob
      *   {1}. '
      */
@@ -2601,7 +2601,7 @@ action GiveTo(dobj, iobj): TIAction
     /* 
      *   The summaryProp can be a propertyPointer to a method on the Actor being
      *   conversed with that's called at once a whole set of objects has been
-     *   given. It will normally be set by a gAction.summaryProp = &prop
+     *   given. It will normally be set by a now.action.summaryProp = &prop
      *   statement in a GiveTopic.
      */
     summaryProp = nil
@@ -2645,12 +2645,12 @@ ThinkAbout: TopicAction
          *   tags, so we store the current interlocutor and then set the current interlocutor to nil
          *   before proceeding.
          */                 
-        local interlocutor = gPlayerChar.currentInterlocutor;
+        local interlocutor = now.player.currentInterlocutor;
         
         try
         {
             
-            gPlayerChar.currentInterlocutor = nil;            
+            now.player.currentInterlocutor = nil;            
             
             /* If we have thought manager object, let that handle the THINK ABOUT command. */
             if(libGlobal.thoughtManagerObj != nil)
@@ -2684,7 +2684,7 @@ ThinkAbout: TopicAction
         finally
         {
             /* Restore the current interlocutor. */
-            gPlayerChar.currentInterlocutor = interlocutor;
+            now.player.currentInterlocutor = interlocutor;
         }
     }
     
@@ -2741,15 +2741,15 @@ class ImplicitConversationAction: TopicAction
             curTopic = cmd.iobj;
         }
         
-        if(gPlayerChar.currentInterlocutor == nil ||
-           !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))	
+        if(now.player.currentInterlocutor == nil ||
+           !Q.canTalkTo(now.player, now.player.currentInterlocutor))	
             sayNotTalking();
         else
         {
-            notePronounAntecedent(gPlayerChar.currentInterlocutor);
+            notePronounAntecedent(now.player.currentInterlocutor);
             resolvePronouns();
-            curObj = gPlayerChar.currentInterlocutor;
-            gPlayerChar.currentInterlocutor.handleTopic(topicListProperty, 
+            curObj = now.player.currentInterlocutor;
+            now.player.currentInterlocutor.handleTopic(topicListProperty, 
                 topics, defaultProperty);
         }
     }
@@ -2766,7 +2766,7 @@ class ImplicitConversationAction: TopicAction
     
     resolvePronouns()
     {
-        local actor = gPlayerChar.currentInterlocutor;
+        local actor = now.player.currentInterlocutor;
         for(local cur in topics, local i = 1;; ++i)
         {
             if(cur == Him && actor.isHim)
@@ -2818,7 +2818,7 @@ action ShowToImplicit(dobj): TAction
     /* 
      *   The summaryProp can be a propertyPointer to a method on the Actor being
      *   conversed with that's called at once a whole set of objects has been
-     *   given. It will normally be set by a gAction.summaryProp = &prop
+     *   given. It will normally be set by a now.action.summaryProp = &prop
      *   statement in a ShowTopic.
      */
     summaryProp = nil
@@ -2840,7 +2840,7 @@ action GiveToImplicit(dobj): TAction
     /* 
      *   The summaryProp can be a propertyPointer to a method on the Actor being
      *   conversed with that's called at once a whole set of objects has been
-     *   given. It will normally be set by a gAction.summaryProp = &prop
+     *   given. It will normally be set by a now.action.summaryProp = &prop
      *   statement in a GiveTopic.
      */
     summaryProp = nil
@@ -2868,7 +2868,7 @@ Query: ImplicitConversationAction
     topicListProperty = &queryTopics
     
     #ifdef __DEBUG
-    dqinfo = (gCommand.verbProd.qtype)
+    dqinfo = (now.command.verbProd.qtype)
     #endif
 ;
 
@@ -3748,8 +3748,8 @@ action Again: SystemAction
 /* Dummy action to provide an action context. */
 
 action DoNothing(dobj, iobj): TIAction
-    curDobj = gPlayerChar
-    curIobj = gPlayerChar.location
+    curDobj = now.player
+    curIobj = now.player.location
     curObj = curDobj
     grammarTemplates = ['do nothing']
 ;

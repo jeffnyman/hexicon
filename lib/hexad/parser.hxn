@@ -16,7 +16,7 @@ World: PreinitObject
         local s = scope_;
 
         if (s == nil)
-            scope_ = s = Q.scopeList(gPlayerChar);
+            scope_ = s = Q.scopeList(now.player);
 
         return s;
     }
@@ -129,7 +129,7 @@ class Parser: object
      *   otherwise, since over-zealous spelling corrections can be particularly troublesome in a
      *   conversational context.
      */
-    autoSpell = (gPlayerChar.currentInterlocutor == nil)
+    autoSpell = (now.player.currentInterlocutor == nil)
 
     /*
      *   Maximum spelling correction time, in milliseconds.  The spelling
@@ -246,7 +246,7 @@ class Parser: object
          *   question the actor may already have been resolved.
          */
         if(question == nil)
-            gActor = gPlayerChar;        
+            libGlobal.curActor = now.player;        
         
         /* no spelling corrections have been attempted yet */
         local history = new transient SpellingHistory(self);
@@ -397,12 +397,12 @@ class Parser: object
                      *   doesn't match a possible action.
                      */
                     
-                    if(gPlayerChar.currentInterlocutor != nil
+                    if(now.player.currentInterlocutor != nil
                        && cmdLst.length == 0 
-                       && Q.canTalkTo(gPlayerChar,
-                                      gPlayerChar.currentInterlocutor)
+                       && Q.canTalkTo(now.player,
+                                      now.player.currentInterlocutor)
                        && str.find(',') == nil
-                       && gPlayerChar.currentInterlocutor.allowImplicitSay())
+                       && now.player.currentInterlocutor.allowImplicitSay())
                     {
                          l = new CommandList(
                             topicPhrase, toks, cmdDict,
@@ -821,7 +821,7 @@ class Parser: object
         if(lst.length > 30)
         {
             /* Get a list of items in scope. */
-            local scope = Q.scopeList(gPlayerChar).toList();
+            local scope = Q.scopeList(now.player).toList();
             
             /* Reduce our list of variable vocab items to include only those in scope. */
             lst = lst.intersect(scope);
@@ -4806,8 +4806,8 @@ You: Pronoun
          *   i.e. the player character
          */
              
-        if(gCommand && gCommand.actorNPs == [] && gCommand.actorPerson == 2)
-            return [gPlayerChar];
+        if(now.command && now.command.actorNPs == [] && now.command.actorPerson == 2)
+            return [now.player];
         
         return [self]; 
     }
@@ -5554,7 +5554,7 @@ class NoneInOwnerError: ActorResolutionError
              *   doesn't own a wallet (not one that's in scope, anyway).  
              */
             local obj = possQual.matches[1].obj;
-            gMessageParams(obj);
+            messageParams(obj);
             
             showMsg(none in owner, '{The subj obj} {doesn\'t appear[ed]} to have
                 any {2}.',  cmd,  txt);
@@ -6144,7 +6144,7 @@ class SpecialVerb: object
          *   Check whether the actor is located in one of the rooms or regions in our where list, if
          *   the where list has been defined.
          */
-        if(where && !valToList(where).indexOf(gActorRoom))
+        if(where && !valToList(where).indexOf(now.actorRoom))
             /* 
              *   If not, return nil on the second invocation and deduct 100000 from our score on the
              *   first.
@@ -6287,7 +6287,7 @@ specialVerbMgr: PreinitObject
             return nil;        
         
         /* Cache the player character's scope list. */
-        local scope_ = Q.scopeList(gPlayerChar);
+        local scope_ = Q.scopeList(now.player);
         
         /* Calculate each SpecialVerb's match score, based partly on what's in scope. */
         foreach(local s in specs)

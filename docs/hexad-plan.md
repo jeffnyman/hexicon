@@ -74,7 +74,18 @@ They cannot become plain words. `actor` is used 1,480 times in Hexad as a proper
 | **B. One object for the current turn** | `now.actor`, `now.dobj`, `now.room` | one name: `now`, `turn`, or `current`. None is used in Hexad or the game tests outside strings, but a game could want `current` (Exercise 23 has a river with one) |
 | **C. Both, for a while** | either | against "no aliases" (vocabulary.md) |
 
-Decided: **B**, named `now`, with its properties forwarding to where the values live now. It reads as English, it is how other languages expose such state, and it takes one name instead of fifty. The cost is the 962 and more uses, mechanical, and a property call where a macro expanded inline, which the VM's lookup cache makes cheap. The few `g` macros that take arguments (`gActionIs(Take)`, `gReveal(key)`) become methods (`now.actionIs(Take)`, `now.reveal(key)`) or functions of their own.
+Decided: **B**, named `now`, with its properties forwarding to where the values live now. It reads as English, it is how other languages expose such state, and it takes one name instead of fifty. The cost is the 962 and more uses, mechanical, and a property call where a macro expanded inline, which the VM's lookup cache makes cheap.
+
+Done (2026-11-25). `now` is an object in `misc.hxn`, after `libGlobal`, and the 60 macro definitions are gone from `hexad.h`:
+
+- **Values** are properties: `now.actor`, `now.action`, `now.command`, `now.dobj`, `now.iobj`, `now.aobj` (also for `gAcc`), `now.literal`, `now.number`, `now.player`, `now.location`, `now.room`, `now.actorRoom`, `now.turns`, `now.topic`, `now.topicText`, `now.topicMatch`, `now.lastAction`, `now.lastCommand`, `now.lastTopic`, `now.lastFact`, `now.verifyDobj`, `now.verifyIobj`, `now.tentativeDobj`, `now.tentativeIobj`, `now.verifyList`, `now.actionList`, `now.actionListStr`, `now.actionListObj`, `now.verbWord`, `now.verbPhrase`, `now.commandTokens` (was `gCommandToks`), and `now.outputStream` (was `gOutStream`).
+- **Macros with arguments** are methods: `now.actionIs(Take)`, `now.actionIn(Take, Drop)`, `now.travelActionIs(northDir)`, `now.tentativeDobjIn(lst)`, `now.tokensInclude(tok)`, `now.revealed(key)`, `now.reveal(key)`, `now.unreveal(key)`, `now.known(obj)`, `now.setKnown(obj)`, `now.setSeen(obj)`, `now.fact(tag)`, and `now.factDesc(tag)`. `gTravelActionIs(north)` pasted `Dir` onto its argument, which a method cannot, so `now.travelActionIs` takes the direction itself.
+- **What the library assigns** it assigns where the value lives: `gAction = cmd.action` is now `libGlobal.curAction = cmd.action`, and `gDobj = obj` is `now.action.curDobj = obj`.
+- **Not turn values, so not on `now`:** `gLibMessages`, `gExitLister`, `gHintManager`, and `gExtraHintManager` pointed at library objects that may be left out; code reads `libGlobal.libMessageObj` and the rest. (`exitLister` and the hint managers are already the objects' own names.) `gInformed`, `gStance`, and `gMood` called `getActor`, which is a method of the object they were used in (a topic entry, an agenda item), not a global, so they could not move to `now`; their uses are written out (`getActor.informedAbout(key)`, `getActor().stance`). `gStanceIs`, `gStanceIn`, `gMoodIs`, `gMoodIn`, `gSetStance`, and `gSetMood` did the same and pasted words, and nothing used them; they are gone, and `aStanceIs` and the other macros that name their actor remain.
+- **`gMessageParams` stays a macro**, as `messageParams(obj, cont)`, because it makes the parameters' names from its arguments' names.
+- **Templates take `@now.player`** (language change, 2026-11-25): after a template value's operator (`@`, `+`, `->`), a value's properties can follow it by name without parentheses, as a macro in parentheses could before. Nothing else can follow, so a list after it is a template value of its own. `tests/programs/hand/templates.hxn` has a case; Airport's `TellTopic @now.player` is another.
+
+Every game plays the same.
 
 ### Messages: `DMsg` and `BMsg`
 
@@ -98,7 +109,7 @@ A rule that replaces or redirects a command (`Doer 'take Thing'`, 69 uses). `Rul
 ## Open questions
 
 1. Which of adv3's features matter most to bring back? The senses, nested rooms and postures, and report grouping are the likely ones.
-2. Hexad's words: decided, above; `now` is to be made.
+2. Hexad's words: decided and made, above, except the later ones.
 
 Settled since the draft: compatibility with adv3Lite games (none is owed, above), and whether the English messages are a module of their own (they are, as `lib/hexad/english` with its own manifest).
 
@@ -126,5 +137,5 @@ Settled since the draft: compatibility with adv3Lite games (none is owed, above)
    - **Verb rules are declarations** (2026-11-24, language milestone 6). `hexicon convert` rewrote Hexad's 288 `VerbRule`s as `verb Take ('take' | 'get') multiDobj: ...`, with `for` where a rule's name is not its action's (`verb SetDownWhat for Drop 'set' 'down':`). Games built on it give identical images. `hexad.h` still defines `VerbRule`, for games not yet converted and for its shortcut macros (`DefineTVerb` and the rest).
    - **Hexad is imported** (2026-11-24, language milestone 5). Its manifest names `advlite.h` as the header a Hexicon source gets by `import hexad;`, and its own sources import it rather than including it. The images are the same.
    - **`hexicon run --norand` makes play repeatable** even for a game that reseeds at random. It used to leave only the start-up seed out, as the reference's `-norand` does, so a `randomize()` in the program still drew on the system's entropy. Now every seed is the same.
-4. **Hexad's own words** (above). Each decided rename is made through Hexad, its English, its extensions, the guide, and the game tests together, and checked by the games playing the same. Done so far: the built-in renames (vocabulary.md, 2026-11-24), so Hexad uses `Map`, `Decimal`, `typeOf`, `regexMatch`, and the rest; and `CommandRule`, `showMsg`, and `msgText` (2026-11-25), with the games playing the same. Next: `now`.
+4. **Hexad's own words** (above). Each decided rename is made through Hexad, its English, its extensions, the guide, and the game tests together, and checked by the games playing the same. Done so far: the built-in renames (vocabulary.md, 2026-11-24), so Hexad uses `Map`, `Decimal`, `typeOf`, `regexMatch`, and the rest; and `CommandRule`, `showMsg`, and `msgText` (2026-11-25), with the games playing the same. And `now` (2026-11-25), above. Next: Hexad's own `get` methods, and the banner classes as panes.
 5. **adv3's depth as modules.** The senses, nested rooms and postures, and whatever else is chosen. Each is optional and comes with a test game of its own.

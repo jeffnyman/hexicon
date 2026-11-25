@@ -94,7 +94,7 @@ class HintOpener: object
     /*
      *   An optional Topic or Thing that opens this goal when the object
      *   becomes "known" to the player character.  This will open the goal
-     *   as soon as gPlayerChar.knowsAbout(openWhenKnown) returns true.
+     *   as soon as now.player.knowsAbout(openWhenKnown) returns true.
      *   This makes it easy to open a goal as soon as the player comes
      *   across some information in the game.  
      */
@@ -106,7 +106,7 @@ class HintOpener: object
     /*
      *   An optional <.reveal> tag name that opens this goal.  If this is
      *   set to a non-nil string, we'll automatically open this goal when
-     *   the tag has been revealed via <.reveal> (or gReveal()). 
+     *   the tag has been revealed via <.reveal> (or now.reveal()). 
      */
     openWhenRevealed = nil
 
@@ -144,12 +144,12 @@ class HintOpener: object
      *   add.  
      */
     openWhen = (
-        (openWhenSeen != nil && gPlayerChar.hasSeen(openWhenSeen))
+        (openWhenSeen != nil && now.player.hasSeen(openWhenSeen))
         || (openWhenExamined != nil && openWhenExamined.examined)
         || (openWhenMoved != nil && openWhenMoved.moved)
         || (openWhenAchieved != nil && openWhenAchieved.scoreCount != 0)
-        || (openWhenKnown != nil && gPlayerChar.knowsAbout(openWhenKnown))
-        || (openWhenRevealed != nil && gRevealed(openWhenRevealed))
+        || (openWhenKnown != nil && now.player.knowsAbout(openWhenKnown))
+        || (openWhenRevealed != nil && now.revealed(openWhenRevealed))
         || openWhenTrue)
 
     /*
@@ -159,12 +159,12 @@ class HintOpener: object
      *   we'll return true. 
      */
     closeWhen = (
-        (closeWhenSeen != nil && gPlayerChar.hasSeen(closeWhenSeen))
+        (closeWhenSeen != nil && now.player.hasSeen(closeWhenSeen))
         || (closeWhenExamined != nil && closeWhenExamined.examined)
         || (closeWhenMoved != nil && closeWhenMoved.moved)
         || (closeWhenAchieved != nil && closeWhenAchieved.scoreCount != 0)
-        || (closeWhenKnown != nil && gPlayerChar.knowsAbout(closeWhenKnown))
-        || (closeWhenRevealed != nil && gRevealed(closeWhenRevealed))
+        || (closeWhenKnown != nil && now.player.knowsAbout(closeWhenKnown))
+        || (closeWhenRevealed != nil && now.revealed(closeWhenRevealed))
         || closeWhenTrue)
 
 ;
@@ -545,7 +545,7 @@ class TopHintMenu: HintMenu, PreinitObject
  */
 hintManager: PreinitObject
     /* during pre-initialization, register as the global hint manager */
-    execute() { gHintManager = self; }
+    execute() { libGlobal.hintManagerObj = self; }
     
     /*
      *   Disable hints - this is invoked by the HINTS OFF action.
@@ -932,7 +932,7 @@ extraHintManager: PreinitObject
     execute() 
     { 
         /* First register our existence */
-        gExtraHintManager = self;
+        libGlobal.extraHintManagerObj = self;
         
         /* Then add every ExtraHint to our contents */
         forEachInstance(ExtraHint, {x: addToContents(x) });  

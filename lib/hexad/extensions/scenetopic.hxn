@@ -36,15 +36,15 @@ modify Scene
         
         /* 
          *   Loop through every actor in the game, adding every actor that
-         *   gPlayerChar can talk to to our vector.
+         *   now.player can talk to to our vector.
          */
         forEachInstance(Actor, function(a) {
-            if(gPlayerChar.canTalkTo(a))
+            if(now.player.canTalkTo(a))
                 vec.append(a);            
         });
         
         /* Remove the player char from the list of actors to notify */
-        vec -= gPlayerChar;
+        vec -= now.player;
         
         /* Sort the list in ascending order of notificationOrder */
         vec.sort(SortAsc, {a, b: a.notificationOrder - b.notificationOrder} );

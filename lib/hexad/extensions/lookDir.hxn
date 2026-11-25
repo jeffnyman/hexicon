@@ -33,10 +33,10 @@ modify LookDir
             return;                
         
         /* Note our actor's immediate container */
-        local actorContainer = gActor.location;
+        local actorContainer = now.actor.location;
         
         /* Note our actor's outermost visible parent. */
-        local outerLoc = gActor.outermostVisibleParent;
+        local outerLoc = now.actor.outermostVisibleParent;
         
         /* If it's too dark to see, say so and stop here. */
         if(!outerLoc.isIlluminated)
@@ -139,7 +139,7 @@ modify Room
              *   If obj is a proxy connector, replace it with the connector it's a proxy for.
              */
             if(obj.ofKind(UnlistedProxyConnector))                
-                obj = obj.proxyForConnector(gActor.getOutermostRoom);
+                obj = obj.proxyForConnector(now.actor.getOutermostRoom);
             
             /*  
              *   If obj is a travel connector that's either hidden or not apparent, say that we
@@ -217,7 +217,7 @@ modify Room
              */
             if(obj.ofKind(TravelConnector) && !obj.ofKind(Thing))
             {
-                local rm = obj.getDestination(gActor.getOutermostRoom);
+                local rm = obj.getDestination(now.actor.getOutermostRoom);
                 if(rm && rm.ofKind(Room))
                     obj = rm;
             }
@@ -227,7 +227,7 @@ modify Room
              *   If obj is a Room that's familiar or visited or visible, say that if lies in the
              *   direction we're looking in, unless obj is the room we're already in.
              */
-            if(obj.ofKind(Room) && (obj.familiar || obj.visited || gActor.canSee(obj)) 
+            if(obj.ofKind(Room) && (obj.familiar || obj.visited || now.actor.canSee(obj)) 
                && obj != self)
             {
                 showMsg(room that way, '\^{1} {dummy}{lies} {2}. ', dir.departureName, obj.theName);
@@ -325,7 +325,7 @@ modify Thing
          *   Note that our outermost location is our outermost visible parent, which will either be
          *   the room we're in or a Booth if we're in a closed opaque booth.
          */
-        local outerLoc = gActor.outermostVisibleParent();
+        local outerLoc = now.actor.outermostVisibleParent();
         
         /* Keep a note of whether we've succeeded in describing the view. */
         local viewDescribed = nil;

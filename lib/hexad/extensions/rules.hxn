@@ -24,10 +24,10 @@ class RuleBook: PreinitObject
     
     /* 
      *   The actor to use for comparison with the who property for rules in this
-     *   RuleBook. The default is gPlayerChar, but for some RuleBooks gActor may
+     *   RuleBook. The default is now.player, but for some RuleBooks now.actor may
      *   be more appropriate.
      */
-    actor = gPlayerChar
+    actor = now.player
     
     /* Add a rule to the contents of this rulebook [RULES EXTENSION] */
     addToContents(ru)
@@ -477,7 +477,7 @@ class Rule: object
              *   char's current location, we don't meet the where condition, so
              *   return nil
              */
-            if(whereLst.indexWhich( {loc: gActor.isIn(loc)}) == nil)
+            if(whereLst.indexWhich( {loc: now.actor.isIn(loc)}) == nil)
                 return nil;
         }
         
@@ -499,7 +499,7 @@ class Rule: object
              *   If we can't match any item in the who list to the current
              *   actor, we don't meet the who condition, so return nil
              */
-            if(whoLst.indexOf(gActor) == nil)
+            if(whoLst.indexOf(now.actor) == nil)
                 return nil;
         }
         
@@ -517,11 +517,11 @@ class Rule: object
         }
         
         /* 
-         *   If we've specified an action to match, test whether gAction (the
+         *   If we've specified an action to match, test whether now.action (the
          *   current action) matches it.
          */
         if(hasProp(&action) 
-           && valToList(action).indexWhich({a: gAction.ofKind(a)}) == nil)
+           && valToList(action).indexWhich({a: now.action.ofKind(a)}) == nil)
             return nil;
         
         
@@ -531,9 +531,9 @@ class Rule: object
          *   object of the current action (provided there is one, which there
          *   may not be at startup).
          */
-        if(gAction)
+        if(now.action)
         {
-            for(local objs in [[&dobj, gDobj], [&iobj, gIobj], [&aobj, gAobj]])
+            for(local objs in [[&dobj, now.dobj], [&iobj, now.iobj], [&aobj, now.aobj]])
             {
                 local prop = objs[1];
                 local obj = objs[2];
@@ -710,10 +710,10 @@ class Rule: object
     
     /* 
      *   The actor to use to compare with the who property of this Rule. This
-     *   will normally be gPlayerChar, but the value of this property is taken
+     *   will normally be now.player, but the value of this property is taken
      *   from our RuleBook's actor property. [RULES EXTENSION]
      */
-    actor = (rulebook == nil ? gPlayerChar : rulebook.actor)
+    actor = (rulebook == nil ? now.player : rulebook.actor)
     
     
     /* ------------------------------------------------------------------- */ 
@@ -724,7 +724,7 @@ class Rule: object
       
     /* 
      *   A Room or Region, or a list of Rooms and/or Regions in which our actor
-     *   (usually either gActor or gPlayerChar - the latter by default - must be
+     *   (usually either now.actor or now.player - the latter by default - must be
      *   for this Rule to match. [RULES EXTENSION]
      */
     // where = []

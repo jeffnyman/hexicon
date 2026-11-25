@@ -51,7 +51,7 @@ action CmdMenu: SystemAction
         {
             for(local a = firstObj(Actor); a != nil ; a = nextObj(a, Actor))
             {
-                if(a != gPlayerChar && Q.canTalkTo(gPlayerChar, a))
+                if(a != now.player && Q.canTalkTo(now.player, a))
                 {
                     showMsg(cmdhelp talk to someone, '<<aHref('5','5')>>. 
                         Talk to someone\n');
@@ -111,7 +111,7 @@ action CmdMenu: SystemAction
         local num = cmd.dobj.numVal;
         
         /* Note the player character's current location. */
-        local loc = gPlayerChar.getOutermostRoom();
+        local loc = now.player.getOutermostRoom();
         
         /* 
          *   If the player typed a number out of range, re-display the options
@@ -198,7 +198,7 @@ action CmdMenu: SystemAction
          *   objects, so we need to get a list of those in scope.
          */
         local scope_lst = World.scope.toList().subset({o:
-            Q.canSee(gPlayerChar, o)});
+            Q.canSee(now.player, o)});
         
         /*  Remove Unthings and Rooms from the list. */
         scope_lst = scope_lst.subset({o: !o.ofKind(Unthing) 
@@ -296,7 +296,7 @@ action CmdMenu: SystemAction
          *   player character can actually touch.
          */
         
-        scope_lst = scope_lst.subset({o:  Q.canReach(gPlayerChar, o)});
+        scope_lst = scope_lst.subset({o:  Q.canReach(now.player, o)});
         
         /* Things can be moved if they're not fixed in place. */
         local move_lst = scope_lst.subset({o: !o.isFixed });
@@ -310,10 +310,10 @@ action CmdMenu: SystemAction
             
             /* 
              *   First deal with things the player can TAKE. We need to set
-             *   gAction since verify() routines will assume it has been set
+             *   now.action since verify() routines will assume it has been set
              *   correctly.
              */                 
-            gAction = Take;
+            libGlobal.curAction = Take;
             
             /*   
              *   Get a list of things than can be taken. This will be the subset
@@ -352,15 +352,15 @@ action CmdMenu: SystemAction
             
             /*  
              *   Now suggest things that can be DROPped. Again we must set
-             *   gAction for the sake of the verify method.
+             *   now.action for the sake of the verify method.
              */
-            gAction = Drop;
+            libGlobal.curAction = Drop;
             
             /*   
              *   Get a list of moveable objects directly located in the player
              *   character.
              */
-            local drop_lst = move_lst.subset({o: o.isDirectlyIn(gPlayerChar)});
+            local drop_lst = move_lst.subset({o: o.isDirectlyIn(now.player)});
             
             /*  
              *   If we have too many objects, sort them in ascending order of
@@ -399,11 +399,11 @@ action CmdMenu: SystemAction
             
             
             /*  
-             *   Set up PUT IN suggestions. First set gAction to PutIn so that
-             *   any routines we call that depend on the value of gAction will
+             *   Set up PUT IN suggestions. First set now.action to PutIn so that
+             *   any routines we call that depend on the value of now.action will
              *   work as expected.
              */
-            gAction = PutIn;
+            libGlobal.curAction = PutIn;
             
             /*  
              *   Get the list of items into which things can be out. This is the
@@ -474,7 +474,7 @@ action CmdMenu: SystemAction
              *   Now handle the PUT ON suggestions. The logic is the same as for
              *   PUT IN.
              */
-            gAction = PutOn;
+            libGlobal.curAction = PutOn;
             put_in_lst =  scope_lst.subset({o: o.contType == On || 
                 o.remapOn != nil});
             
@@ -506,7 +506,7 @@ action CmdMenu: SystemAction
              *   Now handle the PUT UNDER suggestions. The logic is the same as
              *   for PUT IN.
              */
-            gAction = PutUnder;
+            libGlobal.curAction = PutUnder;
             put_in_lst =  scope_lst.subset({o: o.contType.canPutUnderMe || 
                 (o.remapUnder != nil && o.remapUnder.canPutUnderMe) });
             
@@ -538,7 +538,7 @@ action CmdMenu: SystemAction
              *   Now handle the PUT BEHIND suggestions. The logic is the same as
              *   for PUT IN.
              */
-            gAction = PutBehind;
+            libGlobal.curAction = PutBehind;
             put_in_lst =  scope_lst.subset({o: o.contType.canPutBehindMe || 
                 (o.remapBehind != nil && o.remapBehind.canPutBehindMe) });
             
@@ -582,13 +582,13 @@ action CmdMenu: SystemAction
             foreach(local act in manipulationActions)
             {               
                 /* 
-                 *   Set gAction to the current action, so that routines such as
+                 *   Set now.action to the current action, so that routines such as
                  *   verify that depend on its value will work properly.
                  */
-                gAction = act;
+                libGlobal.curAction = act;
                 
-                /*   Set gActor to the player character for the same reason. */
-                gActor = gPlayerChar;
+                /*   Set now.actor to the player character for the same reason. */
+                libGlobal.curActor = now.player;
                 
                 /*   
                  *   Get the list of objects in scope that would pass the verify
@@ -630,9 +630,9 @@ action CmdMenu: SystemAction
                 local lst = scope_lst.subset({o: o.ofKind(Button) ||
                                              o.ofKind(Lever)});
                 
-                /* Set gAction and gActor for the PUSH action. */
-                gAction = Push;
-                gActor = gPlayerChar;
+                /* Set now.action and now.actor for the PUSH action. */
+                libGlobal.curAction = Push;
+                libGlobal.curActor = now.player;
                 
                 /* 
                  *   Restrict our list to actions that would pass the verify
@@ -646,9 +646,9 @@ action CmdMenu: SystemAction
                 /* Get a list of levers in scope. */
                 lst = scope_lst.subset({o: o.ofKind(Lever) });
                 
-                /* Set gAction and gActor for the PULL action. */
-                gAction = Pull;
-                gActor = gPlayerChar;
+                /* Set now.action and now.actor for the PULL action. */
+                libGlobal.curAction = Pull;
+                libGlobal.curActor = now.player;
                 
                 /* 
                  *   Get a subset of levers that would pass the verify stage for
@@ -724,7 +724,7 @@ action CmdMenu: SystemAction
                  *   character.
                  */
                 actor_lst = scope_lst.subset({o: o.ofKind(Actor) && o !=
-                                             gPlayerChar});
+                                             now.player});
             }
             
             /* If we didn't find any, say so. */
@@ -737,7 +737,7 @@ action CmdMenu: SystemAction
              *   command.
              */
             else if(actor_lst.length == 1 && actor_lst[1] ==
-                    gPlayerChar.currentInterlocutor)
+                    now.player.currentInterlocutor)
                 "<<aHrefFmt(hlinkFormat, 'topics', 'topics')>> ";
             /*  Otherwise display a list of actors to talk to. */
             else    
@@ -754,7 +754,7 @@ action CmdMenu: SystemAction
             \ \ <<aHrefFmt(hlinkFormat,'SLEEP', 'SLEEP')>>\b";
         }
         
-        gAction = self;
+        libGlobal.curAction = self;
     }
     
    
@@ -784,7 +784,7 @@ action CmdMenu: SystemAction
         act.curDobj = obj;
         
         /* See if running the check routine would output any text. */
-        local str = gOutStream.captureOutput(
+        local str = now.outputStream.captureOutput(
             {: act.check(obj, act.checkDobjProp)});
         
         /* 
@@ -805,9 +805,9 @@ action CmdMenu: SystemAction
         if(cont.remapIn != nil)
             cont = cont.remapIn;
          
-        /* Set gAction to the appropriate action */
-        gAction = act;
-        gDobj = obj;
+        /* Set now.action to the appropriate action */
+        libGlobal.curAction = act;
+        now.action.curDobj = obj;
         
         /* 
          *   Get the property for running the check() method on the indirect
@@ -816,7 +816,7 @@ action CmdMenu: SystemAction
         local prop = act.checkIobjProp;
         
         /*   Capture the output from running this method. */
-        local str = gOutStream.captureOutput( {: cont.(prop) });
+        local str = now.outputStream.captureOutput( {: cont.(prop) });
         
         /* 
          *   If there was any output, we failed the check stage; otherwise we
@@ -858,10 +858,10 @@ modify Thing
     actionMoveInto(dest)
     {
         inherited(dest);
-        turnLastMoved = gTurns;
-        dest.turnLastMovedInto = gTurns;
+        turnLastMoved = now.turns;
+        dest.turnLastMovedInto = now.turns;
         if(dest.ofKind(SubComponent) && dest.lexicalParent)
-            dest.lexicalParent.turnLastMovedInto = gTurns;
+            dest.lexicalParent.turnLastMovedInto = now.turns;
     
     }
     
@@ -876,7 +876,7 @@ modify Thing
         action()
         {
             inherited();
-            turnLastExamined = gTurns;
+            turnLastExamined = now.turns;
         }
     }
 ;

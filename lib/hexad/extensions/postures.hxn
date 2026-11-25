@@ -172,7 +172,7 @@ modify Thing
         else
         {
             local dobj = location;
-            gMessageParams(dobj);
+            messageParams(dobj);
             local prop = contType == In ? &cannotInMsgProp : &cannotOnMsgProp;
             prop = pos.(prop);
             say(self.(prop));
@@ -198,15 +198,15 @@ modify Thing
              *   If the actor is already on the dobj, just try to change the
              *   actor's posture to standing.
              */
-            if(gActor.location == self)
-                gActor.tryMakingPosture(standing);
+            if(now.actor.location == self)
+                now.actor.tryMakingPosture(standing);
             else
             {
                 /* Otherwise, move the actor into the dobj */
-                gActor.actionMoveInto(self);
+                now.actor.actionMoveInto(self);
                 
                 /* Then change the actor's posture to standing. */
-                gActor.posture = standing;                
+                now.actor.posture = standing;                
             }
         }
         
@@ -217,7 +217,7 @@ modify Thing
     }
     
     /* [DEFINED IN POSTURES EXTENSION] */
-    okayStandOnMsg = msgText(okay stand on, '{I} {stand} on {1}. ', gActionListStr)
+    okayStandOnMsg = msgText(okay stand on, '{I} {stand} on {1}. ', now.actionListStr)
     
     /*  
      *   Modification for SitOn handling [DEFINED IN POSTURES EXTENSION] If the actor is already on
@@ -231,12 +231,12 @@ modify Thing
         
         action()
         {
-            if(gActor.location == self)
-                gActor.tryMakingPosture(sitting);
+            if(now.actor.location == self)
+                now.actor.tryMakingPosture(sitting);
             else
             {
-                gActor.actionMoveInto(self);
-                gActor.posture = sitting;               
+                now.actor.actionMoveInto(self);
+                now.actor.posture = sitting;               
             }
         }
         
@@ -247,7 +247,7 @@ modify Thing
     }
     
     /* [DEFINED IN POSTURES EXTENSION] */
-    okaySitOnMsg = msgText(okay sit on, '{I} {sit} on {1}. ', gActionListStr)
+    okaySitOnMsg = msgText(okay sit on, '{I} {sit} on {1}. ', now.actionListStr)
     
     /*  
 	 * 	Modification for LieOn handling [DEFINED IN POSTURES EXTENSION]
@@ -262,12 +262,12 @@ modify Thing
         
         action()
         {
-            if(gActor.location == self)
-                gActor.tryMakingPosture(lying);
+            if(now.actor.location == self)
+                now.actor.tryMakingPosture(lying);
             else
             {
-                gActor.actionMoveInto(self);
-                gActor.posture = lying;                
+                now.actor.actionMoveInto(self);
+                now.actor.posture = lying;                
             }
         }
         
@@ -279,7 +279,7 @@ modify Thing
     }
     
     /* [DEFINED IN POSTURES EXTENSION] */
-    okayLieOnMsg = msgText(okay lie on, '{I} {lie} on {1}. ', gActionListStr)
+    okayLieOnMsg = msgText(okay lie on, '{I} {lie} on {1}. ', now.actionListStr)
             
     /* 
      *   If an actor Boards something, we need to know what posture the actor
@@ -297,13 +297,13 @@ modify Thing
              *   Change the actor's posture to the default posture for the
              *   actor's new location.
              */
-            gActor.posture = gActor.location.defaultPosture;
+            now.actor.posture = now.actor.location.defaultPosture;
         }
         
         report()
         {
-            showMsg(okay get on posture, '{1} on {2}. ', gActor.posture.verbPhrase,
-                 gActionListStr);
+            showMsg(okay get on posture, '{1} on {2}. ', now.actor.posture.verbPhrase,
+                 now.actionListStr);
         }
     }
     
@@ -324,7 +324,7 @@ modify Thing
              *   Change the actor's posture to the default posture for the
              *   actor's new location.
              */
-            gActor.posture = gActor.location.defaultPosture;
+            now.actor.posture = now.actor.location.defaultPosture;
         }
     }
     
@@ -379,16 +379,16 @@ modify Thing
         action()
         {
             /* If the actor is already in me, try making the actor stand. */
-            if(gActor.location == self)
-                gActor.tryMakingPosture(standing);
+            if(now.actor.location == self)
+                now.actor.tryMakingPosture(standing);
             /* Otherwise change location and posture */
             else
             {
                 /* Move the actor into me */
-                gActor.actionMoveInto(self);
+                now.actor.actionMoveInto(self);
                 
                 /* Change the actor's posture to standing. */
-                gActor.posture = standing;                
+                now.actor.posture = standing;                
             }
         }
         
@@ -403,7 +403,7 @@ modify Thing
         ')
         
     /* [MODIFIED FOR POSTURES EXTENSION] */    
-    okayStandInMsg = msgText(okay stand in, '{I} {stand} in {1}. ', gActionListStr)
+    okayStandInMsg = msgText(okay stand in, '{I} {stand} in {1}. ', now.actionListStr)
     
     /* 
      *  SitIn is handled much like StandIn 
@@ -416,12 +416,12 @@ modify Thing
         
         action()
         {
-            if(gActor.location == self)
-                gActor.tryMakingPosture(sitting);
+            if(now.actor.location == self)
+                now.actor.tryMakingPosture(sitting);
             else
             {
-                gActor.actionMoveInto(self);
-                gActor.posture = sitting;                
+                now.actor.actionMoveInto(self);
+                now.actor.posture = sitting;                
             }
         }
         
@@ -432,7 +432,7 @@ modify Thing
     }
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
-    okaySitInMsg = msgText(okay sit in, '{I} {sit} in {1}. ', gActionListStr)
+    okaySitInMsg = msgText(okay sit in, '{I} {sit} in {1}. ', now.actionListStr)
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
     cannotSitInMsg = msgText(cannot sit in, '{I} {can\'t} sit in {the dobj}. ')
@@ -448,12 +448,12 @@ modify Thing
         
         action()
         {
-            if(gActor.location == self)
-                gActor.tryMakingPosture(lying);
+            if(now.actor.location == self)
+                now.actor.tryMakingPosture(lying);
             else
             {
-                gActor.actionMoveInto(self);
-                gActor.posture = lying;                   
+                now.actor.actionMoveInto(self);
+                now.actor.posture = lying;                   
             }
         }
         
@@ -464,7 +464,7 @@ modify Thing
     }
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
-    okayLieInMsg = msgText(okay lie in, '{I} {lie} in {1}. ', gActionListStr)
+    okayLieInMsg = msgText(okay lie in, '{I} {lie} in {1}. ', now.actionListStr)
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
     cannotLieInMsg = msgText(cannot lie in, '{I} {can\'t} lie in {the dobj}. ')
@@ -485,7 +485,7 @@ modify Thing
              *   Change the actor's posture to the default posture for the
              *   actor's new location.
              */
-            gActor.posture = gActor.location.defaultPosture;
+            now.actor.posture = now.actor.location.defaultPosture;
         }
     }
     
@@ -505,7 +505,7 @@ modify Thing
              *   Change the actor's posture to the default posture for the
              *   actor's new location.
              */
-            gActor.posture = gActor.location.defaultPosture;
+            now.actor.posture = now.actor.location.defaultPosture;
         }
     }
     
@@ -586,17 +586,17 @@ modify TravelConnector
          *   If the actor is not in the correct posture, try executing the appropriate action to put
          *   them in that posture.
          */
-        if(gActor.posture != posture)
+        if(now.actor.posture != posture)
         {
             /* Attempt to get the actor into the right posture via an implicit action. */
             tryImplicitAction(posture.action);
             
             /* Report the result of the implicit action. */
-            "<<gAction.buildImplicitActionAnnouncement(gActor.posture == posture, true)>>";
+            "<<now.action.buildImplicitActionAnnouncement(now.actor.posture == posture, true)>>";
         }
         
         /* Return true or nil according to whether the actor is now in the correct posture. */
-        return gActor.posture == posture;
+        return now.actor.posture == posture;
     }
 ;
 
@@ -641,7 +641,7 @@ modify Booth
 modify Stand
     execAction(c)
     {
-        gActor.tryMakingPosture(standing);           
+        now.actor.tryMakingPosture(standing);           
     }
 ;
 
@@ -649,7 +649,7 @@ modify Stand
 modify Sit
     execAction(c)
     {
-        gActor.tryMakingPosture(sitting);
+        now.actor.tryMakingPosture(sitting);
     }
 ;
 
@@ -657,7 +657,7 @@ modify Sit
 modify Lie
     execAction(c)
     {
-        gActor.tryMakingPosture(lying);
+        now.actor.tryMakingPosture(lying);
     }
 ;
 
@@ -669,7 +669,7 @@ actorInTravelPosture: PreCondition
         if(objOfKind(obj, TravelConnector))
            requiredPosture = obj.posture;        
         
-        if(gActor.posture == requiredPosture)
+        if(now.actor.posture == requiredPosture)
             return true;
         
         if(allowImplicit && tryImplicitAction(requiredPosture.action))

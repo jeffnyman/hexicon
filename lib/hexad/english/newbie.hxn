@@ -32,7 +32,7 @@ helpMessage: object
         introduction to playing this type of game type <<aHref('INTRO', 'INTRO',
             'Show a brief introduction')>>, or <<aHref('SAMPLE', 'SAMPLE', 'Show
                 a short sample transcript')>> to show a short sample transcript.
-        <<if gHintManager != nil>>If you\'re having trouble moving forward and
+        <<if libGlobal.hintManagerObj != nil>>If you\'re having trouble moving forward and
         need help solving a puzzle, type <<aHref('HINT', 'HINT', 'Show
             hints')>>.<<end>> ";
         
@@ -120,7 +120,7 @@ helpMessage: object
         and presumably that\'s how this game would continue.\b";
         inputManager.pauseForMore();
         "And now back to the game you\'re actually playing....\b";
-        gPlayerChar.getOutermostRoom.lookAroundWithin();      
+        now.player.getOutermostRoom.lookAroundWithin();      
         
     }
 ;
@@ -156,7 +156,7 @@ playerHelper: InitObject
     {
         new Fuse(self, &firstCheck, firstCheckAfter);       
         
-        startLocation = gPlayerChar.location;
+        startLocation = now.player.location;
     }
     
     /* 
@@ -207,7 +207,7 @@ playerHelper: InitObject
      *   seems to be stuck. By default we simply return nil as there's no way of
      *   knowing how to measure 'stuckness' for games in general, so specific
      *   games will need to override this method. A game involved exploration
-     *   might set the condition to gLocation == startLocation (meaning the
+     *   might set the condition to now.location == startLocation (meaning the
      *   player character hasn't moved) for example.
      */
     firstCheckCriterion()
@@ -393,7 +393,7 @@ somethingPreParser: StringPreParser
             local lst = cmdDict.findWord(ret[3]);
             
             /* then see if it matches any objects in scope. */
-            lst = lst.intersect(Q.scopeList(gPlayerChar));
+            lst = lst.intersect(Q.scopeList(now.player));
             
             /* if not, display a helpful message */
             if(lst.length == 0)
@@ -410,7 +410,7 @@ somethingPreParser: StringPreParser
     }
     pat = static new Regex('<NoCase>%<(someone|something|anyone|anything)%>')
 
-   isActive = (gPlayerChar.currentInterlocutor == nil)
+   isActive = (now.player.currentInterlocutor == nil)
 ;
 
 /* 
@@ -421,7 +421,7 @@ somethingPreParser: StringPreParser
 action LookHere: IAction
     execAction(cmd)
     {
-        gActor.getOutermostRoom.lookAroundWithin();
+        now.actor.getOutermostRoom.lookAroundWithin();
         playerHelper.errorCount++;
         "<.p>[For future reference, you don't need to refer to places in the
         game with words like <q><<cmd.verbProd.placeName>></q>; a simple LOOK
@@ -442,7 +442,7 @@ verb LookHere ('l' | 'look' | 'search') ('here'->placeName|'there'->placeName):
 pleasePreParser: StringPreParser
     doParsing(str, which)
     {
-        if(regexMatch(pat, str) && gPlayerChar.currentInterlocutor == nil)
+        if(regexMatch(pat, str) && now.player.currentInterlocutor == nil)
         {
             "That's very polite of you, but there's really no need to use words
             like <q>please</q> and <q>kindly</q>; you'll find the game
@@ -513,7 +513,7 @@ verb KeepGoing
 pronounUsePreParser: StringPreParser
     doParsing(str, which)
     {
-        if(regexMatch(pat3, str) || gPlayerChar.currentInterlocutor != nil)
+        if(regexMatch(pat3, str) || now.player.currentInterlocutor != nil)
             return str;
         
         if(regexMatch(pat, str) || regexMatch(pat2, str))
@@ -568,7 +568,7 @@ verb WhereHelp
      *   in that case the player may be attempting a valid conversational
      *   command)
      */
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 action Help: SystemAction
@@ -592,7 +592,7 @@ verb Help
      *   in that case the player may be attempting a valid conversational
      *   command)
      */
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 verb WhatNext for Help
@@ -609,7 +609,7 @@ verb WhatNext for Help
      *   in that case the player may be attempting a valid conversational
      *   command)
      */
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 
@@ -651,7 +651,7 @@ verb WhatIsNoun for Examine ('whats' | 'what' ('is'|'are')) multiDobj:
      *   in that case the player may be attempting a valid conversational
      *   command)
      */
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 modify Examine
@@ -680,7 +680,7 @@ verb WhatAmICarrying for Inventory
     | 'what' 'have' ('i'|'we'|'you') 'got':
     verbPhrase = 'take/taking inventory'
     priority = 80
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 modify Inventory
@@ -715,7 +715,7 @@ verb WhatsThePoint for About
      *   in that case the player may be attempting a valid conversational
      *   command)
      */
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 verb WhatThisGame for About
@@ -731,7 +731,7 @@ verb WhatThisGame for About
      *   in that case the player may be attempting a valid conversational
      *   command)
      */
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 
@@ -750,7 +750,7 @@ action GoSomewhere: IAction
         playerHelper.errorCount++;
         
         if(defined(exitLister) &&
-           exitLister.cannotGoShowExits(gActor, gActor.getOutermostRoom));        
+           exitLister.cannotGoShowExits(now.actor, now.actor.getOutermostRoom));        
     }
     actionTime = 0
 ;
@@ -774,7 +774,7 @@ modify VagueTravel
 action WhereAmI: IAction
     execAction(cmd)
     {
-        gActor.getOutermostRoom.lookAroundWithin();
+        now.actor.getOutermostRoom.lookAroundWithin();
         "<.p>[In future, just use the <<aHref('LOOK','LOOK', 'Look around')>>
         command]<.p>";
     }
@@ -785,7 +785,7 @@ verb WhereAmI 'where' ('are' | 'am' | 'is') ('i' | 'we'):
     verbPhrase = 'look/looking'
     
     priority = 80
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 verb WhatsHere for WhereAmI
@@ -794,7 +794,7 @@ verb WhatsHere for WhereAmI
     verbPhrase = 'ask/asking what\'s here'
     
     priority = 80
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;  
 
 /* 
@@ -809,7 +809,7 @@ action WhoAmI: IAction
         may have given you a description.  You can see this description in the
         future by typing <<aHref('X ME','X ME','Examine me')>>], which is
         quicker and more standard.]\b";
-        replaceAction(Examine, gPlayerChar);
+        replaceAction(Examine, now.player);
         playerHelper.errorCount++;
     }
 ;
@@ -818,7 +818,7 @@ verb WhoAmI ('who'| 'what') ('am'|'is') ('i'|'me'):
     verbPhrase = 'ask/asking who I am'
     
     priority = 80
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 
@@ -840,7 +840,7 @@ verb WhereGo
     verbPhrase = 'show/showing exits'
     
     priority = 80
-    isActive = (gPlayerChar.currentInterlocutor == nil)
+    isActive = (now.player.currentInterlocutor == nil)
 ;
 
 
@@ -904,41 +904,41 @@ action Seek: TopicAction
     execAction(cmd)
     {
         local obj = getBestMatch(cmd);
-        gMessageParams(obj);
+        messageParams(obj);
         if(obj && obj.ofKind(Unthing))
         {
             say(obj.notImportantMsg);
             return;
         }
            
-        if(obj == gPlayerChar)
+        if(obj == now.player)
         {
             "If you've managed to lose your player character, things must be
             desperate! But don't worry, {I}{\'m} right {here}. ";
             return;
         }
         
-        if(obj && obj.ofKind(Thing) && gActor.hasSeen(obj))
+        if(obj && obj.ofKind(Thing) && now.actor.hasSeen(obj))
         {
             local loc = obj.location;
             if(loc == nil)
             {
-                if(obj.isIn(gActor.getOutermostRoom))
-                    loc = gActor.getOutermostRoom;
+                if(obj.isIn(now.actor.getOutermostRoom))
+                    loc = now.actor.getOutermostRoom;
                 else if(obj.ofKind(MultiLoc) && obj.locationList.length > 0)
                     loc = obj.locationList[1];
             }
             
             
-            if(obj.isIn(gActor))
+            if(obj.isIn(now.actor))
                 "{I} {am} carrying {him obj}. ";
-            else if(gActor.canSee(obj) && loc != nil)
+            else if(now.actor.canSee(obj) && loc != nil)
             {
                 "{The subj obj} {is} ";
-                if(loc == gActor.getOutermostRoom)
+                if(loc == now.actor.getOutermostRoom)
                     "right {here}. ";
                 else 
-                    "<<obj.isIn(gActor.getOutermostRoom) ? '' : 'nearby, '>>
+                    "<<obj.isIn(now.actor.getOutermostRoom) ? '' : 'nearby, '>>
                     <<locDesc(obj, loc)>>. ";
             }
             else
@@ -955,11 +955,11 @@ action Seek: TopicAction
     }
     
     /* 
-     *   gTopic.getBestMatch() may not give the best results for our 
+     *   now.topic.getBestMatch() may not give the best results for our 
      *   purposes. The following code is designed to prefer Things to 
      *   Unthings, and then to prioritize what the player char can see over 
      *   what s/he has seen, and both over what s/he only knows about. If 
-     *   none of these find a match, we then revert to gTopic.getBestMatch.
+     *   none of these find a match, we then revert to now.topic.getBestMatch.
      */
     
     getBestMatch(cmd)
@@ -970,7 +970,7 @@ action Seek: TopicAction
          *   First see if our topic list includes anything the actor can see
          *   that's not an Unthing.
          */
-        local obj = lst.valWhich({x: x.ofKind(Thing) && gActor.canSee(x) 
+        local obj = lst.valWhich({x: x.ofKind(Thing) && now.actor.canSee(x) 
                                  && !x.ofKind(Unthing)});
         if(obj != nil)
             return obj;
@@ -979,7 +979,7 @@ action Seek: TopicAction
          *   Next see if there's anything in our topic list that the actor has
          *   previously seen.
          */
-        obj = lst.valWhich({x: gActor.hasSeen(x) && !x.ofKind(Unthing)});
+        obj = lst.valWhich({x: now.actor.hasSeen(x) && !x.ofKind(Unthing)});
         if(obj != nil)
             return obj;
         
@@ -987,7 +987,7 @@ action Seek: TopicAction
          *   Next see if there's anything in our topic list that the actor
          *   knows about.
          */
-        obj = lst.valWhich({x: x.ofKind(Thing) && gActor.knowsAbout(x)});        
+        obj = lst.valWhich({x: x.ofKind(Thing) && now.actor.knowsAbout(x)});        
         
         if(obj != nil)
             return obj;

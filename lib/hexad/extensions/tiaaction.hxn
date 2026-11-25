@@ -255,7 +255,7 @@ class TIAAction: TIAction
          *   If we're iterating over several objects and we're the kind of
          *   action which wants to announce objects in this context, do so.
          */        
-        if(announceMultiAction && gCommand.dobjs.length > 1)
+        if(announceMultiAction && now.command.dobjs.length > 1)
             announceObject(curDobj);
         
         
@@ -280,7 +280,7 @@ class TIAAction: TIAction
              *   that any pending implicit action reports are prepended to any
              *   action reports output at this stage.
              */
-//            gOutStream.addOutputFilter(ImplicitActionFilter);
+//            now.outputStream.addOutputFilter(ImplicitActionFilter);
             
             /* 
              *   Run the action routine on the current direct object and capture
@@ -293,7 +293,7 @@ class TIAAction: TIAction
              *   it creates far more hassle than it's worth!!!!
              */
             msgForDobj =
-                gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+                now.outputStream.watchForOutput({:curDobj.(actionDobjProp)});
             
             
             
@@ -312,7 +312,7 @@ class TIAAction: TIAction
              *   handled on the iobj.
              */        
             msgForIobj =
-                gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
+                now.outputStream.watchForOutput({:curIobj.(actionIobjProp)});
             
             /* Note that the current object is now the indirect object. */
             curObj = curAobj;
@@ -326,14 +326,14 @@ class TIAAction: TIAction
              *   handled on the iobj.
              */        
             msgForAobj =
-                gOutStream.watchForOutput({:curAobj.(actionAobjProp)});
+                now.outputStream.watchForOutput({:curAobj.(actionAobjProp)});
         }
         
         finally
         {
             /* Remove any implicit action announcement from the output stream */
             
-//            gOutStream.removeOutputFilter(ImplicitActionFilter);
+//            now.outputStream.removeOutputFilter(ImplicitActionFilter);
         }
         
         /* 
@@ -357,7 +357,7 @@ class TIAAction: TIAction
              *   Otherwise, if we're not an implicit action, clear out the
              *   implicit action reports which we should now have displayed.
              */
-//            gCommand.implicitActionReports = [];              
+//            now.command.implicitActionReports = [];              
         }
         
         

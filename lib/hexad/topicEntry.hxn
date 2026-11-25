@@ -246,7 +246,7 @@ modify TopicDatabase
          *   which might then get masked by a shorter topic; e.g. we don't want ASK WHEN THE WEDDING
          *   WILL BE to be masked by a 'wedding' topic if the player types ASK WHEN WEDDING.
          */
-        if(requestedList.length > 1 && gAction not in (Query, SayTo, QueryAbout, SayAction)
+        if(requestedList.length > 1 && now.action not in (Query, SayTo, QueryAbout, SayAction)
            && requestedList.indexWhich({t:t.name == nil}) == nil )
         {
             /* Sort the list in descending order of name length. */
@@ -334,8 +334,8 @@ class Consultable: TopicDatabase, Thing
              *   of revealing information to bystsanders, so we first store the identity of the
              *   current interlocutor and then set the current interlocutor to ni.
              */
-            local interlocutor = gPlayerChar.currentInterlocutor;
-            gPlayerChar.currentInterlocutor = nil;
+            local interlocutor = now.player.currentInterlocutor;
+            now.player.currentInterlocutor = nil;
             
             try
             {
@@ -343,7 +343,7 @@ class Consultable: TopicDatabase, Thing
                  *   Find the topic we're meant to be matching by getting the best match to the list
                  *   of topics contained in the indirect object
                  */
-                local matchedTopic = getBestMatch(consultTopics, gIobj.topicList);
+                local matchedTopic = getBestMatch(consultTopics, now.iobj.topicList);
                 
                 /* If we don't find a match, display a message explaining that */
                 if(matchedTopic == nil)
@@ -365,7 +365,7 @@ class Consultable: TopicDatabase, Thing
             finally
             {
                 /* Restore the current interlocutor */
-                gPlayerChar.currentInterlocutor = interlocutor;
+                now.player.currentInterlocutor = interlocutor;
             }
         }
     }
@@ -421,7 +421,7 @@ class Consultable: TopicDatabase, Thing
          *   objects for the current action, but don't decrement it below zero.
          */
         
-        if(gIobj != self && gDobj != self && currentConsultableScore > 0)
+        if(now.iobj != self && now.dobj != self && currentConsultableScore > 0)
             currentConsultableScore-- ;
     }
     

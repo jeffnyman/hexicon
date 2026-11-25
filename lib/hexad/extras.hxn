@@ -339,7 +339,7 @@ class Distant: ProxyDest, Decoration
              *   make this verify routine prevent the action even if
              *   decorationActions is overridden, if there's a nil destination.
              */
-            if(!gActor.isIn(getOutermostRoom) || destination == nil)
+            if(!now.actor.isIn(getOutermostRoom) || destination == nil)
                 inaccessible(notImportantMsg);
         }
         
@@ -354,7 +354,7 @@ class Distant: ProxyDest, Decoration
              *   hasn't gone that way before.
              */
             local route = defined(routeFinder)? routeFinder.findPath(
-                gActor.getOutermostRoom, destination.getOutermostRoom) : nil;
+                now.actor.getOutermostRoom, destination.getOutermostRoom) : nil;
             
             /*  
              *   If we don't find a route, just display a message saying we
@@ -547,7 +547,7 @@ class CollectiveGroup: Fixture
     /* Obtain the list of the objects belonging to me that are in scope. */
     myScopeObjects()
     {
-        return Q.scopeList(gActor).toList.subset(
+        return Q.scopeList(now.actor).toList.subset(
             {o: valToList(o.collectiveGroups).indexOf(self) != nil});
     }
     
@@ -567,7 +567,7 @@ class CollectiveGroup: Fixture
          *   Obtain the sublist of these that are currently held by the player
          *   character
          */
-        local heldLst = lst.subset({o: o.isIn(gPlayerChar)});
+        local heldLst = lst.subset({o: o.isIn(now.player)});
         
         /*  
          *   Subtract the list of held items from the list of in-scope items to
@@ -649,7 +649,7 @@ class StairwayUp: TravelConnector, Thing
     /* Climbing a StairwayUp is equivalent to travelling via it. */
     dobj Climb
     {        
-        action() { travelVia(gActor); }        
+        action() { travelVia(now.actor); }        
     }
     
     /* Climbing up a Stairway up is the same as Climbing it. */
@@ -674,7 +674,7 @@ class StairwayUp: TravelConnector, Thing
      */
     sayDeparting(traveler)
     {
-        gMessageParams(traveler);
+        messageParams(traveler);
         showMsg(say departing up stairs, '{The subj traveler} {goes} up
             {1}. ', theName);
     }
@@ -687,7 +687,7 @@ class StairwayUp: TravelConnector, Thing
     sayActorFollowing(follower, leader)
     {
         /* Create message parameter substitutions for the follower and leader */
-        gMessageParams(follower, leader);  
+        messageParams(follower, leader);  
         
         showMsg(say following up staircase, '{The subj follower} follow{s/ed} {the
             leader} up {1}. ', theName);
@@ -715,7 +715,7 @@ class StairwayDown: TravelConnector, Thing
     /* Climbing down a StairwayDown is equivalent to travelling via it. */
     dobj ClimbDown
     {       
-        action { travelVia(gActor); }
+        action { travelVia(now.actor); }
     }
     
     /* A StairwayDown is usually something fixed in place. */
@@ -737,7 +737,7 @@ class StairwayDown: TravelConnector, Thing
      */
     sayDeparting(traveler)
     {
-        gMessageParams(traveler);
+        messageParams(traveler);
         showMsg(say departing down stairs, '{The subj traveler} {goes} down
             {1}. ', theName);
     }
@@ -749,7 +749,7 @@ class StairwayDown: TravelConnector, Thing
     sayActorFollowing(follower, leader)
     {
         /* Create message parameter substitutions for the follower and leader */
-        gMessageParams(follower, leader);  
+        messageParams(follower, leader);  
         
         showMsg(say following down staircase, '{The subj follower} follow{s/ed}
             {the leader} down {1}. ', theName);
@@ -886,10 +886,10 @@ class DSStairway: DSCon, StairwayUp
     /* a trio of short service methods to provide convenient abbreviations in game code */
     
     /* Is the player character in our upper end room? */
-    inUpper = (upperEnd && gPlayerChar.isIn(upperEnd))
+    inUpper = (upperEnd && now.player.isIn(upperEnd))
     
     /* Is the player character in our lower end room? */
-    inLower = (lowerEnd && gPlayerChar.isIn(lowerEnd))
+    inLower = (lowerEnd && now.player.isIn(lowerEnd))
     
     /* 
      *   Return a or b depending on whether or not the player character is in our upperEnd room.
@@ -909,7 +909,7 @@ class DSStairway: DSCon, StairwayUp
         verify()
         {
             /* You can't climb up from the upper end of a staircase. */
-            if(gActor.isIn(upperEnd))
+            if(now.actor.isIn(upperEnd))
                 illogicalNow(cannotClimbMsg);
         }
     }
@@ -921,7 +921,7 @@ class DSStairway: DSCon, StairwayUp
         verify()
         {
             /* You can't climb up from the upper end of a staircase. */
-            if(gActor.isIn(lowerEnd))
+            if(now.actor.isIn(lowerEnd))
                 illogicalNow(cannotClimbDownMsg);
         }
         
@@ -945,7 +945,7 @@ class DSStairway: DSCon, StairwayUp
         {
             inherited();
             
-            if(gActor.isIn(upperEnd))
+            if(now.actor.isIn(upperEnd))
                 illogicalNow(cannotPushClimbMsg);
         }        
     }
@@ -956,7 +956,7 @@ class DSStairway: DSCon, StairwayUp
         {
             inherited();
             
-            if(gActor.isIn(lowerEnd))
+            if(now.actor.isIn(lowerEnd))
                 illogicalNow(cannotPushClimbDownMsg);
         }        
     }
@@ -983,7 +983,7 @@ class Passage: TravelConnector, Thing
     {        
         preCond = [travelPermitted, touchObj]
         
-        action() { travelVia(gActor); }
+        action() { travelVia(now.actor); }
     }
     
     iobj PushTravelThrough
@@ -1088,7 +1088,7 @@ class Enterable: ProxyDest, Fixture
     dobj Enter
     {
         verify() {}
-        action() { connector.travelVia(gActor); }
+        action() { connector.travelVia(now.actor); }
     }
     
     /* The handling of an attempt to push something inside this object */
@@ -1112,11 +1112,11 @@ class Enterable: ProxyDest, Fixture
              *   replaceAction means that the handling will end there.
              */
             if(connector.PushTravelVia)
-                replaceAction(connector.PushTravelVia, gDobj, connector);
+                replaceAction(connector.PushTravelVia, now.dobj, connector);
             
             
             /* Otherwise, make our direct object travel vis our connector */
-            connector.travelVia(gDobj);
+            connector.travelVia(now.dobj);
             
             /* 
              *   If the push travel attempt was successful, which we assume it
@@ -1124,10 +1124,10 @@ class Enterable: ProxyDest, Fixture
              *   destination, display a message to say the push travel succeeded
              *   and make the actor travel via our connector.
              */
-            if(gDobj.isIn(connector.destination))
+            if(now.dobj.isIn(connector.destination))
             {
                 say(okayPushIntoMsg);
-                connector.travelVia(gActor);
+                connector.travelVia(now.actor);
             }           
         }
     }
@@ -1341,7 +1341,7 @@ class MinorItem: Thing
      *   We're listed in response to a LOOK command only if we're not fixed in place and we can't be
      *   ignored for the current action or our current location.
      */    
-    lookListed = (!canBeIgnored(gAction) && !isFixed)
+    lookListed = (!canBeIgnored(now.action) && !isFixed)
     
     /* We're excluded from a FOO ALL action if we can be ignored for FOO. */
     hideFromAll(action) 
@@ -1360,12 +1360,12 @@ class MinorItem: Thing
          *   If we are exposed, in the middle of the room or the actor's location (e.g. a
          *   platform or booth), then we cannot be ignored.
          */
-        if (location is in (getOutermostRoom(), gActor.location))         
+        if (location is in (getOutermostRoom(), now.actor.location))         
             return nil;
         
         
         /* Allow actions like DROP ALL if we are being directly carried. */
-        if (isDirectlyHeldBy(gActor))         
+        if (isDirectlyHeldBy(now.actor))         
             return nil;
         
         

@@ -1398,7 +1398,7 @@ class LMentionable: object
                 ret = nominalOwner().possessify(article, self, ret);
             // If this object is unowned and no locational distinguisher is present
             // and the object is lying on the ground, we still need to describe it.
-            else if (!loc && self.location == gActor.getOutermostRoom())
+            else if (!loc && self.location == now.actor.getOutermostRoom())
             {
                 ret = self.location.locify(self, ret);
             }
@@ -1486,7 +1486,7 @@ class LMentionable: object
      */
     locify(obj, str)
     {        
-        if (obj.location == gActor.getOutermostRoom()
+        if (obj.location == now.actor.getOutermostRoom()
             && obj.location.floorObj != nil)
             return '<<str>> <<obj.location.floorObj.objInName>> ';
         else
@@ -1947,7 +1947,7 @@ class LMentionable: object
     usedPluralToken()
     {
         return hasProp(&pluralTokens) && 
-            valToList(pluralTokens).overlapsWith(gCommand.verbProd.tokenList.mapAll({x:
+            valToList(pluralTokens).overlapsWith(now.command.verbProd.tokenList.mapAll({x:
                 getTokVal(x)}));
     } 
 ;
@@ -2279,10 +2279,10 @@ modify Thing
     }
     
     /* Did the player's command ask to PUSH this object ? */
-    matchPushOnly = (gVerbWord == 'push')
+    matchPushOnly = (now.verbWord == 'push')
     
     /* Did the player's command ask to PULL this object? */
-    matchPullOnly = (gVerbWord is in ('pull', 'drag'))
+    matchPullOnly = (now.verbWord is in ('pull', 'drag'))
     
     /* 
      *   Check whether we need to add or remove the LitUnlit State from our list
@@ -3175,7 +3175,7 @@ modify ItemLister
         if(o.movedTo != nil && showMovedToInfo)
         {
             local obj = o.movedTo;
-            gMessageParams(obj);
+            messageParams(obj);
             lName += msgText(moved to, ' (by {the obj})');
         }
         
@@ -3240,7 +3240,7 @@ modify ItemLister
      *   parentheses after the name, e.g. a bag (in which is a blue ball)). By
      *   default we do if the actor is the player character. 
      */
-    showSubListing = (gActor == gPlayerChar)
+    showSubListing = (now.actor == now.player)
 ;
 
 /* English-language modfications to the base ListGroup class. */
@@ -3272,7 +3272,7 @@ modify lookLister
      */
     showListSuffix(lst, pl, paraCnt)    {
         
-        " <<gActor.location.getMiscListSuffix(gActor)>>.";
+        " <<now.actor.location.getMiscListSuffix(now.actor)>>.";
     }
     
     showSubListing = (gameMain.useParentheticalListing)
@@ -3400,7 +3400,7 @@ subLister: ItemLister
 modify descContentsLister
     showListPrefix(lst, pl, parent)
     {
-        gMessageParams(parent);
+        messageParams(parent);
         
         /* 
          *   If the item whose contents we're listing want to report its
@@ -3434,7 +3434,7 @@ modify descContentsLister
      */
     showListEmpty(parent)  
     {
-        gMessageParams(parent);
+        messageParams(parent);
         if(parent.openStatusReportable == UsePronoun)
             "{He parent}{\'s} <<if parent.isOpen>>open<<end>>. ";
         
@@ -3457,7 +3457,7 @@ modify descContentsLister
 modify lookContentsLister
     showListPrefix(lst, pl, parent)
     {
-        "\^<<parent.remoteObjInName(gActor)>> {i} {see} ";
+        "\^<<parent.remoteObjInName(now.actor)>> {i} {see} ";
     }
 
     showListSuffix(lst, pl, paraCnt)
@@ -3481,7 +3481,7 @@ modify lookContentsLister
 modify openingContentsLister
     showListPrefix(lst, pl, parent)
     {
-        gMessageParams(parent);
+        messageParams(parent);
         "Opening {the parent} {dummy} reveal{s/ed} ";        
     }
 
@@ -3506,7 +3506,7 @@ modify openingContentsLister
 modify lookInLister
     showListPrefix(lst, pl, parent)
     {
-        gMessageParams(parent);
+        messageParams(parent);
         "{In parent} {i} {see} ";        
     }
 
@@ -4517,8 +4517,8 @@ prevDummy_: Mentionable
  *   track.
  */
 actorActionContinuer_: dummy_ {
-    person = (gActor == nil ? 3 : gActor.person)
-    plural = (gActor == nil ? nil : gActor.plural)
+    person = (now.actor == nil ? 3 : now.actor.person)
+    plural = (now.actor == nil ? nil : now.actor.plural)
 }
 
 
@@ -4934,7 +4934,7 @@ englishMessageParams: MessageParams
         /* {must <verb>} - the second token is a verb infinitive */
         [ 'must', { ctx, params: conjugateMust(ctx, params) } ],
         
-        [ 'actionliststr', {ctx, params: gActionListStr } ],
+        [ 'actionliststr', {ctx, params: now.actionListStr } ],
 
         /* conj <verb> <type> congugate a regular verb */
         ['conj', {ctx, params: conjugateRegular(ctx, params) } ],
@@ -5787,7 +5787,7 @@ modify Action
             cur = implicitAnnouncement(success);
             
             if(cur != nil)
-                gCommand.implicitActionReports += cur;
+                now.command.implicitActionReports += cur;
         }    
             
         
@@ -5798,10 +5798,10 @@ modify Action
          */
         
         if((success == nil || !isImplicit) &&
-           gCommand.implicitActionReports.length > 0)
+           now.command.implicitActionReports.length > 0)
         {
             
-            local lst = mergeDuplicates(gCommand.implicitActionReports);
+            local lst = mergeDuplicates(now.command.implicitActionReports);
             
             
             /* 
@@ -5831,9 +5831,9 @@ modify Action
             if(clearReports)
             {
                 /* We're done with this list of reports, so clear them out */
-                gCommand.implicitActionReports = [];
+                now.command.implicitActionReports = [];
                 
-                gCommand.postImplicitReports = [];
+                now.command.postImplicitReports = [];
             }
             
             /* Return the completed implicit action report */
@@ -6212,9 +6212,9 @@ class LCommandTopicHelper: object
         if(myAction.curIobj != nil)        
             txt = txt.findReplace('(iobj)', getName(myAction.curIobj));
         
-        if(gCommand.verbProd.dirMatch)
+        if(now.command.verbProd.dirMatch)
             txt = txt.findReplace('(direction)',
-                                  gCommand.verbProd.dirMatch.dir.name);
+                                  now.command.verbProd.dirMatch.dir.name);
         
         return txt;
     }
@@ -6226,7 +6226,7 @@ class LCommandTopicHelper: object
     getName(obj)
     {
         /* If the object is the player character, it should appear as 'me' */
-        if(obj == gPlayerChar)
+        if(obj == now.player)
             return 'me';
         
         /* 
@@ -6234,8 +6234,8 @@ class LCommandTopicHelper: object
          *   it should appear as the singular or plural form of the second
          *   person reflexive pronoun
          */
-        if(obj == gActor)
-            return gActor.plural ? 'yourselves' : 'yourself';
+        if(obj == now.actor)
+            return now.actor.plural ? 'yourselves' : 'yourself';
         
         /* Otherwise just use the theName property of the object */
         return obj.theName;   
@@ -6318,11 +6318,11 @@ putOnGroundCommandRule: CommandRule 'put Thing on Floor; throw Thing at Floor'
         try
         {
             /* Note the original dropLocation */
-            oldLocation = gActor.location;
+            oldLocation = now.actor.location;
             oldDropLocation = oldLocation.dropLocation;
             
             /* Change the dropLocation to the Room */
-            oldLocation.dropLocation = gActor.getOutermostRoom;
+            oldLocation.dropLocation = now.actor.getOutermostRoom;
             
             /* redirect the action to Drop */
             redirect(c, Drop, dobj: c.dobj);
@@ -6344,7 +6344,7 @@ putOnGroundCommandRule: CommandRule 'put Thing on Floor; throw Thing at Floor'
 getOnGroundCommandRule: CommandRule 'stand on Floor; get on Floor'
     execAction(c)
     {
-        if(gPlayerChar.location.ofKind(Room))
+        if(now.player.location.ofKind(Room))
             "{I} {am} standing on {the dobj}. ";
         else
             redirect(c, GetOut);    

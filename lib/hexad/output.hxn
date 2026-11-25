@@ -88,7 +88,7 @@ htmlSay(val)
 
 senseSay(val, obj, prop = &canSee)
 {
-    if(Q.(prop)(gPlayerChar, obj))
+    if(Q.(prop)(now.player, obj))
         say(val);    
 }
 
@@ -1231,12 +1231,12 @@ styleTagFilter: OutputFilter, PreinitObject
  *   effect.  A run of multiple consecutive <.commandsep> tags is treated
  *   as a single tag.
  *   
- *   Between commands, we show gLibMessages.commandResultsSeparator.  After
+ *   Between commands, we show libGlobal.libMessageObj.commandResultsSeparator.  After
  *   an input line and before the first command result text, we show
- *   gLibMessages.commandResultsPrefix.  After the last command result text
- *   before a new input line, we show gLibMessages.commandResultsSuffix.
+ *   libGlobal.libMessageObj.commandResultsPrefix.  After the last command result text
+ *   before a new input line, we show libGlobal.libMessageObj.commandResultsSuffix.
  *   If we read two input lines, and there is no intervening text output at
- *   all, we show gLibMessages.commandResultsEmpty.
+ *   all, we show libGlobal.libMessageObj.commandResultsEmpty.
  *   
  *   The input manager should write a <.commandbefore> tag whenever it
  *   starts reading a command line, and a <.commandafter> tag whenever it
@@ -2159,10 +2159,10 @@ extraReport(msg, expandParam = true)
         msg = buildMessage(nil, msg);
         
         /* Apply the style tag filter */
-        msg = styleTagFilter.filterText(gOutStream, msg);
+        msg = styleTagFilter.filterText(now.outputStream, msg);
     }
     
-    gOutStream.writeFromStream(msg);
+    now.outputStream.writeFromStream(msg);
 }
 
 

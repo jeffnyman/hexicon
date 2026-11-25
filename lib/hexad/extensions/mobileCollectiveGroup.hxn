@@ -60,8 +60,8 @@ class MobileCollectiveGroup: PreinitObject, CollectiveGroup
      */
     scopeCheck()
     {
-        if(myObjs.countWhich({x: gPlayerChar.canSee(x)}) > 1)
-            moveInto(gPlayerChar.location);
+        if(myObjs.countWhich({x: now.player.canSee(x)}) > 1)
+            moveInto(now.player.location);
         else
             moveInto(nil);        
     }

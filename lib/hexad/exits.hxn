@@ -35,7 +35,7 @@ exitLister: PreinitObject
     execute()
     {
         /* install myself as the global exit lister object */
-        gExitLister = self;
+        libGlobal.exitListerObj = self;
     }
     
     /*
@@ -141,7 +141,7 @@ exitLister: PreinitObject
     showExitsCommand()
     {
         /* show exits for the current actor */
-        showExits(gActor);
+        showExits(now.actor);
 
         /* 
          *   if we haven't explained how to turn exit listing on and off,
@@ -205,10 +205,10 @@ exitLister: PreinitObject
     {
         /* if statusline exit displays are enabled, show the exit list */
         if (exitsMode.inStatusLine)
-            showExitsWithLister(gPlayerChar, gPlayerChar.getOutermostRoom,
+            showExitsWithLister(now.player, now.player.getOutermostRoom,
                                 statuslineExitLister,
-                                gPlayerChar.location
-                                .wouldBeLitFor(gPlayerChar));
+                                now.player.location
+                                .wouldBeLitFor(now.player));
     }
 
     /* 
@@ -307,7 +307,7 @@ exitLister: PreinitObject
             case TypeObject:
                 conn = loc.(dir.dirProp);
                 if(conn.isConnectorVisible && conn.isConnectorListed)
-                    destList.append(new DestInfo(dir, conn.getApparentDestination(gRoom)));
+                    destList.append(new DestInfo(dir, conn.getApparentDestination(now.room)));
                 break;
                 
                 /* 
@@ -341,7 +341,7 @@ ExitLister: Lister
     showListAll(lst, options, indent)
     {
         local cnt = lst.length;
-        local loc = gRoom;
+        local loc = now.room;
         
         if(cnt == 0)
         {
@@ -414,7 +414,7 @@ statuslineExitLister: ExitLister
     
 //    showListItems(lst, cnt)
 //    {
-//        local loc = gRoom;
+//        local loc = now.room;
 //        if(loc.hasProp(&listStatusExits) && loc.propType(&listStatusExits) == TypeCode)
 //            loc.listStatusExits(lst, cnt);
 //        else 
@@ -430,7 +430,7 @@ statuslineExitLister: ExitLister
     
     noExits()
     {
-        local loc = gRoom;
+        local loc = now.room;
         if(loc.hasProp(&noExits) && loc.propType(&noExits) is in (TypeString, TypeCode))
             return loc.noExits;
         else
@@ -508,7 +508,7 @@ explicitExitLister: ExitLister
     
     showListPrefixWide(cnt, pov, parent)
     {
-        local loc = gRoom;
+        local loc = now.room;
         
         if(loc.hasProp(&exitListPrefix) && loc.propType(&exitListPrefix) == TypeCode)
             loc.exitListPrefix(cnt);

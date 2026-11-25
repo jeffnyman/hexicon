@@ -308,9 +308,9 @@ class TimeFuse: Fuse
     getNextRunTime()
     {
         if(eventTime > timeManager.currentTime)
-            return gTurns + 100;
+            return now.turns + 100;
         else
-            return gTurns;
+            return now.turns;
     }
     
 ;

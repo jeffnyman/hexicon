@@ -70,7 +70,7 @@ riverbank: Room 'River Bank'
 // Only once the island has been mentioned.
 ++ AskTellTopic @tIsland
     "<q>Nobody lives there now,</q> he says. <q>It's a penny to cross.</q> "
-    isActive = gRevealed('island')
+    isActive = now.revealed('island')
 ;
 
 // Things given and shown.

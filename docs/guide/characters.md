@@ -107,18 +107,18 @@ Here the answer is the `DefaultAnyTopic`'s, because the entry about the island i
 // Only once the island has been mentioned.
 ++ AskTellTopic @tIsland
     "<q>Nobody lives there now,</q> he says. <q>It's a penny to cross.</q> "
-    isActive = gRevealed('island')
+    isActive = now.revealed('island')
 ;
 ```
 
-An entry is only used while its `isActive` is true. `<.reveal island>` in what the ferryman says on being greeted makes `gRevealed('island')` true, from then on, so the question works the second time it is asked:
+An entry is only used while its `isActive` is true. `<.reveal island>` in what the ferryman says on being greeted makes `now.revealed('island')` true, from then on, so the question works the second time it is asked:
 
 ```transcript
 >ask ferryman about island
 “Nobody lives there now,” he says.  “It’s a penny to cross.”
 ```
 
-`<.reveal key>` can be in anything the game prints, and `gReveal('key')` does the same from code.
+`<.reveal key>` can be in anything the game prints, and `now.reveal('key')` does the same from code.
 
 ### Several responses
 

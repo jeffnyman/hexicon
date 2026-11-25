@@ -163,9 +163,9 @@ routeFinder: Pathfinder
                 
                 if(excludeLockedDoors &&
                     (obj.isLocked 
-                      || obj.canTravelerPass(gActor) == nil
+                      || obj.canTravelerPass(now.actor) == nil
                       || valToList(obj.travelBarriers).indexWhich(
-                          { b: !b.canTravelerPass(gActor, obj)}) != nil))
+                          { b: !b.canTravelerPass(now.actor, obj)}) != nil))
                     continue;
                 
                 
@@ -256,7 +256,7 @@ pcRouteFinder: Pathfinder
                 
                 if(!conn.isDestinationKnown && 
                    loc.regionsInCommonWith(dest).indexWhich(
-                       {x: x.isFamiliar(gPlayerChar.knownProp)}) != nil)//                       
+                       {x: x.isFamiliar(now.player.knownProp)}) != nil)//                       
                     conn.isDestinationKnown = true;
                 
                 /* 
@@ -354,7 +354,7 @@ class AskConnector: TravelConnector
          *   unvisited room if we have one (so the exit lister will show there are still rooms to
          *   visit through us) or else just return the value of our destination property.
          */
-        if(gAction != GoTo)
+        if(now.action != GoTo)
         {
             local dest = dests.valWhich({x:!x.visited});
             
@@ -378,7 +378,7 @@ class AskConnector: TravelConnector
          *   Note out target destionation, the room the player is trying to reach via the GO TO
          *   commasnd just issued.
          */
-        local target = gDobj.getOutermostRoom;
+        local target = now.dobj.getOutermostRoom;
                 
         /* 
          *   If there's already a destination (for this AskConnector) in our destination table for
@@ -448,7 +448,7 @@ class AskConnector: TravelConnector
                 
                 if(!conn.isDestinationKnown && 
                    loc.regionsInCommonWith(dest).indexWhich(
-                       {x: x.isFamiliar(gPlayerChar.knownProp)}) != nil)//                       
+                       {x: x.isFamiliar(now.player.knownProp)}) != nil)//                       
                     conn.isDestinationKnown = true;
                 
                 /* 
@@ -602,14 +602,14 @@ class AskConnector: TravelConnector
          *   If we have an options property, list the options it contains (e.g., 'that wat lies the
          *   red door and the blue door') and ask the player to specify which one to go through.
          */        
-        if(gActionIn(GoTo, Continue))
+        if(now.actionIn(GoTo, Continue))
         {
             /* Get a list of rooms along our route. */
             local rooms = pcRouteFinder.cachedRoute.mapAll({x: x[2]});
             
             
             /* Restrict this to the list that starts from the actor's room */     
-            local ri = rooms.indexOf(gActor.getOutermostRoom);
+            local ri = rooms.indexOf(now.actor.getOutermostRoom);
             if(ri)
                 rooms = rooms.toList().sublist(ri);
             

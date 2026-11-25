@@ -332,7 +332,7 @@ class Mentionable: LMentionable
          *   its existence, or at least shouldn't be able to interact with it,
          *   so it shouldn't match any vocab.
          */
-        if(isHidden && gCommand.action.unhides not in (true, gCommand.potentialRole))
+        if(isHidden && now.command.action.unhides not in (true, now.command.potentialRole))
             return 0;
         
         /* 
@@ -809,7 +809,7 @@ class Mentionable: LMentionable
      */
     actionReport(msg, msg2?)
     {
-        if(gAction.isImplicit)
+        if(now.action.isImplicit)
             reportPostImplicit(msg2 ?? msg);
         else
             say(msg);
@@ -1122,13 +1122,13 @@ class ReplaceRedirector: Redirector
     redirect(cmd, altAction, dobj:?, iobj:?, aobj:?, isReplacement: = true)
     {
         if(iobj != nil && dobj != nil && aobj != nil)
-            execNestedAction(isReplacement, gActor, altAction, dobj, iobj, aobj); 
+            execNestedAction(isReplacement, now.actor, altAction, dobj, iobj, aobj); 
         else if(iobj != nil && dobj != nil)    
-            execNestedAction(isReplacement, gActor, altAction, dobj, iobj);
+            execNestedAction(isReplacement, now.actor, altAction, dobj, iobj);
         else if(dobj != nil)
-            execNestedAction(isReplacement, gActor, altAction, dobj);
+            execNestedAction(isReplacement, now.actor, altAction, dobj);
         else
-            execNestedAction(isReplacement, gActor, altAction);
+            execNestedAction(isReplacement, now.actor, altAction);
     }
 ;
 
@@ -1285,9 +1285,9 @@ class Thing:  ReplaceRedirector, Mentionable
         unmentionRemoteContents();
         
         /* Begin by displaying our name */
-        "<.roomname><<roomHeadline(gPlayerChar)>><./roomname>\n";
+        "<.roomname><<roomHeadline(now.player)>><./roomname>\n";
         
-        if(gActionIn(GoTo, Continue) && !gameMain.verbose)
+        if(now.actionIn(GoTo, Continue) && !gameMain.verbose)
             return;
 
     
@@ -1296,7 +1296,7 @@ class Thing:  ReplaceRedirector, Mentionable
         local descObj = self;
         
         /* Start from the actor's location and work outwards. */
-        local loc = gActor.location;        
+        local loc = now.actor.location;        
         
         /* 
          *   Iterate outwards till we've either reached ourselves or the outermost room or else a
@@ -1318,7 +1318,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(isIlluminated)
         {
             /* Display our interior description. */
-            if(gameMain.verbose || !visited || gActionIs(Look))
+            if(gameMain.verbose || !visited || now.actionIs(Look))
                 "<.roomdesc><<descObj.interiorDesc>><./roomdesc><.p>";
             
             /* List our contents. */
@@ -1358,8 +1358,8 @@ class Thing:  ReplaceRedirector, Mentionable
         "<.p>";
         
         /* If the game includes an exit lister, list our exits. */        
-        if(gExitLister != nil)
-            gExitLister.lookAroundShowExits(gActor, self, isIlluminated);
+        if(libGlobal.exitListerObj != nil)
+            libGlobal.exitListerObj.lookAroundShowExits(now.actor, self, isIlluminated);
     }
     
     /* List the contents of this object using lister. */
@@ -1367,7 +1367,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {    
         
         /* Don't list the contents if we can't see in and we're not inside */
-        if(!canSeeIn() && !gActor.isIn(self))
+        if(!canSeeIn() && !now.actor.isIn(self))
             return;
         
         /* 
@@ -1390,7 +1390,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   object we're looking around within. Then list the oontainer's
          *   contents immediately after.
          */        
-        local loc = gActor.location;                
+        local loc = now.actor.location;                
         
         /* 
          *   If we're not the pc's immediate container and we're looking around,
@@ -1402,14 +1402,14 @@ class Thing:  ReplaceRedirector, Mentionable
             /* 
              *   If there isn't a current action (e.g. because we're showing a
              *   room description before the first turn) create a Look Action to
-             *   provide an action context for the gMessageParams() call that
+             *   provide an action context for the messageParams() call that
              *   follows.
              */
-            if(gAction == nil)
-                gAction = Look.createInstance();
+            if(now.action == nil)
+                libGlobal.curAction = Look.createInstance();
             
             /* Create a message parameter substitution. */
-            gMessageParams(loc);
+            messageParams(loc);
             
             /* 
              *   We start by describing the PC's immediate environment, provided the flag
@@ -1498,7 +1498,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   specialDescBeforeContents is true
          */        
         if(lister == &roomContentsLister)
-            showFirstConnectedSpecials(gPlayerChar);
+            showFirstConnectedSpecials(now.player);
         
         /* 
          *   Remove any items from the miscellaneous list that have already been
@@ -1529,7 +1529,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   miscellaneous contents of other rooms in our sense regions
          */
         if(lister == &roomContentsLister)        
-            showConnectedMiscContents(gPlayerChar);
+            showConnectedMiscContents(now.player);
                 
         /* 
          *   Show the specialDesc (or initSpecialDesc) of every object in our
@@ -1546,7 +1546,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   SenseRegions, where specialDescBeforeContents is nil
          */
        if(lister == &roomContentsLister)
-           showSecondConnectedSpecials(gPlayerChar);
+           showSecondConnectedSpecials(now.player);
     }
     
     /* 
@@ -1592,7 +1592,7 @@ class Thing:  ReplaceRedirector, Mentionable
         contList = contList.appendUnique(lst);
         
         /* Reduce the contList to items that the actor can see. */
-        contList = contList.subset({o: gActor.canSee(o)});
+        contList = contList.subset({o: now.actor.canSee(o)});
         
         
  
@@ -1613,7 +1613,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   should note them as seen if the player can see them.
              */            
             if(obj.contType == Carrier && markInventoryAsSeen)
-                obj.allContents.subset({o: gPlayerChar.canSee(o) }).forEach( {o:
+                obj.allContents.subset({o: now.player.canSee(o) }).forEach( {o:
                     o.noteSeen() });           
             
             /* 
@@ -1624,7 +1624,7 @@ class Thing:  ReplaceRedirector, Mentionable
              */
             if(obj.contType == Carrier 
                || obj.(obj.(lister).contentsListedProp) == nil
-               || (!gActor.isIn(obj) && obj.canSeeIn() == nil)
+               || (!now.actor.isIn(obj) && obj.canSeeIn() == nil)
                || obj.contents.length == 0)
                 continue;
             
@@ -1635,7 +1635,7 @@ class Thing:  ReplaceRedirector, Mentionable
              */ 
             local objList = obj.contents.subset({x: x.mentioned == nil 
                                                 && x.isHidden == nil
-                                                && x != gPlayerChar});
+                                                && x != now.player});
             
             
             /* 
@@ -1819,8 +1819,8 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     getStatuslineExitsHeight()
     {
-        if (gExitLister != nil)
-            return gExitLister.getStatuslineExitsHeight();
+        if (libGlobal.exitListerObj != nil)
+            return libGlobal.exitListerObj.getStatuslineExitsHeight();
         else
             return 0;
     }
@@ -2281,7 +2281,7 @@ class Thing:  ReplaceRedirector, Mentionable
     checkInsert(obj)
     {
         /* Create a message parameter substitution. */
-        gMessageParams(obj);
+        messageParams(obj);
         
         /* 
          *   If the bulk of obj is greater than the maxSingleBulk this Thing can take, or greater
@@ -2436,7 +2436,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   If the player character can see me when I'm hidden, note that the
          *   player character has now seen me.
          */
-        if(stat && Q.canSee(gPlayerChar, self))
+        if(stat && Q.canSee(now.player, self))
             noteSeen();
     }
        
@@ -2695,7 +2695,7 @@ class Thing:  ReplaceRedirector, Mentionable
         moved = true;
         
         /* If the player character can now see us, note that we've been seen */
-        if(Q.canSee(gPlayerChar, self))
+        if(Q.canSee(now.player, self))
             noteSeen();
         
         /* 
@@ -2961,7 +2961,7 @@ class Thing:  ReplaceRedirector, Mentionable
             gameMain.initialPlayerChar = self;
             
             /* Register me as the current player character on libGlobal */
-            gPlayerChar = gameMain.initialPlayerChar;
+            libGlobal.playerChar = gameMain.initialPlayerChar;
         }
         
         
@@ -3594,12 +3594,12 @@ class Thing:  ReplaceRedirector, Mentionable
         local ret;
         try
         {
-            ret = gOutStream.captureOutput({: self.(prop) });      
+            ret = now.outputStream.captureOutput({: self.(prop) });      
         }
         catch (ExitSignal ex)
         {
             if(ret is in ('', nil))
-                ret = gAction.failCheckMsg;
+                ret = now.action.failCheckMsg;
         }
         finally
         {
@@ -3831,7 +3831,7 @@ class Thing:  ReplaceRedirector, Mentionable
     reachBlockedMsg(target)
     {
         local obj = self;
-        gMessageParams(obj, target);
+        messageParams(obj, target);
         return  msgText(cannot reach, '{I} {can\'t} reach {the target} through
             {the obj}. ');
     }
@@ -3843,7 +3843,7 @@ class Thing:  ReplaceRedirector, Mentionable
     tooFarAwayMsg
     {
         local obj = self;
-        gMessageParams(obj);
+        messageParams(obj);
         return msgText(too far away, '{The subj obj} {is} too far away. ');
     }
     
@@ -3855,7 +3855,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotReachOutMsg(target)
     {
         local loc = self;
-        gMessageParams(loc, target);
+        messageParams(loc, target);
         return msgText(cannot reach out, '{I} {can\'t} reach {the target} from
                     {the loc}. ');
     }
@@ -3957,7 +3957,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Note that we've been seen and where we were last seen */    
     noteSeen()
     {
-        gPlayerChar.setHasSeen(self);
+        now.player.setHasSeen(self);
         lastSeenAt = location;
     }       
     
@@ -3995,13 +3995,13 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     /*  Mark the player character as knowing about us (i.e. this Thing) */
-    setKnown() { gPlayerChar.setKnowsAbout(self); }
+    setKnown() { now.player.setKnowsAbout(self); }
     
     /*  Mark this Thing as having seen obj. */
     setHasSeen(obj) { obj.(seenProp) = true; }
     
     /*  Mark the player character as having seen this Thing. */
-    setSeen() { gPlayerChar.setHasSeen(self); }
+    setSeen() { now.player.setHasSeen(self); }
     
     /*  Test whether this Thing has seen obbj. */
     hasSeen(obj) { return obj.(seenProp); }
@@ -4040,7 +4040,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   Test whether this Thing is known to the player character.
      */
-    known = (gPlayerChar.knowsAbout(self)) 
+    known = (now.player.knowsAbout(self)) 
     
     
      /*  
@@ -4101,7 +4101,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /*   
      *   The currentInterlocutor is the Actor this object is currently in
-     *   conversation with. This property is only relevant on gPlayerChar, but
+     *   conversation with. This property is only relevant on now.player, but
      *   it is defined here rather than on Actor since the player char can be of
      *   kind Thing.
      */    
@@ -4292,7 +4292,7 @@ class Thing:  ReplaceRedirector, Mentionable
     afterAction() { }
     
     /* Is this object the player character? */
-    isPlayerChar = (gPlayerChar == self)
+    isPlayerChar = (now.player == self)
     
     /* 
      *   To exclude this item from the list of objects to be acted upon when the
@@ -4461,14 +4461,14 @@ class Thing:  ReplaceRedirector, Mentionable
              *   will still be shown even if desc has been defined a
              *   single-quoted string.
              */
-            if(gOutStream.watchForOutput({:display(&desc) }))
+            if(now.outputStream.watchForOutput({:display(&desc) }))
                descDisplayed = true;
             
             /*   
              *   Display any additional information, such as our stateDesc (if
              *   we have one) and our contents (if we have any).
              */
-            if(gOutStream.watchForOutput({:examineStatus()} ))
+            if(now.outputStream.watchForOutput({:examineStatus()} ))
                 descDisplayed = true;
                
             /*   
@@ -4489,7 +4489,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   odd case where something is examined that hasn't yet been set
              *   as seen.
              */
-            if(gActor == gPlayerChar)
+            if(now.actor == now.player)
                 noteSeen();
             
             
@@ -4610,7 +4610,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(gActionIs(Touch) && hasProp(&touchDesc) && propType(&touchDesc) != TypeNil)
+            if(now.actionIs(Touch) && hasProp(&touchDesc) && propType(&touchDesc) != TypeNil)
                 display(&touchDesc);
             
             else if(propType(&feelDesc) == TypeNil)            
@@ -4635,13 +4635,13 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isTakeable)
                 illogical(cannotTakeMsg);
             
-            if(isDirectlyIn(gActor))
+            if(isDirectlyIn(now.actor))
                 illogicalNow(alreadyHeldMsg);
             
-            if(gActor.isIn(self))
+            if(now.actor.isIn(self))
                 illogicalNow(cannotTakeMyContainerMsg);
             
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotTakeSelfMsg);
             
             logical;
@@ -4673,7 +4673,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   move us into the actor who is taking us, triggering the
              *   appropriate notifications.
              */
-            actionMoveInto(gActor);
+            actionMoveInto(now.actor);
         }
         
         /* 
@@ -4683,7 +4683,7 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         report()
         {            
-            showMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);
+            showMsg(report take, 'Taken. | {I} {take} {1}. ', now.actionListStr);
         }
     }
        
@@ -4853,7 +4853,7 @@ class Thing:  ReplaceRedirector, Mentionable
         /* 
          *   First check whether this item is individually too big for the actor to carry.
          */
-        if(bulk > gActor.maxSingleBulk)
+        if(bulk > now.actor.maxSingleBulk)
             showMsg(too big to carry, '{The subj dobj} {is} too big for {me} to
                 carry. ');
         
@@ -4863,16 +4863,16 @@ class Thing:  ReplaceRedirector, Mentionable
          *   moving something to a BagOfHolding.
          */
         if(defined(BagOfHolding) 
-           && (bulk > gActor.bulkCapacity - gActor.getCarriedBulk ||
-               gActor.directlyHeld.length > gActor.maxItemsCarried - 1)
+           && (bulk > now.actor.bulkCapacity - now.actor.getCarriedBulk ||
+               now.actor.directlyHeld.length > now.actor.maxItemsCarried - 1)
            && BagOfHolding.tryHolding(self));
         
         
         /* 
          *   otherwise check that the actor has sufficient spare carrying capacity.
          */
-        else if(bulk > gActor.bulkCapacity - gActor.getCarriedBulk ||
-                gActor.directlyHeld.length > gActor.maxItemsCarried - 1)
+        else if(bulk > now.actor.bulkCapacity - now.actor.getCarriedBulk ||
+                now.actor.directlyHeld.length > now.actor.maxItemsCarried - 1)
             showMsg(cannot carry any more, '{I} {can\'t} carry any more than
                 {i}{\'m} already carrying. ');
     }
@@ -4910,12 +4910,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {           
-            actionMoveInto(gActor.location.dropLocation);
+            actionMoveInto(now.actor.location.dropLocation);
         }
         
         report()
         {
-            showMsg(report drop, 'Dropped. |{I} drop{s/?ed} {1}. ', gActionListStr);            
+            showMsg(report drop, 'Dropped. |{I} drop{s/?ed} {1}. ', now.actionListStr);            
         }
     }
     
@@ -4963,7 +4963,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isFollowable)
                 illogical(cannotFollowMsg);
             
-            if(self == gActor)
+            if(self == now.actor)
                 illogicalSelf(cannotFollowSelfMsg);
         }
     }
@@ -5040,7 +5040,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     futileToAttackMsg = msgText(futile attack, 'Attacking {1} prove{s/d} futile. ', 
-                             gActionListStr)
+                             now.actionListStr)
     
     iobj AttackWith
     {
@@ -5050,7 +5050,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canAttackWithMe)
                illogical(cannotAttackWithMsg); 
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotAttackWithSelfMsg);
         }
     }
@@ -5117,12 +5117,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            local obj = gActionListObj;
+            local obj = now.actionListObj;
             
-            gMessageParams(obj);
+            messageParams(obj);
             
             showMsg(throw dir, '{I} {throw} {the obj} {1} and {he obj}
-                land{s/ed} on the ground. ', gAction.direction.name );
+                land{s/ed} on the ground. ', now.action.direction.name );
         }
     }
     
@@ -5220,7 +5220,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   list the contents that are revealed as a result of our being
              *   opened.
              */
-            if(!gAction.isImplicit)
+            if(!now.action.isImplicit)
             {              
                 unmention(contents);
                 listSubcontentsOf(self, &myOpeningContentsLister);
@@ -5229,7 +5229,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(okay open, okayOpenMsg, gActionListStr);
+            showMsg(okay open, okayOpenMsg, now.actionListStr);
         }
     }
     
@@ -5280,7 +5280,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(report close, 'Done. |{I} close{s/d} {1}. ',  gActionListStr);
+            showMsg(report close, 'Done. |{I} close{s/d} {1}. ',  now.actionListStr);
         }
     }
     
@@ -5306,7 +5306,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!isTurnable)
                 illogical(cannotTurnMsg);
-            else if(isDirectlyIn(gActor))
+            else if(isDirectlyIn(now.actor))
                 logical;
             else
                 logicalRank(80);
@@ -5322,7 +5322,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotTurnMsg = msgText(cannot turn, '{The subj dobj} {can\'t} be turned. ')
     
     turnNoEffectMsg = msgText(turn useless, 'Turning {1} {dummy} achieve{s/d}
-        nothing. ', gActionListStr)
+        nothing. ', now.actionListStr)
     
     dobj TurnWith
     {
@@ -5332,7 +5332,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!isTurnable)
                 illogical(cannotTurnMsg);
-            else if(isDirectlyIn(gActor))
+            else if(isDirectlyIn(now.actor))
                 logical;
             else
                 logicalRank(80);
@@ -5356,7 +5356,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canTurnWithMe)
                 illogical(cannotTurnWithMsg); 
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogical(cannotTurnWithSelfMsg); 
         }
     }
@@ -5405,7 +5405,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canCutWithMe)
                 illogical(cannotCutWithMsg);
             
-            if(self == gVerifyDobj)
+            if(self == now.verifyDobj)
                 illogicalSelf(cannotCutWithSelfMsg);
         }
     }
@@ -5430,7 +5430,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   move it to the location of the object it's just been found
      *   in/under/behind.
      */
-    findHiddenDest = (autoTakeOnFindHidden ? gActor : location)
+    findHiddenDest = (autoTakeOnFindHidden ? now.actor : location)
       
     dobj LookIn
     {
@@ -5481,7 +5481,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   displayed; if nothing was we display our lookInMsg
                      *   instead.
                      */
-                    if(gOutStream.watchForOutput(
+                    if(now.outputStream.watchForOutput(
                         {: listSubcontentsOf(self, &myLookInLister) }) == nil)
                       display(&lookInMsg);       
 
@@ -5543,7 +5543,7 @@ class Thing:  ReplaceRedirector, Mentionable
     sayFindHidden(prop, prep)
     {
          showMsg(find hidden, '\^{1} {the dobj} {i} {find} {2}<<if findHiddenDest ==
-              gActor>>, which {i} {take}<<end>>. ',
+              now.actor>>, which {i} {take}<<end>>. ',
              prep.prep, makeListStr(self.(prop)));
     }
     
@@ -5602,7 +5602,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   displayed; if nothing was we display our lookUnderMsg
                      *   instead.
                      */
-                    if(gOutStream.watchForOutput(
+                    if(now.outputStream.watchForOutput(
                         {: listSubcontentsOf(self, &myLookUnderLister) }) == nil)
                         display(&lookUnderMsg);  
                     
@@ -5695,7 +5695,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   displayed; if nothing was we display our lookBehindMsg
                      *   instead.
                      */
-                    if(gOutStream.watchForOutput(
+                    if(now.outputStream.watchForOutput(
                         {: listSubcontentsOf(self, &myLookBehindLister) }) == nil)                        
                         display(&lookBehindMsg); 
 
@@ -5813,7 +5813,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {that dobj}. ')
     
     pushNoEffectMsg = msgText(push no effect, 'Pushing {1} {dummy} {has} no
-        effect. ', gActionListStr)
+        effect. ', now.actionListStr)
     
     /* We can at least try to pull most things. */
     isPullable = true
@@ -5835,7 +5835,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {that dobj}. ')
     
     pullNoEffectMsg = msgText(pull no effect, 'Pulling {1} {dummy} {has} no
-        effect. ', gActionListStr)
+        effect. ', now.actionListStr)
     
     /* 
      *   The most usual reason why we can't put something somewhere is that we
@@ -5851,16 +5851,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gVerifyIobj == self)
+            if(now.verifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);  
             
             if(isFixed)
                 illogical(cannotPutMsg);
             
-            if(isDirectlyIn(gVerifyIobj))
+            if(isDirectlyIn(now.verifyIobj))
                 illogicalNow(alreadyInMsg);
             
-            if(gVerifyIobj.isIn(self))
+            if(now.verifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);     
             
            
@@ -5876,17 +5876,17 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(report put on, '{I} {put} {1} on {the iobj}. ', gActionListStr);            
+            showMsg(report put on, '{I} {put} {1} on {the iobj}. ', now.actionListStr);            
         }
     }
     
-    alreadyInMsg = msgText(already in, '{The subj dobj} {is} already {1}. ', gVerifyIobj.objInName)
+    alreadyInMsg = msgText(already in, '{The subj dobj} {is} already {1}. ', now.verifyIobj.objInName)
     
     circularlyInMsg = msgText(circularly in, '{I} {can\'t} put {the dobj} {1}
-        while {the subj iobj} {is} {in dobj}. ', gVerifyIobj.objInName)
+        while {the subj iobj} {is} {in dobj}. ', now.verifyIobj.objInName)
         
     cannotPutInSelfMsg = msgText(cannot put in self, '{I} {can\'t} put {the dobj}
-        {1} {itself dobj}. ', gIobj.objInPrep)
+        {1} {itself dobj}. ', now.iobj.objInPrep)
     
     iobj PutOn
     {
@@ -5905,12 +5905,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check()
         {
-            checkInsert(gDobj);
+            checkInsert(now.dobj);
         }
         
         action()
         {
-            gDobj.actionMoveInto(self);
+            now.dobj.actionMoveInto(self);
         }      
     
     }
@@ -5924,16 +5924,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {            
-            if(gVerifyIobj == self)
+            if(now.verifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);   
             
-            if(isDirectlyIn(gVerifyIobj))
+            if(isDirectlyIn(now.verifyIobj))
                 illogicalNow(alreadyInMsg);
             
             if(isFixed)
                 illogical(cannotPutMsg);
             
-            if(gVerifyIobj.isIn(self))
+            if(now.verifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);    
                         
             
@@ -5948,7 +5948,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(report put in, '{I} {put} {1} in {the iobj}. ', gActionListStr);            
+            showMsg(report put in, '{I} {put} {1} in {the iobj}. ', now.actionListStr);            
         }
     }
     
@@ -5976,13 +5976,13 @@ class Thing:  ReplaceRedirector, Mentionable
              *   direct object.
              */
             if(contType == In)
-               checkInsert(gDobj);
+               checkInsert(now.dobj);
             
             /*  
              *   Otherwise check whether adding the direct object to our
              *   hiddenIn list would exceed the amount of bulk allowed there.
              */
-            else if(gDobj.bulk > maxBulkHiddenIn - getBulkHiddenIn)
+            else if(now.dobj.bulk > maxBulkHiddenIn - getBulkHiddenIn)
                 showMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
                     dobj} in {the iobj}. ');            
         }
@@ -5997,11 +5997,11 @@ class Thing:  ReplaceRedirector, Mentionable
              *   to our hiddenIn list and move it off-stage.
              */            
             if(contType == In)
-                gDobj.actionMoveInto(self);
+                now.dobj.actionMoveInto(self);
             else
             {
-                hiddenIn += gDobj;
-                gDobj.actionMoveInto(nil);
+                hiddenIn += now.dobj;
+                now.dobj.actionMoveInto(nil);
             }  
         }      
     
@@ -6019,16 +6019,16 @@ class Thing:  ReplaceRedirector, Mentionable
                 
         verify()
         {
-            if(gVerifyIobj == self)
+            if(now.verifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);     
             
             if(isFixed)
                 illogical(cannotPutMsg);
             
-            if(isDirectlyIn(gVerifyIobj))
+            if(isDirectlyIn(now.verifyIobj))
                 illogicalNow(alreadyInMsg);
             
-            if(gVerifyIobj.isIn(self))
+            if(now.verifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);           
             
                          
@@ -6043,7 +6043,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report()
         {
             showMsg(report put under, '{I} {put} {1} under {the iobj}. ', 
-                 gActionListStr);
+                 now.actionListStr);
         }
         
             
@@ -6071,13 +6071,13 @@ class Thing:  ReplaceRedirector, Mentionable
              *   the direct object.
              */
             if(contType == Under)
-               checkInsert(gDobj); 
+               checkInsert(now.dobj); 
             
             /*  
              *   Otherwise check whether adding the direct object to our
              *   hiddenUnder list would exceed the amount of bulk allowed there.
              */
-            else if(gDobj.bulk > maxBulkHiddenUnder - getBulkHiddenUnder)
+            else if(now.dobj.bulk > maxBulkHiddenUnder - getBulkHiddenUnder)
                 showMsg(no room under, 'There {dummy}{isn\'t} enough room for {the
                     dobj} under {the iobj}. ');    
         }
@@ -6091,11 +6091,11 @@ class Thing:  ReplaceRedirector, Mentionable
              *   is to add it to our hiddenUnder list and move it off-stage.
              */
             if(contType == Under)
-                gDobj.actionMoveInto(self);
+                now.dobj.actionMoveInto(self);
             else
             {
-                hiddenUnder += gDobj;
-                gDobj.actionMoveInto(nil);
+                hiddenUnder += now.dobj;
+                now.dobj.actionMoveInto(nil);
             }
         }
         
@@ -6111,16 +6111,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gVerifyIobj == self)
+            if(now.verifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);     
             
             if(isFixed)
                 illogical(cannotPutMsg);
             
-            if(isDirectlyIn(gVerifyIobj))
+            if(isDirectlyIn(now.verifyIobj))
                 illogicalNow(alreadyInMsg);
             
-            if(gVerifyIobj.isIn(self))
+            if(now.verifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);           
             
                          
@@ -6135,7 +6135,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report()
         {
             showMsg(report put behind, '{I} {put} {1} behind {the iobj}. ', 
-                 gActionListStr);
+                 now.actionListStr);
         }
         
             
@@ -6163,14 +6163,14 @@ class Thing:  ReplaceRedirector, Mentionable
              *   direct object.
              */
             if(contType == Behind)
-                checkInsert(gDobj);
+                checkInsert(now.dobj);
             
             /*  
              *   Otherwise check whether adding the direct object to our
              *   hiddenBehind list would exceed the amount of bulk allowed
              *   there.
              */
-             else if(gDobj.bulk > maxBulkHiddenBehind - getBulkHiddenBehind)
+             else if(now.dobj.bulk > maxBulkHiddenBehind - getBulkHiddenBehind)
                 showMsg(no room behind, 'There {dummy}{isn\'t} enough room for {the
                     dobj} behind {the iobj}. ');    
         }
@@ -6184,11 +6184,11 @@ class Thing:  ReplaceRedirector, Mentionable
              *   it to our hiddenBehind list and move it off-stage.
              */
             if(contType == Behind)
-                gDobj.actionMoveInto(self);
+                now.dobj.actionMoveInto(self);
             else
             {
-                hiddenBehind += gDobj;
-                gDobj.actionMoveInto(nil);
+                hiddenBehind += now.dobj;
+                now.dobj.actionMoveInto(nil);
             }
         }
         
@@ -6296,7 +6296,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canUnlockWithMe)
                illogical(cannotUnlockWithMsg);
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotUnlockWithSelfMsg);
         }      
     }
@@ -6366,7 +6366,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canLockWithMe)
                illogical(cannotLockWithMsg);
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotLockWithSelfMsg);
         }      
     }
@@ -6447,7 +6447,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(report unlock, okayUnlockMsg, gActionListStr);
+            showMsg(report unlock, okayUnlockMsg, now.actionListStr);
         }
         
     }
@@ -6524,7 +6524,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(report lock, okayLockMsg, gActionListStr);
+            showMsg(report lock, okayLockMsg, now.actionListStr);
         }
     }
     
@@ -6550,7 +6550,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   First see if the actor is holding a key that is known to work on
          *   this object. If so, use it.
          */
-        foreach(local obj in gActor.contents)
+        foreach(local obj in now.actor.contents)
         {
             if(obj.ofKind(Key) 
                && obj.knownLockList.indexOf(self) !=  nil)
@@ -6565,7 +6565,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   Then see if the actor is holding a key that might plausibly work on
          *   this object; if so, try that.
          */
-        foreach(local obj in gActor.contents)
+        foreach(local obj in now.actor.contents)
         {
             if(obj.ofKind(Key) 
                && obj.plausibleLockList.indexOf(self) !=  nil)
@@ -6682,7 +6682,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report()
         {
             showMsg(report switch, 'Okay, {i} turn{s/ed} {1} {2}. ', isOn ? 
-                 'on' : 'off', gActionListStr);
+                 'on' : 'off', now.actionListStr);
         }
     }
     
@@ -6756,16 +6756,16 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isWearable)
                 illogical(cannotWearMsg);
             
-            if(wornBy == gActor)
+            if(wornBy == now.actor)
                 illogicalNow(alreadyWornMsg);
         }
         
-        action()  {  makeWorn(gActor);  }
+        action()  {  makeWorn(now.actor);  }
         
         report()
         {
             showMsg(okay wear, 'Okay, {i}{\'m} now wearing {1}. ',
-                 gActionListStr);
+                 now.actionListStr);
         }
     }
     
@@ -6781,7 +6781,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(wornBy != gActor)
+            if(wornBy != now.actor)
                 illogicalNow(notWornMsg);
                         
             if(!isDoffable)
@@ -6798,7 +6798,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report()
         {
             showMsg(okay doff, 'Okay, {I}{\'m} no longer wearing {1}. ', 
-                 gActionListStr);
+                 now.actionListStr);
             
         }
     }
@@ -6868,8 +6868,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            local obj = gActionListObj;
-            gMessageParams(obj);
+            local obj = now.actionListObj;
+            messageParams(obj);
             showMsg(throw, '{The subj obj} sail{s/ed} through the air and land{s/ed}
                 on the ground. ' );
         }
@@ -6888,26 +6888,26 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isBoardable || contType != On)
                 illogical(cannotBoardMsg);
             
-            if(gActor.isIn(self))
+            if(now.actor.isIn(self))
                 illogicalNow(actorAlreadyOnMsg);
             
-            if(isIn(gActor))
+            if(isIn(now.actor))
                 illogicalNow(cannotGetOnCarriedMsg);
             
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotBoardSelfMsg);
         }
         
-        check() { checkInsert(gActor); }
+        check() { checkInsert(now.actor); }
         
         action()
         {
-            gActor.actionMoveInto(self);            
+            now.actor.actionMoveInto(self);            
         }
         
         report()
         {
-            showMsg(okay get on, '{I} {get} on {1}. ', gActionListStr);
+            showMsg(okay get on, '{I} {get} on {1}. ', now.actionListStr);
         }
     }
     
@@ -7026,23 +7026,23 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isEnterable || contType != In)
                 illogical(cannotEnterMsg);
             
-            if(gActor.isIn(self))
+            if(now.actor.isIn(self))
                 illogicalNow(actorAlreadyInMsg);
             
-            if(isIn(gActor))
+            if(isIn(now.actor))
                 illogicalNow(cannotGetInCarriedMsg);
         }
         
-        check() { checkInsert(gActor); }
+        check() { checkInsert(now.actor); }
         
         action()
         {
-            gActor.actionMoveInto(self);            
+            now.actor.actionMoveInto(self);            
         }
         
         report()
         {
-            showMsg(okay get in, '{I} {get} in {1}. ', gActionListStr);
+            showMsg(okay get in, '{I} {get} in {1}. ', now.actionListStr);
         }
         
     }
@@ -7080,14 +7080,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(!gActor.isIn(self) || contType != On)
+            if(!now.actor.isIn(self) || contType != On)
                 illogicalNow(actorNotOnMsg);
             
         }
         
         action()
         {
-            gActor.actionMoveInto(exitLocation);            
+            now.actor.actionMoveInto(exitLocation);            
         }
         
         report() { say(okayGetOutOfMsg); }
@@ -7101,14 +7101,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(!gActor.isIn(self) || contType != In)
+            if(!now.actor.isIn(self) || contType != In)
                 illogicalNow(actorNotInMsg);
             
         }
         
         action()
         {
-            gActor.actionMoveInto(exitLocation);            
+            now.actor.actionMoveInto(exitLocation);            
         }
         
         report() { say(okayGetOutOfMsg); }        
@@ -7143,7 +7143,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   If we're already holding the object (and not wearing it),
              *   there's nothing for remove to do.
              */
-            if(isDirectlyIn(gActor) && wornBy != gActor)
+            if(isDirectlyIn(now.actor) && wornBy != now.actor)
                 illogicalNow(alreadyHeldMsg);
         }
     
@@ -7217,7 +7217,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     moveNoEffectMsg = msgText(move no effect, 'Moving {1} {dummy} {has} no effect. ',
-                 gActionListStr)
+                 now.actionListStr)
     
     /* 
      *   Most things can't be used to move other things with. Note that since
@@ -7236,7 +7236,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canMoveWithMe)
                illogical(cannotMoveWithMsg); 
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotMoveWithSelfMsg);
         }
     }
@@ -7276,21 +7276,21 @@ class Thing:  ReplaceRedirector, Mentionable
              *   If the iobj is a container-like object, assume MOVE TO it means putting us inside
              *   it/
              */
-            if(gIobj.contType == In)
-                replaceAction(PutIn, self, gIobj);
+            if(now.iobj.contType == In)
+                replaceAction(PutIn, self, now.iobj);
             
             /* If the obj is a surface-like object, assume MOVE TO it means putting us on it. */
-            if(gIobj.contType == On)
-                replaceAction(PutOn, self, gIobj);        
+            if(now.iobj.contType == On)
+                replaceAction(PutOn, self, now.iobj);        
             
             /* Otherwise we mean moving us near the iobj. */
-            makeMovedTo(gIobj);
+            makeMovedTo(now.iobj);
         }
         
         report()
         {
             showMsg(okay move to, '{I} move{s/d} {1} {dummy} to {the iobj}. ',
-                 gActionListStr);
+                 now.actionListStr);
         }
     }
     
@@ -7321,10 +7321,10 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canMoveToMe)
                 illogical(cannotMoveToMsg);           
             
-            if(gDobj.movedTo == self)
+            if(now.dobj.movedTo == self)
                 illogicalNow(alreadyMovedToMsg);
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotMoveToSelfMsg);
             
         }
@@ -7354,14 +7354,14 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(movedTo)
                 movedTo = nil;
-            else if(gIobj.contType is in (In, On, Under, Behind))
-                doInstead(TakeFrom, gDobj, gIobj);
+            else if(now.iobj.contType is in (In, On, Under, Behind))
+                doInstead(TakeFrom, now.dobj, now.iobj);
         }
         
         report()
         {
             showMsg(okay move from, '{I} move{s/d} {1} {dummy} away from {the iobj}. ',
-                 gActionListStr);   
+                 now.actionListStr);   
         }
     } 
     
@@ -7369,10 +7369,10 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         verify()
         {
-            if(gDobj == self)
+            if(now.dobj == self)
                 illogicalSelf(cantMoveAwayFromSelfMsg);
             
-            if(gDobj.movedTo != self && contType not in (In, On, Under, Behind))
+            if(now.dobj.movedTo != self && contType not in (In, On, Under, Behind))
                 illogicalNow(notMovedToMsg);
         }
     }
@@ -7405,7 +7405,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(okay lit,'Done.|{I} {light} {1}. ', gActionListStr);
+            showMsg(okay lit,'Done.|{I} {light} {1}. ', now.actionListStr);
         }
     }
     
@@ -7445,7 +7445,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(extinguish, '{I} {put} out {1}. ', gActionListStr);
+            showMsg(extinguish, '{I} {put} out {1}. ', now.actionListStr);
         }
     }
     
@@ -7472,7 +7472,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(eat, '{I} {eat} {1}. ', gActionListStr);
+            showMsg(eat, '{I} {eat} {1}. ', now.actionListStr);
         }
     }
     
@@ -7585,7 +7585,7 @@ class Thing:  ReplaceRedirector, Mentionable
         anything to clean {the dobj} with. ')
     
     okayCleanMsg = showMsg(okay clean, 'Cleaned.|{I} clean{s/ed} {1}. ',
-                        gActionListStr)
+                        now.actionListStr)
     
     dobj CleanWith
     {
@@ -7605,7 +7605,7 @@ class Thing:  ReplaceRedirector, Mentionable
             else if(mustBeCleanedWith == nil)
                 implausible(dontNeedCleaningObjMsg);
             
-            else if(valToList(mustBeCleanedWith).indexOf(gVerifyIobj) == nil)
+            else if(valToList(mustBeCleanedWith).indexOf(now.verifyIobj) == nil)
                 implausible(cannotCleanWithMsg);
         }
         
@@ -7621,7 +7621,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   We assume most objects aren't suitable for cleaning other objects with.
      *   Since the dobj is resolved first canCleanWithMe could be a method that
-     *   checks whether the proposed iobj is suitable for cleaning gDobj; but a
+     *   checks whether the proposed iobj is suitable for cleaning now.dobj; but a
      *   better way of doing it might be to list suitable objects in the
      *   mustBeCleanedWith property.
      */      
@@ -7688,7 +7688,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canDigWithMe)
                illogical(cannotDigWithMsg); 
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotDigWithSelfMsg);
         }
     }
@@ -7721,9 +7721,9 @@ class Thing:  ReplaceRedirector, Mentionable
              *   If we already know what the indirect object is, test if we are in its contents
              *   (which may include one of its remapXXX subcontainers).
              */
-            if(gIobj)
+            if(now.iobj)
             {
-                if(gIobj.notionalContents.indexOf(self))
+                if(now.iobj.notionalContents.indexOf(self))
                     contained = true;
             }
             /*  
@@ -7732,7 +7732,7 @@ class Thing:  ReplaceRedirector, Mentionable
              */
             else  
             {                
-                for(local obj in gTentativeIobj)
+                for(local obj in now.tentativeIobj)
                 {
                     if(obj.notionalContents.indexOf(self))
                     {
@@ -7754,8 +7754,8 @@ class Thing:  ReplaceRedirector, Mentionable
              *   list contains only us (the dobj) the player is trying to take us from ourselvdes,
              *   which we rule out as impossible.
              */
-            if((gIobj == self)
-               || (gTentativeIobj.length == 1 && self == gVerifyIobj))
+            if((now.iobj == self)
+               || (now.tentativeIobj.length == 1 && self == now.verifyIobj))
                 illogicalSelf(cannotTakeFromSelfMsg);
         }        
     }
@@ -7774,14 +7774,14 @@ class Thing:  ReplaceRedirector, Mentionable
              *   We're also a poor choice if none of the tentative direct
              *   objects is in our list of notional contents
              */
-            if(gTentativeDobj.overlapsWith(notionalContents) == nil)
+            if(now.tentativeDobj.overlapsWith(notionalContents) == nil)
                 logicalRank(80);        
         
         }      
     }
     
     notInMsg = msgText(not inside, '{The dobj} {is}n\'t ' + 
-                    (gIobj ? '{in iobj}.' : '{1}.'), gVerifyIobj.objInName)
+                    (now.iobj ? '{in iobj}.' : '{1}.'), now.verifyIobj.objInName)
     
     cannotTakeFromSelfMsg =  msgText(cannot take from self, '{I} {can\'t} take
         {the subj dobj} from {himself dobj}. ')
@@ -7827,20 +7827,20 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canThrowAtMe)
                 illogical(cannotThrowAtMsg);
             
-            if(gDobj == self)
+            if(now.dobj == self)
                 illogical(cannotThrowAtSelfMsg);
         }
         
         
         action()
         {            
-            gDobj.actionMoveInto(getOutermostRoom.dropLocation);
+            now.dobj.actionMoveInto(getOutermostRoom.dropLocation);
         }
         
         report()
         {
-            local obj = gActionListObj;
-            gMessageParams(obj);
+            local obj = now.actionListObj;
+            messageParams(obj);
             showMsg(throw at, '{The subj obj} {strikes} {the iobj} and land{s/ed}
                 on the ground. ');            
         }
@@ -7880,7 +7880,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canThrowToMe)
                 illogical(cannotThrowToMsg);
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogical(cannotThrowToSelfMsg);
         } 
         
@@ -7914,18 +7914,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check()
         {
-            checkSetting(gLiteral);
+            checkSetting(now.literal);
         }
         
         action()
         {
-            makeSetting(gLiteral);                        
+            makeSetting(now.literal);                        
         }
         
         report()
         {
-            showMsg(okay turn to, 'Okay, {I} turn{s/ed} {1} to {2}', gActionListStr, 
-                 gLiteral);
+            showMsg(okay turn to, 'Okay, {I} turn{s/ed} {1} to {2}', now.actionListStr, 
+                 now.literal);
         }
     }
     
@@ -7959,12 +7959,12 @@ class Thing:  ReplaceRedirector, Mentionable
         check()
         {
             /* This would be a good place to put code to validate the setting */
-            checkSetting(gLiteral);
+            checkSetting(now.literal);
         }
         
         action()
         {
-            makeSetting(gLiteral);                       
+            makeSetting(now.literal);                       
         }
         
         report()
@@ -7975,7 +7975,7 @@ class Thing:  ReplaceRedirector, Mentionable
        
     makeSetting(val) { curSetting = val; }
     
-    okaySetMsg = msgText(okay set to, '{I} {set} {1} to {2}. ', gActionListStr,
+    okaySetMsg = msgText(okay set to, '{I} {set} {1} to {2}. ', now.actionListStr,
         curSetting)
     
     cannotSetToMsg = msgText(cannot set to, '{I} {cannot} set {that dobj} to
@@ -7994,14 +7994,14 @@ class Thing:  ReplaceRedirector, Mentionable
              *   If the actor is already in the direct object, there's no need
              *   to move any further.
              */
-            if(gActor.isIn(self))
+            if(now.actor.isIn(self))
                 illogicalNow(alreadyThereMsg);
             
             /*  
              *   If the direct object is in the actor's location, there's no
              *   need for the actor to move to get to it.
              */
-            if(isIn(gActor.getOutermostRoom))
+            if(isIn(now.actor.getOutermostRoom))
                 illogicalNow(alreadyPresentMsg);
             
             /*  
@@ -8032,7 +8032,7 @@ class Thing:  ReplaceRedirector, Mentionable
              */
             local route = defined(pcRouteFinder) && lastSeenAt != nil 
                 ? pcRouteFinder.findPath(
-                    gActor.getOutermostRoom, dest) : nil;
+                    now.actor.getOutermostRoom, dest) : nil;
             
             /*  
              *   If we don't find a route, just display a message saying we don't know how to get to
@@ -8058,10 +8058,10 @@ class Thing:  ReplaceRedirector, Mentionable
             {
                 local idx = 2;
                 local dir = route[2][1];
-                local oldLoc = gPlayerChar.getOutermostRoom();
+                local oldLoc = now.player.getOutermostRoom();
                 
                 local commonRegions =
-                    gPlayerChar.getOutermostRoom.regionsInCommonWith(dest);
+                    now.player.getOutermostRoom.regionsInCommonWith(dest);
                 
                 local regionFastGoTo = 
                     commonRegions.indexWhich({r: r.fastGoTo }) != nil;
@@ -8087,7 +8087,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   until either we reach it our we're prevented from going any further.
                      */
                     while((fastGo)
-                          && oldLoc != gPlayerChar.getOutermostRoom 
+                          && oldLoc != now.player.getOutermostRoom 
                           && idx < route.length)
                     {
                         local dir = route[++idx][1];
@@ -8103,8 +8103,8 @@ class Thing:  ReplaceRedirector, Mentionable
                 {
                     gameMain.verbose = wasVerbose;
                     
-                    if((gameMain.briefGoTo || regionBriefGoTo) && wasVerbose && !gActor.isIn(dest))
-                        gActor.getOutermostRoom.lookAroundWithin();
+                    if((gameMain.briefGoTo || regionBriefGoTo) && wasVerbose && !now.actor.isIn(dest))
+                        now.actor.getOutermostRoom.lookAroundWithin();
                 }
             }
         }
@@ -8166,7 +8166,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canAttachToMe)
                illogical(cannotAttachToMsg); 
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotAttachToSelfMsg);
         }
     }
@@ -8205,7 +8205,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isDetachable)
                illogical(cannotDetachMsg); 
             
-            if(gVerifyIobj == self)
+            if(now.verifyIobj == self)
                 illogicalSelf(cannotDetachFromSelfMsg);
         }
     }
@@ -8261,7 +8261,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(okay fasten, 'Done|{I} fasten{s/ed} {1}. ', gActionListStr);
+            showMsg(okay fasten, 'Done|{I} fasten{s/ed} {1}. ', now.actionListStr);
         }
     }
     
@@ -8293,7 +8293,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canFastenToMe)
                 illogical(cannotFastenToMsg); 
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotFastenToSelfMsg);
         }  
     }
@@ -8330,7 +8330,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isUnfastenable)
                illogical(cannotUnfastenMsg); 
             
-            if(gVerifyIobj == self)
+            if(now.verifyIobj == self)
                 illogical(cannotUnfastenFromSelfMsg);
         }
     }
@@ -8380,7 +8380,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isPlugable)
                 illogical(cannotPlugMsg);
             
-            if(self == gVerifyIobj)
+            if(self == now.verifyIobj)
                 illogicalSelf(cannotPlugIntoSelfMsg);            
         }        
         
@@ -8416,7 +8416,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isUnplugable)
                 illogical(cannotUnplugMsg);
             
-            if(gVerifyIobj == self)
+            if(now.verifyIobj == self)
                 illogicalSelf(cannotUnplugFromSelfMsg);
         }
     }
@@ -8507,7 +8507,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report()
         {
             showMsg(report kiss, 'Kissing {1} {dummy}prove{s/d} remarkably
-                unrewarding. ',  gActionListStr); 
+                unrewarding. ',  now.actionListStr); 
         }
     }
     
@@ -8532,7 +8532,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   It should be possible to jump off something if and only if the actor is
      *   on it in the first place.
      */
-    canJumpOffMe = (gActor.location == self && contType == On)
+    canJumpOffMe = (now.actor.location == self && contType == On)
     
     dobj JumpOff
     {
@@ -8550,13 +8550,13 @@ class Thing:  ReplaceRedirector, Mentionable
              *   Jumping off something has much the same effect as getting off
              *   it, i.e. moving the actor to our exitLocation.
              */
-            gActor.actionMoveInto(exitLocation);
+            now.actor.actionMoveInto(exitLocation);
         }
         
         report()
         {
             showMsg(jump off, '{I} jump{s/ed} off {1} and land{s/ed} on the ground', 
-                 gActionListStr);
+                 now.actionListStr);
         }
     }
     
@@ -8577,7 +8577,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!canJumpOverMe)
                illogical(cannotJumpOverMsg); 
-            if(gDobj == gActor)
+            if(now.dobj == now.actor)
                 illogicalSelf(cannotJumpOverSelfMsg);
         }
     }
@@ -8777,7 +8777,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotPourOntoSelfMsg);
             
             if(!canPourOntoMe)
@@ -8823,7 +8823,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotPourIntoSelfMsg);
             
             if(!canPourIntoMe)
@@ -8840,14 +8840,14 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPourIntoSelfMsg = msgText(cannot pour in self, '{I} {can\'t} pour {the
         dobj} into {itself dobj}. ')
     cannotPourIntoMsg = msgText(cannot pour into, '{I} {can\'t} pour {1}
-        into {that dobj}. ', gDobj.fluidName)
+        into {that dobj}. ', now.dobj.fluidName)
     cannotPourOntoMsg = msgText(cannot pour onto, '{I} {can\'t} pour {1}
-        into {that dobj}. ', gDobj.fluidName)
+        into {that dobj}. ', now.dobj.fluidName)
     shouldNotPourIntoMsg = msgText(should not pour into, 'It{dummy}{\'s} better not
-        to pour {1} into {the iobj}. ', gDobj.fluidName)
+        to pour {1} into {the iobj}. ', now.dobj.fluidName)
     
     shouldNotPourOntoMsg = msgText(should not pour onto, 'It{dummy}{\'s} better not
-        to pour {1} onto {the iobj}. ', gDobj.fluidName)  
+        to pour {1} onto {the iobj}. ', now.dobj.fluidName)  
     
     
     /* Most things can't be screwed */
@@ -8889,7 +8889,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canScrewWithMe)
                 illogical(cannotScrewWithMsg); 
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogical(cannotScrewWithSelfMsg);
         }        
     }
@@ -8925,7 +8925,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canUnscrewWithMe)
                 illogical(cannotUnscrewWithMsg); 
             
-            if(gVerifyDobj == self)
+            if(now.verifyDobj == self)
                 illogicalSelf(cannotUnscrewWithSelfMsg);
         }        
     }
@@ -8962,10 +8962,10 @@ class Thing:  ReplaceRedirector, Mentionable
             implausible(cannotPushTravelMsg);       
         
         
-        if(gActor.isIn(self))
+        if(now.actor.isIn(self))
             illogicalNow(cannotPushOwnContainerMsg);
         
-        if(gVerifyIobj == self)
+        if(now.verifyIobj == self)
             illogicalSelf(cannotPushViaSelfMsg);            
         
     }
@@ -8990,10 +8990,10 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotPushOwnContainerMsg = msgText(cannot push own container, '{I} {can\'t}
         {1} {the dobj} anywhere while {he actor}{\'s} {2} {him dobj}. ',
-                                     gVerbWord, gDobj.objInPrep)
+                                     now.verbWord, now.dobj.objInPrep)
     
     cannotPushViaSelfMsg = msgText(cannot push via self, '{I} {can\'t} {1} {the
-        dobj} {2} {itself dobj}. ', gVerbWord, viaMode.prep)
+        dobj} {2} {itself dobj}. ', now.verbWord, viaMode.prep)
     
     /* 
      *   By default we can't push travel most things. Push Travel means pushing
@@ -9025,7 +9025,7 @@ class Thing:  ReplaceRedirector, Mentionable
             local loc = getOutermostRoom;
             
             /* Get the direction of travel from the command */
-            local dirn = gCommand.verbProd.dirMatch.dir;
+            local dirn = now.command.verbProd.dirMatch.dir;
             
             if(loc.propType(dirn.dirProp) == TypeObject)
             {
@@ -9054,7 +9054,7 @@ class Thing:  ReplaceRedirector, Mentionable
                         exit;
                     
                     if(conn.checkTravelBarriers(self))
-                        conn.checkTravelBarriers(gActor);
+                        conn.checkTravelBarriers(now.actor);
                     
                     
                 }
@@ -9067,7 +9067,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Display a message saying we pushed the direct object in a particular direction. */
     sayPushTravel(dir)
     {
-        showMsg(before push travel dir, '{I} <<gDobj.matchPullOnly ? 'pull(s/ed}' : 'push{es/ed}'>>
+        showMsg(before push travel dir, '{I} <<now.dobj.matchPullOnly ? 'pull(s/ed}' : 'push{es/ed}'>>
               {the dobj} {1}. ',  dir.departureName);   
         "<.p>";
     }    
@@ -9087,13 +9087,13 @@ class Thing:  ReplaceRedirector, Mentionable
          *   If moving this item did reveal any hidden items, we want to see the
          *   report of them now, before moving to another location.
          */        
-        gCommand.afterReport();
+        now.command.afterReport();
         
         /* 
          *   We don't want to see these reports again at the end of the action,
          *   so clear the list.
          */
-        gCommand.afterReports = [];   
+        now.command.afterReports = [];   
     }
     
     
@@ -9103,7 +9103,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(isFixed)
             return cannotTakeMsg;
         return msgText(cannot push travel, 'There{dummy}{\'s} no point trying to
-            {1} {that dobj} anywhere. ', gVerbWord);
+            {1} {that dobj} anywhere. ', now.verbWord);
     }
 
     
@@ -9115,8 +9115,8 @@ class Thing:  ReplaceRedirector, Mentionable
          *   Only go on to check those for the item being pushed if the actor
          *   can travel, so we don't see the same messages twice.
          */
-        if(checkTravelBarriers(gActor))        
-            checkTravelBarriers(gDobj);     
+        if(checkTravelBarriers(now.actor))        
+            checkTravelBarriers(now.dobj);     
         
               
     }
@@ -9132,7 +9132,7 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         pushTravelRevealItems();       
                  
-        if(!gIobj.isLocked)
+        if(!now.iobj.isLocked)
             describePushTravel(via); 
         
         /*  
@@ -9144,7 +9144,7 @@ class Thing:  ReplaceRedirector, Mentionable
         local wasHidden;
         
         /*   Note the actor's current location. */
-        local oldLoc = gActor.getOutermostRoom;
+        local oldLoc = now.actor.getOutermostRoom;
         try
         {
             wasHidden = propType(&isHidden) is in (TypeCode, TypeFunction) ?
@@ -9152,7 +9152,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
             isHidden = true;
             
-            gIobj.travelVia(gActor);
+            now.iobj.travelVia(now.actor);
         }
         finally
         {
@@ -9168,10 +9168,10 @@ class Thing:  ReplaceRedirector, Mentionable
          *   location.
          */        
         
-        if(gActor.isIn(gIobj.getDestination(oldLoc)))
+        if(now.actor.isIn(now.iobj.getDestination(oldLoc)))
         {
-            gIobj.travelVia(gDobj);
-            gDobj.describeMovePushable(self, gActor.location);
+            now.iobj.travelVia(now.dobj);
+            now.dobj.describeMovePushable(self, now.actor.location);
         }
     }
     
@@ -9201,7 +9201,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 conn = loc.(prop);                
                 
                 /* Make that connector the iobj of this action. */
-                gIobj = conn; 
+                now.action.curIobj = conn; 
             }
             else
             {
@@ -9223,8 +9223,8 @@ class Thing:  ReplaceRedirector, Mentionable
             conn.beforeTravelNotifications(self);        
         
        /*  If we have an indirect object, describe our PushTravel via it */
-        if(gIobj)
-            describePushTravel(gAction.viaMode);    
+        if(now.iobj)
+            describePushTravel(now.action.viaMode);    
         
         /*  
          *   Otherwise we have a travel connector to travel through, report which direction we're
@@ -9242,7 +9242,7 @@ class Thing:  ReplaceRedirector, Mentionable
     describeMovePushable (connector, dest)
     {
         local obj = self;
-        gMessageParams(obj, dest);
+        messageParams(obj, dest);
         showMsg(describe move pushable, '{The subj obj} {comes} to a halt. ' );
         
     }
@@ -9258,10 +9258,10 @@ class Thing:  ReplaceRedirector, Mentionable
     describePushTravel(via)
     {
         /* If I have a traversalMsg, use it */
-        if(gIobj && gIobj.propType(&traversalMsg) != TypeNil)
+        if(now.iobj && now.iobj.propType(&traversalMsg) != TypeNil)
             showMsg(push travel traversal, '{I} <<if matchPullOnly>> pull{s/ed}
                 <<else>> push{es/ed}<<end>> {the dobj} {1}. <.p>',
-                 gIobj.traversalMsg);
+                 now.iobj.traversalMsg);
         else
             showMsg(push travel somewhere, '{I} <<if matchPullOnly>> pull{s/ed}
                 <<else>> push{es/ed}<<end>> {the dobj} {1} {the iobj}. <.p>', 
@@ -9289,7 +9289,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [travelPermitted, touchObj]
         verify() 
         {  
-            if(!canGoThroughMe || getDestination(gActor.getOutermostRoom) == nil)
+            if(!canGoThroughMe || getDestination(now.actor.getOutermostRoom) == nil)
                 illogical(cannotPushThroughMsg);
         }
         
@@ -9297,7 +9297,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     cannotPushThroughMsg = msgText(cannot push through, '{I} {can\'t} {1}
-        anything through {the iobj}. ', gVerbWord)
+        anything through {the iobj}. ', now.verbWord)
     
     
     /* 
@@ -9328,22 +9328,22 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check() 
         {             
-            checkInsert(gActor);            
-            checkInsert(gDobj);
+            checkInsert(now.actor);            
+            checkInsert(now.dobj);
         }    
         
         action() 
         {
-            gDobj.actionMoveInto(self);
-            gActor.actionMoveInto(self);
+            now.dobj.actionMoveInto(self);
+            now.actor.actionMoveInto(self);
             
-            if(gDobj.isIn(self))
+            if(now.dobj.isIn(self))
                 say(okayPushIntoMsg);
         }
     }
     
     cannotPushIntoMsg = msgText(cannot push into, '{I} {can\'t} {1}
-        anything into {the iobj}. ', gVerbWord)
+        anything into {the iobj}. ', now.verbWord)
     
     dobj PushTravelGetOutOf
     {
@@ -9351,7 +9351,7 @@ class Thing:  ReplaceRedirector, Mentionable
         verify()
         {
             verifyPushTravel(OutOf);
-            if(!self.isIn(gIobj))
+            if(!self.isIn(now.iobj))
                 illogicalNow(notInMsg);
         }
         
@@ -9365,18 +9365,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {  
-            if(!gActor.isIn(self))
+            if(!now.actor.isIn(self))
                 illogicalNow(actorNotInMsg);   
             
         }
         
         action()
         {
-            gDobj.actionMoveInto(location);
-            if(gDobj.location ==  location)
+            now.dobj.actionMoveInto(location);
+            if(now.dobj.location ==  location)
             {
                 say(okayPushOutOfMsg);
-                gActor.actionMoveInto(location);
+                now.actor.actionMoveInto(location);
             }
         }
        
@@ -9399,7 +9399,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {  
-            if(!isClimbable || getDestination(gActor.getOutermostRoom) == nil)
+            if(!isClimbable || getDestination(now.actor.getOutermostRoom) == nil)
                 illogical(cannotPushUpMsg);
         }
         
@@ -9407,7 +9407,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     cannotPushUpMsg = msgText(cannot push up, '{I} {can\'t} {1}
-        anything up {the iobj}. ', gVerbWord)
+        anything up {the iobj}. ', now.verbWord)
     
     dobj PushTravelClimbDown
     {
@@ -9423,7 +9423,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {  
-            if(!canClimbDownMe || getDestination(gActor.getOutermostRoom) == nil)
+            if(!canClimbDownMe || getDestination(now.actor.getOutermostRoom) == nil)
                 illogical(cannotPushDownMsg);
         }
         
@@ -9431,7 +9431,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     cannotPushDownMsg = msgText(cannot push down, '{I} {can\'t} {1}
-        anything down {the iobj}. ', gVerbWord)
+        anything down {the iobj}. ', now.verbWord)
     
     /* 
      *   We don't bother to define isAskable etc. properties since we assume
@@ -9458,7 +9458,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [canTalkToObj]
         verify() 
         { 
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotTalkToSelfMsg);
             
             else if(!canTalkToMe)
@@ -9471,7 +9471,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [canTalkToObj]
         verify() 
         { 
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotTalkToSelfMsg);
             
             else if(!canTalkToMe)
@@ -9485,7 +9485,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [canTalkToObj]
         verify() 
         { 
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotTalkToSelfMsg);
             
             else if(!canTalkToMe)
@@ -9499,7 +9499,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [canTalkToObj]
         verify() 
         { 
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotTalkToSelfMsg);
             
             else if(!canTalkToMe)
@@ -9519,7 +9519,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [canTalkToObj]
         verify() 
         { 
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotTalkToSelfMsg);
             
             else if(!canTalkToMe)
@@ -9532,7 +9532,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [canTalkToObj]
         verify() 
         { 
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotTalkToSelfMsg);
             
             else if(!canTalkToMe)
@@ -9545,7 +9545,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [canTalkToObj]
         verify() 
         { 
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotTalkToSelfMsg);
             
             else if(!canTalkToMe)
@@ -9565,17 +9565,17 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [objHeld, objNotWorn]
         verify()
         {
-            if(isIn(gIobj))
+            if(isIn(now.iobj))
                 illogical(alreadyHasMsg);
         }
     
         report()
         {
-            if(gAction.summaryReport != nil)
-                dmsg(gAction.summaryReport, gActionListStr);
+            if(now.action.summaryReport != nil)
+                dmsg(now.action.summaryReport, now.actionListStr);
             
-            if(gAction.summaryProp != nil)
-                gIobj.(gAction.summaryProp);
+            if(now.action.summaryProp != nil)
+                now.iobj.(now.action.summaryProp);
         }
     }
     
@@ -9589,7 +9589,7 @@ class Thing:  ReplaceRedirector, Mentionable
         { 
             if(!canTalkToMe)
                 illogical(cannotGiveToMsg); 
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotGiveToSelfMsg);
         }
         
@@ -9606,11 +9606,11 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = isFixed ? [objVisible] : [objHeld]  
         report()
         {
-            if(gAction.summaryReport != nil)
-                dmsg(gAction.summaryReport, gActionListStr);
+            if(now.action.summaryReport != nil)
+                dmsg(now.action.summaryReport, now.actionListStr);
             
-            if(gAction.summaryProp != nil)
-                gIobj.(gAction.summaryProp);
+            if(now.action.summaryProp != nil)
+                now.iobj.(now.action.summaryProp);
         }
     }
     
@@ -9619,7 +9619,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [touchObj]
         verify() 
         {
-            if(gActor == self)
+            if(now.actor == self)
                 illogicalSelf(cannotShowToSelfMsg);
             else if(!canTalkToMe)
                 illogical(cannotShowToMsg);
@@ -9639,25 +9639,25 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {
-            if(gActor.currentInterlocutor == nil)
+            if(now.actor.currentInterlocutor == nil)
                 illogical(notTalkingToAnyoneMsg);
-            else if(!Q.canTalkTo(gActor, gActor.currentInterlocutor))
+            else if(!Q.canTalkTo(now.actor, now.actor.currentInterlocutor))
                 illogicalNow(noLongerTalkingToAnyoneMsg);            
             
         }
         
         action()
         {
-            gActor.currentInterlocutor.handleTopic(&showTopics, [self]);
+            now.actor.currentInterlocutor.handleTopic(&showTopics, [self]);
         }
         
         report()
         {
-            if(gAction.summaryReport != nil)
-                dmsg(gAction.summaryReport, gActionListStr);
+            if(now.action.summaryReport != nil)
+                dmsg(now.action.summaryReport, now.actionListStr);
             
-            if(gAction.summaryProp != nil)
-                gActor.currentInterlocutor.(gAction.summaryProp);
+            if(now.action.summaryProp != nil)
+                now.actor.currentInterlocutor.(now.action.summaryProp);
         }
     }
     
@@ -9667,25 +9667,25 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {
-            if(gActor.currentInterlocutor == nil)
+            if(now.actor.currentInterlocutor == nil)
                 illogical(notTalkingToAnyoneMsg);
-            else if(!Q.canTalkTo(gActor, gActor.currentInterlocutor))
+            else if(!Q.canTalkTo(now.actor, now.actor.currentInterlocutor))
                 illogicalNow(noLongerTalkingToAnyoneMsg);            
             
         }
         
         action()
         {
-             gActor.currentInterlocutor.handleTopic(&giveTopics, [self]);
+             now.actor.currentInterlocutor.handleTopic(&giveTopics, [self]);
         }
         
         report()
         {
-            if(gAction.summaryReport != nil)
-                dmsg(gAction.summaryReport, gActionListStr);
+            if(now.action.summaryReport != nil)
+                dmsg(now.action.summaryReport, now.actionListStr);
             
-            if(gAction.summaryProp != nil)
-                gActor.currentInterlocutor.(gAction.summaryProp);
+            if(now.action.summaryProp != nil)
+                now.actor.currentInterlocutor.(now.action.summaryProp);
         }
     }
     
@@ -9705,7 +9705,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     cantSpecialActionMsg = msgText(cant do special, '{I} {can\'t} {1} {the dobj}. ',
-                                gAction.specialPhrase )
+                                now.action.specialPhrase )
     
     
  #ifdef __DEBUG
@@ -9721,10 +9721,10 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         verify()
         {
-            if(isDirectlyIn(gActor))
+            if(isDirectlyIn(now.actor))
                 illogicalNow(alreadyHeldMsg);
 
-            if(self == gActor)
+            if(self == now.actor)
                 illogicalSelf(cannotPurloinSelfMsg);
                         
             if(isFixed)
@@ -9733,7 +9733,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(ofKind(Room))
                 illogical(cannotPurloinRoomMsg);
             
-            if(gActor.isIn(self))
+            if(now.actor.isIn(self))
                 illogicalNow(cannotPurloinContainerMsg);
             
             logical;
@@ -9749,7 +9749,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   we don't want the side-effects of movement notifications,
              *   neither to we want a notifyRemove() routine to veto a Purloin.
              */
-            moveInto(gActor);
+            moveInto(now.actor);
             
             /*   
              *   Make this item unhidden even if it was hidden before, otherwise
@@ -9762,14 +9762,14 @@ class Thing:  ReplaceRedirector, Mentionable
              *   doing this can make it appear that the player character doesn't
              *   know about an object that's in his/her inventory.
              */
-            if(gPlayerChar.canSee(self))
-                gSetSeen(self);
+            if(now.player.canSee(self))
+                now.setSeen(self);
         }
         
         report()
         {
             showMsg(purloin, '{I} suddenly {find} {myself} holding {1}. ',                 
-                gActionListStr );
+                now.actionListStr );
         }
     }
         
@@ -9800,7 +9800,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             showMsg(gonear, '{I} {am} translated in the twinkling of an
                 eye...<.p>');
-            getOutermostRoom.travelVia(gActor);
+            getOutermostRoom.travelVia(now.actor);
         }
     }
     
@@ -9824,7 +9824,7 @@ thingPreinit: PreinitObject
          *   taking inventory
          */
         foreach(local cur in getPlayerChar().contents)
-            gSetKnown(cur);
+            now.setKnown(cur);
     }
     
     execBeforeMe = [pronounPreinit]
@@ -9925,7 +9925,7 @@ class Key: Thing
              *   We're a logical choice of key if we're a possible key for the
              *   direct object.
              */
-            if(gVerifyDobj && isPossibleKeyFor(gVerifyDobj))
+            if(now.verifyDobj && isPossibleKeyFor(now.verifyDobj))
                 logical;
             
             /* Otherwise we're not a very good choice. */
@@ -9951,26 +9951,26 @@ class Key: Thing
              *   lexicalParent is in our actualLockList.
              */
             
-            if(actualLockList.indexOf(gDobj) == nil
-               && (gDobj.lexicalParent == nil
-               || gDobj.lexicalParent.remapIn != gDobj
-               || actualLockList.indexOf(gDobj.lexicalParent) == nil))
+            if(actualLockList.indexOf(now.dobj) == nil
+               && (now.dobj.lexicalParent == nil
+               || now.dobj.lexicalParent.remapIn != now.dobj
+               || actualLockList.indexOf(now.dobj.lexicalParent) == nil))
                 say(keyDoesntFitMsg);              
         }
         
         action()
         {
             /* Make the dobj unlocked. */
-            gDobj.makeLocked(nil);
+            now.dobj.makeLocked(nil);
             
             /* If the dobj is not already in our knownLockList, add it there. */
-            if(knownLockList.indexOf(gDobj) == nil)
-                knownLockList += gDobj;
+            if(knownLockList.indexOf(now.dobj) == nil)
+                knownLockList += now.dobj;
         }
         
         report()
         {
-            showMsg(okay unlock with, okayUnlockWithMsg, gActionListStr);
+            showMsg(okay unlock with, okayUnlockWithMsg, now.actionListStr);
         }
         
     }
@@ -9985,7 +9985,7 @@ class Key: Thing
         {
             inherited;
             
-            if(gVerifyDobj && isPossibleKeyFor(gVerifyDobj))
+            if(now.verifyDobj && isPossibleKeyFor(now.verifyDobj))
                 logical;
             else
                 implausible(notAPlausibleKeyMsg);            
@@ -10008,26 +10008,26 @@ class Key: Thing
              *   lexicalParent of which it's the remapIn object, dobj's
              *   lexicalParent is in our actualLockList.
              */
-             if(actualLockList.indexOf(gDobj) == nil
-               && (gDobj.lexicalParent == nil
-               || gDobj.lexicalParent.remapIn != gDobj
-               || actualLockList.indexOf(gDobj.lexicalParent) == nil))
+             if(actualLockList.indexOf(now.dobj) == nil
+               && (now.dobj.lexicalParent == nil
+               || now.dobj.lexicalParent.remapIn != now.dobj
+               || actualLockList.indexOf(now.dobj.lexicalParent) == nil))
                 say(keyDoesntFitMsg);              
         }
         
         action()
         {
             /*Make the dobj locked. */
-            gDobj.makeLocked(true);
+            now.dobj.makeLocked(true);
             
             /* If the dobj is not already in our knownLockList, add it there. */
-            if(knownLockList.indexOf(gDobj) == nil)
-                knownLockList += gDobj;
+            if(knownLockList.indexOf(now.dobj) == nil)
+                knownLockList += now.dobj;
         }
         
         report()
         {
-             showMsg(okay lock with, okayLockWithMsg, gActionListStr);
+             showMsg(okay lock with, okayLockWithMsg, now.actionListStr);
         }
     }
     
@@ -10039,10 +10039,10 @@ class Key: Thing
      *   (because it\'s the wrong sort of key for the lock; e.g. a yale key
      *   clearly won\'t fit the lock on a small jewel box).
      */
-    notAPlausibleKeyMsg = '\^<<theName>> clearly won\'t work on <<gVerifyDobj.theName>>. '
+    notAPlausibleKeyMsg = '\^<<theName>> clearly won\'t work on <<now.verifyDobj.theName>>. '
     
     /*  The message to say that this key doesn\'t in fact fit the dobj. */
-    keyDoesntFitMsg = '\^<<theName>> won\'t fit <<gVerifyDobj.theName>>. '
+    keyDoesntFitMsg = '\^<<theName>> won\'t fit <<now.verifyDobj.theName>>. '
     
     preinitThing()
     {
@@ -10183,7 +10183,7 @@ class SubComponent : Thing
         local match = inherited(tokens);
 
         if(location != nil) {
-            if(match != 0 || Q.scopeList(gActor).toList().indexOf(location) == nil) {
+            if(match != 0 || Q.scopeList(now.actor).toList().indexOf(location) == nil) {
                 vocabLikelihood = origVocabLikelihood;
             } else {
                 vocabLikelihood = origVocabLikelihood - 15;
@@ -10214,7 +10214,7 @@ class SubComponent : Thing
     {       
         if(np.matches.length > 1)
         {
-            if(gActor.isIn(self) && contType == In)
+            if(now.actor.isIn(self) && contType == In)
                 np.matches = np.matches.subset({m: m.obj == self});
             else
                 np.matches = np.matches.subset({m: m.obj != self});
@@ -10471,8 +10471,8 @@ class MultiLoc: object
          *   Get the room either of the current actor (if there is one) or else
          *   of the player char.
          */
-        local rm = gActor == nil ? gPlayerChar.getOutermostRoom :
-        gActor.getOutermostRoom;
+        local rm = now.actor == nil ? now.player.getOutermostRoom :
+        now.actor.getOutermostRoom;
              
         
         /* 
@@ -10497,7 +10497,7 @@ class MultiLoc: object
          *   the actor can see and return that.
          */
         
-        local actor = gActor ?? gPlayerChar;
+        local actor = now.actor ?? now.player;
         
         foreach(local r in valToList(actor.visibleRooms))
         {
@@ -10564,8 +10564,8 @@ class Floor: MultiLoc, Thing
      *   TakeFrom command), but nothing is really moved into or out of a Floor).
      */
     
-    contents = (isIn(gPlayerChar.outermostVisibleParent)) ?         
-                  (gPlayerChar.outermostVisibleParent().contents - self) : []   
+    contents = (isIn(now.player.outermostVisibleParent)) ?         
+                  (now.player.outermostVisibleParent().contents - self) : []   
     
     /*   
      *   We can examine a Floor or take something from it, but other actions are
@@ -10638,10 +10638,10 @@ class Topic: Mentionable
     familiar = true
     
     /*   Make this topic known to the player character */   
-    setKnown() { gPlayerChar.setKnowsAbout(self); }
+    setKnown() { now.player.setKnowsAbout(self); }
     
     /* Test whether this topic is known to the player character */
-    known = (gPlayerChar.knowsAbout(self)) 
+    known = (now.player.knowsAbout(self)) 
     
     /* 
      *   Return a textual description of this topic, which will normally be just

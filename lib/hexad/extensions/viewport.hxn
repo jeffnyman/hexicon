@@ -180,7 +180,7 @@ modify Room
     {
         inherited(traveler, dest);
         
-        if(traveler == gPlayerChar)
+        if(traveler == now.player)
             roomsViewed = [];
     }
     
@@ -199,7 +199,7 @@ modify Room
         foreach(local rm in valToList(roomsViewed))
         {
             remotes.appendAll(rm.allContents.subset(
-                {o: o.isVisibleFrom(gActor) }));
+                {o: o.isVisibleFrom(now.actor) }));
             
             remotes.append(rm);
         }
@@ -212,7 +212,7 @@ modify Room
     {
         action()
         {
-            if(gActor.isIn(self))
+            if(now.actor.isIn(self))
                 inherited;
             else
                 describeRemotely();
@@ -227,7 +227,7 @@ modify Room
     describeRemotely()
     {
         /* Begin by showing the room's roomRemoteDes() */
-        roomRemoteDesc(gActor);
+        roomRemoteDesc(now.actor);
         
         /* 
          *   Unmention all the room's contents so they will be included in any
@@ -236,9 +236,9 @@ modify Room
         unmention(allContents);
         
         /*   Display a list of the room's contents. */
-        showFirstRemoteSpecials(gActor);
-        showRemoteMiscContents(gActor);
-        showSecondRemoteSpecials(gActor);
+        showFirstRemoteSpecials(now.actor);
+        showRemoteMiscContents(now.actor);
+        showSecondRemoteSpecials(now.actor);
     }
 ;
 

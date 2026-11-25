@@ -44,7 +44,7 @@ modify SensoryEmanation
      */
     desc
     {
-        if(Q.canSee(gPlayerChar, location))
+        if(Q.canSee(now.player, location))
             descWithSource;
         else
             descWithoutSource;
@@ -200,9 +200,9 @@ modify Odor
          */
         else
         {
-            if(!location.isIn(gPlayerChar.getOutermostRoom) 
+            if(!location.isIn(now.player.getOutermostRoom) 
                && location.hasProp(&remoteSmellDesc))
-                location.remoteSmellDesc(gPlayerChar);
+                location.remoteSmellDesc(now.player);
             else
                 location.smellDesc;
         }
@@ -215,7 +215,7 @@ modify Odor
      */
     emanate()
     {
-        if(!gActionIn(Smell, SmellSomething))
+        if(!now.actionIn(Smell, SmellSomething))
             inherited;
     }    
 ;
@@ -251,8 +251,8 @@ class SimpleOdor: Odor
     emanationDesc()
     { 
         
-        if(!isIn(gRoom) && hasProp(&remoteSmellDesc))
-            remoteSmellDesc(gPlayerChar);
+        if(!isIn(now.room) && hasProp(&remoteSmellDesc))
+            remoteSmellDesc(now.player);
         else
             smellDesc;        
     }
@@ -284,9 +284,9 @@ modify Noise
          */
         else
         {
-            if(!location.isIn(gPlayerChar.getOutermostRoom) 
+            if(!location.isIn(now.player.getOutermostRoom) 
                && location.hasProp(&remoteListenDesc))
-                location.remoteListenDesc(gPlayerChar);
+                location.remoteListenDesc(now.player);
             else
                 location.listenDesc;
         }
@@ -299,7 +299,7 @@ modify Noise
      */
     emanate()
     {
-        if(!gActionIn(Listen, ListenTo))
+        if(!now.actionIn(Listen, ListenTo))
             inherited;
     }  
 ;
@@ -335,8 +335,8 @@ class SimpleNoise: Noise
     emanationDesc()
     { 
         
-        if(!isIn(gRoom) && hasProp(&remoteListenDesc))
-            remoteListenDesc(gPlayerChar);
+        if(!isIn(now.room) && hasProp(&remoteListenDesc))
+            remoteListenDesc(now.player);
         else
             listenDesc;        
     }
@@ -375,7 +375,7 @@ emanationControl: InitObject
      */
     buildEmanationList   
     {
-        local pc = gPlayerChar;
+        local pc = now.player;
         
         /* 
          *   First get a list of all the SensoryEmanations in the player
@@ -587,7 +587,7 @@ modify Thing
      */
     smellDesc()
     {
-      if(Q.canSee(gActor, self))
+      if(Q.canSee(now.actor, self))
             smellDescWithSource;
         else
             smellDescWithoutSource;   
@@ -613,7 +613,7 @@ modify Thing
      */
     listenDesc()
     {
-      if(Q.canSee(gActor, self) )
+      if(Q.canSee(now.actor, self) )
             listenDescWithSource;
         else
             listenDescWithoutSource;   
@@ -712,7 +712,7 @@ modify Room
     {
         inherited(traveler, dest);
         
-        if(traveler == gPlayerChar)
+        if(traveler == now.player)
         {
             local lst = allContents.subset({o: o.ofKind(SensoryEmanation)});             
             

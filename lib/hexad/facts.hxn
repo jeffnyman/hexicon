@@ -15,7 +15,7 @@ import hexad;
  *   game has asserted to be true.
  */
 class Fact: object
-    /* Our name is the fact tag (used in gInformed() stateement or the like) that identifies us. */
+    /* Our name is the fact tag (used in getActor.informedAbout() stateement or the like) that identifies us. */
     name = nil
     
     /* 
@@ -206,25 +206,25 @@ class Fact: object
         
         /* If we have a pcComment defined, add it to our pcCommentTab */
         if(pcComment)
-            setPcComment(gPlayerChar, pcComment);
+            setPcComment(now.player, pcComment);
     }
     
     /* 
      *   LookUpTable containing lists of which sources have imparted this Fact to which actor;
-     *   actor defaults to gPlayerChar we use a LookUpTable here in case the player character
+     *   actor defaults to now.player we use a LookUpTable here in case the player character
      *   changes during the courss of play.
      */     
     sourcesTab = nil
     
     /* 
      *   LookUpTable containing lists of whom actor has imparted this Fact; actor defaults to
-     *   gPlayerChar we use a LookUpTable here in case the player character changes during the
+     *   now.player we use a LookUpTable here in case the player character changes during the
      *   courss of play.
      */
     targetsTab = nil
     
     /* Add a source (of information) to our sourcesTab table. */
-    addSource(source, actor = gPlayerChar)
+    addSource(source, actor = now.player)
     {
         /* If we haven't created a sourceTab Map yet, do so now. */
         if(sourcesTab == nil)
@@ -240,12 +240,12 @@ class Fact: object
         item = item.appendUnique([source]);
         
         /* Store the updated value back in sourcesTab. */
-        sourcesTab[gPlayerChar] = item;
+        sourcesTab[now.player] = item;
                                
     }
     
     /* Add a target to our targetTab table */
-    addTarget(target, actor = gPlayerChar)
+    addTarget(target, actor = now.player)
     {
         /* If we haven't created a targetsTab Map yet, do so now. */
         if(targetsTab == nil)
@@ -261,7 +261,7 @@ class Fact: object
         item = item.appendUnique([target]);
         
         /* Store the updated value back in targetsTab. */
-        targetsTab[gPlayerChar] = item;
+        targetsTab[now.player] = item;
     }
     
     /* 
@@ -269,7 +269,7 @@ class Fact: object
      *   player character and must normally have been the player character at some point for this to
      *   return anything but an empty list.
      */
-    getSources(actor = gPlayerChar)
+    getSources(actor = now.player)
     {
         return sourcesTab ? valToList(sourcesTab[actor]) : []; 
     }
@@ -279,7 +279,7 @@ class Fact: object
      *   character and must normally have been the player character at some point for this to return
      *   anything but an empty list.
      */
-    getTargets(actor = gPlayerChar)
+    getTargets(actor = now.player)
     {
         return targetsTab ? valToList(targetsTab[actor]) : []; 
     }
@@ -315,7 +315,7 @@ class Fact: object
              *   Remove the player character from this list (we don't want to report that the player
              *   character informed themself.
              */
-            objList -= gPlayerChar;
+            objList -= now.player;
                   
             
             /* 
@@ -384,7 +384,7 @@ class Fact: object
             return nil;
         
         /* Otherwise return the comment relating to the current player character. */
-        return pcCommentTab[gPlayerChar];
+        return pcCommentTab[now.player];
     }
     
     /* 
@@ -446,7 +446,7 @@ class Fact: object
     construct(name_, desc_, topics_, initiallyKnownBy_)
     {       
         /* Ensure that we're not about to overwrite an existing Fact. */
-        local fact = gFact(name_);
+        local fact = now.fact(name_);
         
         /* If fact already exists, display and error message and exit. */
         if(fact)
@@ -544,7 +544,7 @@ factManager: PreinitObject
          *   result.
          */
         else
-            return fact.getPcComment(gPlayerChar, topic);
+            return fact.getPcComment(now.player, topic);
     }
     
     /* 
@@ -569,7 +569,7 @@ factManager: PreinitObject
         }
         /* Otherwise set the current player character's comment to txt. */
         else
-            fact.setPcComment(gPlayerChar, txt);
+            fact.setPcComment(now.player, txt);
     }
     
     
@@ -695,7 +695,7 @@ class FactHelper: object
      */     
     alreadyKnewMsg(fact)
     {
-        local beliefVal = gPlayerChar.informedAbout(fact.name);       
+        local beliefVal = now.player.informedAbout(fact.name);       
         
         /* 
          *   We only want to append a message saying the player character already knew this message
@@ -703,8 +703,8 @@ class FactHelper: object
          *   there is at least one other source that is not the player character (so that when
          *   reported the fact will be prefixed by 'so-and-so told you that').
          */
-        if(fact.initiallyKnownBy.find(gPlayerChar) 
-           && fact.getSources.indexWhich({x: x!= gPlayerChar})
+        if(fact.initiallyKnownBy.find(now.player) 
+           && fact.getSources.indexWhich({x: x!= now.player})
            && beliefVal == true)            
             return knewFactAlreadyMsg ;
             
@@ -829,13 +829,13 @@ class FactHelper: object
                      *   (which also adds it to the player characters informedNameTab).
                      */
                     if(libGlobal.informOnReveal)
-                        gReveal(tag);
+                        now.reveal(tag);
                     /* 
                      *   Otherwise we want to separate revealing from informing the player
                      *   character, so we only do the latter.
                      */
                     else
-                        gPlayerChar.setInformed(tag);
+                        now.player.setInformed(tag);
                 }
                 
                 /* If we want to update the sources of this fact, then do so. */
@@ -1015,7 +1015,7 @@ class FactThought: FactHelper, Thought
  */
 redescFact(tag, newdesc)
 {
-    local fact = gFact(tag);
+    local fact = now.fact(tag);
     fact.desc = newdesc;
 }    
 
@@ -1040,14 +1040,14 @@ modify TopicEntry
         
         /*
          *   If the informOnReveal option is true, then we want to both update the revealed list on
-         *   libGlobal and the informedNameTab on the Player Character (and the call to gReveal will
+         *   libGlobal and the informedNameTab on the Player Character (and the call to now.reveal will
          *   do both).
          */
         if(libGlobal.informOnReveal)        
-            gReveal(tag); 
+            now.reveal(tag); 
         /* Otherwise we just update the player character's informedNameTab. */
         else
-            gPlayerChar.setInformed(tag);        
+            now.player.setInformed(tag);        
         
         /* 
          *   The person supplying this fact will be our actor, that is, the player character's
@@ -1120,7 +1120,7 @@ modify TopicEntry
         actor.setInformed(tag);
         
         /* Set narrator (the imparter of this Fact) to the player character */
-        narrator = gPlayerChar;
+        narrator = now.player;
         
         /* Get the fact corresponding to the tag. */
         local fact = factManager.getFact(tag);
@@ -1233,7 +1233,7 @@ modify TopicEntry
     revealNewFact(name_, desc_, msg?, topics_?, initiallyKnownBy_?)
     {
         /* If the Fact doesn't exist yet, create it. */
-        if(!gFact(name_))    
+        if(!now.fact(name_))    
         {
             topics_ = topics_ ?? matchObj;
             initiallyKnownBy_ = initiallyKnownBy_ ?? getActor();
@@ -1251,7 +1251,7 @@ modify TopicEntry
      *   displaying the fact description in the context of this TopicEntry; topics? is the list of
      *   topics this new facts relates to - we default to this TopicEmtry's matchObj;
      *   initiallyKnownBy is the actor or list of actor's this Fact starts out already known by - we
-     *   default to gPlayerChar, the person most likely to be informing the current interlocutor of
+     *   default to now.player, the person most likely to be informing the current interlocutor of
      *   the new fact at this point.
      */    
     informNewFact(name_, desc_, msg?, topics_?, initiallyKnownBy_?, actor?)
@@ -1259,10 +1259,10 @@ modify TopicEntry
         actor = actor ?? getActor();
 
         /* If the Fact doesn't exist yet, create it. */
-        if(!gFact(name_))                  
+        if(!now.fact(name_))                  
         {
             topics_ = topics_ ?? matchObj;
-            initiallyKnownBy_ = initiallyKnownBy_ ?? gPlayerChar;
+            initiallyKnownBy_ = initiallyKnownBy_ ?? now.player;
             
             new Fact(name_, desc_, topics_, initiallyKnownBy_);
         }
@@ -1285,7 +1285,7 @@ modify ActorTopicEntry
     /* If we define a aTag we're only active if our associated actor knows about our aTag. */
     active = inherited && (aTag == nil && tTag == nil) ? true : 
                            (aTag ? getActor.informedAbout(aTag) :
-                           gActor.informedAbout(tTag))                          
+                           now.actor.informedAbout(tTag))                          
         
     /* Carry out additional initialization to set our matchObj from our aTag */
     initializeTopicEntry()
@@ -1300,7 +1300,7 @@ modify ActorTopicEntry
         if((aTag || tTag) && matchObj == nil)
         {
             /* Obtain the Fact corresponding to whichever tag is non-nil */
-            local fact = gFact(aTag ?? tTag);
+            local fact = now.fact(aTag ?? tTag);
             
             /* If we found one, set our matchObj to our fact's topic list. */
             if(fact)
@@ -1354,7 +1354,7 @@ modify SayTopic
         if(tTag)
         {
             /* Get the fact corresponding to our tTag */
-            local fact = gFact(tTag);
+            local fact = now.fact(tTag);
             
             /* 
              *   If we've found one, set our matchPattern to its name and append a semicolon
@@ -1400,7 +1400,7 @@ modify InitiateTopic
         if(matchPattern != nil && matchPattern == top)
         {
             /* Attempt to find the fact with name top. */
-            local fact = gFact(top);
+            local fact = now.fact(top);
             
             /* I've we've found a fact, proceed accordinglay. */
             if(fact)
@@ -1476,10 +1476,10 @@ modify Consultable
      setTopicResponse(top, topkey, txt)
     {
         /* First attempt to get the fact corresponding to the txt string */
-        local fact = gFact(txt);
+        local fact = now.fact(txt);
         
         /* 
-         *   If we find one, replace txt with the desc of gFact(txt) plus a tag to reveal the fact
+         *   If we find one, replace txt with the desc of now.fact(txt) plus a tag to reveal the fact
          *   to the player character. Otherwise we'll skip this and simply set up our new
          *   ConsultTopic to display txt.
          */
