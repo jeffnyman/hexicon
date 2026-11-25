@@ -107,7 +107,7 @@ timeManager: InitObject
          *   time it will be interpreted as a time on the current in-game date,
          *   rather than the real-world date.
          */
-        if(args.length == 1 && typeOf(args[1] == TypeString))
+        if(args.length == 1 && typeOf(args[1]) == TypeString)
             currentTime = new Date(args[1], nil, currentTime);
         /* 
          *   Otherwise just pass all the arguments straight through to the Date

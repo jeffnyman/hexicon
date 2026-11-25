@@ -1743,9 +1743,11 @@ class TravelConnector: object
     
     /*  
      *   If canTravelerPass returns nil explainTravelBarrier should display a
-     *   message explaining why travel has been prohibited.
+     *   message explaining why travel has been prohibited. It may take a
+     *   second parameter, the connector, if it wants one: it is called with
+     *   as many as it takes.
      */
-    explainTravelBarrier(actor, connector) { }
+    explainTravelBarrier(actor) { }
     
     /*   
      *   Carry out any side effects of travel if the traveler is the player
@@ -1767,14 +1769,6 @@ class TravelConnector: object
      */
     travelBarriers = nil
        
-    
-    /* 
-     *   Compatibity switch to work round an inadvertent library change that erroneously introduced
-     *   a second parameter to explainTravelBarrier into the library. This has now been reversed but
-     *   any code that uses the second parameter can change explainTBParams to 2 to maintain
-     *   compatibility,
-     */
-    explainTBParams = 1
     
     /* 
      *   Check all the travel barriers associated with this connector to
@@ -1819,7 +1813,7 @@ class TravelConnector: object
              *   If travel is not permitted display a message explaining why and
              *   then return nil to cancel the travel.
              */
-            if(explainTBParams == 2)
+            if(propParams(&explainTravelBarrier)[1] >= 2)
                 explainTravelBarrier(traveler, self);
             else
                 explainTravelBarrier(traveler);

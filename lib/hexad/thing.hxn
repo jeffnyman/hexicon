@@ -9145,17 +9145,31 @@ class Thing:  ReplaceRedirector, Mentionable
         
         /*   Note the actor's current location. */
         local oldLoc = now.actor.getOutermostRoom;
+
+        /*
+         *   Note where we are, and where the actor is going. We go there first,
+         *   hidden, so that a lit object we push lights the room the actor
+         *   arrives in and describes; then we come back, so that travelVia
+         *   below moves us there as it always has.
+         */
+        local from = location;
+        local dest = now.iobj.getDestination(oldLoc);
         try
         {
             wasHidden = propType(&isHidden) is in (TypeCode, TypeFunction) ?
                     getMethod(&isHidden) : isHidden;
-            
+
             isHidden = true;
-            
+
+            if(dest != nil)
+                moveInto(dest);
+
             now.iobj.travelVia(now.actor);
         }
         finally
         {
+            moveInto(from);
+
             if(dataTypeXlat(wasHidden) is in (TypeCode, TypeFunction))
                 setMethod(&isHidden, wasHidden);
             else
@@ -9219,7 +9233,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   have been done, but if game code has overridden that we need to carry out the
          *   beforeTravelNotifications now.
          */         
-        if(conn && typeOf(conn == TypeObject))
+        if(conn && typeOf(conn) == TypeObject)
             conn.beforeTravelNotifications(self);        
         
        /*  If we have an indirect object, describe our PushTravel via it */

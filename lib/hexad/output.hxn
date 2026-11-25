@@ -2134,7 +2134,7 @@ withTense(usePastTense, callback)
     finally         
     { 
         /* if useOldPastTense is an object, it was taken from Narrator.tense. */
-        if(typeOf(oldUsePastTense == TypeObject))
+        if(typeOf(oldUsePastTense) == TypeObject)
             Narrator.tense = oldUsePastTense;
         /* Otherwise we needs to restore the value on gameMain, */
         else            

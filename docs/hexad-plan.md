@@ -135,6 +135,41 @@ Cloak's `message` led to a survey: a game on Hexad defining an object for each o
 
 The other 267 are free. And the message now says what has the name, with a note on why: `"room" is already the name of a property, so it cannot also name an object`, where before it said "something else". Only a change to the language, in which an object's name and a property's do not share one namespace, would free the rest (vocabulary.md, section 3).
 
+### Ruins (2026-11-25)
+
+The first port from adv3: the sample game of the Inform Designer's Manual, from its adv3 version, rewritten on Hexad in 1,189 lines (the adv3 game is 1,578, with two files of utilities Hexad does not need). An archaeologist, five treasures to photograph where they lie and pack, a sodium lamp that burns down and is pushed from room to room, a stone ball rolled into a chasm, a priest seen only through a mask, a dictionary of glyphs, scuttling claws in the dark, and a cage that turns the player into a warthog and back. Its script, 90 commands, plays to the full score of 30.
+
+**Hexad has most of adv3's part of it.** Lamps that run out (`extensions/fueled`), objects pushed between rooms (`canPushTravel`), stairways and connectors with barriers, `Booth`, `Platform`, `Distant`, `MultiLoc`, `Noise` and `Odor`, `Consultable` with topics matched by object, list, and pattern, the whole of the conversation the priest needs (`AskTopic`, `AltTopic`, `GiveShowTopic`, `CommandTopic`, the defaults), `EventList` and `Daemon`, score ranks, and `setPlayer`.
+
+**What it found wrong in Hexad, and fixed:**
+
+- **A game could not include an extension** (fixed in the change before: `include` in a manifest).
+- **`explainTravelBarrier` crashed as declared.** The library declared it with two parameters and called it with one unless a flag said two, so a barrier written as declared stopped the game with "wrong number of arguments". It is now declared with one and called with as many as the game's method takes.
+- **Pushing a lit lamp into a dark room described the room as dark**, because the lamp followed the player after the look. adv3's version of the game worked round the same thing with a hidden light. The pushed object now goes ahead, hidden, and comes back for the move, so its light is there when the player looks.
+- **The exit list counted a refusal as an exit**: "From here you could go down or up to the forest", in the forest, after UP was refused. It now lists an exit given by a message or a method only if trying it led somewhere else. Airport and Exercise 13 had the same slip in their transcripts ("south to the terminal" in the Terminal), which are now right.
+- **Three tests of the form `typeOf(x == TypeObject)`**, always true, since they take the type of a comparison. One was a real bug: after `withPresent` or `withPast`, the old tense went to `Narrator` rather than back to `gameMain`. All three are fixed. The compiler could warn of this form.
+
+**What adv3 has and Hexad does not**, and what the port did instead:
+
+| adv3 | Hexad, in this port |
+|---|---|
+| Levels of brightness: a lamp that dims, a warthog that sees in the dark, a lamp that can be found in the dark when off | `isLit` and `visibleInDark`, which were enough |
+| `canPushTravelVia`: whether an object can be pushed through a given connector | refused in `beforeMovePushable`, with `exit` |
+| `ObjectPreCondition`: the camera taken first, as an implicit action | `check()` refuses until the camera is held |
+| `dobjFor(Default)`: one handler for any action | `Decoration` with `decorationActions` |
+| Weak words (`'(glyph)'`): "glyph" alone matches no glyph | none: LOOK UP GLYPH finds the first glyph |
+| Postures: the body left lying in the cage | Hexad's `postures` extension was not used; left out |
+| Changing the messages of NPCs and the player (`npcMessages`, `playerMessages`): the priest's "You talk in riddles" for unknown words | left out |
+
+**What an author meets:**
+
+- **`steps` is a Hexad property**, so the stairway is `stoneSteps`; the message now says so plainly.
+- **A runtime error stops the game and says only what went wrong**, not where: "wrong number of arguments", "nil object reference". Both took reading the library to place. The VM could say which method, and the line in the game's source.
+- **`goInstead` does not end the command it replaces**, so JUMP in the burial shaft went up and then "jumps on the spot, fruitlessly" as well; `exit` after it does.
+- **A connector's destination has to be a room.** One leading into the cage, a `Booth`, did nothing at all, silently.
+- **The actor of the command cannot be taken out of play during it.** Moving the warthog to nil while it acts stopped the game; it is hidden instead.
+- SMELL in the square chamber does not find the tortilla odour of the mist, which is a `MultiLoc` there.
+
 ## Open questions
 
 1. Which of adv3's features matter most to bring back? The senses, nested rooms and postures, and report grouping are the likely ones.

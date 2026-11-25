@@ -296,11 +296,11 @@ exitLister: PreinitObject
             case TypeNil:
                 break;
             case TypeString:
-                if(showSQSExits && locIsLit && dest != nil)
+                if(showSQSExits && locIsLit && dest != nil && dest != loc)
                     destList.append(new DestInfo(dir, dest));
                 break;
             case TypePrintString:
-                if(showDQSExits && locIsLit && dest != nil)
+                if(showDQSExits && locIsLit && dest != nil && dest != loc)
                     destList.append(new DestInfo(dir, dest));
                 break;
                                 
@@ -320,7 +320,7 @@ exitLister: PreinitObject
             case TypeCode:    
                 if(locIsLit)
                 {                   
-                    if(dest != nil)
+                    if(dest != nil && dest != loc)
                        destList.append(new DestInfo(dir, dest));
                 }
                 break;
