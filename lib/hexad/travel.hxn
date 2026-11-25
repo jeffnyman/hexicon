@@ -21,9 +21,17 @@ property locn1, locn2;
  *   allows us to define sensory connections between rooms.
  */     
 class Room: TravelConnector, Thing
-    
-    
-    /*  
+
+    /*
+     *   A player who names something that both a room and a thing in it
+     *   answer to (X ENTRANCE, outside a cave whose mouth is "the cave
+     *   entrance" and whose room is named so too) almost always means the
+     *   thing, so a room starts a little less likely than the things around
+     *   it, and the parser picks the thing rather than asking which.
+     */
+    vocabLikelihood = -10
+
+    /*
      *   The direction properties (north, south, etc.) define what happens when
      *   travel is attempted in the corresponding direction. A direction
      *   property may be defined as another Room (in which case traveling in the

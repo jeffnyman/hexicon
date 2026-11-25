@@ -21,6 +21,9 @@
 <line>i
 <line>west
 <line>down
+<line>east
+<line>east
+<line>east
 <line>up
 <line>look
 <line>down

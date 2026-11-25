@@ -205,6 +205,31 @@ You have not finished up here yet.
 
 Exits go one way. The landing's `up` reaches the attic, and the attic has a `down` of its own to come back.
 
+An exit can tell a story instead: a connector that is also an event list (a `StopEventList` here, which shows each message in turn and then keeps to the last) shows the next of its messages each time the player goes that way. One that leads nowhere has no `destination`, and Hexad takes a connector with no destination as no exit at all, so it says otherwise with `nilBlocksTravel = nil`. Without it, EAST would only say that the player cannot go that way. `isConnectorListed = nil` keeps it out of the ways the player can go.
+
+```hexicon
+    // A connector that leads nowhere, and says something new each time.
+    east: TravelConnector, StopEventList
+    {
+        eventList = [
+            'You open the small window and lean out: roofs and chimneys, and a
+            long way down. You close it again. ',
+            'Still roofs, and still a long way down. '
+        ]
+        nilBlocksTravel = nil
+        isConnectorListed = nil
+    }
+```
+
+```transcript
+>east
+You open the small window and lean out: roofs and chimneys, and a long way
+down.  You close it again.
+
+>east
+Still roofs, and still a long way down.
+```
+
 ### Light and dark
 
 A room is lit, unless it says it is not:

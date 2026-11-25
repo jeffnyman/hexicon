@@ -26,6 +26,18 @@ landing: Room 'Landing'
     up = attic
     down = "You have not finished up here yet. "
     cannotGoThatWayMsg = 'The walls of the landing close in on every side. '
+
+    // A connector that leads nowhere, and says something new each time.
+    east: TravelConnector, StopEventList
+    {
+        eventList = [
+            'You open the small window and lean out: roofs and chimneys, and a
+            long way down. You close it again. ',
+            'Still roofs, and still a long way down. '
+        ]
+        nilBlocksTravel = nil
+        isConnectorListed = nil
+    }
 ;
 
 // Fixed in place, and so not listed: the room's description mentions it.
