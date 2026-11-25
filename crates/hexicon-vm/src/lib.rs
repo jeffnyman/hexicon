@@ -21,8 +21,8 @@ macro_rules! prof_scope {
     ($tag:expr) => {};
 }
 
-mod banner;
 mod bif;
+mod pane;
 pub(crate) use hexicon_decimal as decimal;
 mod bytearray;
 mod call;

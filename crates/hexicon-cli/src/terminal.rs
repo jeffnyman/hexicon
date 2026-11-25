@@ -1,6 +1,6 @@
 //! What a terminal window adds to plain standard input and output: its
 //! width, single keystrokes, a pause when a screenful of text has gone by
-//! without the player having had a chance to read it, and banner windows,
+//! without the player having had a chance to read it, and panes,
 //! such as a status line, kept in place at the top and bottom while the
 //! main window's text scrolls between them.
 //!
@@ -12,7 +12,7 @@ use std::io::{IsTerminal as _, Write};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::style::{Attribute, SetAttribute};
 use crossterm::{cursor, execute, queue, terminal};
-use hexicon_host::banner::{BannerInfo, BannerSpec, Placement, Rect, Screen, color};
+use hexicon_host::pane::{PaneInfo, PaneSpec, Placement, Rect, Screen, color};
 
 /// What shows while output is paused.
 const MORE_PROMPT: &str = "[More]";
@@ -49,12 +49,12 @@ pub(crate) struct Terminal {
     paging: bool,
     /// Lines displayed since the player last typed something.
     lines: usize,
-    /// The banners, and the main window's place among them.
+    /// The panes, and the main window's place among them.
     screen: Screen,
-    /// Whether the terminal understands the control sequences banners
+    /// Whether the terminal understands the control sequences panes
     /// need. Without them there are none.
-    banners: bool,
-    /// The main window's area as last set on the terminal, if banners
+    panes: bool,
+    /// The main window's area as last set on the terminal, if panes
     /// have ever made it less than the whole window.
     region: Option<Rect>,
     /// The old-style status line's two parts.
@@ -82,7 +82,7 @@ impl Terminal {
         ))
     }
 
-    fn new(device: Device, paging: bool, banners: bool) -> Self {
+    fn new(device: Device, paging: bool, panes: bool) -> Self {
         let (rows, columns) = (device.size)();
         Self {
             device,
@@ -90,7 +90,7 @@ impl Terminal {
             lines: 0,
             // The main window's text cannot be kept to part of the width.
             screen: Screen::new(rows, columns, false),
-            banners,
+            panes,
             region: None,
             status: (String::new(), String::new()),
         }
@@ -178,55 +178,55 @@ impl Terminal {
         self.start_page();
     }
 
-    // ---- banners ----
+    // ---- panes ----
 
-    /// Whether banners can be shown.
-    pub(crate) fn has_banners(&self) -> bool {
-        self.banners
+    /// Whether panes can be shown.
+    pub(crate) fn has_panes(&self) -> bool {
+        self.panes
     }
 
-    /// Change the banners, then bring the screen up to date.
-    pub(crate) fn banners<T>(&mut self, change: impl FnOnce(&mut Screen) -> T) -> T {
+    /// Change the panes, then bring the screen up to date.
+    pub(crate) fn panes<T>(&mut self, change: impl FnOnce(&mut Screen) -> T) -> T {
         let result = change(&mut self.screen);
         self.refresh();
         result
     }
 
-    /// Change what banners hold, to be drawn when the program flushes
-    /// them or next waits for input, so that a banner rewritten in pieces
+    /// Change what panes hold, to be drawn when the program flushes
+    /// them or next waits for input, so that a pane rewritten in pieces
     /// is not drawn piece by piece.
-    pub(crate) fn banners_later(&mut self, change: impl FnOnce(&mut Screen)) {
+    pub(crate) fn panes_later(&mut self, change: impl FnOnce(&mut Screen)) {
         change(&mut self.screen);
     }
 
-    /// Draw whatever banners have changed.
-    pub(crate) fn flush_banners(&mut self) {
+    /// Draw whatever panes have changed.
+    pub(crate) fn flush_panes(&mut self) {
         self.refresh();
     }
 
-    /// Create a banner.
-    pub(crate) fn create_banner(
+    /// Create a pane.
+    pub(crate) fn create_pane(
         &mut self,
         parent: Option<u32>,
         placement: Placement,
-        spec: BannerSpec,
+        spec: PaneSpec,
     ) -> Option<u32> {
-        if !self.banners {
+        if !self.panes {
             return None;
         }
         self.sync_size();
-        self.banners(|screen| screen.create(parent, placement, spec))
+        self.panes(|screen| screen.create(parent, placement, spec))
     }
 
-    /// What a program can learn about a banner.
-    pub(crate) fn banner_info(&mut self, id: u32) -> Option<BannerInfo> {
+    /// What a program can learn about a pane.
+    pub(crate) fn pane_info(&mut self, id: u32) -> Option<PaneInfo> {
         self.sync_size();
         self.screen.info(id)
     }
 
     /// Show the old-style status line: the left part, then the right.
     pub(crate) fn set_status(&mut self, left: Option<&str>, right: Option<&str>) {
-        if !self.banners {
+        if !self.panes {
             return;
         }
         if let Some(left) = left {
@@ -236,7 +236,7 @@ impl Terminal {
             self.status.1 = right.to_owned();
         }
         let (left, right) = self.status.clone();
-        self.banners(|screen| screen.set_status(&left, &right));
+        self.panes(|screen| screen.set_status(&left, &right));
     }
 
     /// Follow the terminal window to a new size.
@@ -260,12 +260,12 @@ impl Terminal {
         let _ = self.device.out.flush();
     }
 
-    /// Fit the main window into what the banners leave of the screen.
+    /// Fit the main window into what the panes leave of the screen.
     fn apply_layout(&mut self) {
         let (rows, columns) = self.screen.size();
         let mut main = self.screen.main();
         if main.height == 0 {
-            // Banners have taken everything, but the player still needs a
+            // Panes have taken everything, but the player still needs a
             // line to type on: the bottom one, over whatever is there.
             main = Rect {
                 y: rows.saturating_sub(1),
@@ -298,7 +298,7 @@ impl Terminal {
             row = bottom;
         }
         row = row.max(main.y);
-        // Lines a banner has given back to the main window are cleared of
+        // Lines a pane has given back to the main window are cleared of
         // what it showed.
         for line in main.y..=bottom {
             if line < old.y || line >= old.y + old.height {
@@ -315,12 +315,12 @@ impl Terminal {
     }
 
     fn draw_all(&mut self) {
-        for (id, _) in self.screen.banners() {
+        for (id, _) in self.screen.panes() {
             self.draw(id);
         }
     }
 
-    /// Draw a banner where it is, leaving the cursor where it was.
+    /// Draw a pane where it is, leaving the cursor where it was.
     fn draw(&mut self, id: u32) {
         let Some(rect) = self.screen.rect(id) else {
             return;
@@ -388,9 +388,9 @@ fn supports_control_sequences() -> bool {
 /// in raw mode, which also stops it from showing them and from acting on
 /// Ctrl+C, so that mode lasts no longer than the wait.
 ///
-/// Ctrl+C stops the program, giving the terminal back as it was if banners
+/// Ctrl+C stops the program, giving the terminal back as it was if panes
 /// have kept part of it still.
-fn read_key(banners: bool) -> Key {
+fn read_key(panes: bool) -> Key {
     if terminal::enable_raw_mode().is_err() {
         return Key::End;
     }
@@ -399,7 +399,7 @@ fn read_key(banners: bool) -> Key {
             Ok(Event::Key(event)) if event.kind != KeyEventKind::Release => {
                 if interrupts(&event) {
                     let _ = terminal::disable_raw_mode();
-                    if banners {
+                    if panes {
                         let (rows, _) = size();
                         print!("\x1b[r");
                         let _ = execute!(
@@ -472,7 +472,7 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    use hexicon_host::banner::{align, kind, units};
+    use hexicon_host::pane::{align, kind, units};
 
     /// Output collected for a stand-in terminal.
     #[derive(Clone, Default)]
@@ -614,22 +614,20 @@ mod tests {
     }
 
     #[test]
-    fn a_status_banner_stays_while_text_scrolls_below_it() {
+    fn a_status_pane_stays_while_text_scrolls_below_it() {
         let (mut terminal, out) = stand_in(6, 20);
         for n in 1..=6 {
             terminal.print(&format!("line {n}\n"));
         }
-        let spec = BannerSpec {
+        let spec = PaneSpec {
             kind: kind::TEXT,
             align: align::TOP,
             size: 0,
             units: units::CELLS,
             style: 0,
         };
-        let id = terminal
-            .create_banner(None, Placement::First, spec)
-            .unwrap();
-        terminal.banners(|screen| {
+        let id = terminal.create_pane(None, Placement::First, spec).unwrap();
+        terminal.panes(|screen| {
             screen.write(id, "Kitchen\n");
             screen.size_to_contents(id);
         });
@@ -642,8 +640,8 @@ mod tests {
             screen_of(&out, 6, 20),
             ["Kitchen", "line 5", "line 6", "line 7", "line 8", ""]
         );
-        // The banner's new text replaces the old.
-        terminal.banners_later(|screen| {
+        // The pane's new text replaces the old.
+        terminal.panes_later(|screen| {
             screen.clear(id);
             screen.write(id, "Hall\n");
         });
@@ -652,11 +650,11 @@ mod tests {
             "Kitchen",
             "not drawn until flushed"
         );
-        terminal.flush_banners();
+        terminal.flush_panes();
         assert_eq!(screen_of(&out, 6, 20)[0], "Hall");
 
         // Deleted, it gives its line back.
-        terminal.banners(|screen| screen.delete(id));
+        terminal.panes(|screen| screen.delete(id));
         assert_eq!(screen_of(&out, 6, 20)[0], "");
         terminal.print("line 9\n");
         drop(terminal);
@@ -665,21 +663,21 @@ mod tests {
     }
 
     #[test]
-    fn a_bottom_banner_pushes_the_text_up() {
+    fn a_bottom_pane_pushes_the_text_up() {
         let (mut terminal, out) = stand_in(5, 20);
         for n in 1..=5 {
             terminal.print(&format!("line {n}\n"));
         }
-        let spec = BannerSpec {
+        let spec = PaneSpec {
             kind: kind::TEXT,
             align: align::BOTTOM,
             size: 1,
             units: units::CELLS,
             style: 0,
         };
-        let id = terminal.create_banner(None, Placement::Last, spec).unwrap();
-        terminal.banners(|screen| screen.write(id, "Exits: north"));
-        // The cursor was on the last line, under the new banner, so the
+        let id = terminal.create_pane(None, Placement::Last, spec).unwrap();
+        terminal.panes(|screen| screen.write(id, "Exits: north"));
+        // The cursor was on the last line, under the new pane, so the
         // text moved up to keep it in view.
         assert_eq!(
             screen_of(&out, 5, 20),

@@ -14,7 +14,7 @@ use std::process::ExitCode;
 
 use hexicon_bytecode::listing::{Names, write_function};
 use hexicon_bytecode::{Extent, discover};
-use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, banner, file_attr, file_type};
+use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, file_attr, file_type, pane};
 use hexicon_image::{Image, Pool, Value};
 use hexicon_vm::Vm;
 
@@ -315,17 +315,17 @@ impl Console {
         self.file_base.join(name)
     }
 
-    /// Change the terminal's banners, if it has any, and draw them.
-    fn with_banners(&mut self, change: impl FnOnce(&mut banner::Screen)) {
+    /// Change the terminal's panes, if it has any, and draw them.
+    fn with_panes(&mut self, change: impl FnOnce(&mut pane::Screen)) {
         if let Some(terminal) = &mut self.terminal {
-            terminal.banners(change);
+            terminal.panes(change);
         }
     }
 
-    /// Change what the terminal's banners hold, to be drawn later.
-    fn with_banners_later(&mut self, change: impl FnOnce(&mut banner::Screen)) {
+    /// Change what the terminal's panes hold, to be drawn later.
+    fn with_panes_later(&mut self, change: impl FnOnce(&mut pane::Screen)) {
         if let Some(terminal) = &mut self.terminal {
-            terminal.banners_later(change);
+            terminal.panes_later(change);
         }
     }
 }
@@ -638,7 +638,7 @@ impl Host for Console {
         }
     }
 
-    // A terminal shows the status line at the top, as a banner would be.
+    // A terminal shows the status line at the top, as a pane would be.
     fn status_line(&mut self, text: &str) {
         if let Some(terminal) = &mut self.terminal {
             terminal.set_status(Some(text), None);
@@ -651,61 +651,59 @@ impl Host for Console {
         }
     }
 
-    // Banners are for a terminal. Plain output has none, as the
+    // Panes are for a terminal. Plain output has none, as the
     // reference's plain console has none.
-    fn has_banners(&self) -> bool {
+    fn has_panes(&self) -> bool {
         self.terminal
             .as_ref()
-            .is_some_and(terminal::Terminal::has_banners)
+            .is_some_and(terminal::Terminal::has_panes)
     }
 
-    fn banner_create(
+    fn pane_create(
         &mut self,
         parent: Option<u32>,
-        placement: banner::Placement,
-        spec: banner::BannerSpec,
+        placement: pane::Placement,
+        spec: pane::PaneSpec,
     ) -> Option<u32> {
-        self.terminal
-            .as_mut()?
-            .create_banner(parent, placement, spec)
+        self.terminal.as_mut()?.create_pane(parent, placement, spec)
     }
 
-    fn banner_delete(&mut self, id: u32) {
-        self.with_banners(|screen| screen.delete(id));
+    fn pane_delete(&mut self, id: u32) {
+        self.with_panes(|screen| screen.delete(id));
     }
 
-    fn banner_clear(&mut self, id: u32) {
-        self.with_banners_later(|screen| screen.clear(id));
+    fn pane_clear(&mut self, id: u32) {
+        self.with_panes_later(|screen| screen.clear(id));
     }
 
-    fn banner_write(&mut self, id: u32, text: &str) {
-        self.with_banners_later(|screen| screen.write(id, text));
+    fn pane_write(&mut self, id: u32, text: &str) {
+        self.with_panes_later(|screen| screen.write(id, text));
     }
 
-    fn banner_flush(&mut self, _id: u32) {
+    fn pane_flush(&mut self, _id: u32) {
         if let Some(terminal) = &mut self.terminal {
-            terminal.flush_banners();
+            terminal.flush_panes();
         }
     }
 
-    fn banner_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
-        self.with_banners(|screen| screen.set_size(id, size, units, advisory));
+    fn pane_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
+        self.with_panes(|screen| screen.set_size(id, size, units, advisory));
     }
 
-    fn banner_size_to_contents(&mut self, id: u32) {
-        self.with_banners(|screen| screen.size_to_contents(id));
+    fn pane_size_to_contents(&mut self, id: u32) {
+        self.with_panes(|screen| screen.size_to_contents(id));
     }
 
-    fn banner_go_to(&mut self, id: u32, row: usize, column: usize) {
-        self.with_banners_later(|screen| screen.go_to(id, row, column));
+    fn pane_go_to(&mut self, id: u32, row: usize, column: usize) {
+        self.with_panes_later(|screen| screen.go_to(id, row, column));
     }
 
-    fn banner_info(&mut self, id: u32) -> Option<banner::BannerInfo> {
-        self.terminal.as_mut()?.banner_info(id)
+    fn pane_info(&mut self, id: u32) -> Option<pane::PaneInfo> {
+        self.terminal.as_mut()?.pane_info(id)
     }
 
-    fn banner_set_screen_color(&mut self, id: u32, color: u32) {
-        self.with_banners_later(|screen| screen.set_screen_color(id, color));
+    fn pane_set_screen_color(&mut self, id: u32, color: u32) {
+        self.with_panes_later(|screen| screen.set_screen_color(id, color));
     }
 
     // The system's name for its zone is found by asking it, since the

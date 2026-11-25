@@ -104,7 +104,7 @@ A rule that replaces or redirects a command (`Doer 'take Thing'`, 69 uses). `Rul
 ### Later
 
 - Hexad's own `get` methods (`getOutermostRoom`, `getPlayerChar`), by section 3's rule and the namespace check.
-- The banner classes as panes, to match `paneCreate`. Done (2026-11-25): `BannerWindow` is `Pane`, and `BannerUIWindow`, `BannerOutputStream`, `CustomBannerWindow` (the `customPane` extension), and `WebBannerWin` are `PaneUI`, `PaneOutputStream`, `CustomPane`, and `WebPane`; `statuslineBanner` is `statuslinePane`, and the methods follow (`showPane`, `removePane`, `writeToPane`, `paneArgs`). The sources are `pane.hxn` and `extensions/customPane.hxn`, and the system's `SysInfoBanners` is `SysInfoPanes`. The `<banner>` tags in the text a game prints are markup, and keep their name, as does `vmBanner`, which is the VM's start-up line, not a window.
+- The banner classes as panes, to match `paneCreate`. Done (2026-11-25): `BannerWindow` is `Pane`, and `BannerUIWindow`, `BannerOutputStream`, `CustomBannerWindow` (the `customPane` extension), and `WebBannerWin` are `PaneUI`, `PaneOutputStream`, `CustomPane`, and `WebPane`; `statuslineBanner` is `statuslinePane`, and the methods follow (`showPane`, `removePane`, `writeToPane`, `paneArgs`). The sources are `pane.hxn` and `extensions/customPane.hxn`, and the system's `SysInfoBanners` is `SysInfoPanes`. The `<banner>` tags in the text a game prints are markup, and keep their name, as does `vmBanner`, which is the VM's start-up line, not a window. The VM, the host interface (`PaneSpec`, `PaneInfo`, `pane_create`), the terminal, the WebAssembly crate, and the web page (`game.panes()`, `.pane`) followed the same day.
 
 ## Open questions
 

@@ -20,7 +20,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
 use std::rc::Rc;
 
-use hexicon_host::banner::{self, BannerInfo, BannerSpec, Placement, Screen};
+use hexicon_host::pane::{self, PaneInfo, PaneSpec, Placement, Screen};
 use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, Time, file_attr, file_type};
 use hexicon_image::Image;
 use hexicon_vm::{RunState, Vm};
@@ -55,7 +55,7 @@ struct Shared {
     temp_count: u32,
     /// How many columns of text the page has room for, if it has said.
     width: Option<usize>,
-    /// The banner windows, laid out on a screen as big as the page.
+    /// The panes, laid out on a screen as big as the page.
     screen: Screen,
 }
 
@@ -231,51 +231,51 @@ impl Host for WebHost {
         "web".to_owned()
     }
 
-    fn has_banners(&self) -> bool {
+    fn has_panes(&self) -> bool {
         true
     }
 
-    fn banner_create(
+    fn pane_create(
         &mut self,
         parent: Option<u32>,
         placement: Placement,
-        spec: BannerSpec,
+        spec: PaneSpec,
     ) -> Option<u32> {
         self.0.borrow_mut().screen.create(parent, placement, spec)
     }
 
-    fn banner_delete(&mut self, id: u32) {
+    fn pane_delete(&mut self, id: u32) {
         self.0.borrow_mut().screen.delete(id);
     }
 
-    fn banner_clear(&mut self, id: u32) {
+    fn pane_clear(&mut self, id: u32) {
         self.0.borrow_mut().screen.clear(id);
     }
 
-    fn banner_write(&mut self, id: u32, text: &str) {
+    fn pane_write(&mut self, id: u32, text: &str) {
         self.0.borrow_mut().screen.write(id, text);
     }
 
-    fn banner_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
+    fn pane_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
         self.0
             .borrow_mut()
             .screen
             .set_size(id, size, units, advisory);
     }
 
-    fn banner_size_to_contents(&mut self, id: u32) {
+    fn pane_size_to_contents(&mut self, id: u32) {
         self.0.borrow_mut().screen.size_to_contents(id);
     }
 
-    fn banner_go_to(&mut self, id: u32, row: usize, column: usize) {
+    fn pane_go_to(&mut self, id: u32, row: usize, column: usize) {
         self.0.borrow_mut().screen.go_to(id, row, column);
     }
 
-    fn banner_info(&mut self, id: u32) -> Option<BannerInfo> {
+    fn pane_info(&mut self, id: u32) -> Option<PaneInfo> {
         self.0.borrow().screen.info(id)
     }
 
-    fn banner_set_screen_color(&mut self, id: u32, color: u32) {
+    fn pane_set_screen_color(&mut self, id: u32, color: u32) {
         self.0.borrow_mut().screen.set_screen_color(id, color);
     }
 }
@@ -463,7 +463,7 @@ impl Game {
     /// input. Without it, lines are up to 79 characters.
     #[wasm_bindgen(js_name = setWidth)]
     pub fn set_width(&mut self, columns: u32) {
-        // The VM keeps the last column of its width free, in banners as
+        // The VM keeps the last column of its width free, in panes as
         // in the main window.
         let mut shared = self.shared.borrow_mut();
         shared.width = Some(columns as usize + 1);
@@ -471,8 +471,8 @@ impl Game {
         shared.screen.resize(rows, columns as usize + 1);
     }
 
-    /// Say how many lines of text the page has room for, banners and the
-    /// main window together. Banners take their lines from these.
+    /// Say how many lines of text the page has room for, panes and the
+    /// main window together. Panes take their lines from these.
     #[wasm_bindgen(js_name = setHeight)]
     pub fn set_height(&mut self, rows: u32) {
         let mut shared = self.shared.borrow_mut();
@@ -480,24 +480,24 @@ impl Game {
         shared.screen.resize(rows as usize, columns);
     }
 
-    /// The banner windows and what they show, as JSON:
-    /// `{"main": {"y", "height"}, "banners": [{"x", "y", "width",
+    /// The panes and what they show, as JSON:
+    /// `{"main": {"y", "height"}, "panes": [{"x", "y", "width",
     /// "height", "status", "lines"}]}`, in lines and columns of the
-    /// screen. `status` is whether the banner has the status line's
+    /// screen. `status` is whether the pane has the status line's
     /// colors.
-    pub fn banners(&self) -> String {
+    pub fn panes(&self) -> String {
         let shared = self.shared.borrow();
         let screen = &shared.screen;
         let main = screen.main();
         let mut out = format!(
-            "{{\"main\":{{\"y\":{},\"height\":{}}},\"banners\":[",
+            "{{\"main\":{{\"y\":{},\"height\":{}}},\"panes\":[",
             main.y, main.height
         );
-        for (index, (id, rect)) in screen.banners().into_iter().enumerate() {
+        for (index, (id, rect)) in screen.panes().into_iter().enumerate() {
             if index > 0 {
                 out.push(',');
             }
-            let status = screen.screen_color(id) == Some(banner::color::STATUS_BG);
+            let status = screen.screen_color(id) == Some(pane::color::STATUS_BG);
             let lines: Vec<String> = screen
                 .view(id)
                 .iter()

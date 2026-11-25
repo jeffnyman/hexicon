@@ -4,7 +4,7 @@
 //! Everything outside the VM goes through a [`Host`], which keeps the VM
 //! portable to WebAssembly and makes runs reproducible under test.
 
-pub mod banner;
+pub mod pane;
 
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
@@ -286,70 +286,70 @@ pub trait Host {
         std::env::consts::OS.to_owned()
     }
 
-    /// Whether the host can show banner windows. Without them, a program
+    /// Whether the host can show panes. Without them, a program
     /// that asks for one is told it cannot have it, as on a plain
     /// console.
-    fn has_banners(&self) -> bool {
+    fn has_panes(&self) -> bool {
         false
     }
 
-    /// Create a banner window inside another, or inside the main window
+    /// Create a pane inside another, or inside the main window
     /// if `parent` is `None`: its handle, or `None` if the host cannot.
-    fn banner_create(
+    fn pane_create(
         &mut self,
         parent: Option<u32>,
-        placement: banner::Placement,
-        spec: banner::BannerSpec,
+        placement: pane::Placement,
+        spec: pane::PaneSpec,
     ) -> Option<u32> {
         let _ = (parent, placement, spec);
         None
     }
 
-    /// Remove a banner window.
-    fn banner_delete(&mut self, id: u32) {
+    /// Remove a pane.
+    fn pane_delete(&mut self, id: u32) {
         let _ = id;
     }
 
-    /// Remove the text in a banner window.
-    fn banner_clear(&mut self, id: u32) {
+    /// Remove the text in a pane.
+    fn pane_clear(&mut self, id: u32) {
         let _ = id;
     }
 
-    /// Add text to a banner window. The text is already broken into lines
+    /// Add text to a pane. The text is already broken into lines
     /// that fit.
-    fn banner_write(&mut self, id: u32, text: &str) {
+    fn pane_write(&mut self, id: u32, text: &str) {
         let _ = (id, text);
     }
 
-    /// Show what has been written to a banner window.
-    fn banner_flush(&mut self, id: u32) {
+    /// Show what has been written to a pane.
+    fn pane_flush(&mut self, id: u32) {
         let _ = id;
     }
 
-    /// Change the size of a banner window. See [`banner::Screen::set_size`].
-    fn banner_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
+    /// Change the size of a pane. See [`pane::Screen::set_size`].
+    fn pane_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
         let _ = (id, size, units, advisory);
     }
 
-    /// Make a banner window as big as what it holds.
-    fn banner_size_to_contents(&mut self, id: u32) {
+    /// Make a pane as big as what it holds.
+    fn pane_size_to_contents(&mut self, id: u32) {
         let _ = id;
     }
 
     /// Move where text goes next in a text grid, counting from zero.
-    fn banner_go_to(&mut self, id: u32, row: usize, column: usize) {
+    fn pane_go_to(&mut self, id: u32, row: usize, column: usize) {
         let _ = (id, row, column);
     }
 
-    /// What a program can learn about a banner window.
-    fn banner_info(&mut self, id: u32) -> Option<banner::BannerInfo> {
+    /// What a program can learn about a pane.
+    fn pane_info(&mut self, id: u32) -> Option<pane::PaneInfo> {
         let _ = id;
         None
     }
 
-    /// Give a banner window a background color: one of the colors the
-    /// host chooses, such as [`banner::color::STATUS_BG`], or an RGB value.
-    fn banner_set_screen_color(&mut self, id: u32, color: u32) {
+    /// Give a pane a background color: one of the colors the
+    /// host chooses, such as [`pane::color::STATUS_BG`], or an RGB value.
+    fn pane_set_screen_color(&mut self, id: u32, color: u32) {
         let _ = (id, color);
     }
 }
@@ -365,7 +365,7 @@ pub struct BufferHost {
     input: Rc<RefCell<VecDeque<String>>>,
     temp_counter: Rc<RefCell<u32>>,
     interactive: Rc<RefCell<bool>>,
-    screen: Rc<RefCell<Option<banner::Screen>>>,
+    screen: Rc<RefCell<Option<pane::Screen>>>,
 }
 
 impl BufferHost {
@@ -404,17 +404,17 @@ impl BufferHost {
         self.files.borrow().get(name).cloned()
     }
 
-    /// Show banner windows, on a screen of the given size.
-    pub fn enable_banners(&self, rows: usize, columns: usize) {
-        *self.screen.borrow_mut() = Some(banner::Screen::new(rows, columns, true));
+    /// Show panes, on a screen of the given size.
+    pub fn enable_panes(&self, rows: usize, columns: usize) {
+        *self.screen.borrow_mut() = Some(pane::Screen::new(rows, columns, true));
     }
 
-    /// The banner windows, if they are shown.
-    pub fn screen(&self) -> std::cell::Ref<'_, Option<banner::Screen>> {
+    /// The panes, if they are shown.
+    pub fn screen(&self) -> std::cell::Ref<'_, Option<pane::Screen>> {
         self.screen.borrow()
     }
 
-    fn with_screen<T>(&self, f: impl FnOnce(&mut banner::Screen) -> T) -> Option<T> {
+    fn with_screen<T>(&self, f: impl FnOnce(&mut pane::Screen) -> T) -> Option<T> {
         self.screen.borrow_mut().as_mut().map(f)
     }
 
@@ -497,49 +497,49 @@ impl Host for BufferHost {
         self.next_input()
     }
 
-    fn has_banners(&self) -> bool {
+    fn has_panes(&self) -> bool {
         self.screen.borrow().is_some()
     }
 
-    fn banner_create(
+    fn pane_create(
         &mut self,
         parent: Option<u32>,
-        placement: banner::Placement,
-        spec: banner::BannerSpec,
+        placement: pane::Placement,
+        spec: pane::PaneSpec,
     ) -> Option<u32> {
         self.with_screen(|screen| screen.create(parent, placement, spec))
             .flatten()
     }
 
-    fn banner_delete(&mut self, id: u32) {
+    fn pane_delete(&mut self, id: u32) {
         self.with_screen(|screen| screen.delete(id));
     }
 
-    fn banner_clear(&mut self, id: u32) {
+    fn pane_clear(&mut self, id: u32) {
         self.with_screen(|screen| screen.clear(id));
     }
 
-    fn banner_write(&mut self, id: u32, text: &str) {
+    fn pane_write(&mut self, id: u32, text: &str) {
         self.with_screen(|screen| screen.write(id, text));
     }
 
-    fn banner_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
+    fn pane_set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
         self.with_screen(|screen| screen.set_size(id, size, units, advisory));
     }
 
-    fn banner_size_to_contents(&mut self, id: u32) {
+    fn pane_size_to_contents(&mut self, id: u32) {
         self.with_screen(|screen| screen.size_to_contents(id));
     }
 
-    fn banner_go_to(&mut self, id: u32, row: usize, column: usize) {
+    fn pane_go_to(&mut self, id: u32, row: usize, column: usize) {
         self.with_screen(|screen| screen.go_to(id, row, column));
     }
 
-    fn banner_info(&mut self, id: u32) -> Option<banner::BannerInfo> {
+    fn pane_info(&mut self, id: u32) -> Option<pane::PaneInfo> {
         self.with_screen(|screen| screen.info(id)).flatten()
     }
 
-    fn banner_set_screen_color(&mut self, id: u32, color: u32) {
+    fn pane_set_screen_color(&mut self, id: u32, color: u32) {
         self.with_screen(|screen| screen.set_screen_color(id, color));
     }
 }

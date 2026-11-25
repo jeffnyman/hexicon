@@ -243,7 +243,7 @@ impl Formatter {
     }
 
     /// A formatter for a text grid, as the reference makes one for a grid
-    /// banner: lines are never broken, markup is shown as it is, and every
+    /// pane: lines are never broken, markup is shown as it is, and every
     /// space counts.
     pub(crate) fn grid() -> Self {
         let mut formatter = Self::new(GRID_WIDTH);

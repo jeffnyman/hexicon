@@ -279,8 +279,8 @@ pub(crate) struct IoState {
     read_buf: Vec<u8>,
     /// Log consoles by handle, less one.
     log_consoles: Vec<Option<LogFile>>,
-    /// Banner windows by handle, less one.
-    pub(crate) banners: Vec<Option<crate::banner::Banner>>,
+    /// Panes by handle, less one.
+    pub(crate) panes: Vec<Option<crate::pane::Pane>>,
     /// The clock reading that the program's count of milliseconds starts
     /// from: the reading when the program first asked.
     tick_zero: Option<i64>,
@@ -321,7 +321,7 @@ impl Default for IoState {
             read_in_progress: false,
             read_buf: Vec::new(),
             log_consoles: Vec::new(),
-            banners: Vec::new(),
+            panes: Vec::new(),
             tick_zero: None,
             // The reference VM's default: read and write only in the
             // sandbox folder.
@@ -363,7 +363,7 @@ impl Vm {
     /// this is done whenever the player is about to be asked for input.
     pub(crate) fn sync_console_width(&mut self) {
         // Everything else on the screen is brought up to date first.
-        self.flush_banners();
+        self.flush_panes();
         let width = self.host.console_width().unwrap_or(CONSOLE_WIDTH);
         self.console.set_width(width);
     }
@@ -1050,8 +1050,8 @@ impl Vm {
                         let name = self.host.system_name();
                         self.new_str(&name)
                     }
-                    // Banner windows, if the host has them.
-                    33 => Value::Int(i32::from(self.host.has_banners())),
+                    // Panes, if the host has them.
+                    33 => Value::Int(i32::from(self.host.has_panes())),
                     // A console of plain text: no HTML, pictures, sounds,
                     // links, or colors.
                     4..=18 | 20..=27 | 31 | 32 => Value::Int(0),
@@ -1151,8 +1151,8 @@ impl Vm {
                 Self::check_argc(argc, 1)?;
                 self.read_line_done();
             }
-            // The banner functions.
-            19..=29 => self.bif_banner(index, argc)?,
+            // The pane functions.
+            19..=29 => self.bif_pane(index, argc)?,
             // logConsoleCreate(file, charset, width)
             30 => {
                 Self::check_argc(argc, 3)?;

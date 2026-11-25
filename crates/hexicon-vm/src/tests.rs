@@ -1788,14 +1788,14 @@ fn log_console_formats_into_a_file() {
     assert_eq!(host.output(), "", "none of it is displayed");
 }
 
-const BANNER_CREATE: u16 = 19;
-const BANNER_SAY: u16 = 22;
-const BANNER_SIZE_TO_CONTENTS: u16 = 24;
-const BANNER_GET_INFO: u16 = 28;
+const PANE_CREATE: u16 = 19;
+const PANE_SAY: u16 = 22;
+const PANE_SIZE_TO_CONTENTS: u16 = 24;
+const PANE_GET_INFO: u16 = 28;
 
-/// bannerCreate(nil, BannerLast, nil, BannerTypeText, BannerAlignTop, nil,
-/// nil, BannerStyleBorder).
-fn create_status_banner(vm: &mut Vm) -> Value {
+/// paneCreate(nil, PaneLast, nil, PaneTypeText, PaneAlignTop, nil,
+/// nil, PaneStyleBorder).
+fn create_status_pane(vm: &mut Vm) -> Value {
     let args = [
         Value::Nil,
         Value::Int(2),
@@ -1806,35 +1806,35 @@ fn create_status_banner(vm: &mut Vm) -> Value {
         Value::Nil,
         Value::Int(1),
     ];
-    io_call(vm, BANNER_CREATE, &args)
+    io_call(vm, PANE_CREATE, &args)
 }
 
 #[test]
-fn a_plain_console_has_no_banners() {
+fn a_plain_console_has_no_panes() {
     let (mut vm, _host) = vm_with_host();
-    assert_eq!(create_status_banner(&mut vm), Value::Nil);
+    assert_eq!(create_status_pane(&mut vm), Value::Nil);
     assert_eq!(io_call(&mut vm, 10, &[Value::Int(33)]), Value::Int(0));
 }
 
 #[test]
-fn a_banner_shows_its_own_formatted_text() {
+fn a_pane_shows_its_own_formatted_text() {
     let (mut vm, host) = vm_with_host();
-    host.enable_banners(24, 40);
+    host.enable_panes(24, 40);
     assert_eq!(io_call(&mut vm, 10, &[Value::Int(33)]), Value::Int(1));
-    let handle = create_status_banner(&mut vm);
+    let handle = create_status_pane(&mut vm);
     assert_eq!(handle, Value::Int(1));
     let text = vm.new_str("Kitchen<tab align=right>Score: 5\n");
-    io_call(&mut vm, BANNER_SAY, &[handle, text]);
-    io_call(&mut vm, BANNER_SIZE_TO_CONTENTS, &[handle]);
+    io_call(&mut vm, PANE_SAY, &[handle, text]);
+    io_call(&mut vm, PANE_SIZE_TO_CONTENTS, &[handle]);
     {
         let screen = host.screen();
         let screen = screen.as_ref().expect("a screen");
-        let (id, _) = screen.banners()[0];
+        let (id, _) = screen.panes()[0];
         // Right-aligned to the last column but one, as in the main window.
         assert_eq!(screen.view(id), [format!("Kitchen{:>32} ", "Score: 5")]);
         assert_eq!(screen.main().y, 1, "the main window starts below it");
     }
-    let info = io_call(&mut vm, BANNER_GET_INFO, &[handle]);
+    let info = io_call(&mut vm, PANE_GET_INFO, &[handle]);
     let tab_align = 0x20;
     assert_eq!(
         items_of(&vm, info),
@@ -1844,10 +1844,10 @@ fn a_banner_shows_its_own_formatted_text() {
 }
 
 #[test]
-fn banner_functions_check_their_handle() {
+fn pane_functions_check_their_handle() {
     let (mut vm, host) = vm_with_host();
-    host.enable_banners(24, 40);
-    let handle = create_status_banner(&mut vm);
+    host.enable_panes(24, 40);
+    let handle = create_status_pane(&mut vm);
     let code_of = |vm: &mut Vm, index: u16, args: &[Value]| {
         for &arg in args.iter().rev() {
             vm.push(arg);
@@ -1862,18 +1862,18 @@ fn banner_functions_check_their_handle() {
         }
     };
     let bad = Some(code::BAD_VAL_BIF);
-    assert_eq!(code_of(&mut vm, 21, &[Value::Int(7)]), bad, "no banner 7");
+    assert_eq!(code_of(&mut vm, 21, &[Value::Int(7)]), bad, "no pane 7");
     assert_eq!(
         code_of(&mut vm, 25, &[handle, Value::Int(0), Value::Int(1)]),
         bad
     );
-    // Deleting a banner that is not there is not an error, and once
-    // deleted, a banner is not there.
+    // Deleting a pane that is not there is not an error, and once
+    // deleted, a pane is not there.
     assert_eq!(code_of(&mut vm, 20, &[Value::Int(7)]), None);
     assert_eq!(code_of(&mut vm, 20, &[handle]), None);
     assert_eq!(code_of(&mut vm, 21, &[handle]), bad);
     // The handle is given out again.
-    assert_eq!(create_status_banner(&mut vm), Value::Int(1));
+    assert_eq!(create_status_pane(&mut vm), Value::Int(1));
 }
 
 #[test]

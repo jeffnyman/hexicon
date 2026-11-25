@@ -85,7 +85,7 @@ function measureColumns() {
 }
 
 // How many lines of text fit on the page below its header. The game's
-// banners and its main window share them.
+// panes and its main window share them.
 let rows = 24;
 
 function measureRows() {
@@ -106,61 +106,61 @@ function fitToWindow() {
   if (game) {
     game.setWidth(columns);
     game.setHeight(rows);
-    showBanners();
+    showPanes();
   }
   sizeCommandLine();
 }
 
-// ---- banners ----
+// ---- panes ----
 
-const bannersTop = element("banners-top");
-const bannersBottom = element("banners-bottom");
+const panesTop = element("panes-top");
+const panesBottom = element("panes-bottom");
 
-// Show the game's banners: those above its main window in a strip above
+// Show the game's panes: those above its main window in a strip above
 // the text, and those below in a strip below it.
-function showBanners() {
-  const layout = JSON.parse(game.banners());
+function showPanes() {
+  const layout = JSON.parse(game.panes());
   const mainTop = layout.main.y;
   const mainBottom = mainTop + layout.main.height;
   fillStrip(
-    bannersTop,
-    layout.banners.filter((banner) => banner.y < mainTop),
+    panesTop,
+    layout.panes.filter((pane) => pane.y < mainTop),
     0,
     mainTop,
   );
   fillStrip(
-    bannersBottom,
-    layout.banners.filter((banner) => banner.y >= mainBottom),
+    panesBottom,
+    layout.panes.filter((pane) => pane.y >= mainBottom),
     mainBottom,
     rows - mainBottom,
   );
 }
 
-function fillStrip(strip, banners, firstRow, height) {
-  const visible = banners.filter((banner) => banner.width > 0 && banner.height > 0);
+function fillStrip(strip, panes, firstRow, height) {
+  const visible = panes.filter((pane) => pane.width > 0 && pane.height > 0);
   strip.hidden = height <= 0 || visible.length === 0;
   strip.style.height = `${height * lineHeight()}px`;
   strip.replaceChildren(
-    ...visible.map((banner) => {
-      const pane = document.createElement("div");
-      pane.className = banner.status ? "banner status" : "banner";
-      pane.textContent = banner.lines.join("\n");
-      pane.style.top = `${(banner.y - firstRow) * lineHeight()}px`;
-      pane.style.height = `${banner.height * lineHeight()}px`;
-      // The text lines up with the main window's, and a banner at an edge
+    ...visible.map((pane) => {
+      const box = document.createElement("div");
+      box.className = pane.status ? "pane status" : "pane";
+      box.textContent = pane.lines.join("\n");
+      box.style.top = `${(pane.y - firstRow) * lineHeight()}px`;
+      box.style.height = `${pane.height * lineHeight()}px`;
+      // The text lines up with the main window's, and a pane at an edge
       // of the screen reaches the edge of the page.
-      if (banner.x === 0) {
-        pane.style.left = "0";
-        pane.style.paddingLeft = getComputedStyle(screen).paddingLeft;
+      if (pane.x === 0) {
+        box.style.left = "0";
+        box.style.paddingLeft = getComputedStyle(screen).paddingLeft;
       } else {
-        pane.style.left = `calc(${getComputedStyle(screen).paddingLeft} + ${banner.x}ch)`;
+        box.style.left = `calc(${getComputedStyle(screen).paddingLeft} + ${pane.x}ch)`;
       }
-      if (banner.x + banner.width >= columns + 1) {
-        pane.style.right = "0";
+      if (pane.x + pane.width >= columns + 1) {
+        box.style.right = "0";
       } else {
-        pane.style.width = `${banner.width}ch`;
+        box.style.width = `${pane.width}ch`;
       }
-      return pane;
+      return box;
     }),
   );
 }
@@ -230,7 +230,7 @@ function update() {
   }
   show(game.takeOutput());
   storeFiles();
-  showBanners();
+  showPanes();
 
   const left = game.status();
   const right = game.statusRight();

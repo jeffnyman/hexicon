@@ -1,19 +1,19 @@
-//! Banner windows: the panes a program can divide the screen into, such as
+//! Panes: the panes a program can divide the screen into, such as
 //! a status line across the top.
 //!
-//! A host that displays banners keeps a [`Screen`], which does what the
+//! A host that displays panes keeps a [`Screen`], which does what the
 //! reference interpreter's character-mode display layer does (`osgen3.c`):
-//! it keeps the tree of banners, lays them out in character cells, holds
-//! the text each one shows, and works out how big a banner's contents
+//! it keeps the tree of panes, lays them out in character cells, holds
+//! the text each one shows, and works out how big a pane's contents
 //! are. The host only draws what the screen says is where.
 //!
-//! The VM formats the text for a banner before handing it over, broken
-//! into lines that fit the banner's width, so a banner receives plain
+//! The VM formats the text for a pane before handing it over, broken
+//! into lines that fit the pane's width, so a pane receives plain
 //! text with newlines.
 
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Where a banner goes in its parent's list of banners. Banners earlier in
+/// Where a pane goes in its parent's list of panes. Panes earlier in
 /// the list take their space first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Placement {
@@ -21,13 +21,13 @@ pub enum Placement {
     First,
     /// At the end of the list.
     Last,
-    /// Just before another banner, or at the end if it is not there.
+    /// Just before another pane, or at the end if it is not there.
     Before(u32),
-    /// Just after another banner, or at the end if it is not there.
+    /// Just after another pane, or at the end if it is not there.
     After(u32),
 }
 
-/// The kinds of banner.
+/// The kinds of pane.
 pub mod kind {
     /// Text that flows from line to line, as in the main window.
     pub const TEXT: i32 = 1;
@@ -35,7 +35,7 @@ pub mod kind {
     pub const GRID: i32 = 2;
 }
 
-/// Which side of its parent a banner is attached to.
+/// Which side of its parent a pane is attached to.
 pub mod align {
     /// The top, across the full width.
     pub const TOP: i32 = 0;
@@ -47,18 +47,18 @@ pub mod align {
     pub const RIGHT: i32 = 3;
 }
 
-/// How a banner's size is given.
+/// How a pane's size is given.
 pub mod units {
     /// A percentage of the parent's size.
     pub const PERCENT: i32 = 1;
-    /// Character cells: lines for a top or bottom banner, columns for a
+    /// Character cells: lines for a top or bottom pane, columns for a
     /// left or right one.
     pub const CELLS: i32 = 2;
 }
 
-/// Banner style flags. The values are the ones programs see.
+/// Pane style flags. The values are the ones programs see.
 pub mod style {
-    /// A border between the banner and the rest of the screen.
+    /// A border between the pane and the rest of the screen.
     pub const BORDER: u32 = 0x01;
     /// A vertical scroll bar.
     pub const VSCROLL: u32 = 0x02;
@@ -72,10 +72,10 @@ pub mod style {
     pub const TAB_ALIGN: u32 = 0x20;
     /// Pause when a screenful has gone by.
     pub const MORE_MODE: u32 = 0x40;
-    /// Sizing the parent to its contents makes room for this banner's
+    /// Sizing the parent to its contents makes room for this pane's
     /// width.
     pub const HSTRUT: u32 = 0x80;
-    /// Sizing the parent to its contents makes room for this banner's
+    /// Sizing the parent to its contents makes room for this pane's
     /// height.
     pub const VSTRUT: u32 = 0x100;
 }
@@ -93,9 +93,9 @@ pub mod color {
     pub const STATUS_BG: u32 = 0x0500_0000;
 }
 
-/// What a program asks for when it creates a banner.
+/// What a program asks for when it creates a pane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BannerSpec {
+pub struct PaneSpec {
     /// A [`kind`] value.
     pub kind: i32,
     /// An [`align`] value.
@@ -108,9 +108,9 @@ pub struct BannerSpec {
     pub style: u32,
 }
 
-/// What a program can learn about a banner.
+/// What a program can learn about a pane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BannerInfo {
+pub struct PaneInfo {
     /// An [`align`] value.
     pub align: i32,
     /// The [`style`] flags in effect.
@@ -134,16 +134,16 @@ pub struct Rect {
     pub height: usize,
 }
 
-/// The most lines of text a banner keeps. A banner shows no more than a
+/// The most lines of text a pane keeps. A pane shows no more than a
 /// screenful, so more would only be kept to be thrown away.
 const MAX_LINES: usize = 500;
 
 #[derive(Debug)]
 struct Window {
-    /// The banner it is part of, or `None` for the main window.
+    /// The pane it is part of, or `None` for the main window.
     parent: Option<u32>,
     /// Whether it is in its parent's list, and so on the screen if its
-    /// parent is. A banner whose parent is deleted stays, but is shown
+    /// parent is. A pane whose parent is deleted stays, but is shown
     /// nowhere.
     attached: bool,
     children: Vec<u32>,
@@ -160,7 +160,7 @@ struct Window {
     /// The furthest column and line written to, for sizing to contents.
     xmax: usize,
     ymax: usize,
-    /// Where the banner is on the screen.
+    /// Where the pane is on the screen.
     rect: Rect,
     /// The background color asked for.
     screen_color: Option<u32>,
@@ -210,33 +210,33 @@ impl Window {
     }
 }
 
-/// The banners on a screen, and where everything goes.
+/// The panes on a screen, and where everything goes.
 #[derive(Debug)]
 pub struct Screen {
     rows: usize,
     columns: usize,
-    /// Whether a banner can be at the left or right of the main window.
+    /// Whether a pane can be at the left or right of the main window.
     /// A terminal cannot keep the main window's text to part of its width,
     /// so it says no.
-    side_banners: bool,
+    side_panes: bool,
     windows: BTreeMap<u32, Window>,
-    /// The banners in the main window, in order.
+    /// The panes in the main window, in order.
     main_children: Vec<u32>,
     next_id: u32,
     main: Rect,
-    /// The old-style status line, kept as a banner of its own.
+    /// The old-style status line, kept as a pane of its own.
     status: Option<u32>,
     layout_changed: bool,
     changed: BTreeSet<u32>,
 }
 
 impl Screen {
-    /// A screen of the given size, with no banners.
-    pub fn new(rows: usize, columns: usize, side_banners: bool) -> Self {
+    /// A screen of the given size, with no panes.
+    pub fn new(rows: usize, columns: usize, side_panes: bool) -> Self {
         Self {
             rows,
             columns,
-            side_banners,
+            side_panes,
             windows: BTreeMap::new(),
             main_children: Vec::new(),
             next_id: 1,
@@ -271,27 +271,27 @@ impl Screen {
         self.main
     }
 
-    /// Create a banner, or `None` if it cannot be.
+    /// Create a pane, or `None` if it cannot be.
     pub fn create(
         &mut self,
         parent: Option<u32>,
         placement: Placement,
-        spec: BannerSpec,
+        spec: PaneSpec,
     ) -> Option<u32> {
         if spec.kind != kind::TEXT && spec.kind != kind::GRID {
             return None;
         }
-        // A parent that is not a banner means the main window.
+        // A parent that is not a pane means the main window.
         let parent = parent.filter(|id| self.windows.contains_key(id));
         if parent.is_none()
-            && !self.side_banners
+            && !self.side_panes
             && (spec.align == align::LEFT || spec.align == align::RIGHT)
         {
             return None;
         }
         let id = self.next_id;
         self.next_id += 1;
-        // A banner starts with no size in the dimension it can be sized
+        // A pane starts with no size in the dimension it can be sized
         // in, and the main window's in the other.
         let rect = if spec.align == align::LEFT || spec.align == align::RIGHT {
             Rect {
@@ -346,7 +346,7 @@ impl Screen {
         Some(id)
     }
 
-    /// Delete a banner. Its own banners stay, but are no longer shown.
+    /// Delete a pane. Its own panes stay, but are no longer shown.
     pub fn delete(&mut self, id: u32) {
         let Some(window) = self.windows.remove(&id) else {
             return;
@@ -367,7 +367,7 @@ impl Screen {
         self.lay_out();
     }
 
-    /// Remove a banner's text.
+    /// Remove a pane's text.
     pub fn clear(&mut self, id: u32) {
         if let Some(window) = self.windows.get_mut(&id) {
             window.clear();
@@ -375,7 +375,7 @@ impl Screen {
         }
     }
 
-    /// Add text to a banner. A newline goes to the start of the next line.
+    /// Add text to a pane. A newline goes to the start of the next line.
     pub fn write(&mut self, id: u32, text: &str) {
         let Some(window) = self.windows.get_mut(&id) else {
             return;
@@ -391,7 +391,7 @@ impl Screen {
     }
 
     /// Move where the next character goes in a grid, counting from zero.
-    /// Text banners have no positions, and ignore this.
+    /// Text panes have no positions, and ignore this.
     pub fn go_to(&mut self, id: u32, row: usize, column: usize) {
         if let Some(window) = self.windows.get_mut(&id) {
             if window.kind == kind::GRID {
@@ -401,8 +401,8 @@ impl Screen {
         }
     }
 
-    /// Change a banner's size. An advisory size is only a guess for hosts
-    /// that cannot size a banner to its contents, so it is ignored.
+    /// Change a pane's size. An advisory size is only a guess for hosts
+    /// that cannot size a pane to its contents, so it is ignored.
     pub fn set_size(&mut self, id: u32, size: i32, units: i32, advisory: bool) {
         let Some(window) = self.windows.get_mut(&id) else {
             return;
@@ -415,7 +415,7 @@ impl Screen {
         self.lay_out();
     }
 
-    /// Make a banner just big enough for what it holds, in the dimension
+    /// Make a pane just big enough for what it holds, in the dimension
     /// it can be sized in.
     pub fn size_to_contents(&mut self, id: u32) {
         let Some(window) = self.windows.get(&id) else {
@@ -470,7 +470,7 @@ impl Screen {
         width
     }
 
-    /// Give a banner a background color.
+    /// Give a pane a background color.
     pub fn set_screen_color(&mut self, id: u32, color: u32) {
         if let Some(window) = self.windows.get_mut(&id) {
             if window.screen_color != Some(color) {
@@ -480,7 +480,7 @@ impl Screen {
         }
     }
 
-    /// The background color a banner was given, if any. The old-style
+    /// The background color a pane was given, if any. The old-style
     /// status line has the status line's.
     pub fn screen_color(&self, id: u32) -> Option<u32> {
         if self.status == Some(id) {
@@ -489,10 +489,10 @@ impl Screen {
         self.windows.get(&id).and_then(|window| window.screen_color)
     }
 
-    /// What a program can learn about a banner.
-    pub fn info(&self, id: u32) -> Option<BannerInfo> {
+    /// What a program can learn about a pane.
+    pub fn info(&self, id: u32) -> Option<PaneInfo> {
         let window = self.windows.get(&id)?;
-        Some(BannerInfo {
+        Some(PaneInfo {
             align: window.align,
             // A fixed-pitch display lines text up at tab stops.
             style: window.flags | style::TAB_ALIGN,
@@ -507,7 +507,7 @@ impl Screen {
         let id = match self.status {
             Some(id) => id,
             None => {
-                let spec = BannerSpec {
+                let spec = PaneSpec {
                     kind: kind::GRID,
                     align: align::TOP,
                     size: 1,
@@ -546,8 +546,8 @@ impl Screen {
         self.status
     }
 
-    /// The banners on the screen, outermost first, with where each is.
-    pub fn banners(&self) -> Vec<(u32, Rect)> {
+    /// The panes on the screen, outermost first, with where each is.
+    pub fn panes(&self) -> Vec<(u32, Rect)> {
         let mut out = Vec::new();
         self.collect(&self.main_children, &mut out);
         out
@@ -561,20 +561,20 @@ impl Screen {
         }
     }
 
-    /// The area a banner shows its own text in: what is left once its own
-    /// banners have taken their space.
+    /// The area a pane shows its own text in: what is left once its own
+    /// panes have taken their space.
     pub fn rect(&self, id: u32) -> Option<Rect> {
         self.windows.get(&id).map(|window| window.rect)
     }
 
-    /// What a banner shows, a line for each line of its area, each as wide
+    /// What a pane shows, a line for each line of its area, each as wide
     /// as the area.
     pub fn view(&self, id: u32) -> Vec<String> {
         let Some(window) = self.windows.get(&id) else {
             return Vec::new();
         };
         let Rect { width, height, .. } = window.rect;
-        // A text banner that keeps its last line in view shows the end of
+        // A text pane that keeps its last line in view shows the end of
         // its text; anything else shows the start.
         let last = window.lines.len().min(window.y + 1);
         let first = if window.kind == kind::TEXT && window.flags & style::AUTO_VSCROLL != 0 {
@@ -602,20 +602,20 @@ impl Screen {
         std::mem::take(&mut self.layout_changed)
     }
 
-    /// The banners whose text has changed since this was last asked.
+    /// The panes whose text has changed since this was last asked.
     pub fn take_changed(&mut self) -> Vec<u32> {
         std::mem::take(&mut self.changed).into_iter().collect()
     }
 
     fn children_mut(&mut self, parent: Option<u32>) -> &mut Vec<u32> {
         match parent {
-            Some(id) => &mut self.windows.get_mut(&id).expect("parent banner").children,
+            Some(id) => &mut self.windows.get_mut(&id).expect("parent pane").children,
             None => &mut self.main_children,
         }
     }
 
     /// Work out where everything goes: the main window starts with the
-    /// whole screen, and each banner in turn takes its space from what its
+    /// whole screen, and each pane in turn takes its space from what its
     /// parent has left.
     fn lay_out(&mut self) {
         let mut area = Rect {
@@ -670,7 +670,7 @@ impl Screen {
         for child in children {
             self.lay_out_window(child, &mut rect);
         }
-        self.windows.get_mut(&id).expect("banner").rect = rect;
+        self.windows.get_mut(&id).expect("pane").rect = rect;
     }
 }
 
@@ -678,8 +678,8 @@ impl Screen {
 mod tests {
     use super::*;
 
-    fn spec(align: i32, size: i32, units: i32) -> BannerSpec {
-        BannerSpec {
+    fn spec(align: i32, size: i32, units: i32) -> PaneSpec {
+        PaneSpec {
             kind: kind::TEXT,
             align,
             size,
@@ -689,7 +689,7 @@ mod tests {
     }
 
     #[test]
-    fn banners_take_their_space_in_order() {
+    fn panes_take_their_space_in_order() {
         let mut screen = Screen::new(24, 80, true);
         let top = screen
             .create(None, Placement::Last, spec(align::TOP, 2, units::CELLS))
@@ -713,7 +713,7 @@ mod tests {
                 height: 2
             }
         );
-        // A quarter of the 22 lines the top banner left.
+        // A quarter of the 22 lines the top pane left.
         assert_eq!(
             screen.rect(bottom).unwrap(),
             Rect {
@@ -742,7 +742,7 @@ mod tests {
             }
         );
 
-        // Placed first, a banner takes its space before the others.
+        // Placed first, a pane takes its space before the others.
         let first = screen
             .create(None, Placement::First, spec(align::TOP, 1, units::CELLS))
             .unwrap();
@@ -751,7 +751,7 @@ mod tests {
     }
 
     #[test]
-    fn a_banner_within_a_banner_takes_from_its_parent() {
+    fn a_pane_within_a_pane_takes_from_its_parent() {
         let mut screen = Screen::new(24, 80, true);
         let outer = screen
             .create(None, Placement::Last, spec(align::TOP, 6, units::CELLS))
@@ -782,12 +782,12 @@ mod tests {
             }
         );
         screen.delete(outer);
-        assert_eq!(screen.banners(), []);
+        assert_eq!(screen.panes(), []);
         assert_eq!(screen.main().height, 24);
     }
 
     #[test]
-    fn a_terminal_has_no_banners_at_the_sides() {
+    fn a_terminal_has_no_panes_at_the_sides() {
         let mut screen = Screen::new(24, 80, false);
         assert_eq!(
             screen.create(None, Placement::Last, spec(align::LEFT, 10, units::CELLS)),
@@ -841,7 +841,7 @@ mod tests {
             .create(
                 None,
                 Placement::Last,
-                BannerSpec {
+                PaneSpec {
                     kind: kind::GRID,
                     align: align::TOP,
                     size: 2,
@@ -861,13 +861,13 @@ mod tests {
     }
 
     #[test]
-    fn a_scrolling_banner_shows_its_last_lines() {
+    fn a_scrolling_pane_shows_its_last_lines() {
         let mut screen = Screen::new(24, 10, true);
         let id = screen
             .create(
                 None,
                 Placement::Last,
-                BannerSpec {
+                PaneSpec {
                     style: style::AUTO_VSCROLL,
                     ..spec(align::TOP, 2, units::CELLS)
                 },
