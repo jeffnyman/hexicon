@@ -30,11 +30,12 @@ error: expected ';', but found "+"
 5 | + property f;
   |
 
-error: "f" is already the name of something else, so it cannot also name a function
+error: "f" is already the name of a property, so it cannot also name a function
   --> e_plus1.hxn:6
   |
 6 | f() { }
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: too many '+' signs in object definition - location not defined
   --> e_plus1.hxn:7

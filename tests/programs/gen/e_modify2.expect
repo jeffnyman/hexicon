@@ -12,11 +12,12 @@ error: "replace" can be used with a property only in a "modify" object
 50 | d: object replace x = 1;
    |
 
-error: "5" is already the name of something else, so it cannot also name an object
+error: "5" is already the name of a property, so it cannot also name an object
   --> e_modify2.hxn:53
    |
 53 | modify 5 x = 1;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: base class list required for object 'replace' definition
   --> e_modify2.hxn:55
@@ -36,11 +37,12 @@ error: missing semicolon at end of object definition - found "object"
 57 | modify h: object x = 1;
    |
 
-error: "i" is already the name of something else, so it cannot also name an object
+error: "i" is already the name of an enum, so it cannot also name an object
   --> e_modify2.hxn:59
    |
 59 | modify i x = 1;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: property "p" already defined in object
   --> e_modify2.hxn:61

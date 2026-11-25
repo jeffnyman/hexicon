@@ -1,14 +1,16 @@
 image: none
 --- messages
-error: "thing" is already the name of something else, so it cannot also name an object
+error: "thing" is already the name of a function, so it cannot also name an object
   --> b.hxn:2
   |
 2 | thing: object y = 2;
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "other" is already the name of something else, so it cannot also name a function
+error: "other" is already the name of an object, so it cannot also name a function
   --> b.hxn:3
   |
 3 | other(x) { return 2; }
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 --- output

@@ -114,11 +114,26 @@ Games written for Hexicon from the start show what an author meets, which the co
 
 The standard small game, written fresh in about 150 lines: three rooms, a cloak that darkens the bar, a hook, and a message in the sawdust that blundering in the dark tramples. It uses `import hexad;`, a `verb ... for` rule (HANG), `dobj` handlers, `now`, two `Achievement`s, and a room's `roomBeforeAction` and `cannotGoThatWayInDark`. Its script plays to the losing end, restarts, and plays to the winning one. What it found:
 
-- **A game cannot have an object called `message`.** Hexad's function `message()`, which `showMsg` calls, takes the name, and in this game it is the obvious one; the game calls it `scrawl`. It is the cost vocabulary.md, section 3, describes, met in the library rather than the built-ins. Worth a survey of the names Hexad takes that games would want, and renaming its own where they are internal (`message` could be named for what it does, as `showMsg` is).
+- **A game could not have an object called `message`.** Hexad's function `message()`, which `showMsg` calls, took the name, and in this game it is the obvious one. Fixed the same day (below): the function is `showMessage`, beside `buildMessage`, and the game's object is `message`.
 - **A `verb ... for` rule reports in the other action's words.** HANG CLOAK ON HOOK says "You put the cloak on the small brass hook." The rule's `verbPhrase` is used where the parser asks a question, but the report is `PutOn`'s. A game that cares gives the hook its own report.
 - **Refusing to leave something belongs in `verify()`, not `check()`.** Refused in `check()`, DROP CLOAK first took the cloak off ("first taking off the cloak") and then refused. This is how Hexad works, and the guide should say so where it introduces the stages.
 - **In the dark, a command that names an object fails before the room hears of it** ("You see no sawdust here"), because nothing is in scope; only commands without objects (JUMP) reach `roomBeforeAction`. That is right for Hexad, but a game whose darkness punishes every action has to know it.
 - What worked without trouble: the templates, `now.actionIn(Travel, Look, Inventory)`, a double-quoted string as an exit (`north = "..."`), the room's `isLit` as an expression, `Achievement`s adding up the maximum score themselves, and `finishGameMsg` with a string.
+
+### The names a game cannot have (2026-11-25)
+
+Cloak's `message` led to a survey: a game on Hexad defining an object for each of 288 common nouns of interactive fiction (`key`, `door`, `lamp`, `sign`, `rope`, `room`, `table`, and the rest), each in a build of its own. 21 were refused, because a name belongs to one thing in the whole program, its libraries included, and a property's name counts:
+
+| What has the name | Names | |
+|---|---|---|
+| A Hexad function | `message` | freed: the function is now `showMessage` |
+| `now`'s properties | `room`, `player`, `topic`, `fact` | kept. They were free before `now` (checked by building against Hexad as it was), and are its plainest names; a game's player is `me` by custom, and its rooms have names of their own |
+| A Hexad macro | `exit` (as in `exit;`) | kept: the idiom is common. An object named `exit` expands the macro, and the message is about `throw`, which is confusing |
+| Built-in methods | `match` (`String`), `car` (`List`) | kept |
+| Hexad's properties for long | `actor`, `person`, `score`, `count`, `title`, `direction`, `matches` | kept: renaming them is not worth it |
+| Directions | `north`, `south`, `east`, `west`, `up`, `down` | kept: they are how exits are written |
+
+The other 267 are free. And the message now says what has the name, with a note on why: `"room" is already the name of a property, so it cannot also name an object`, where before it said "something else". Only a change to the language, in which an object's name and a property's do not share one namespace, would free the rest (vocabulary.md, section 3).
 
 ## Open questions
 

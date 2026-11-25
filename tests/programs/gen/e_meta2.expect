@@ -1,16 +1,18 @@
 image: none
 --- messages
-error: "f" is already the name of something else, so it cannot also name a built-in class
+error: "f" is already the name of a function, so it cannot also name a built-in class
   --> e_meta2.hxn:2
   |
 2 | builtin class f 'f/030000' { }
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "f" is already the name of something else, so it cannot also name a property
+error: "f" is already the name of a function, so it cannot also name a property
   --> e_meta2.hxn:3
   |
 3 | builtin class A 'a/030000' { f(); 1; x y; z(a,); }
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: expected property name in built-in class list, but found "1"
   --> e_meta2.hxn:3
@@ -30,11 +32,12 @@ error: missing parameter name at end of parameter list
 3 | builtin class A 'a/030000' { f(); 1; x y; z(a,); }
   |
 
-error: "A" is already the name of something else, so it cannot also name a built-in class
+error: "A" is already the name of a built-in class, so it cannot also name a built-in class
   --> e_meta2.hxn:4
   |
 4 | builtin class A 'a/030001' { }
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: built-in class has been previously defined as "A"
   --> e_meta2.hxn:5

@@ -442,6 +442,24 @@ pub(crate) enum Top {
     Obj(usize),
 }
 
+/// The message for a name that is already something else, saying what it
+/// is, so that an author can tell what has the name.
+pub(crate) fn taken_message(globals: &Globals, name: &[u8], new: &str) -> String {
+    let old = match globals.peek(name) {
+        Some(Global::Func(_)) => "a function",
+        Some(Global::Bif(_)) => "a built-in function",
+        Some(Global::Obj(_)) => "an object",
+        Some(Global::Prop(_)) => "a property",
+        Some(Global::Meta(_)) => "a built-in class",
+        Some(Global::Enum(_)) => "an enum",
+        Some(Global::DynLocal(_)) | None => "something else",
+    };
+    format!(
+        "the name \"{}\" is already defined as {old} - can't redefine as {new}",
+        crate::pp::show_name(name)
+    )
+}
+
 /// What a name means at the outermost level of the program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Global {
@@ -1612,6 +1630,12 @@ impl<'p, 'a> Parser<'p, 'a> {
         self.tok.log_error(message.replacen('%', &shown, 1));
     }
 
+    /// The message for a name that is already something else, saying
+    /// what it is, so that an author can tell what has the name.
+    fn taken(&self, name: &[u8], new: &str) -> String {
+        taken_message(&self.prog.globals, name, new)
+    }
+
     /// Something the compiler does not do yet.
     fn unsupported(&mut self, what: &str) {
         self.tok
@@ -2044,9 +2068,8 @@ impl<'p, 'a> Parser<'p, 'a> {
             match self.prog.globals.peek(&name).copied() {
                 Some(Global::Obj(obj)) => class_sym = Some(obj),
                 Some(_) => {
-                    self.error_curtok(
-                        "the name \"%\" is already defined - can't redefine as object",
-                    );
+                    let message = self.taken(&name, "object");
+                    self.error(message);
                 }
                 None => {
                     // A class there has been no word of yet.
@@ -2806,15 +2829,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                 }
             }
             Some(_) => {
-                self.tok.log_at(
-                    sym_file,
-                    sym_line,
-                    Severity::Error,
-                    format!(
-                        "the name \"{}\" is already defined - can't redefine as function",
-                        Self::name(&name)
-                    ),
-                );
+                let message = self.taken(&name, "function");
+                self.tok
+                    .log_at(sym_file, sym_line, Severity::Error, message);
             }
             None => {
                 self.prog.funcs.push(FuncSym {
@@ -2875,15 +2892,11 @@ impl<'p, 'a> Parser<'p, 'a> {
                     return None;
                 }
             }
-            Some(_) => self.tok.log_at(
-                sym_file,
-                sym_line,
-                Severity::Error,
-                format!(
-                    "the name \"{}\" is already defined - can't redefine as function",
-                    Self::name(name)
-                ),
-            ),
+            Some(_) => {
+                let message = self.taken(name, "function");
+                self.tok
+                    .log_at(sym_file, sym_line, Severity::Error, message);
+            }
             None => {
                 self.prog.funcs.push(FuncSym {
                     name: name.to_vec(),
@@ -3145,15 +3158,9 @@ impl<'p, 'a> Parser<'p, 'a> {
                 | Global::Enum(_)
                 | Global::DynLocal(_),
             ) => {
-                self.tok.log_at(
-                    sym_file,
-                    sym_line,
-                    Severity::Error,
-                    format!(
-                        "the name \"{}\" is already defined - can't redefine as function",
-                        Self::name(&name)
-                    ),
-                );
+                let message = self.taken(&name, "function");
+                self.tok
+                    .log_at(sym_file, sym_line, Severity::Error, message);
                 return Ok(());
             }
             Some(Global::Func(id)) => {
@@ -6048,9 +6055,10 @@ impl Parser<'_, '_> {
                     sym = Some(*meta);
                     name = Some(text);
                 }
-                Some(_) => self.error_curtok(
-                    "the name \"%\" is already defined - can't redefine as built-in class",
-                ),
+                Some(_) => {
+                    let message = self.taken(&text, "built-in class");
+                    self.error(message);
+                }
                 None => name = Some(text),
             }
             self.next();
@@ -6148,9 +6156,8 @@ impl Parser<'_, '_> {
                         let prop = match self.prog.globals.get(&prop_name) {
                             Some(Global::Prop(prop)) => Some(*prop),
                             Some(_) => {
-                                self.error_curtok(
-                                    "the name \"%\" is already defined - can't redefine as property",
-                                );
+                                let message = self.taken(&prop_name, "property");
+                                self.error(message);
                                 None
                             }
                             None => Some(self.prog.def_prop(&prop_name)),
@@ -6202,9 +6209,10 @@ impl Parser<'_, '_> {
                                 self.prog.enums[sym].is_token = true;
                             }
                         }
-                        Some(_) => self.error_curtok(
-                            "the name \"%\" is already defined - can't be used as an enum name",
-                        ),
+                        Some(_) => {
+                            let message = self.taken(&self.cur_text(), "enum");
+                            self.error(message);
+                        }
                         None => {
                             self.prog
                                 .globals
@@ -6742,10 +6750,8 @@ impl Parser<'_, '_> {
         match self.prog.globals.get(name) {
             Some(Global::Prop(prop)) => Some(*prop),
             Some(_) => {
-                self.error(format!(
-                    "the name \"{}\" is already defined - can't redefine as property",
-                    Self::name(name)
-                ));
+                let message = self.taken(name, "property");
+                self.error(message);
                 None
             }
             None => Some(self.prog.def_prop(name)),
@@ -6936,7 +6942,8 @@ impl Parser<'_, '_> {
                 None
             }
             Some(_) => {
-                self.error_curtok("the name \"%\" is already defined - can't redefine as object");
+                let message = self.taken(&name, "object");
+                self.error(message);
                 None
             }
             None => {
@@ -7038,10 +7045,8 @@ impl Parser<'_, '_> {
                 return None;
             }
             Some(_) => {
-                self.error(format!(
-                    "the name \"{}\" is already defined - can't redefine as object",
-                    Self::name(name)
-                ));
+                let message = self.taken(name, "object");
+                self.error(message);
                 return None;
             }
         };
@@ -7621,9 +7626,8 @@ impl Parser<'_, '_> {
                         self.error_curtok("redefining \"%\" as dictionary object");
                     }
                     Some(_) => {
-                        self.error_curtok(
-                            "the name \"%\" is already defined - can't redefine as object",
-                        );
+                        let message = self.taken(&self.cur_text(), "object");
+                        self.error(message);
                     }
                 }
                 self.next();

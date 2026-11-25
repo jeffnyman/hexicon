@@ -1050,10 +1050,10 @@ CustomMessages template [messages] +priority?;
  *   including their text in the final compiled program.  
  */
 #if STRINGIZE(LANGUAGE) == 'english'
-#define showMsg(id, txt, args...)  message(#@id, txt, ##args)
+#define showMsg(id, txt, args...)  showMessage(#@id, txt, ##args)
 #define msgText(id, txt, args...)  buildMessage(#@id, txt, ##args)
 #else
-#define showMsg(id, txt, args...)  message(#@id, nil, ##args)
+#define showMsg(id, txt, args...)  showMessage(#@id, nil, ##args)
 #define msgText(id, txt, args...)  buildMessage(#@id, nil, ##args)
 #endif
 

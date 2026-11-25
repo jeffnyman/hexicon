@@ -66,11 +66,12 @@ error: object "a2" is already defined - can't redefine as object
 60 | extern object a2;
    |
 
-error: "a2" is already the name of something else, so it cannot also name a function
+error: "a2" is already the name of an object, so it cannot also name a function
   --> e_extern1.hxn:61
    |
 61 | extern function a2;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: object "f6" is already defined - can't redefine as object
   --> e_extern1.hxn:63

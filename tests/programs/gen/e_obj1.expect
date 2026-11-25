@@ -12,21 +12,24 @@ error: object "a" is already defined - can't redefine as object
 7 | a: object;
   |
 
-error: "f" is already the name of something else, so it cannot also name an object
+error: "f" is already the name of a function, so it cannot also name an object
   --> e_obj1.hxn:9
   |
 9 | f: object;
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "g" is already the name of something else, so it cannot also name a function
+error: "g" is already the name of an object, so it cannot also name a function
   --> e_obj1.hxn:11
    |
 11 | g() { }
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "_main" is already the name of something else, so it cannot also name a function
+error: "_main" is already the name of an object, so it cannot also name a function
   --> e_obj1.hxn:13
    |
 13 | _main(args) { }
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 --- output

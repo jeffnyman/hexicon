@@ -48,41 +48,47 @@ error: name expected in 'enum' list - found ";"
 51 | enum token;
    |
 
-error: the name "f" is already defined - can't be used as an enum name
+error: "f" is already the name of a function, so it cannot also name an enum
   --> e_enum1.hxn:53
    |
 53 | enum f;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "h" is already the name of something else, so it cannot also name a function
+error: "h" is already the name of an enum, so it cannot also name a function
   --> e_enum1.hxn:55
    |
 55 | h() { }
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "i" is already the name of something else, so it cannot also name an object
+error: "i" is already the name of an enum, so it cannot also name an object
   --> e_enum1.hxn:57
    |
 57 | i: object;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: the name "obj1" is already defined - can't be used as an enum name
+error: "obj1" is already the name of an object, so it cannot also name an enum
   --> e_enum1.hxn:59
    |
 59 | enum obj1;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: the name "p2" is already defined - can't be used as an enum name
+error: "p2" is already the name of a property, so it cannot also name an enum
   --> e_enum1.hxn:60
    |
 60 | enum p2;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "q" is already the name of something else, so it cannot also name a property
+error: "q" is already the name of an enum, so it cannot also name a property
   --> e_enum1.hxn:62
    |
 62 | property q;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: expected ';', but found "<End Of File>"
   --> e_enum1.hxn:76

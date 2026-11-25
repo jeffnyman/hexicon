@@ -1,14 +1,16 @@
 image: none
 --- messages
-error: "A" is already the name of something else, so it cannot also name an object
+error: "A" is already the name of a built-in class, so it cannot also name an object
   --> e_meta3.hxn:3
   |
 3 | A: object;
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "A" is already the name of something else, so it cannot also name a function
+error: "A" is already the name of a built-in class, so it cannot also name a function
   --> e_meta3.hxn:4
   |
 4 | A() { }
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 --- output

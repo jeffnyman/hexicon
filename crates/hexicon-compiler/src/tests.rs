@@ -1116,7 +1116,7 @@ fn object_definitions_that_are_wrong() {
         [
             "1: error: property \"x\" already defined in object",
             "2: error: object \"a\" is already defined - can't redefine as object",
-            "4: error: \"f\" is already the name of something else, so it cannot also name an object",
+            "4: error: \"f\" is already the name of a function, so it cannot also name an object",
             "5: error: circular class definition: b is a subclass of b",
             // `c` is taken for the class of an object with no name.
             "6: error: missing semicolon at end of object definition - found \"object\"",
@@ -1331,7 +1331,7 @@ fn a_built_in_class_is_declared_with_its_properties() {
              builtin class A 'a/030000': Nosuch { 1; }\n_main(args) { return A(); }\n"
         ),
         [
-            "2: error: \"f\" is already the name of something else, so it cannot also name a built-in class",
+            "2: error: \"f\" is already the name of a function, so it cannot also name a built-in class",
             "3: error: the superclass \"Nosuch\" is not defined",
             "3: error: expected property name in built-in class list, but found \"1\"",
         ]
@@ -1678,7 +1678,7 @@ fn enum_values_are_numbered_in_the_order_of_the_table_of_names() {
     assert_eq!(
         compile_messages("f() { }\nenum f, ;\n_main(args) { }\n"),
         [
-            "2: error: the name \"f\" is already defined - can't be used as an enum name",
+            "2: error: \"f\" is already the name of a function, so it cannot also name an enum",
             "2: error: name expected in 'enum' list - found \";\"",
         ]
     );
@@ -2433,7 +2433,7 @@ fn dictionary_words_have_their_own_mistakes() {
     assert_eq!(
         compile_messages("f() { }\na: object;\ndictionary f;\ndictionary a;\n_main(args) { }\n"),
         [
-            "3: error: \"f\" is already the name of something else, so it cannot also name an object",
+            "3: error: \"f\" is already the name of a function, so it cannot also name an object",
             "4: error: redefining \"a\" as dictionary object",
         ]
     );

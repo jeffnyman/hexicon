@@ -24,21 +24,24 @@ error: expected "function" or object name after "replace", but found "5"
 53 | replace 5;
    |
 
-error: "b" is already the name of something else, so it cannot also name a function
+error: "b" is already the name of an object, so it cannot also name a function
   --> e_modify1.hxn:55
    |
 55 | replace b() { }
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "b" is already the name of something else, so it cannot also name a function
+error: "b" is already the name of an object, so it cannot also name a function
   --> e_modify1.hxn:56
    |
 56 | modify b() { }
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
-error: "m" is already the name of something else, so it cannot also name an object
+error: "m" is already the name of a function, so it cannot also name an object
   --> e_modify1.hxn:58
    |
 58 | replace m: object;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 --- output

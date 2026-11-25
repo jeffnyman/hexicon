@@ -1,8 +1,9 @@
 image: none
 --- messages
-error: "c" is already the name of something else, so it cannot also name a property
+error: "c" is already the name of an object, so it cannot also name a property
   --> obj6.hxn:3
   |
 3 | c: A, B c = 3;
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 --- output

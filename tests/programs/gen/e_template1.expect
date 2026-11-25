@@ -127,11 +127,12 @@ error: "}" cannot start anything here
    |
    = what is expected is a function, an object, or a class
 
-error: "template" is already the name of something else, so it cannot also name an object
+error: "f" is already the name of a property, so it cannot also name an object
   --> e_template1.hxn:59
    |
 59 | f template 'a';
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: expected '<<' at start of string template, but found ''a''
   --> e_template1.hxn:62

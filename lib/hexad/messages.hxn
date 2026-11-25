@@ -108,7 +108,7 @@ FuturePerfect: VerbTense
  *   template text.
  */
 
-message(id, txt, [args])    
+showMessage(id, txt, [args])    
     {
         
         txt = buildMessage(id, txt, args...);
@@ -122,7 +122,7 @@ message(id, txt, [args])
     }
 
 /* 
- *   Build a message to be shown by message()
+ *   Build a message to be shown by showMessage()
  *
  *   We put this in a separate function to make it easy to obtain the text of a
  *   message for subsequent use without first displaying it.
@@ -831,7 +831,7 @@ messageDummyCommand: object
  */
 dmsg(txt, [args])
 {
-    message('', txt, args...);
+    showMessage('', txt, args...);
 }
 
 

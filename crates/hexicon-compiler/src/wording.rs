@@ -51,25 +51,29 @@ fn hexicon_words(message: &str) -> Option<(String, Option<String>)> {
             ),
         ));
     }
-    for (kind, a) in [
-        ("function", "a"),
-        ("object", "an"),
-        ("property", "a"),
-        ("built-in class", "a"),
-    ] {
-        if let Some(name) = between(
-            message,
-            "the name \"",
-            &format!("\" is already defined - can't redefine as {kind}"),
-        ) {
-            return Some((
-                format!(
-                    "\"{name}\" is already the name of something else, so it cannot also \
-                     name {a} {kind}"
-                ),
-                None,
-            ));
-        }
+    // `the name "x" is already defined as a property - can't redefine as
+    // object`: what has the name, and what was to have it.
+    if let Some((name, old, new)) = message
+        .strip_prefix("the name \"")
+        .and_then(|rest| rest.split_once("\" is already defined as "))
+        .and_then(|(name, rest)| {
+            let (old, new) = rest.split_once(" - can't redefine as ")?;
+            Some((name, old, new))
+        })
+    {
+        let a = if new.starts_with(['a', 'e', 'i', 'o', 'u']) {
+            "an"
+        } else {
+            "a"
+        };
+        return Some((
+            format!("\"{name}\" is already the name of {old}, so it cannot also name {a} {new}"),
+            Some(
+                "a name belongs to one thing in the whole program, its libraries included, \
+                 so this needs a name of its own"
+                    .to_owned(),
+            ),
+        ));
     }
     if let Some(start) = message.strip_prefix("unterminated string literal: string started with ") {
         return Some((

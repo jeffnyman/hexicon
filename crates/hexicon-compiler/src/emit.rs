@@ -5499,10 +5499,8 @@ impl Gen<'_> {
                 Some(func)
             }
             Some(_) => {
-                self.error(format!(
-                    "the name \"{}\" is already defined - can't redefine as function",
-                    show_name(name)
-                ));
+                let message = crate::parse::taken_message(&self.prog.globals, name, "function");
+                self.error(message);
                 None
             }
         }

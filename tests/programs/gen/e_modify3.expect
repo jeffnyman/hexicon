@@ -24,11 +24,12 @@ error: built-in class property "ofKind" cannot be modified
 50 | modify List length = 1 createIterator() { } ofKind = 2 x = 3;
    |
 
-error: "List" is already the name of something else, so it cannot also name an object
+error: "List" is already the name of a built-in class, so it cannot also name an object
   --> e_modify3.hxn:51
    |
 51 | replace List: object;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: expected property name in object definition, but found ":"
   --> e_modify3.hxn:52

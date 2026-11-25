@@ -168,11 +168,12 @@ error: object "np(a)" is already defined - can't redefine as object
 22 | grammar np(a): 'dup' : Match;
    |
 
-error: "f" is already the name of something else, so it cannot also name an object
+error: "f" is already the name of a function, so it cannot also name an object
   --> e_gram1.hxn:23
    |
 23 | grammar f(a): 'x' : Match;
    |
+   = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 
 error: redefining "Match" as a grammar rule
   --> e_gram1.hxn:24

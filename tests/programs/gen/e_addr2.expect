@@ -1,8 +1,9 @@
 image: none
 --- messages
-error: "later" is already the name of something else, so it cannot also name an object
+error: "later" is already the name of a property, so it cannot also name an object
   --> e_addr2.hxn:2
   |
 2 | later: object;
   |
+  = a name belongs to one thing in the whole program, its libraries included, so this needs a name of its own
 --- output
