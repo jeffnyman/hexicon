@@ -1,14 +1,16 @@
 # Hexad Library Plan
 
-Status: draft for discussion, 2026-11-23
+Status: draft for discussion, 2026-11-23; brought up to date after the break, 2026-11-25
 
 ## Goal
 
 Hexad is the library for Hexicon games. It takes what adv3 and adv3Lite each do best, and it is written in Hexicon's own language as that language arrives ([language-plan.md](language-plan.md)).
 
-Existing games are unaffected. They keep building against adv3 and adv3Lite, which Hexicon goes on compiling exactly as the reference does. Hexad is for new games and for authors who choose to move.
+Hexad is Hexicon's one library. It began as a fork of adv3Lite (milestone 1), and since the break with TADS 3 (language plan, "Retiring TADS 3") it is changed freely: no TADS 3 game builds on Hexicon, so there is no compatibility to keep. Games for Hexicon are written, or rewritten, on Hexad.
 
-## The two libraries
+## Where it came from
+
+The two libraries Hexad was drawn from, as a reference for what to bring from each.
 
 | | adv3 | adv3Lite |
 |---|---|---|
@@ -31,7 +33,7 @@ In short, adv3 simulates more deeply, and adv3Lite is easier to write for and mo
 
 ## Approach
 
-**Recommended: start from adv3Lite, and bring adv3's depth back as optional modules.**
+**Decided: start from adv3Lite, and bring adv3's depth back as optional modules.** The reasons, as they were weighed:
 
 - adv3Lite is already a combination, built from adv3 and Mercury. It kept adv3's way of doing actions and conversation and made the world model simpler.
 - It is modular already, so adding modules extends a design that exists rather than imposing one.
@@ -47,8 +49,7 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
 
 ## Compatibility
 
-- **adv3Lite games: yes, at first.** Hexad starts out source compatible with adv3Lite. It breaks compatibility only where a change is worth it, lists each break, and has the converter handle what it can.
-- **adv3 games: no.** adv3 is too different. Those games keep adv3.
+None is owed (2026-11-24). Hexicon builds no TADS 3 game, and the converter is gone. Hexad's tests are its own: the games in the playground's `game-tests`, played by `tools/game-check.py`, which began as adv3Lite's manual exercises and now move with Hexad. A change to Hexad that a game uses updates the game in the same change, and a change meant to alter what a game shows is accepted by recording its new transcript.
 
 ## Decided (2026-11-23)
 
@@ -57,11 +58,49 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
 - **Hexad uses no TADS names.** As Hexicon names for the built-in functions arrive (language plan, change 0), Hexad moves to them.
 - **Hexicon has one library (2026-11-24).** TADS had two, adv3 and adv3Lite, and authors having to choose between them (adv3Lite being not much lighter) cost TADS a great deal of momentum. So Hexad is the only library Hexicon ships or documents. adv3 is never offered as a second choice, even converted. A converted adv3 may be kept outside the repository, to build adv3 games as tests and to read when porting a feature. What Hexad takes from adv3 becomes Hexad's own, with the same classes and the same guide, switched on by an author at most, and never a second tier. Hexad's design decisions come first and say what to take.
 
+## Hexad's words
+
+Draft, 2026-11-25, for decision. [vocabulary.md](vocabulary.md) renamed what is built into Hexicon; these are the library's own. The same cost applies (vocabulary.md, section 3): a name a library defines is taken for the whole program, so a short noun is a poor name for anything Hexad defines globally, and a macro is worse, because it replaces the word everywhere, a property or local of that name included.
+
+### The current turn's values: the `g` macros
+
+`gActor`, `gDobj`, `gIobj`, `gAction`, `gCommand`, `gPlayerChar`, `gLocation`, `gRoom`, `gTopic`, and about 50 more (962 uses of the commonest four). Each is a macro for a property of `libGlobal` or of the current action: `gActor` is `libGlobal.curActor`, `gDobj` is `gAction.curDobj`.
+
+They cannot become plain words. `actor` is used 1,480 times in Hexad as a property and a local, `player` 994, `action` 1,690, `dobj` 854; a macro called `actor` would rewrite all of them. The choices:
+
+| | Looks like | Takes |
+|---|---|---|
+| **A. Keep the `g` names** | `gActor`, `gDobj` | nothing new; `g` is a convention to explain once ("g for the current turn's") |
+| **B. One object for the current turn** | `now.actor`, `now.dobj`, `now.room` | one name: `now`, `turn`, or `current`. None is used in Hexad or the game tests outside strings, but a game could want `current` (Exercise 23 has a river with one) |
+| **C. Both, for a while** | either | against "no aliases" (vocabulary.md) |
+
+Recommended: **B**, named `now`, with its properties forwarding to where the values live now. It reads as English, it is how other languages expose such state, and it takes one name instead of fifty. The cost is the 962 and more uses, mechanical, and a property call where a macro expanded inline, which the VM's lookup cache makes cheap. The few `g` macros that take arguments (`gActionIs(Take)`, `gReveal(key)`) become methods (`now.actionIs(Take)`, `now.reveal(key)`) or functions of their own.
+
+### Messages: `DMsg` and `BMsg`
+
+`DMsg(take, 'Taken. ')` shows a message by its id, and `BMsg(...)` gives it as a string; a game replaces a message by its id (802 uses). The macro gives the bare id (`take`, not `'take'`), so the form is worth keeping, under clearer names. Proposed: `showMsg(id, text)` and `msgText(id, text)`. Neither is used now.
+
+### `Doer`
+
+A rule that replaces or redirects a command (`Doer 'take Thing'`, 69 uses). `Rule` is taken by the `rules` extension's class. Proposed: `CommandRule`.
+
+### Kept
+
+- `dobj`, `iobj`, `aobj`: the parser's words for a command's objects, and now the language's for handlers (`dobj Take { ... }`). The guide teaches them.
+- `verify`, `check`, `action`, `report`: the four stages of an action, already plain.
+- `Thing`, `Room`, `Door`, `Actor` and the rest of the world model.
+
+### Later
+
+- Hexad's own `get` methods (`getOutermostRoom`, `getPlayerChar`), by section 3's rule and the namespace check.
+- The banner classes (`BannerWindow` and the rest) as panes, to match `paneCreate`.
+
 ## Open questions
 
-1. How long should Hexad stay compatible with adv3Lite games? With TADS 3 to be retired, this matters most while authors are moving games over.
-2. Which of adv3's features matter most to bring back? The senses, nested rooms and postures, and report grouping are the likely ones.
-3. Should the English messages be a separate module from the start, as adv3Lite's `english` is?
+1. Which of adv3's features matter most to bring back? The senses, nested rooms and postures, and report grouping are the likely ones.
+2. Hexad's words, above.
+
+Settled since the draft: compatibility with adv3Lite games (none is owed, above), and whether the English messages are a module of their own (they are, as `lib/hexad/english` with its own manifest).
 
 ## Milestones
 
@@ -75,7 +114,7 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
    - **The images differ when preinitialized.** Ten of Hexad's files now include `hexicon.h`, so a game on Hexad has 13 more function names and 11 more macros than one on adv3Lite. adv3Lite looks through those tables during preinitialization, so the objects it makes then are numbered differently.
    - **So the check was byte for byte both ways.** Without preinitialization, each game on Hexad was compared with the same game on adv3Lite as it is. With preinitialization, it was compared with adv3Lite plus `#include <hexicon.h>` on the same lines of the same files as Hexad: the same names and macros, module for module, differing only in how the calls are spelled. Airport and all ten exercises gave identical images both ways, 22 of 22.
    - **Corrected later:** this milestone's report said Exercise 15 played differently on Hexad because of that numbering. It does not. The exercise's `detonator` calls `randomize()` when the game starts, which made it play differently on every run, even of one image, until `--norand` covered it (milestone 3). Played repeatably, Exercise 15 is the same on Hexad, on adv3Lite with `hexicon.h`, and on adv3Lite as it is.
-3. **The language's features adopted.** Checked names, action declarations, and modules come in as the language gains them. Each step is checked by the same games still playing the same. In progress:
+3. **The language's features adopted.** Checked names, action declarations, and modules come in as the language gains them. Each step is checked by the same games still playing the same. Done, as far as the language has gone. The tools this milestone names, `hexad-compare.sh`, `tools/explore.py`, and `hexicon convert`, were removed in the break; Hexad is checked by `tools/game-check.py` since. The steps:
    - **Hexad names itself** (2026-11-23). Its `ModuleID` is now `moduleHexad`, named "Hexad", version 0.1.0 (Hexicon's). The VM's line in VERSION drops "T3": "VM (hexicon) version 0.1.0". This is Hexad's first break with adv3Lite: a game that refers to `moduleAdv3Lite` must now say `moduleHexad`.
    - **The check is now play, with the differences recorded** (`tools/compile-tests/hexad-compare.sh`). Hexad no longer matches adv3Lite byte for byte, and will match it less as it changes. So each game is built on both, preinitialized, and played from a command script in `tools/compile-tests/hexad/`: VERSION and CREDITS, then 230 to 420 commands chosen by `tools/explore.py` on adv3Lite. The transcripts must differ exactly as `NAME.diff` there records; `--accept` records the differences when a change to Hexad is meant to make them. Today each game differs only in VERSION's two lines. Exercise 23 stops with a run-time error before its first prompt, on both, so only its build is compared.
    - **Hexicon's own names** (2026-11-24). Hexad's header is `hexad.h`, it is built on Hexicon's system library (`hexicon.h`, `ProgramObject`, `FileTypeSave`), and its own `adv3LibInit`, `adv3LibPreinit`, and the settings keys `adv3.exits` and `adv3.notify` are `hexadInit`, `hexadPreinit`, `hexad.exits`, and `hexad.notify`. Its files' titles say Hexad. `hexad-compare.sh` converts adv3Lite's games with `hexicon convert` to build them on it, and they play as recorded.
@@ -87,4 +126,5 @@ The hard part is adv3's sense model. Making sound, smell, and touch pass through
    - **Verb rules are declarations** (2026-11-24, language milestone 6). `hexicon convert` rewrote Hexad's 288 `VerbRule`s as `verb Take ('take' | 'get') multiDobj: ...`, with `for` where a rule's name is not its action's (`verb SetDownWhat for Drop 'set' 'down':`). Games built on it give identical images. `hexad.h` still defines `VerbRule`, for games not yet converted and for its shortcut macros (`DefineTVerb` and the rest).
    - **Hexad is imported** (2026-11-24, language milestone 5). Its manifest names `advlite.h` as the header a Hexicon source gets by `import hexad;`, and its own sources import it rather than including it. The images are the same.
    - **`hexicon run --norand` makes play repeatable** even for a game that reseeds at random. It used to leave only the start-up seed out, as the reference's `-norand` does, so a `randomize()` in the program still drew on the system's entropy. Now every seed is the same.
-4. **adv3's depth as modules.** The senses, nested rooms and postures, and whatever else is chosen. Each is optional and comes with a test game of its own.
+4. **Hexad's own words** (above). Each decided rename is made through Hexad, its English, its extensions, the guide, and the game tests together, and checked by the games playing the same. Done so far, with the built-in renames (vocabulary.md, 2026-11-24): Hexad uses `Map`, `Decimal`, `typeOf`, `regexMatch`, and the rest.
+5. **adv3's depth as modules.** The senses, nested rooms and postures, and whatever else is chosen. Each is optional and comes with a test game of its own.

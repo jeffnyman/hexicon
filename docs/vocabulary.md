@@ -141,7 +141,7 @@ These change how every source looks, so each is its own decision. The counts are
 
 ## 5. Hexad's words
 
-Hexad's vocabulary is adv3Lite's, and it is what authors write most. Its words are decided with Hexad's design ([hexad-plan.md](hexad-plan.md)), not here, because many of them come with a change of how the library works. Candidates to take up there:
+Hexad's vocabulary is adv3Lite's, and it is what authors write most. Its words are decided with Hexad's design ([hexad-plan.md](hexad-plan.md)), not here, because many of them come with a change of how the library works. The draft is in its "Hexad's words" section (2026-11-25). The candidates as first listed:
 
 | Now | Uses | The question |
 |---|---|---|
