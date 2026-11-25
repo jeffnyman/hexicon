@@ -143,16 +143,18 @@ These change how every source looks, so each is its own decision. The counts are
 
 Hexad's vocabulary is adv3Lite's, and it is what authors write most. Its words are decided with Hexad's design ([hexad-plan.md](hexad-plan.md)), not here, because many of them come with a change of how the library works. The draft is in its "Hexad's words" section (2026-11-25). The candidates as first listed:
 
-| Now | Uses | The question |
-|---|---|---|
-| `gActor`, `gDobj`, `gIobj`, `gPlayerChar` (the `g` macros) | 962 | plain names (`actor`, `dobj`, `player`) or a `cmd.` object |
-| `dobj`, `iobj` | 1,249 | the parser's own words; keep, or "object" and "second object"? |
-| `DMsg`, `BMsg` | 802 | one `msg(...)` form |
-| `Doer` | 69 | a rule that replaces or redirects a command; `Rule` or `CommandRule`? |
-| `verify`, `check`, `action`, `report` | | the four stages; plain already, but `verify` is unusual |
+| Was | Uses | The question | Done (2026-11-25) |
+|---|---|---|---|
+| `gActor`, `gDobj`, `gIobj`, `gPlayerChar` (the `g` macros) | 962 | plain names (`actor`, `dobj`, `player`) or a `cmd.` object | one object, `now`: `now.actor`, `now.dobj`, `now.player` |
+| `dobj`, `iobj` | 1,249 | the parser's own words; keep, or "object" and "second object"? | kept |
+| `DMsg`, `BMsg` | 802 | one `msg(...)` form | `showMsg`, `msgText` |
+| `Doer` | 69 | a rule that replaces or redirects a command; `Rule` or `CommandRule`? | `CommandRule` (`Rule` is taken) |
+| `verify`, `check`, `action`, `report` | | the four stages; plain already, but `verify` is unusual | kept |
+| `BannerWindow` and the other banner classes | | to match the pane functions | `Pane` and the rest |
+| Hexad's own `get` methods | 801 | section 3's rule | kept: every class authors use has a name that would collide |
 
 ## Decided
 
 1. `nil` and `local` stay (2026-11-24).
 2. `BigNumber` becomes `Decimal`, the `banner` functions become `pane` functions, and `ofKind` stays.
-3. The `get` rule applies to every built-in function and method, class by class, where it takes no name a game would want (section 3). Hexad's own methods wait for Hexad's design.
+3. The `get` rule applies to every built-in function and method, class by class, where it takes no name a game would want (section 3). Hexad's own `get` methods, weighed the same way, keep `get` (hexad-plan.md, 2026-11-25).
