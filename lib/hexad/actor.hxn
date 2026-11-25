@@ -413,9 +413,21 @@ modify Actor
             /* Get the best matching TopicEntry from our current actor state. */
             bestMatch = curState.getBestMatch(prop, topic);
             
-            /* If we found a result, return it and end there. */
+            /* 
+             *   If we found a result, return it and end there, unless it
+             *   is only a default answer: a topic of the actor's own that
+             *   really matches comes before the state's default.
+             */
             if(bestMatch != nil)
+            {
+                if(bestMatch.ofKind(DefaultTopic))
+                {
+                    local own = getBestMatch(prop, topic);
+                    if(own != nil && !own.ofKind(DefaultTopic))
+                        return own;
+                }
                 return bestMatch;
+            }
         }
         
         /* 

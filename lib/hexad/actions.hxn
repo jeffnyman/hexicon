@@ -890,7 +890,7 @@ Go: TravelAction
             if(conn.ofKind(TravelConnector) && conn.isConnectorApparent)
             {
                 getOutOfNested(conn);
-                conn.travelVia(now.actor);
+                travelOnCommand(conn, now.actor);
             }
             else
                 /* If it's any other kind of object, just display our noGoodHereMsg. */
@@ -912,7 +912,7 @@ Go: TravelAction
             if(objOfKind(conn, TravelConnector))
             {
                 getOutOfNested(conn);
-                conn.travelVia(now.actor);       
+                travelOnCommand(conn, now.actor);       
             }
             /* Otherwise let out noteRetval() method handle the value returned. */
             else 
@@ -1069,7 +1069,7 @@ action GoBack: IAction
         
         showMsg(going back dir, '(going {1})\n', dir.name);
         
-        now.actor.getOutermostRoom.(dir.dirProp).travelVia(now.actor);
+        travelOnCommand(now.actor.getOutermostRoom.(dir.dirProp), now.actor);
         
     }
 ;
@@ -1180,7 +1180,7 @@ action Continue: IAction
         local oldLoc = now.actor.getOutermostRoom;
         
         /* Attempt to move the actor in the direction dictated by our next step. */
-        now.actor.getOutermostRoom.(dir.dirProp).travelVia(now.actor);
+        travelOnCommand(now.actor.getOutermostRoom.(dir.dirProp), now.actor);
         
         /* 
          *   If the actor hasn't changed room then there's a barrier to travel so we'd better stop

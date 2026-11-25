@@ -649,7 +649,7 @@ class StairwayUp: TravelConnector, Thing
     /* Climbing a StairwayUp is equivalent to travelling via it. */
     dobj Climb
     {        
-        action() { travelVia(now.actor); }        
+        action() { travelOnCommand(self, now.actor); }        
     }
     
     /* Climbing up a Stairway up is the same as Climbing it. */
@@ -715,7 +715,7 @@ class StairwayDown: TravelConnector, Thing
     /* Climbing down a StairwayDown is equivalent to travelling via it. */
     dobj ClimbDown
     {       
-        action { travelVia(now.actor); }
+        action { travelOnCommand(self, now.actor); }
     }
     
     /* A StairwayDown is usually something fixed in place. */
@@ -983,7 +983,7 @@ class Passage: TravelConnector, Thing
     {        
         preCond = [travelPermitted, touchObj]
         
-        action() { travelVia(now.actor); }
+        action() { travelOnCommand(self, now.actor); }
     }
     
     iobj PushTravelThrough
@@ -1088,7 +1088,7 @@ class Enterable: ProxyDest, Fixture
     dobj Enter
     {
         verify() {}
-        action() { connector.travelVia(now.actor); }
+        action() { travelOnCommand(connector, now.actor); }
     }
     
     /* The handling of an attempt to push something inside this object */

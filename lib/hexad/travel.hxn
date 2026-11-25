@@ -1138,7 +1138,7 @@ class Door: TravelConnector, Thing
     {
         preCond = [travelPermitted, touchObj, objOpen]
         
-        action() { travelVia(now.actor); }
+        action() { travelOnCommand(self, now.actor); }
     }
     
     /*  Entering a door is the same as going through it. */
@@ -1454,6 +1454,20 @@ class DSDoor: DSCon, Door
    *   travel is carried out via a TravelConnector by calling its travelVia()
    *   method.
    */
+/*
+ *   Move actor via conn because of a command (GO THROUGH, CLIMB, ENTER, a
+ *   direction). The player's travel is shown by the room arrived in; another
+ *   actor's leaving and arriving are reported where the player can see them,
+ *   by Actor.travelVia, however the travel was started.
+ */
+travelOnCommand(conn, actor)
+{
+    if(actor == now.player || !objOfKind(actor, Actor))
+        conn.travelVia(actor);
+    else
+        actor.travelVia(conn);
+}
+
 class TravelConnector: object    
     
     /* 
@@ -1956,7 +1970,7 @@ class TravelConnector: object
              *   TravelConnector. Subsequentlly we might add appropriate code
              *   for the other action phases.
              */
-            travelVia(now.actor);
+            travelOnCommand(self, now.actor);
         }
     }
     
@@ -2166,7 +2180,7 @@ class UnlistedProxyConnector: TravelConnector
     {      
         preCond = [travelPermitted]   
         
-        action { travelVia(now.actor); }
+        action { travelOnCommand(self, now.actor); }
     }
 ;
 

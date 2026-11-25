@@ -189,6 +189,8 @@ Proposed, for a decision each (they change transcripts, so each would be made wi
 
 The library's wording otherwise ("In the trough you see..." for "The trough contains...", "Done." against "You put the document in the envelope.", the score's sentence) is Hexad's choice, and stays.
 
+**Done, 2026-11-25: proposals 2 and 3.** Travel started by a command (GO THROUGH, CLIMB, ENTER, GO BACK, and the rest) now goes through `travelOnCommand(conn, actor)`, which sends a character other than the player by `Actor.travelVia`, so that its leaving and arriving are reported where the player can see them, as travel by a direction already was. And when an actor's state has only a default answer, a topic of the actor's own that matches is used instead. The port's two workarounds are gone and it plays as before; `hexad-fixes` checks both (the courier sent off through an archway, and his own topic about the letter against his state's default). A Passage still reports a character's leaving as "leaves the area", where a Door says "leaves through the door": a smaller matter, not changed.
+
 ### The names a game cannot have (2026-11-25)
 
 Cloak's `message` led to a survey: a game on Hexad defining an object for each of 288 common nouns of interactive fiction (`key`, `door`, `lamp`, `sign`, `rope`, `room`, `table`, and the rest), each in a build of its own. 21 were refused, because a name belongs to one thing in the whole program, its libraries included, and a property's name counts:
