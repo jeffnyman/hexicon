@@ -1803,7 +1803,7 @@ class LogConsole: OutputStream
  *   Output stream window.
  *   
  *   This is an abstract base class for UI widgets that have output
- *   streams, such as Banner Windows and Web UI windows.  This base class
+ *   streams, such as Pane Windows and Web UI windows.  This base class
  *   essentially handles the interior of the window, and leaves the details
  *   of the window's layout in the broader UI to subclasses.  
  */
@@ -1851,7 +1851,7 @@ class OutputStreamWindow: object
      */
     createOutputStream()
     {
-        /* create a banner output stream */
+        /* create a pane output stream */
         outputStream_ = createOutputStreamObj();
 
         /* set up the default filters */

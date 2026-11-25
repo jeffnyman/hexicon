@@ -10,30 +10,30 @@ import hexad;
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Banner windows.  For the console version, we display the menu
- *   components in banner windows.  
+ *   Panes.  For the console version, we display the menu
+ *   components in panes.  
  */
 
 
 /* 
- *   The very top banner of the menu, which holds its title and
+ *   The very top pane of the menu, which holds its title and
  *   instructions.
  */
-topMenuBanner: BannerWindow
+topMenuPane: Pane
 ;
 
 /* 
- *   The actual menu contents banner window.  This displays the list of
+ *   The actual menu contents pane.  This displays the list of
  *   menu items to choose from.  
  */
-contentsMenuBanner: BannerWindow
+contentsMenuPane: Pane
 ;
 
 /*
- *   The long topic banner.  This takes over the screen when we're
+ *   The long topic pane.  This takes over the screen when we're
  *   displaying a long topic item.  
  */
-longTopicBanner: BannerWindow
+longTopicPane: Pane
 ;
 
 
@@ -69,9 +69,9 @@ modify MenuItem
         /* make sure the main window is flushed before we get going */
         flushOutput();
 
-        /* set up with the top menu banner in place of the status line */
+        /* set up with the top menu pane in place of the status line */
         removeStatusLine();
-        showTopMenuBanner(self);
+        showTopMenuPane(self);
 
         /* 
          *   display the menu using the same mode that the statusline
@@ -89,13 +89,13 @@ modify MenuItem
              */
             flags |= PaneStyleVScroll | PaneStyleAutoVScroll;
 
-            /* banner API mode - show our banner window */
-            contentsMenuBanner.showBanner(nil, PaneLast, nil,
+            /* pane API mode - show our pane */
+            contentsMenuPane.showPane(nil, PaneLast, nil,
                                           PaneTypeText, PaneAlignTop,
                                           nil, nil, flags);
 
-            /* make the banner window the default output stream */
-            oldStr = contentsMenuBanner.setOutputStream();
+            /* make the pane the default output stream */
+            oldStr = contentsMenuPane.setOutputStream();
 
             /* make sure we restore the default output stream when done */
             try
@@ -108,8 +108,8 @@ modify MenuItem
                 /* restore the original default output stream */
                 outputManager.setOutputStream(oldStr);
 
-                /* remove the menu banner */
-                contentsMenuBanner.removeBanner();
+                /* remove the menu pane */
+                contentsMenuPane.removePane();
             }
             break;
             
@@ -117,7 +117,7 @@ modify MenuItem
             /* HTML <banner> tag mode - just show our HTML contents */
             showMenuHtml(self);
 
-            /* remove the banner for the menu display */
+            /* remove the pane for the menu display */
             "<banner remove id=MenuTitle>";
             break;
             
@@ -127,8 +127,8 @@ modify MenuItem
             break;
         }
 
-        /* we're done, so remove the top menu banner */
-        removeTopMenuBanner();
+        /* we're done, so remove the top menu pane */
+        removeTopMenuPane();
     }
     
     /*
@@ -289,24 +289,24 @@ modify MenuItem
             /* refresh our title in the instructions area if necessary */
             if (refreshTitle)
             {
-                refreshTopMenuBanner(topMenu);
+                refreshTopMenuPane(topMenu);
                 refreshTitle = nil;
             }
 
             /* get the number of items in the menu */
             len = contents.length();
               
-            /* check whether we're in banner API or <banner> tag mode */
+            /* check whether we're in pane API or <banner> tag mode */
             if (statusLine.statusDispMode == StatusModeApi)
             {
-                /* banner API mode - clear our window */
-                contentsMenuBanner.clearWindow();
+                /* pane API mode - clear our window */
+                contentsMenuPane.clearWindow();
 
                 /* advise the interpreter of our best guess for our size */
                 if (fullScreenMode)
-                    contentsMenuBanner.setSize(100, PaneSizePercent, nil);
+                    contentsMenuPane.setSize(100, PaneSizePercent, nil);
                 else
-                    contentsMenuBanner.setSize(len + 1, PaneSizeAbsolute,
+                    contentsMenuPane.setSize(len + 1, PaneSizeAbsolute,
                                                true);
 
                 /* set up our desired color scheme */
@@ -351,9 +351,9 @@ modify MenuItem
             /* finish our display as appropriate */
             if (statusLine.statusDispMode == StatusModeApi)
             {
-                /* banner API - size the window to its contents */
+                /* pane API - size the window to its contents */
                 if (!fullScreenMode)
-                    contentsMenuBanner.sizeToContents();
+                    contentsMenuPane.sizeToContents();
             }
             else
             {
@@ -463,40 +463,40 @@ modify MenuItem
     }
 
     /* 
-     *   showTopMenuBanner creates the banner for the menu using the
-     *   banner API.  The banner contains the title of the menu on the
+     *   showTopMenuPane creates the pane for the menu using the
+     *   pane API.  The pane contains the title of the menu on the
      *   left and the navigation keys on the right. 
      */
-    showTopMenuBanner(topMenu)
+    showTopMenuPane(topMenu)
     {
-        /* do not show the top banner if we're in text mode */
+        /* do not show the top pane if we're in text mode */
         if (statusLine.statusDispMode == StatusModeText)
             return;
 
         /* 
          *   Since the status line has already figured out the terp's
          *   capabilities, piggyback off of what it learned.  If we're
-         *   using banner API mode, show our banner window.  
+         *   using pane API mode, show our pane.  
          */
         if (statusLine.statusDispMode == StatusModeApi)
         {
-            /* banner API mode - show our banner window */
-            topMenuBanner.showBanner(nil, PaneFirst, nil, PaneTypeText,
+            /* pane API mode - show our pane */
+            topMenuPane.showPane(nil, PaneFirst, nil, PaneTypeText,
                                      PaneAlignTop, nil, nil,
                                      PaneStyleBorder | PaneStyleTabAlign);
             
             /* advise the terp that we need two lines */
-            topMenuBanner.setSize(2, PaneSizeAbsolute, true);
+            topMenuPane.setSize(2, PaneSizeAbsolute, true);
         }
 
         /* show our contents */
-        refreshTopMenuBanner(topMenu);
+        refreshTopMenuPane(topMenu);
     }
 
     /*
      *   Refresh the contents of the top bar with the instructions 
      */
-    refreshTopMenuBanner(topMenu)
+    refreshTopMenuPane(topMenu)
     {
         local oldStr;
 
@@ -505,10 +505,10 @@ modify MenuItem
         {
         case StatusModeApi:
             /* clear the window */
-            topMenuBanner.clearWindow();
+            topMenuPane.clearWindow();
 
             /* set the default output stream to our menu window */
-            oldStr = topMenuBanner.setOutputStream();
+            oldStr = topMenuPane.setOutputStream();
 
             /* set our color scheme */
             "<body bgcolor=<<topbarbg>> text=<<topbarfg>> >";
@@ -531,11 +531,11 @@ modify MenuItem
         switch (statusLine.statusDispMode)
         {
         case StatusModeApi:
-            /* banner API mode - restore the old output stream */
+            /* pane API mode - restore the old output stream */
             outputManager.setOutputStream(oldStr);
             
             /* size the window to the actual content size */
-            topMenuBanner.sizeToContents();
+            topMenuPane.sizeToContents();
             break;
             
         case StatusModeTag:
@@ -546,44 +546,44 @@ modify MenuItem
     }
 
     /*
-     *   Remove the top banner window
+     *   Remove the top pane
      */
-    removeTopMenuBanner()
+    removeTopMenuPane()
     {
-        /* remove the window according to the banner mode */
+        /* remove the window according to the pane mode */
         switch (statusLine.statusDispMode)
         {
         case StatusModeApi:
-            /* banner API mode - remove the banner window */
-            topMenuBanner.removeBanner();
+            /* pane API mode - remove the pane */
+            topMenuPane.removePane();
             break;
 
         case StatusModeTag:
-            /* banner tag mode - remove our banner tag */
+            /* pane tag mode - remove our pane tag */
             "<banner remove id=MenuTitle>";
         }
     }
     
     /*
-     *   Remove the status line banner prior to displaying the menu
+     *   Remove the status line pane prior to displaying the menu
      */
     removeStatusLine()
     {
         local oldStr;
 
-        /* remove the banner according to our banner display mode */
+        /* remove the pane according to our pane display mode */
         switch (statusLine.statusDispMode)
         {
         case StatusModeApi:
             /* 
-             *   banner API mode - simply set the banner window to zero
+             *   pane API mode - simply set the pane to zero
              *   size, which will effectively make it invisible 
              */
-            statuslineBanner.setSize(0, PaneSizeAbsolute, nil);
+            statuslinePane.setSize(0, PaneSizeAbsolute, nil);
             break;
 
         case StatusModeTag:
-            /* <banner> tag mode - remove the statusline banner */
+            /* <banner> tag mode - remove the statusline pane */
             oldStr = outputManager.setOutputStream(statusTagOutputStream);
             "<banner remove id=StatusLine>";
             outputManager.setOutputStream(oldStr);
@@ -673,7 +673,7 @@ modify MenuTopicItem
         curKeyList = topMenu.keyList;
 
         /* refresh the top instructions bar with our heading */
-        refreshTopMenuBanner(topMenu);
+        refreshTopMenuPane(topMenu);
 
         /* update our contents, as needed */
         updateContents();
@@ -800,11 +800,11 @@ modify MenuTopicItem
         /* get the number of items in our list */
         len = menuContents.length();
 
-        /* check the banner mode (based on the statusline mode) */
+        /* check the pane mode (based on the statusline mode) */
         if (statusLine.statusDispMode == StatusModeApi)
         {
-            /* banner API mode - clear the window */
-            contentsMenuBanner.clearWindow();
+            /* pane API mode - clear the window */
+            contentsMenuPane.clearWindow();
             
             /* 
              *   Advise the terp of our best guess at our size: assume one
@@ -814,9 +814,9 @@ modify MenuTopicItem
              *   the available space.  
              */
             if (fullScreenMode)
-                contentsMenuBanner.setSize(100, PaneSizePercent, nil);
+                contentsMenuPane.setSize(100, PaneSizePercent, nil);
             else
-                contentsMenuBanner.setSize(chunkSize < len ? chunkSize : len,
+                contentsMenuPane.setSize(chunkSize < len ? chunkSize : len,
                                            PaneSizeAbsolute, true);
 
             /* set up our color scheme */
@@ -865,11 +865,11 @@ modify MenuTopicItem
         case StatusModeApi:
             /* if we're not in full-screen mode, set the final size */
             if (!fullScreenMode)
-                contentsMenuBanner.sizeToContents();
+                contentsMenuPane.sizeToContents();
             break;
 
         case StatusModeTag:
-            /* end the banner tag */
+            /* end the pane tag */
             "</banner>";
             break;
         }
@@ -959,26 +959,26 @@ modify MenuLongTopicItem
         /* update our contents, as needed */
         updateContents();
 
-        /* hide the two menu system banners */
+        /* hide the two menu system panes */
         if (statusLine.statusDispMode == StatusModeApi)
         {
             local flags;
 
             /* 
-             *   Our banner window might already be showing, because we
+             *   Our pane might already be showing, because we
              *   could be coming here directly from a prior chapter.  If it
              *   is, we don't need to show it again.  If it isn't showing,
              *   show it now.  
              */
-            if (longTopicBanner.handle_ != nil)
+            if (longTopicPane.handle_ != nil)
             {
                 /* simply clear our existing window */
-                longTopicBanner.clearWindow();
+                longTopicPane.clearWindow();
             }
             else
             {
-                /* hide the top menu banner */
-                topMenuBanner.setSize(0, PaneSizeAbsolute, nil);
+                /* hide the top menu pane */
+                topMenuPane.setSize(0, PaneSizeAbsolute, nil);
 
                 /* figure our flags */
                 flags = (fullScreenMode ? 0 : PaneStyleBorder)
@@ -986,17 +986,17 @@ modify MenuLongTopicItem
                     | PaneStyleMoreMode
                     | PaneStyleAutoVScroll;
             
-                /* banner API mode - show the long-topic banner */
-                longTopicBanner.showBanner(contentsMenuBanner, PaneLast,
+                /* pane API mode - show the long-topic pane */
+                longTopicPane.showPane(contentsMenuPane, PaneLast,
                                            nil, PaneTypeText,
                                            PaneAlignTop,
                                            100, PaneSizePercent, flags);
             }
 
             /* use its output stream */
-            oldStr = longTopicBanner.setOutputStream();
+            oldStr = longTopicPane.setOutputStream();
                 
-            /* set up our color scheme in the new banner */
+            /* set up our color scheme in the new pane */
             "<body bgcolor=<<bgcolor>> text=<<fgcolor>> >";
         }
         else
@@ -1005,7 +1005,7 @@ modify MenuLongTopicItem
              *   use the main game window output stream for printing this
              *   text (we need to switch back to it explicitly, because
              *   HTML-mode menus normally run in the context of the menu's
-             *   banner output stream) 
+             *   pane output stream) 
              */
             oldStr = outputManager.setOutputStream(mainOutputStream);
 
@@ -1051,8 +1051,8 @@ modify MenuLongTopicItem
                 /* clean up the window */
                 if (statusLine.statusDispMode == StatusModeApi)
                 {
-                    /* API mode - remove our long-topic banner */
-                    longTopicBanner.removeBanner();
+                    /* API mode - remove our long-topic pane */
+                    longTopicPane.removePane();
                 }
                 else
                 {
@@ -1060,8 +1060,8 @@ modify MenuLongTopicItem
                     cls();
                 }
 
-                /* restore the top menu banner window */
-                topMenu.showTopMenuBanner(topMenu);
+                /* restore the top menu pane */
+                topMenu.showTopMenuPane(topMenu);
             }
         }
 

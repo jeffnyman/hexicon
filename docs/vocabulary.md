@@ -104,7 +104,7 @@ So a short noun is a poor name for a built-in: dropping `get` everywhere, as fir
 | `Map`'s `getBucketCount`, `getEntryCount`, `getDefaultValue` | `bucketCount`, `entryCount`, `defaultValue` | done |
 | `Regex`'s `getPatternString` | `patternString` | done |
 
-Hexad's `BannerWindow` and its other banner classes are Hexad's own names, decided with Hexad (section 5).
+Hexad's banner classes followed with Hexad (section 5): `BannerWindow` is `Pane` (2026-11-25).
 
 ### Kept
 

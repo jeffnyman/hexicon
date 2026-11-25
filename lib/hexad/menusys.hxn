@@ -10,7 +10,7 @@
  *   terminal programs, where a list of text items takes over the main
  *   window contents.
  *   
- *   Note that in plain-text mode (for interpreters without banner
+ *   Note that in plain-text mode (for interpreters without pane
  *   capabilities), a menu won't be fully usable if it exceeds nine
  *   subitems: each item in a menu is numbered, and the user selects an
  *   item by entering its number; but we only accept a single digit as
@@ -434,7 +434,7 @@ class MenuTopicItem: MenuItem
 
     /* 
      *   The maximum number of our sub-items that we'll display at once.
-     *   This is only used on interpreters with banner capabilities, and is
+     *   This is only used on interpreters with pane capabilities, and is
      *   ignored in full-screen mode.  
      */
     chunkSize = 6

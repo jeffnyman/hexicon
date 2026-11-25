@@ -320,13 +320,13 @@ statusHTML(stage)
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The banner window for the status line.  
+ *   The pane for the status line.  
  */
-statuslineBanner: BannerWindow
+statuslinePane: Pane
     /* close the window */
-    removeBanner()
+    removePane()
     {
-        /* remove the banner */
+        /* remove the pane */
         inherited();
 
         /* tell the statusLine object to refigure the display mode */
@@ -334,7 +334,7 @@ statuslineBanner: BannerWindow
     }
 
     /* initialize */
-    initBannerWindow()
+    initPaneWindow()
     {
         /* if we're already initialized, do nothing */
         if (inited_)
@@ -343,8 +343,8 @@ statuslineBanner: BannerWindow
         /* inherit the default handling (to set our 'inited_' flag) */
         inherited();
         
-        /* tell the status line to initialize its banner window */
-        statusLine.initBannerWindow(self);
+        /* tell the status line to initialize its pane */
+        statusLine.initPaneWindow(self);
     }
 
     /* 

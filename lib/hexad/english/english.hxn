@@ -4371,9 +4371,9 @@ libMessages: object
     menuLongTopicEnd = '[The End]'
 
     /*
-     *   instructions text for banner-mode menus - this is displayed in
+     *   instructions text for pane-mode menus - this is displayed in
      *   the instructions bar at the top of the screen, above the menu
-     *   banner area 
+     *   pane area 
      */
     menuInstructions(keylist, prevLink)
     {

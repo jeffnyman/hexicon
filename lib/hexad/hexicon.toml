@@ -11,7 +11,7 @@ header = "hexad.h"
 sources = [
     "actions",
     "action",
-    "banner",
+    "pane",
     "command",
     "console",
     "debug",

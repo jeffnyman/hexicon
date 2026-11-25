@@ -72,7 +72,7 @@ initDisplay()
     /* set up the command window and status line */
     webMainWin.createFrame(commandWin, 'command',
                            '0, statusline.bottom, 100%, 100%');
-    webMainWin.createFrame(statuslineBanner, 'statusline',
+    webMainWin.createFrame(statuslinePane, 'statusline',
                            '0, 0, 100%, content.height');
 
     /* capture the title string */
@@ -84,7 +84,7 @@ initDisplay()
         title = regexGroup(1)[3];
 
     /* initialize the statusline window object */
-    statuslineBanner.init();
+    statuslinePane.init();
     statusLine.statusDispMode = StatusModeBrowser;
 
     /* set the title */
@@ -718,21 +718,21 @@ statusHTML(stage)
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Web Banner Window.  This is designed as a *partial* drop-in
- *   replacement for the BannerWindow class, using Web UI windows as
+ *   Web Pane Window.  This is designed as a *partial* drop-in
+ *   replacement for the Pane class, using Web UI windows as
  *   implemented in the Web UI's javascript client.
  *   
  *   This class is designed to be mixed with a WebWindow subclass.
  *   
- *   This isn't a complete replacement for BannerWindow, because the layout
- *   model for the Web UI is different from the banner window model (the
+ *   This isn't a complete replacement for Pane, because the layout
+ *   model for the Web UI is different from the pane model (the
  *   Web UI model is better and more flexible).  This class implements the
- *   parts of the BannerWindow API related to the stream-oriented output to
+ *   parts of the Pane API related to the stream-oriented output to
  *   the window, so you shouldn't have to change anything that writes HTML
  *   text to the window.  However, you will have to rework code that sets
  *   up the window's layout to use the Web UI model.  
  */
-class WebBannerWin: OutputStreamWindow
+class WebPane: OutputStreamWindow
     /* 
      *   Initialize.  Call this when first displaying the window in the UI.
      */
@@ -749,19 +749,19 @@ class WebBannerWin: OutputStreamWindow
     }
 
     /* flush output */
-    flushBanner()
+    flushPane()
     {
         flushWin();
     }
 
     /* write text */
-    writeToBanner(txt)
+    writeToPane(txt)
     {
         outputStream_.writeToStream(txt);
     }
 
     /*
-     *   Banner window size settings.  We simply ignore these; callers must
+     *   Pane size settings.  We simply ignore these; callers must
      *   rework their layout logic for the Web UI, since the javascript
      *   layout system is so different.  
      */
@@ -770,7 +770,7 @@ class WebBannerWin: OutputStreamWindow
 ;
 
 /*
- *   Output stream for web banner windows
+ *   Output stream for web panes
  */
 class WebWinOutputStream: OutputStream
     /* construct */
@@ -799,12 +799,12 @@ class WebWinOutputStream: OutputStream
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The basic status line window.  The "banner" in the name is historical,
+ *   The basic status line window.  The "pane" in the name is historical,
  *   because the traditional console UI implements the status line as a
- *   banner window.  We don't actually have banner windows in the Web UI;
+ *   pane.  We don't actually have panes in the Web UI;
  *   we use iframes instead.  But we keep the name to make it easier to
  *   port games written for the traditional UI to the Web UI.  
  */
-transient statuslineBanner: WebStatusWin, WebBannerWin
+transient statuslinePane: WebStatusWin, WebPane
 ;
 

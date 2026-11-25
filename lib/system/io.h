@@ -8,9 +8,9 @@
  *   The input/output function set provides access to the user
  *   interface.  This lets you read input from the keyboard and display
  *   output on the monitor or terminal.  It also provides access to windowing
- *   features (via the "banner" functions) on systems that support multiple
+ *   features (via the "pane" functions) on systems that support multiple
  *   display windows (which doesn't necessarily mean GUI-type systems: many
- *   character-mode systems support the banner operations as well, simply by
+ *   character-mode systems support the pane operations as well, simply by
  *   dividing up the character-mode screen into rectangular regions).  
  */
 
@@ -193,7 +193,7 @@ builtin 'hexicon-io/030007'
 
     /* 
      *   Set the status-line display mode.  This is meaningful only with
-     *   text-only interpreters that don't support banner windows; other
+     *   text-only interpreters that don't support panes; other
      *   interpreters ignore this.  'mode' is a StatModeXxx constant giving
      *   the new mode.  
      */
@@ -201,8 +201,8 @@ builtin 'hexicon-io/030007'
 
     /* 
      *   Write text on the right half of the status line.  This is meaningful
-     *   only for text-only interpreters that don't support banner windows;
-     *   other interpreters ignore this.  On non-banner interpreters, this
+     *   only for text-only interpreters that don't support panes;
+     *   other interpreters ignore this.  On non-pane interpreters, this
      *   sets the right half of the status line to display the given text,
      *   right-justified.  
      */
@@ -312,19 +312,19 @@ builtin 'hexicon-io/030007'
     inputLineCancel(reset);
     
     /* 
-     *   Create a banner window.  Returns the "handle" of the new window,
+     *   Create a pane.  Returns the "handle" of the new window,
      *   which is used to identify the window in subsequent paneXxx()
-     *   functions.  Not all interpreters support banner windows; if the
+     *   functions.  Not all interpreters support panes; if the
      *   interpreter does not support this feature, the return value is nil.
      *   
      *   'parent' is the handle of the parent window; if this is nil, the
-     *   banner is split off from the main display window.  'where' is a
+     *   pane is split off from the main display window.  'where' is a
      *   PaneXxx value giving the list position; if this is PaneBefore or
-     *   PaneAfter, 'other' is the handle of an existing banner window
+     *   PaneAfter, 'other' is the handle of an existing pane
      *   child of the same parent.  'windowType' is a PaneTypeXxx value
      *   giving the type of window to create.  'align' is a PaneAlignXxx
      *   value giving the alignment - that is, the edge of the parent window
-     *   to which the new banner window attaches.  'size' is the size of the
+     *   to which the new pane attaches.  'size' is the size of the
      *   window, in the units given by 'sizeUnits', which is a PaneSizeXxx
      *   value.  'styleFlags' is a combination of PaneStyleXxx bit flags
      *   that specifies the desired combination of visual styles and UI
@@ -334,21 +334,21 @@ builtin 'hexicon-io/030007'
                  size, sizeUnits, styleFlags);
 
     /* 
-     *   Delete a banner window.  'handle' is the handle to the window to be
+     *   Delete a pane.  'handle' is the handle to the window to be
      *   removed. 
      */
     paneDelete(handle);
 
     /* 
-     *   Clear the contents of a banner window.  'color' is the color to use
+     *   Clear the contents of a pane.  'color' is the color to use
      *   for the screen color after clearing the window, given as a ColorXxx
      *   value (see below).  
      */
     paneClear(handle);
 
     /* 
-     *   Write text to a banner window.  The text is displayed in the given
-     *   banner.  For a PaneTypeText window, HTML tags in the text are
+     *   Write text to a pane.  The text is displayed in the given
+     *   pane.  For a PaneTypeText window, HTML tags in the text are
      *   interpreted; for a PaneTypeTextGrid window, the text is written
      *   exactly as given, without any HTML interpretation.
      *   
@@ -358,18 +358,18 @@ builtin 'hexicon-io/030007'
     paneSay(handle, ...);
 
     /* 
-     *   Flush all buffers for a banner window.  This ensures that any text
+     *   Flush all buffers for a pane.  This ensures that any text
      *   written with paneSay() is actually displayed for the user to see
      *   (rather than being held in internal buffers).  
      */
     paneFlush(handle);
 
     /* 
-     *   Size a banner to fit its contents.  This resizes the banner such
+     *   Size a pane to fit its contents.  This resizes the pane such
      *   that the contents just fit.  In the case of a top- or bottom-aligned
-     *   banner, the height is set just high enough to hold all of the text
+     *   pane, the height is set just high enough to hold all of the text
      *   currently displayed.  In the case of a left- or right-aligned
-     *   banner, the width is set just wide enough to hold the widest single
+     *   pane, the width is set just wide enough to hold the widest single
      *   word that can't be broken across lines.  In all cases, the size
      *   includes any fixed margin space, to ensure that all of the text in
      *   the window is actually visible without scrolling.
@@ -399,7 +399,7 @@ builtin 'hexicon-io/030007'
     paneSetTextColor(handle, fg, bg);
 
     /*
-     *   Set the "screen color" in the banner window.  This is the color used
+     *   Set the "screen color" in the pane.  This is the color used
      *   to fill parts of the window that aren't displaying any text, and as
      *   the background color for all text displayed when the text background
      *   color is ColorTransparent.  Setting the screen color immediately
@@ -409,14 +409,14 @@ builtin 'hexicon-io/030007'
     paneSetScreenColor(handle, color);
 
     /* 
-     *   Get information on the banner.  This returns a list giving a
-     *   detailed set of information describing the banner.  
+     *   Get information on the pane.  This returns a list giving a
+     *   detailed set of information describing the pane.  
      */
     paneInfo(handle);
 
     /* 
-     *   Set the size of a banner.  This explicitly sets the banner's height
-     *   (for a top or bottom banner) or width (for a left or right) banner
+     *   Set the size of a pane.  This explicitly sets the pane's height
+     *   (for a top or bottom pane) or width (for a left or right) pane
      *   to the 'size', which is specified in units given by 'sizeUnits',
      *   which is a PaneSizeXxx constant.  If 'isAdvisory' is true, the
      *   caller is indicating that this call will be followed soon by a call
@@ -592,7 +592,7 @@ builtin 'hexicon-io/030007'
 #define SysInfoMngAlpha      30
 #define SysInfoTextHilite    31
 #define SysInfoTextColors    32
-#define SysInfoBanners       33
+#define SysInfoPanes       33
 #define SysInfoInterpClass   34
 #define SysInfoAudioFade     35
 #define SysInfoAudioCrossfade 36
@@ -648,7 +648,7 @@ builtin 'hexicon-io/030007'
 #define CharsetFileCont 3            /* default file contents character set */
 
 /*
- *   banner insertion point specifies (for 'where' in paneCreate)
+ *   pane insertion point specifies (for 'where' in paneCreate)
  */
 #define PaneFirst   1
 #define PaneLast    2
@@ -656,13 +656,13 @@ builtin 'hexicon-io/030007'
 #define PaneAfter   4
 
 /*
- *   banner types 
+ *   pane types 
  */
 #define PaneTypeText     1                 /* ordinary text stream window */
 #define PaneTypeTextGrid 2                            /* text grid window */
 
 /* 
- *   banner alignment types 
+ *   pane alignment types 
  */
 #define PaneAlignTop     0
 #define PaneAlignBottom  1
@@ -670,15 +670,15 @@ builtin 'hexicon-io/030007'
 #define PaneAlignRight   3
 
 /*
- *   banner size unit types 
+ *   pane size unit types 
  */
 #define PaneSizePercent   1    /* size is a percentage of available space */
 #define PaneSizeAbsolute  2    /* size is in natural units of window type */
 
 /*
- *   banner style flags 
+ *   pane style flags 
  */
-#define PaneStyleBorder       0x0001       /* banner has a visible border */
+#define PaneStyleBorder       0x0001       /* pane has a visible border */
 #define PaneStyleVScroll      0x0002                /* vertical scrollbar */
 #define PaneStyleHScroll      0x0004              /* horizontal scrollbar */
 #define PaneStyleAutoVScroll  0x0008      /* automatic vertical scrolling */

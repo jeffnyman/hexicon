@@ -1,15 +1,15 @@
 #charset "us-ascii"
 
 /* 
- *   Hexad: banner manager
+ *   Hexad: pane manager
  *   
- *   This module defines the banner manager, which provides high-level
- *   services to create and manipulate banner windows.
+ *   This module defines the pane manager, which provides high-level
+ *   services to create and manipulate panes.
  *   
- *   A "banner" is an independent window shown within the interpreter's
+ *   A "pane" is an independent window shown within the interpreter's
  *   main application display frame (which might be the entire screen on a
  *   character-mode terminal, or could be a window in a GUI system).  The
- *   game can control the creation and destruction of banner windows, and
+ *   game can control the creation and destruction of panes, and
  *   can control their placement and size.
  */
 
@@ -17,32 +17,32 @@ import hexad;
 
 /* ------------------------------------------------------------------------ */
 /*
- *   A BannerWindow corresponds to an on-screen banner.  For each banner
+ *   A Pane corresponds to an on-screen pane.  For each pane
  *   window a game wants to display, the game must create an object of this
  *   class.
  *   
- *   Note that merely creating a BannerWindow object doesn't actually
- *   display a banner window.  Once a BannerWindow is created, the game
- *   must call the object's showBanner() method to create the on-screen
- *   window for the banner.
+ *   Note that merely creating a Pane object doesn't actually
+ *   display a pane.  Once a Pane is created, the game
+ *   must call the object's showPane() method to create the on-screen
+ *   window for the pane.
  *   
- *   BannerWindow instances are intended to be persistent (not transient).
- *   The banner manager keeps track of each banner window that's actually
+ *   Pane instances are intended to be persistent (not transient).
+ *   The pane manager keeps track of each pane that's actually
  *   being displayed separately via an internal transient object; the game
- *   doesn't need to worry about these tracking objects, since the banner
+ *   doesn't need to worry about these tracking objects, since the pane
  *   manager automatically handles them.  
  */
-class BannerWindow: OutputStreamWindow
+class Pane: OutputStreamWindow
     /*
      *   Construct the object.
      *   
-     *   'id' is a globally unique identifying string for the banner.  When
-     *   we dynamically create a banner object, we have to provide a unique
+     *   'id' is a globally unique identifying string for the pane.  When
+     *   we dynamically create a pane object, we have to provide a unique
      *   identifying string, so that we can correlate transient on-screen
-     *   banners with the banners in a saved state when restoring the saved
+     *   panes with the panes in a saved state when restoring the saved
      *   state.
      *   
-     *   Note that no ID string is needed for BannerWindow objects defined
+     *   Note that no ID string is needed for Pane objects defined
      *   statically at compile-time, because the object itself ('self') is
      *   a suitably unique and stable identifier.  
      */
@@ -53,20 +53,20 @@ class BannerWindow: OutputStreamWindow
     }
 
     /*
-     *   Show the banner.  The game should call this method when it first
-     *   wants to display the banner.
+     *   Show the pane.  The game should call this method when it first
+     *   wants to display the pane.
      *   
-     *   'parent' is the parent banner; this is an existing BannerWindow
+     *   'parent' is the parent pane; this is an existing Pane
      *   object.  If 'parent' is nil, then the parent is the main game
      *   text window.  The new window's display space is obtained by
      *   carving space out of the parent's area, according to the
      *   alignment and size values specified.
      *   
-     *   'where' and 'other' give the position of the banner among the
+     *   'where' and 'other' give the position of the pane among the
      *   children of the given parent.  'where' is one of the constants
      *   PaneFirst, PaneLast, PaneBefore, or PaneAfter.  If
      *   'where' is PaneBefore or PaneAfter, 'other' gives the
-     *   BannerWindow object to be used as the reference point in the
+     *   Pane object to be used as the reference point in the
      *   parent's child list; 'other' is ignored in other cases.  Note
      *   that 'other' must always be another child of the same parent; if
      *   it's not, then we act as though 'where' were given as PaneLast.
@@ -75,36 +75,36 @@ class BannerWindow: OutputStreamWindow
      *   type.
      *   
      *   'align' is a PaneAlignXxx constant giving the alignment of the
-     *   new window.  'size' is an integer giving the size of the banner,
+     *   new window.  'size' is an integer giving the size of the pane,
      *   in units specified by 'sizeUnits', which is a PaneSizeXxx
      *   constant.  If 'size' is nil, it indicates that the caller doesn't
      *   care about the size, usually because the caller will be resizing
-     *   the banner soon anyway; the banner will initially have zero size
+     *   the pane soon anyway; the pane will initially have zero size
      *   in this case if we create a new window, or will retain the
      *   existing size if there's already a system window.
      *   
      *   'styleFlags' is a combination of PaneStyleXxx constants
      *   (combined with the bitwise OR operator, '|'), giving the requested
-     *   display style of the new banner window.
+     *   display style of the new pane.
      *   
-     *   Note that if we already have a system banner window, and the
-     *   existing banner window has the same characteristics as the new
+     *   Note that if we already have a system pane, and the
+     *   existing pane has the same characteristics as the new
      *   creation parameters, we'll simply re-use the existing window
      *   rather than closing and re-creating it; this reduces unnecessary
      *   redrawing in cases where the window isn't changing.  If the caller
      *   explicitly wants to create a new window even if we already have a
-     *   window, the caller should simply call removeBanner() before
+     *   window, the caller should simply call removePane() before
      *   calling this routine.  
      */
-    showBanner(parent, where, other, windowType,
+    showPane(parent, where, other, windowType,
                align, size, sizeUnits, styleFlags)
     {
         local parentID;
         local otherID;
 
         /* note the ID's of the parent window and the insertion point */
-        parentID = (parent != nil ? parent.getBannerID() : nil);
-        otherID = (other != nil ? other.getBannerID() : nil);
+        parentID = (parent != nil ? parent.getPaneID() : nil);
+        otherID = (other != nil ? other.getPaneID() : nil);
 
         /* 
          *   if we have an 'other' specified, its parent must match our
@@ -117,7 +117,7 @@ class BannerWindow: OutputStreamWindow
             where = PaneLast;
         }
 
-        /* if we already have an existing banner window, check for a match */
+        /* if we already have an existing pane, check for a match */
         if (handle_ != nil)
         {
             local t;
@@ -127,14 +127,14 @@ class BannerWindow: OutputStreamWindow
             match = nil;
 
             /* we already have a window - get the UI tracker object */
-            if ((t = bannerUITracker.getTracker(self)) != nil)
+            if ((t = paneUITracker.getTracker(self)) != nil)
             {
                 /* check the placement, window type, alignment, and style */
                 match = (t.windowType_ == windowType
                          && t.parentID_ == parentID
                          && t.align_ == align
                          && t.styleFlags_ == styleFlags
-                         && bannerUITracker.orderMatches(t, where, otherID));
+                         && paneUITracker.orderMatches(t, where, otherID));
             }
 
             /* 
@@ -143,25 +143,25 @@ class BannerWindow: OutputStreamWindow
              *   characteristics 
              */
             if (!match)
-                removeBanner();
+                removePane();
         }
 
-        /* if the system-level banner doesn't already exist, create it */
+        /* if the system-level pane doesn't already exist, create it */
         if (handle_ == nil)
         {
-            /* create my system-level banner window */
-            if (!createSystemBanner(parent, where, other, windowType, align,
+            /* create my system-level pane */
+            if (!createSystemPane(parent, where, other, windowType, align,
                                     size, sizeUnits, styleFlags))
             {
-                /* we couldn't create the system banner - give up */
+                /* we couldn't create the system pane - give up */
                 return nil;
             }
 
             /* create our output stream */
             createOutputStream();
 
-            /* add myself to the UI tracker's active banner list */
-            bannerUITracker.addBanner(handle_, outputStream_, getBannerID(),
+            /* add myself to the UI tracker's active pane list */
+            paneUITracker.addPane(handle_, outputStream_, getPaneID(),
                                       parentID, where, other, windowType,
                                       align, styleFlags);
         }
@@ -184,8 +184,8 @@ class BannerWindow: OutputStreamWindow
 
         /* 
          *   remember the creation parameters, so that we can re-create the
-         *   banner with the same characteristics in the future if we
-         *   should need to restore the banner from a saved position 
+         *   pane with the same characteristics in the future if we
+         *   should need to restore the pane from a saved position 
          */
         parentID_ = parentID;
         windowType_ = windowType;
@@ -195,7 +195,7 @@ class BannerWindow: OutputStreamWindow
         styleFlags_ = styleFlags;
 
         /* 
-         *   Add myself to the persistent banner tracker's active list.  Do
+         *   Add myself to the persistent pane tracker's active list.  Do
          *   this even if we already had a system handle, since we might be
          *   initializing the window as part of a persistent restore
          *   operation, in which case the persistent tracking object might
@@ -210,32 +210,32 @@ class BannerWindow: OutputStreamWindow
          *   transient state up to and through the RESTART, but is only
          *   created as part of the initialization process.)  
          */
-        bannerTracker.addBanner(self, parent, where, other);
+        paneTracker.addPane(self, parent, where, other);
 
         /* indicate success */
         return true;
     }
 
     /*
-     *   Remove the banner.  This removes the banner's on-screen window.
-     *   The BannerWindow object itself remains valid, but after this
-     *   method returns, the BannerWindow no longer has an associated
+     *   Remove the pane.  This removes the pane's on-screen window.
+     *   The Pane object itself remains valid, but after this
+     *   method returns, the Pane no longer has an associated
      *   display window.
      *   
-     *   Note that any child banners of ours will become undisplayable
-     *   after we're gone.  A child banner depends upon its parent to
+     *   Note that any child panes of ours will become undisplayable
+     *   after we're gone.  A child pane depends upon its parent to
      *   obtain display space, so once the parent is gone, its children no
      *   longer have any way to obtain any display space.  Our children
      *   remain valid objects even after we're closed, but they won't be
      *   visible on the display.    
      */
-    removeBanner()
+    removePane()
     {
         /* if I don't have a system-level handle, there's nothing to do */
         if (handle_ == nil)
             return;
 
-        /* remove my system-level banner window */
+        /* remove my system-level pane */
         paneDelete(handle_);
 
         /* our system-level window is gone, so forget its handle */
@@ -245,24 +245,24 @@ class BannerWindow: OutputStreamWindow
         outputStream_ = nil;
 
         /* remove myself from the UI trackers's active list */
-        bannerUITracker.removeBanner(getBannerID());
+        paneUITracker.removePane(getPaneID());
 
-        /* remove myself from the persistent banner tracker's active list */
-        bannerTracker.removeBanner(self);
+        /* remove myself from the persistent pane tracker's active list */
+        paneTracker.removePane(self);
     }
 
-    /* write the given text to the banner */
-    writeToBanner(txt)
+    /* write the given text to the pane */
+    writeToPane(txt)
     {
         /* write the text to our underlying output stream */
         outputStream_.writeToStream(txt);
     }
 
-    /* flush any pending output to the banner */
-    flushBanner() { paneFlush(handle_); }
+    /* flush any pending output to the pane */
+    flushPane() { paneFlush(handle_); }
 
     /*
-     *   Set the banner window to a specific size.  'size' is the new
+     *   Set the pane to a specific size.  'size' is the new
      *   size, in units given by 'sizeUnits', which is a PaneSizeXxx
      *   constant.
      *   
@@ -278,7 +278,7 @@ class BannerWindow: OutputStreamWindow
         paneSetSize(handle_, size, sizeUnits, isAdvisory);
 
         /* 
-         *   remember my new size in case we have to re-create the banner
+         *   remember my new size in case we have to re-create the pane
          *   from a saved state 
          */
         size_ = size;
@@ -286,7 +286,7 @@ class BannerWindow: OutputStreamWindow
     }
 
     /*
-     *   Size the banner to its current contents.  Note that some systems
+     *   Size the pane to its current contents.  Note that some systems
      *   do not support this operation, so callers should always make an
      *   advisory call to setSize() first to set a size based on the
      *   expected content size.  
@@ -298,7 +298,7 @@ class BannerWindow: OutputStreamWindow
     }
 
     /*
-     *   Clear my banner window.  This clears out all of the contents of
+     *   Clear my pane.  This clears out all of the contents of
      *   our on-screen display area.  
      */
     clearWindow()
@@ -307,38 +307,38 @@ class BannerWindow: OutputStreamWindow
         paneClear(handle_);
     }
 
-    /* set the text color in the banner */
+    /* set the text color in the pane */
     setTextColor(fg, bg) { paneSetTextColor(handle_, fg, bg); }
 
-    /* set the screen color in the banner window */
+    /* set the screen color in the pane */
     setScreenColor(color) { paneSetScreenColor(handle_, color); }
 
     /* 
      *   Move the cursor to the given row/column position.  This can only
-     *   be used with text-grid banners; for ordinary text banners, this
+     *   be used with text-grid panes; for ordinary text panes, this
      *   has no effect. 
      */
     cursorTo(row, col) { paneGoTo(handle_, row, col); }
 
     /*
-     *   Get the banner identifier.  If our 'id_' property is set to nil,
+     *   Get the pane identifier.  If our 'id_' property is set to nil,
      *   we'll assume that we're a statically-defined object, in which case
      *   'self' is a suitable identifier.  Otherwise, we'll return the
      *   identifier string. 
      */
-    getBannerID() { return id_ != nil ? id_ : self; }
+    getPaneID() { return id_ != nil ? id_ : self; }
 
     /*
-     *   Restore this banner.  This is called after a RESTORE or UNDO
-     *   operation that finds that this banner was being displayed at the
+     *   Restore this pane.  This is called after a RESTORE or UNDO
+     *   operation that finds that this pane was being displayed at the
      *   time the state was saved but is not currently displayed in the
-     *   active UI.  We'll show the banner using the characteristics saved
+     *   active UI.  We'll show the pane using the characteristics saved
      *   persistently.
      */
     showForRestore(parent, where, other)
     {
         /* show myself, using my saved characteristics */
-        showBanner(parent, where, other, windowType_, align_,
+        showPane(parent, where, other, windowType_, align_,
                    size_, sizeUnits_, styleFlags_);
 
         /* update my contents */
@@ -346,14 +346,14 @@ class BannerWindow: OutputStreamWindow
     }
 
     /*
-     *   Create the system-level banner window.  This can be customized as
+     *   Create the system-level pane.  This can be customized as
      *   needed, although this default implementation should be suitable
      *   for most instances.
      *   
      *   Returns true if we are successful in creating the system window,
      *   nil if we fail.  
      */
-    createSystemBanner(parent, where, other, windowType, align,
+    createSystemPane(parent, where, other, windowType, align,
                        size, sizeUnits, styleFlags)
     {
         /* create the system-level window */
@@ -366,21 +366,21 @@ class BannerWindow: OutputStreamWindow
         return (handle_ != nil);
     }
 
-    /* create our banner output stream */
+    /* create our pane output stream */
     createOutputStreamObj()
     {
-        return new transient BannerOutputStream(handle_);
+        return new transient PaneOutputStream(handle_);
     }
 
     /*
      *   Update my contents after being restored.  By default, this does
      *   nothing; instances might want to override this to refresh the
-     *   contents of the banner if the banner is normally updated only in
+     *   contents of the pane if the pane is normally updated only in
      *   response to specific events.  Note that it's not necessary to do
-     *   anything here if the banner will soon be updated automatically as
-     *   part of normal processing; for example, the status line banner is
+     *   anything here if the pane will soon be updated automatically as
+     *   part of normal processing; for example, the status line pane is
      *   updated at each new command line via a prompt-daemon, so there's
-     *   no need for the status line banner to do anything here.  
+     *   no need for the status line pane to do anything here.  
      */
     updateForRestore()
     {
@@ -388,22 +388,22 @@ class BannerWindow: OutputStreamWindow
     }
 
     /*
-     *   Initialize the banner window.  This is called during
+     *   Initialize the pane.  This is called during
      *   initialization (when first starting the game, or when resetting
-     *   with RESTART).  If the banner is to be displayed from the start of
+     *   with RESTART).  If the pane is to be displayed from the start of
      *   the game, this can set up the on-screen display.
      *   
      *   Note that we might already have an on-screen handle when this is
      *   called.  This indicates that we're restarting an ongoing session,
-     *   and that this banner already existed in the session before the
+     *   and that this pane already existed in the session before the
      *   RESTART operation.  If desired, we can attach ourselves to the
-     *   existing on-screen banner, avoiding the redrawing that would occur
+     *   existing on-screen pane, avoiding the redrawing that would occur
      *   if we created a new window.
      *   
      *   If this window depends upon another window for its layout order
-     *   placement (i.e., we'll call showBanner() with another BannerWindow
+     *   placement (i.e., we'll call showPane() with another Pane
      *   given as the 'other' parameter), then this routine should call the
-     *   other window's initBannerWindow() method before creating its own
+     *   other window's initPaneWindow() method before creating its own
      *   window, to ensure that the other window has a system window and
      *   thus will be meaningful to establish the layout order.
      *   
@@ -414,30 +414,30 @@ class BannerWindow: OutputStreamWindow
      *   windows might call us directly, before we're called for our
      *   regular initialization.  
      */
-    initBannerWindow()
+    initPaneWindow()
     {
         /* by default, simply note that we've been initialized */
         inited_ = true;
     }
 
-    /* flag: this banner has been initialized with initBannerWindow() */
+    /* flag: this pane has been initialized with initPaneWindow() */
     inited_ = nil
 
     /* 
-     *   The creator-assigned ID string to identify the banner
-     *   persistently.  This is only needed for banners created
-     *   dynamically; for BannerWindow objects defined statically at
+     *   The creator-assigned ID string to identify the pane
+     *   persistently.  This is only needed for panes created
+     *   dynamically; for Pane objects defined statically at
      *   compile time, simply leave this value as nil, and we'll use the
      *   object itself as the identifier.  
      */
     id_ = nil
 
-    /* the handle to my system-level banner window */
+    /* the handle to my system-level pane */
     handle_ = nil
 
     /* 
-     *   Creation parameters.  We store these when we create the banner,
-     *   and update them as needed when the banner's display attributes
+     *   Creation parameters.  We store these when we create the pane,
+     *   and update them as needed when the pane's display attributes
      *   are changed.  
      */
     parentID_ = nil
@@ -450,17 +450,17 @@ class BannerWindow: OutputStreamWindow
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Banner Output Stream.  This is a specialization of OutputStream that
- *   writes to a banner window.  
+ *   Pane Output Stream.  This is a specialization of OutputStream that
+ *   writes to a pane.  
  */
-class BannerOutputStream: OutputStream
+class PaneOutputStream: OutputStream
     /* construct */
     construct(handle)
     {
         /* inherit base class constructor */
         inherited();
         
-        /* remember my banner window handle */
+        /* remember my pane handle */
         handle_ = handle;
     }
 
@@ -470,7 +470,7 @@ class BannerOutputStream: OutputStream
         /*
          *   We shouldn't need to do anything during pre-initialization,
          *   since we should always be constructed dynamically by a
-         *   BannerWindow.  Don't even inherit the base class
+         *   Pane.  Don't even inherit the base class
          *   initialization, since it could clear out state that we want to
          *   keep through a restart, restore, etc.  
          */
@@ -479,33 +479,33 @@ class BannerOutputStream: OutputStream
     /* write text from the stream to the interpreter I/O system */
     writeFromStream(txt)
     {
-        /* write the text to the underlying system banner window */
+        /* write the text to the underlying system pane */
         paneSay(handle_, txt);
     }
 
-    /* our system-level banner window handle */
+    /* our system-level pane handle */
     handle_ = nil
 ;
 
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The banner UI tracker.  This object keeps track of the current user
+ *   The pane UI tracker.  This object keeps track of the current user
  *   interface display state; this object is transient because the
  *   interpreter's user interface is not part of the persistence
  *   mechanism.  
  */
-transient bannerUITracker: object
-    /* add a banner to the active display list */
-    addBanner(handle, ostr, id, parentID, where, other,
+transient paneUITracker: object
+    /* add a pane to the active display list */
+    addPane(handle, ostr, id, parentID, where, other,
               windowType, align, styleFlags)
     {
         local uiWin;
         local parIdx;
         local idx;
 
-        /* create a transient BannerUIWindow object to track the banner */
-        uiWin = new transient BannerUIWindow(handle, ostr, id, parentID,
+        /* create a transient PaneUI object to track the pane */
+        uiWin = new transient PaneUI(handle, ostr, id, parentID,
                                              windowType, align, styleFlags);
 
         /* 
@@ -514,9 +514,9 @@ transient bannerUITracker: object
          *   index zero in the list. 
          */
         parIdx = (parentID == nil
-                  ? 0 : activeBanners_.indexWhich({x: x.id_ == parentID}));
+                  ? 0 : activePanes_.indexWhich({x: x.id_ == parentID}));
 
-        /* insert the banner at the proper point in our list */
+        /* insert the pane at the proper point in our list */
         switch(where)
         {
         case PaneFirst:
@@ -524,7 +524,7 @@ transient bannerUITracker: object
              *   insert as the first child of the parent - put it
              *   immediately after the parent in the list 
              */
-            activeBanners_.insertAt(parIdx + 1, uiWin);
+            activePanes_.insertAt(parIdx + 1, uiWin);
             break;
 
         case PaneLast:
@@ -534,14 +534,14 @@ transient bannerUITracker: object
              *   immediately after the last window that descends from the
              *   parent.  
              */
-            activeBanners_.insertAt(skipDescendants(parIdx), uiWin);
+            activePanes_.insertAt(skipDescendants(parIdx), uiWin);
             break;
 
         case PaneBefore:
         case PaneAfter:
             /* find the reference point ID in our list */
-            idx = activeBanners_.indexWhich(
-                {x: x.id_ == other.getBannerID()});
+            idx = activePanes_.indexWhich(
+                {x: x.id_ == other.getPaneID()});
 
             /* 
              *   if we didn't find the reference point, or the reference
@@ -549,7 +549,7 @@ transient bannerUITracker: object
              *   then ignore the reference point and instead insert at the
              *   end of the parent's child list 
              */
-            if (idx == nil || activeBanners_[idx].parentID_ != parentID)
+            if (idx == nil || activePanes_[idx].parentID_ != parentID)
                 goto ins_last;
 
             /* 
@@ -560,7 +560,7 @@ transient bannerUITracker: object
                 idx = skipDescendants(idx);
 
             /* insert at the position we found */
-            activeBanners_.insertAt(idx, uiWin);
+            activePanes_.insertAt(idx, uiWin);
             break;
         }
     }
@@ -583,17 +583,17 @@ transient bannerUITracker: object
          *   the last item 
          */
         if (idx == 0)
-            return activeBanners_.length() + 1;
+            return activePanes_.length() + 1;
 
         /* note ID of the parent item */
-        parentID = activeBanners_[idx].id_;
+        parentID = activePanes_[idx].id_;
         
         /* skip the parent item */
         ++idx;
 
         /* keep going as long as we see children of the parent */
-        while (idx <= activeBanners_.length()
-               && activeBanners_[idx].parentID_ == parentID)
+        while (idx <= activePanes_.length()
+               && activePanes_[idx].parentID_ == parentID)
         {
             /* 
              *   This is a child of the given parent, so we must skip it;
@@ -609,13 +609,13 @@ transient bannerUITracker: object
         return idx;
     }
 
-    /* remove a banner from the active display list */
-    removeBanner(id)
+    /* remove a pane from the active display list */
+    removePane(id)
     {
         local idx;
 
         /* find the entry with the given ID, and remove it */
-        if ((idx = activeBanners_.indexWhich({x: x.id_ == id})) != nil)
+        if ((idx = activePanes_.indexWhich({x: x.id_ == id})) != nil)
         {
             local lastIdx;
             
@@ -639,23 +639,23 @@ transient bannerUITracker: object
             lastIdx = skipDescendants(idx) - 1;
 
             /* remove the item and all of its children */
-            activeBanners_.removeRange(idx, lastIdx);
+            activePanes_.removeRange(idx, lastIdx);
         }
     }
 
-    /* get the BannerUIWindow tracker object for a given BannerWindow */
+    /* get the PaneUI tracker object for a given Pane */
     getTracker(win)
     {
         local id;
 
         /* get the window's ID */
-        id = win.getBannerID();
+        id = win.getPaneID();
         
-        /* return the tracker with the same ID as the given BannerWindow */
-        return activeBanners_.valWhich({x: x.id_ == id});
+        /* return the tracker with the same ID as the given Pane */
+        return activePanes_.valWhich({x: x.id_ == id});
     }
 
-    /* check a BannerUIWindow to see if it matches the given layout order */
+    /* check a PaneUI to see if it matches the given layout order */
     orderMatches(uiWin, where, otherID)
     {
         local idx;
@@ -664,11 +664,11 @@ transient bannerUITracker: object
         local parIdx;
 
         /* get the list index of the given window */
-        idx = activeBanners_.indexOf(uiWin);
+        idx = activePanes_.indexOf(uiWin);
 
         /* get the list index of the reference point window */
         otherIdx = (otherID != nil
-                    ? activeBanners_.indexWhich({x: x.id_ == otherID}) : nil);
+                    ? activePanes_.indexWhich({x: x.id_ == otherID}) : nil);
 
         /* 
          *   find the parent item (using imaginary index zero for the
@@ -677,13 +677,13 @@ transient bannerUITracker: object
          */
         parentID = uiWin.parentID_;
         parIdx = (parentID == nil
-                  ? 0 : activeBanners_.indexWhich({x: x.id_ == parentID}));
+                  ? 0 : activePanes_.indexWhich({x: x.id_ == parentID}));
 
         /* 
          *   if 'other' is specified, it has to have our same parent; if
          *   it has a different parent, it's not a match 
          */
-        if (otherID != nil && parentID != activeBanners_[otherIdx].parentID_)
+        if (otherID != nil && parentID != activePanes_[otherIdx].parentID_)
             return nil;
 
         /* 
@@ -733,24 +733,24 @@ transient bannerUITracker: object
     }
 
     /*
-     *   The vector of banners currently on the screen.  This is a list of
-     *   transient BannerUIWindow objects, stored in the same order as the
-     *   banner layout list.  
+     *   The vector of panes currently on the screen.  This is a list of
+     *   transient PaneUI objects, stored in the same order as the
+     *   pane layout list.  
      */
-    activeBanners_ = static new transient Vector(32)
+    activePanes_ = static new transient Vector(32)
 ;
 
 /*
- *   A BannerUIWindow object.  This keeps track of the transient UI state
- *   of a banner window while it appears on the screen.  We create only
+ *   A PaneUI object.  This keeps track of the transient UI state
+ *   of a pane while it appears on the screen.  We create only
  *   transient instances of this class, since it tracks what's actually
  *   displayed at any given time.  
  */
-class BannerUIWindow: object
+class PaneUI: object
     /* construct */
     construct(handle, ostr, id, parentID, windowType, align, styleFlags)
     {
-        /* remember the banner's data */
+        /* remember the pane's data */
         handle_ = handle;
         outputStream_ = ostr;
         id_ = id;
@@ -760,29 +760,29 @@ class BannerUIWindow: object
         styleFlags_ = styleFlags;
     }
 
-    /* the system-level banner handle */
+    /* the system-level pane handle */
     handle_ = nil
 
-    /* the banner's ID */
+    /* the pane's ID */
     id_ = nil
 
-    /* the parent banner's ID (nil if this is a top-level banner) */
+    /* the parent pane's ID (nil if this is a top-level pane) */
     parentID_ = nil
 
     /* 
-     *   The banner's output stream.  Output streams are always transient,
-     *   so hang on to each active banner's stream so that we can plug it
+     *   The pane's output stream.  Output streams are always transient,
+     *   so hang on to each active pane's stream so that we can plug it
      *   back in on restore. 
      */
     outputStream_ = nil
 
-    /* creation parameters of the banner */
+    /* creation parameters of the pane */
     windowType_ = nil
     align_ = nil
     styleFlags_ = nil
 
     /* 
-     *   Scratch-pad for our association to our BannerWindow object.  We
+     *   Scratch-pad for our association to our Pane object.  We
      *   only use this during the RESTORE process, to tie the transient
      *   object back to the proper persistent object. 
      */
@@ -790,53 +790,53 @@ class BannerUIWindow: object
 ;
 
 /*
- *   The persistent banner tracker.  This keeps track of the active banner
+ *   The persistent pane tracker.  This keeps track of the active pane
  *   windows persistently.  Whenever we save or restore the game's state,
  *   this object will be saved or restored along with the state.  When we
  *   restore a previously saved state, we can look at this object to
- *   determine which banners were active at the time the state was saved,
- *   and use this information to restore the same active banners in the
+ *   determine which panes were active at the time the state was saved,
+ *   and use this information to restore the same active panes in the
  *   user interface.
  *   
  *   This is a post-restore and post-undo object, so we're notified via our
  *   execute() method whenever we restore a saved state using RESTORE or
- *   UNDO.  When we restore a saved state, we'll restore the banner display
+ *   UNDO.  When we restore a saved state, we'll restore the pane display
  *   conditions as they existed in the saved state.  
  */
-bannerTracker: PostRestoreObject, PostUndoObject
-    /* add a banner to the active display list */
-    addBanner(win, parent, where, other)
+paneTracker: PostRestoreObject, PostUndoObject
+    /* add a pane to the active display list */
+    addPane(win, parent, where, other)
     {
         local parIdx;
         local otherIdx;
         
         /* 
          *   Don't add it if it's already in the list.  If we're restoring
-         *   the banner from persistent state, it'll already be in the
+         *   the pane from persistent state, it'll already be in the
          *   active list, since the active list is the set of windows
          *   we're restoring in the first place. 
          */
-        if (activeBanners_.indexOf(win) != nil)
+        if (activePanes_.indexOf(win) != nil)
             return;
 
         /* find the parent among the existing windows */
-        parIdx = (parent == nil ? 0 : activeBanners_.indexOf(parent));
+        parIdx = (parent == nil ? 0 : activePanes_.indexOf(parent));
 
         /* note the index of 'other' */
-        otherIdx = (other == nil ? nil : activeBanners_.indexOf(other));
+        otherIdx = (other == nil ? nil : activePanes_.indexOf(other));
 
-        /* insert the banner at the proper point in our list */
+        /* insert the pane at the proper point in our list */
         switch(where)
         {
         case PaneFirst:
             /* insert immediately after the parent */
-            activeBanners_.insertAt(parIdx + 1, win);
+            activePanes_.insertAt(parIdx + 1, win);
             break;
 
         case PaneLast:
         ins_last:
             /* insert after the parent's last descendant */
-            activeBanners_.insertAt(skipDescendants(parIdx), win);
+            activePanes_.insertAt(skipDescendants(parIdx), win);
             break;
 
         case PaneBefore:
@@ -856,7 +856,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
                 otherIdx = skipDescendants(otherIdx);
 
             /* insert at the position we found */
-            activeBanners_.insertAt(otherIdx, win);
+            activePanes_.insertAt(otherIdx, win);
             break;
         }
     }
@@ -870,17 +870,17 @@ bannerTracker: PostRestoreObject, PostUndoObject
 
         /* index zero is the root item, so skip the entire list */
         if (idx == 0)
-            return activeBanners_.length() + 1;
+            return activePanes_.length() + 1;
         
         /* note the parent item */
-        parentID = activeBanners_[idx].getBannerID();
+        parentID = activePanes_[idx].getPaneID();
 
         /* skip the parent item */
         ++idx;
 
         /* keep going as long as we see children of the parent */
-        while (idx < activeBanners_.length()
-               && activeBanners_[idx].parentID_ == parentID)
+        while (idx < activePanes_.length()
+               && activePanes_[idx].parentID_ == parentID)
         {
             /* this is a child, so skip it and all of its descendants */
             idx = skipDescendants(idx);
@@ -890,14 +890,14 @@ bannerTracker: PostRestoreObject, PostUndoObject
         return idx;
     }
 
-    /* remove a banner from the active list */
-    removeBanner(win)
+    /* remove a pane from the active list */
+    removePane(win)
     {
         local idx;
         local lastIdx;
 
         /* get the index of the item to remove */
-        idx = activeBanners_.indexOf(win);
+        idx = activePanes_.indexOf(win);
 
         /* if we didn't find it, ignore the request */
         if (idx == nil)
@@ -912,14 +912,14 @@ bannerTracker: PostRestoreObject, PostUndoObject
          *   remove all of this item's children, all of their children,
          *   and so on, as they are becoming undisplayable 
          */
-        activeBanners_.removeRange(idx, lastIdx);
+        activePanes_.removeRange(idx, lastIdx);
     }
 
     /*
-     *   The list of active banners.  This is a list of BannerWindow
-     *   objects, stored in banner layout list order. 
+     *   The list of active panes.  This is a list of Pane
+     *   objects, stored in pane layout list order. 
      */
-    activeBanners_ = static new Vector(32)
+    activePanes_ = static new Vector(32)
 
     /* receive RESTORE/UNDO notification */
     execute()
@@ -929,7 +929,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
     }
 
     /*
-     *   Restore the saved banner display state, so that the banner layout
+     *   Restore the saved pane display state, so that the pane layout
      *   looks the same as it did when we saved the persistent state.  This
      *   should be called after restoring a saved state, undoing to a
      *   savepoint, or initializing (when first starting the game or when
@@ -941,20 +941,20 @@ bannerTracker: PostRestoreObject, PostUndoObject
         local uiIdx;
         local origActive;
 
-        /* get the list of banners active in the UI */
-        uiVec = bannerUITracker.activeBanners_;
+        /* get the list of panes active in the UI */
+        uiVec = paneUITracker.activePanes_;
 
         /*
-         *   First, go through all of the persistent BannerWindow objects.
+         *   First, go through all of the persistent Pane objects.
          *   For each one whose ID shows up in the active UI display list,
-         *   tell the BannerWindow object its current UI handle.  
+         *   tell the Pane object its current UI handle.  
          */
-        forEachInstance(BannerWindow, function(cur)
+        forEachInstance(Pane, function(cur)
         {
             local uiCur;
             
-            /* find this banner in the active UI list */
-            uiCur = uiVec.valWhich({x: x.id_ == cur.getBannerID()});
+            /* find this pane in the active UI list */
+            uiCur = uiVec.valWhich({x: x.id_ == cur.getPaneID()});
 
             /* 
              *   if the window exists in the active UI list, note the
@@ -963,10 +963,10 @@ bannerTracker: PostRestoreObject, PostUndoObject
              */
             if (uiCur != nil)
             {
-                /* note the current system banner handle */
+                /* note the current system pane handle */
                 cur.handle_ = uiCur.handle_;
 
-                /* re-establish the banner's active output stream */
+                /* re-establish the pane's active output stream */
                 cur.outputStream_ = uiCur.outputStream_;
 
                 /* tie the transient record to the current 'cur' */
@@ -974,7 +974,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
             }
             else
             {
-                /* it's not shown, so it has no system banner handle */
+                /* it's not shown, so it has no system pane handle */
                 cur.handle_ = nil;
 
                 /* it has no output stream */
@@ -986,19 +986,19 @@ bannerTracker: PostRestoreObject, PostUndoObject
          *   
          *   'initing' indicates whether we're initializing (startup or
          *   RESTART) or doing something else (RESTORE, UNDO).  When
-         *   initializing, if there are any banners on-screen, we'll give
-         *   their associated BannerWindow objects (if any) a chance to set
+         *   initializing, if there are any panes on-screen, we'll give
+         *   their associated Pane objects (if any) a chance to set
          *   up their initial conditions; this allows us to avoid
-         *   unnecessary redrawing if we have banners that we'd immediately
+         *   unnecessary redrawing if we have panes that we'd immediately
          *   set up to the same conditions anyway, since we can just keep
-         *   the existing banners rather than removing and re-creating
+         *   the existing panes rather than removing and re-creating
          *   them.
          *   
-         *   So, if we're initializing, tell each banner that it's time to
+         *   So, if we're initializing, tell each pane that it's time to
          *   set up its initial display.  
          */
         if (initing)
-            forEachInstance(BannerWindow, {cur: cur.initBannerWindow()});
+            forEachInstance(Pane, {cur: cur.initPaneWindow()});
 
         /* 
          *   scan the active UI list, and close each window that isn't
@@ -1007,25 +1007,25 @@ bannerTracker: PostRestoreObject, PostUndoObject
         foreach (local uiCur in uiVec)
         {
             /* if this window isn't in the active list, close it */
-            if (activeBanners_.indexWhich(
-                {x: x.getBannerID() == uiCur.id_}) == nil)
+            if (activePanes_.indexWhich(
+                {x: x.getPaneID() == uiCur.id_}) == nil)
             {
                 /*
-                 *   There's no banner in the persistent list with this
+                 *   There's no pane in the persistent list with this
                  *   ID, so this window is not part of the state we're
                  *   restoring.  Close the window.  If we have an
-                 *   associated BannerWindow object, close through the
+                 *   associated Pane object, close through the
                  *   window object; otherwise, close the system handle
                  *   directly.  
                  */
                 if (uiCur.win_ != nil)
                 {
-                    /* we have a BannerWindow - close it */
-                    uiCur.win_.removeBanner();
+                    /* we have a Pane - close it */
+                    uiCur.win_.removePane();
                 }
                 else
                 {
-                    /* there's no BannerWindow - close the system window */
+                    /* there's no Pane - close the system window */
                     paneDelete(uiCur.handle_);
 
                     /* remove the UI tracker object */
@@ -1034,7 +1034,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
             }
         }
 
-        /* start at the first banner actually displayed right now */
+        /* start at the first pane actually displayed right now */
         uiIdx = 1;
 
         /* 
@@ -1043,10 +1043,10 @@ bannerTracker: PostRestoreObject, PostUndoObject
          *   a copy that we can refer to as we reconstruct the original
          *   list 
          */
-        origActive = activeBanners_.toList();
+        origActive = activePanes_.toList();
 
         /* 
-         *   Scan the saved list of banners, and restore each one.  Note
+         *   Scan the saved list of panes, and restore each one.  Note
          *   that by restoring windows in the order in which they appear
          *   in the list, we ensure that we always restore a parent before
          *   restoring any of its children, since a child always follows
@@ -1061,34 +1061,34 @@ bannerTracker: PostRestoreObject, PostUndoObject
             /* get the current item */
             cur = origActive[curIdx];
                 
-            /* presume we will have to redisplay this banner */
+            /* presume we will have to redisplay this pane */
             redisp = true;
             
             /*
-             *   If this banner matches the current banner in the active
+             *   If this pane matches the current pane in the active
              *   UI display list, and the characteristics match, we need
-             *   do nothing, as we're already displaying this banner
-             *   properly.  If the current active UI banner doesn't match,
-             *   then we need to insert this saved banner at the current
+             *   do nothing, as we're already displaying this pane
+             *   properly.  If the current active UI pane doesn't match,
+             *   then we need to insert this saved pane at the current
              *   active UI position. 
              */
             if (uiVec.length() >= uiIdx)
             {
                 local uiCur;
 
-                /* get this current UI display item (a BannerUIWindow) */
+                /* get this current UI display item (a PaneUI) */
                 uiCur = uiVec[uiIdx];
 
                 /* check for a match to 'cur' */
-                if (uiCur.id_ == cur.getBannerID()
+                if (uiCur.id_ == cur.getPaneID()
                     && uiCur.parentID_ == cur.parentID_
                     && uiCur.windowType_ == cur.windowType_
                     && uiCur.align_ == cur.align_
                     && uiCur.styleFlags_ == cur.styleFlags_)
                 {
                     /*
-                     *   This saved banner ('cur') exactly matches the
-                     *   active UI banner ('uiCur') at the same position
+                     *   This saved pane ('cur') exactly matches the
+                     *   active UI pane ('uiCur') at the same position
                      *   in the layout list.  Therefore, we do not need to
                      *   redisplay 'cur'.
                      */
@@ -1113,7 +1113,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
                  *   we want to restore.  
                  */
                 if (cur.handle_ != nil)
-                    cur.removeBanner();
+                    cur.removePane();
 
                 /*
                  *   Figure out how to specify this window's display list
@@ -1150,10 +1150,10 @@ bannerTracker: PostRestoreObject, PostUndoObject
                     }
 
                     /* if this is our parent, note it */
-                    if (prv.getBannerID() == cur.parentID_)
+                    if (prv.getPaneID() == cur.parentID_)
                     {
                         /* 
-                         *   note the parent BannerWindow object - we'll
+                         *   note the parent Pane object - we'll
                          *   need it to specify our window display
                          *   position 
                          */
@@ -1177,7 +1177,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
             else
             {
                 /* 
-                 *   the banner is already showing, so we don't need to
+                 *   the pane is already showing, so we don't need to
                  *   redisplay it; simply notify it that a Restore
                  *   operation has taken place so that it can do any
                  *   necessary updates 
@@ -1211,10 +1211,10 @@ bannerTracker: PostRestoreObject, PostUndoObject
  *   first time or RESTART within a session.  We'll restore the display
  *   state to the initial conditions. 
  */
-bannerInit: InitObject
+paneInit: InitObject
     execute()
     {
-        /* restore banner displays to their initial conditions */
-        bannerTracker.restoreDisplayState(true);
+        /* restore pane displays to their initial conditions */
+        paneTracker.restoreDisplayState(true);
     }
 ;
