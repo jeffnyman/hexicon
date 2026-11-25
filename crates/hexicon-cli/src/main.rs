@@ -61,7 +61,9 @@ commands:
                                a .toml file among the modules is the same
       -source <file>           a source file, whatever its name
       -lib <file>              a library, whatever its name; -x <name>
-                               after it leaves out one of its sources
+                               after it leaves out one of its sources, and
+                               -with <path> adds a source from its folder,
+                               such as one of its extensions
       -o <game>                where to write the game (default: the
                                manifest's image, or beside the first
                                source, as a .hxg file)

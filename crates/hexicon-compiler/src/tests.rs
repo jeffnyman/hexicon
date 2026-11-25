@@ -3481,6 +3481,46 @@ fn a_manifest_names_the_sources_and_the_libraries() {
 }
 
 #[test]
+fn a_game_can_add_a_librarys_extensions() {
+    // `include` adds sources from the library's folder after the
+    // library's own, as a game names one of Hexad's extensions.
+    let mut files = Files::default()
+        .with(
+            "game/hexicon.toml",
+            "[game]\nsources = [\"start\"]\n\
+             libraries = [{ name = \"mylib\", include = [\"extensions/extra\"] }]\n",
+        )
+        .with(
+            "game/mylib/hexicon.toml",
+            "[library]\nsources = [\"one\"]\nsystem-main = false\n",
+        )
+        .with("game/mylib/extensions/extra.hxn", "")
+        .with("game/start.hxn", "");
+    let project = read(&mut files, &["-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
+    assert_eq!(
+        project.sources,
+        [
+            sys_path(&["game", "mylib", "one.hxn"]),
+            sys_path(&["game", "mylib", "extensions", "extra.hxn"]),
+            sys_path(&["game", "start.hxn"]),
+        ]
+    );
+    // A library cannot add to another's sources.
+    let mut files = Files::default()
+        .with(
+            "game/hexicon.toml",
+            "[game]\nsources = [\"start\"]\nlibraries = [\"outer\"]\n",
+        )
+        .with(
+            "game/outer.toml",
+            "[library]\nlibraries = [{ name = \"inner\", include = [\"x\"] }]\n",
+        )
+        .with("game/start.hxn", "");
+    let failed = format!("{:?}", read(&mut files, &["-f", "game"]).err());
+    assert!(failed.contains("cannot leave out or add to"), "{failed}");
+}
+
+#[test]
 fn a_manifest_found_by_itself_or_named_among_the_modules() {
     let mut files = Files::default()
         .with("hexicon.toml", "[game]\nsources = [\"main\"]\n")

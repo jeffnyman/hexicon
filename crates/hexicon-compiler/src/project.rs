@@ -644,15 +644,29 @@ impl Reader<'_, '_> {
                 let nodef = self.process_lib(&found, "");
                 self.nodef |= nodef;
                 // `-x name` after a library leaves one of its modules
-                // out, by its name in the library.
-                while args.get(at + 1).is_some_and(|next| next == "-x") {
+                // out, by its name in the library; `-with name` adds a
+                // source from the library's folder after it, such as one
+                // of its extensions.
+                while let Some(flag @ ("-x" | "-with")) = args.get(at + 1).map(String::as_str) {
                     at += 2;
                     let Some(url) = args.get(at) else {
-                        return Err(ProjectError::Usage(
-                            "option \"-x\" needs a value".to_owned(),
-                        ));
+                        return Err(ProjectError::Usage(format!(
+                            "option \"{flag}\" needs a value"
+                        )));
                     };
-                    if let Some(module) = self.modules[first_lib_module..]
+                    if flag == "-with" {
+                        let lib_path = path_name(&found).to_owned();
+                        let full =
+                            manifest::source_name(&build_full_path(&lib_path, &cvt_url_dir(url)));
+                        let name = rem_ext(url).to_owned();
+                        self.add_module(
+                            &full,
+                            &name,
+                            full.clone(),
+                            Origin::Lib(found.clone()),
+                            name.clone(),
+                        );
+                    } else if let Some(module) = self.modules[first_lib_module..]
                         .iter_mut()
                         .find(|module| module.url.eq_ignore_ascii_case(url))
                     {

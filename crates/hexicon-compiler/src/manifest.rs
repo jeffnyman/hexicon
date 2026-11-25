@@ -9,7 +9,7 @@
 //! ```toml
 //! [game]
 //! sources = ["start.hxn", "plane.hxn"]
-//! libraries = ["system", "adv3Lite"]
+//! libraries = ["system", { name = "hexad", include = ["extensions/fueled"] }]
 //!
 //! [defines]
 //! LANGUAGE = "english"
@@ -36,8 +36,8 @@ pub(crate) fn source_name(name: &str) -> String {
     }
 }
 
-/// A part of a build: a source file, or a library and the sources of it
-/// to leave out.
+/// A part of a build: a source file, or a library, with the sources of
+/// it to leave out and the ones from its folder to add.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ModuleRef {
     /// A source file.
@@ -49,6 +49,9 @@ pub(crate) enum ModuleRef {
         name: String,
         /// Its sources to leave out, by their names in it.
         exclude: Vec<String>,
+        /// Sources in its folder to build after it, such as its optional
+        /// extensions (`extensions/fueled`), by their paths in it.
+        include: Vec<String>,
     },
 }
 
@@ -148,13 +151,14 @@ fn module_refs(sec: &Section<'_>, libraries_first: bool) -> Result<Vec<ModuleRef
             table,
             name: "a library",
         };
-        lib.check_keys(&[key, "exclude"])?;
+        lib.check_keys(&[key, "exclude", "include"])?;
         let lib_name = lib
             .string(key)?
             .ok_or_else(|| format!("a library given as a table needs a \"{key}\""))?;
         Ok(ModuleRef::Library {
             name: lib_name,
             exclude: lib.strings("exclude")?,
+            include: lib.strings("include")?,
         })
     };
     if let Some(value) = sec.table.get("modules") {
@@ -189,6 +193,7 @@ fn module_refs(sec: &Section<'_>, libraries_first: bool) -> Result<Vec<ModuleRef
                     Value::String(lib_name) => ModuleRef::Library {
                         name: lib_name.clone(),
                         exclude: Vec::new(),
+                        include: Vec::new(),
                     },
                     Value::Table(table) => library(table, "name")?,
                     _ => return Err(bad_libraries(name)),
@@ -314,10 +319,17 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
     for module in modules {
         match module {
             ModuleRef::Source(source) => push(&["-source", &source]),
-            ModuleRef::Library { name, exclude } => {
+            ModuleRef::Library {
+                name,
+                exclude,
+                include,
+            } => {
                 push(&["-lib", &name]);
                 for module in exclude {
                     push(&["-x", &module]);
+                }
+                for module in include {
+                    push(&["-with", &module]);
                 }
             }
         }
@@ -367,9 +379,11 @@ pub(crate) fn library(text: &[u8]) -> Result<Library, String> {
     let modules = module_refs(&lib, false)?;
     if modules
         .iter()
-        .any(|module| matches!(module, ModuleRef::Library { exclude, .. } if !exclude.is_empty()))
+        .any(|module| matches!(module, ModuleRef::Library { exclude, include, .. } if !exclude.is_empty() || !include.is_empty()))
     {
-        return Err("a library cannot leave out the sources of the libraries it names".to_owned());
+        return Err(
+            "a library cannot leave out or add to the sources of the libraries it names".to_owned(),
+        );
     }
     Ok(Library {
         modules,
