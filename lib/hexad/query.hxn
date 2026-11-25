@@ -239,8 +239,14 @@ QDefaults: Special
      *   include both known Things and known Topics
      */    
     topicScopeList()
-    {        
-        return World.universalScope.subset({o: o.known});
+    {
+        /*
+         *   Something in plain view can be talked about even before the
+         *   player has seen it in a description: a character may walk in
+         *   holding it.
+         */
+        return World.universalScope.subset({o: o.known
+            || (o.ofKind(Thing) && Q.canSee(now.player, o))});
     }
     /*
      *   Is A in the light?  This determines if there's light shining on

@@ -4374,8 +4374,10 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   matchObj
          */
         
-        if(matchObj && valToList(matchObj).indexWhich({ x: x.isClass() 
-                                          || now.player.knowsAbout(x)}) == nil)         
+        if(matchObj && valToList(matchObj).indexWhich({ x: x.isClass()
+                                          || now.player.knowsAbout(x)
+                                          || (x.ofKind(Thing)
+                                              && Q.canSee(now.player, x))}) == nil)
             return nil;
         
         /* 

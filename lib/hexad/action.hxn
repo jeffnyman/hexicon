@@ -246,6 +246,15 @@ class Action: ReplaceRedirector
         {
             cur.beforeAction();
         }
+
+        /*
+         *   Announce any implicit actions the notifications carried out (a
+         *   room standing the actor up first, say). An action that shows
+         *   its result as it acts, as Examine does, has no report stage in
+         *   which they would otherwise be announced.
+         */
+        if(!isImplicit)
+            "<<buildImplicitActionAnnouncement(true)>>";
     }
     
     /* 

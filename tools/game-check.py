@@ -6,7 +6,9 @@ The games are kept outside this repository, in a folder of their own
 (by default ../hexicon-playground/game-tests beside it), since they are
 not ours. Each is a folder with a manifest (hexicon.toml), its sources,
 a command script (walk.txt), and the transcript recorded from it
-(walk.out). A game is built with `hexicon build` on the Hexad built into
+(walk.out). A game may have more scripts, each a walk-NAME.txt with its
+walk-NAME.out, for routes the main one does not take; each is checked
+as NAME after the game's name (squarecircle/caught). A game is built with `hexicon build` on the Hexad built into
 Hexicon, and played with --norand, a clock that starts at the same time
 (--clock), and the time zone UTC, so that it plays the same on every
 run. Without the folder, the check says so and passes.
@@ -41,9 +43,18 @@ TIMEOUT = 600
 CLOCK = "2000-01-01T09:15:00"
 
 
+def scripts(game):
+    """A game's scripts: (name, script, transcript), the main one first."""
+    found = [(game.name, game / "walk.txt", game / "walk.out")]
+    for extra in sorted(game.glob("walk-*.txt")):
+        name = extra.stem[len("walk-"):]
+        found.append((f"{game.name}/{name}", extra, extra.with_suffix(".out")))
+    return found
+
+
 def play(game):
-    """Build a game and play its script: the transcript, or why there is
-    none."""
+    """Build a game and play each of its scripts: a list of transcripts in
+    the order of scripts(game), or None and why there are none."""
     built = subprocess.run(
         [HEXICON, "build"],
         cwd=game,
@@ -56,6 +67,11 @@ def play(game):
     found = re.search(r"^Built (.+)\.$", said, re.MULTILINE)
     if built.returncode != 0 or not found:
         return None, said
+    return [run(game, found.group(1), script) for _, script, _ in scripts(game)], None
+
+
+def run(game, image, script):
+    """Play one script on a built game: the transcript."""
     # The same random choices, the same time of day, and the same zone,
     # on every run.
     done = subprocess.run(
@@ -68,8 +84,8 @@ def play(game):
             "--plain",
             "--nomore",
             "-I",
-            "walk.txt",
-            found.group(1),
+            script.name,
+            image,
         ],
         cwd=game,
         stdin=subprocess.DEVNULL,
@@ -80,7 +96,7 @@ def play(game):
     )
     return (done.stdout + done.stderr).decode("utf-8", "replace").replace(
         "\r", ""
-    ), None
+    )
 
 
 def main():
@@ -106,26 +122,26 @@ def main():
             sys.exit(f"no such game: {', '.join(sorted(missing))}")
     same = different = 0
     for game in games:
-        transcript, failed = play(game)
-        if transcript is None:
+        transcripts, failed = play(game)
+        if transcripts is None:
             different += 1
             print(f"DIFF {game.name}: it did not build\n{failed}")
             continue
-        expect = game / "walk.out"
-        if accept:
-            expect.write_text(transcript, encoding="utf-8", newline="\n")
-            print(f"recorded {game.name} ({transcript.count(chr(10))} lines)")
-            continue
-        want = expect.read_text(encoding="utf-8") if expect.exists() else ""
-        if transcript == want:
-            same += 1
-            print(f"SAME {game.name} ({transcript.count(chr(10))} lines)")
-        else:
-            different += 1
-            WORK.mkdir(parents=True, exist_ok=True)
-            got = WORK / f"{game.name}.out"
-            got.write_text(transcript, encoding="utf-8", newline="\n")
-            print(f"DIFF {game.name}: see {got}")
+        for (name, _, expect), transcript in zip(scripts(game), transcripts):
+            if accept:
+                expect.write_text(transcript, encoding="utf-8", newline="\n")
+                print(f"recorded {name} ({transcript.count(chr(10))} lines)")
+                continue
+            want = expect.read_text(encoding="utf-8") if expect.exists() else ""
+            if transcript == want:
+                same += 1
+                print(f"SAME {name} ({transcript.count(chr(10))} lines)")
+            else:
+                different += 1
+                WORK.mkdir(parents=True, exist_ok=True)
+                got = WORK / f"{name.replace('/', '-')}.out"
+                got.write_text(transcript, encoding="utf-8", newline="\n")
+                print(f"DIFF {name}: see {got}")
     if not accept:
         print(f"same={same} different={different}")
     return 1 if different else 0
