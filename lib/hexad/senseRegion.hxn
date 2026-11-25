@@ -411,7 +411,7 @@ modify Room
      */
     inRoomName(pov)
     {
-        return BMsg(in room name, 'in {1}', theName);
+        return msgText(in room name, 'in {1}', theName);
     }   
     
     /* 
@@ -539,12 +539,12 @@ remoteRoomContentsLister: ItemLister
      */
     showListPrefix(lst, pl, irName)  
     { 
-        DMsg(remote contents prefix, '<.p>\^{1} {i} {see} ', irName); 
+        showMsg(remote contents prefix, '<.p>\^{1} {i} {see} ', irName); 
     }
     
     showListSuffix(lst, pl, irName)  
     { 
-        DMsg(remote contents suffix, '. '); 
+        showMsg(remote contents suffix, '. '); 
     }
     
     contentsListedProp = &contentsListedInLook
@@ -564,13 +564,13 @@ remoteSubContentsLister: ItemLister
      */
     showListPrefix(lst, pl, inParentName)  
     {        
-        DMsg(remote subcontents prefix, '<.p>\^{1} <<pl ? '{plural}
+        showMsg(remote subcontents prefix, '<.p>\^{1} <<pl ? '{plural}
                 {is}' : '{dummy} {is}'>> ', inParentName); 
     }
     
     showListSuffix(lst, pl, irName)  
     { 
-        DMsg(remote subcontents suffix, '. '); 
+        showMsg(remote subcontents suffix, '. '); 
     }
     
     contentsListedProp = &contentsListedInLook
@@ -923,7 +923,7 @@ modify Thing
         }
     }
     
-    tooFarAwayToSeeDetailMsg = BMsg(too far away to see detail, '{The subj dobj}
+    tooFarAwayToSeeDetailMsg = msgText(too far away to see detail, '{The subj dobj}
         {is} too far away to make out any detail. ')
     
     /* 
@@ -978,7 +978,7 @@ modify Thing
         }
     }
 
-    tooFarAwayToHearMsg = BMsg(too far away to hear, '{The subj dobj} {is} too
+    tooFarAwayToHearMsg = msgText(too far away to hear, '{The subj dobj} {is} too
         far away to hear distinctly. ')
 
     
@@ -997,7 +997,7 @@ modify Thing
         }
     }
     
-    tooFarAwayToReadMsg = BMsg(too far away to read, '{The subj dobj} {is} too
+    tooFarAwayToReadMsg = msgText(too far away to read, '{The subj dobj} {is} too
         far away to read. ')
 
     /* 
@@ -1052,7 +1052,7 @@ modify Thing
         }
     }
     
-    tooFarAwayToSmellMsg = BMsg(too far away to smell, '{The subj dobj} {is} too
+    tooFarAwayToSmellMsg = msgText(too far away to smell, '{The subj dobj} {is} too
         far away to smell distinctly. ')
     
     /* Modify the effects of throwing something at this object */
@@ -1172,7 +1172,7 @@ modify Thing
              */
             if(gActor.getOutermostRoom != getOutermostRoom &&
                ! contentsVisibleFrom(gActor))
-                DMsg(cant see in from here, '{I} {can\'t} see in {the dobj} from {here}.');
+                showMsg(cant see in from here, '{I} {can\'t} see in {the dobj} from {here}.');
         }
     }
     
@@ -1814,7 +1814,7 @@ class ReachProblemRemote: ReachProblem
      */
     sayGoTo(destRoom)
     {        
-        DMsg(implicit go, '(first heading for {1})\n', destRoom.theName);
+        showMsg(implicit go, '(first heading for {1})\n', destRoom.theName);
         return true;
     }
 ;

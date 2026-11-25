@@ -1175,12 +1175,12 @@ class Thing:  ReplaceRedirector, Mentionable
     roomTitle = name
     
     /* The name to display at the head of a room description when it's dark */
-    darkName =  BMsg(dark name, 'In the dark')
+    darkName =  msgText(dark name, 'In the dark')
     
     /* The description of the room when it's dark */
     darkDesc() 
     { 
-        DMsg(dark desc, 'It{dummy} {is} pitch black; {i} {can\'t} see a thing.
+        showMsg(dark desc, 'It{dummy} {is} pitch black; {i} {can\'t} see a thing.
             '); 
     }
     
@@ -1418,7 +1418,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(loc.pcListedInLook)
             {
                 /* Start by mentioning the PC's immediate container. */            
-                DMsg(list immediate container, '{I} {am} {in loc}. <.p>');
+                showMsg(list immediate container, '{I} {am} {in loc}. <.p>');
                 
                 /* Note that the pc's immediate container has been mentioned. */
                 loc.mentioned = true;
@@ -2289,7 +2289,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   then display a message to say it's too big to fit inside ue.
          */
         if(obj.bulk > maxSingleBulk || obj.bulk > bulkCapacity || !obj.fitsLength(self))
-            DMsg(too big, '{The subj obj} {is} too big to fit {1} {2}. ', 
+            showMsg(too big, '{The subj obj} {is} too big to fit {1} {2}. ', 
                  objInPrep, theName);
             
         /* 
@@ -2298,7 +2298,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   display a message saying there's not enough room for obj.
          */
         else if(obj.bulk > bulkCapacity - getBulkWithin())
-            DMsg(no room, 'There {dummy} {is} not enough room {1} {2} for {the
+            showMsg(no room, 'There {dummy} {is} not enough room {1} {2} for {the
                 obj}. ', objInPrep, theName);            
     }
     
@@ -3816,7 +3816,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     cannotReachInMsg(targObj, blockObj)
     {        
-        return BMsg(cannot reach inside from, '{I} {cannot} reach {1} from outside {2}. ', 
+        return msgText(cannot reach inside from, '{I} {cannot} reach {1} from outside {2}. ', 
                     targObj.theName, blockObj.theName);
     }
 
@@ -3832,7 +3832,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         local obj = self;
         gMessageParams(obj, target);
-        return  BMsg(cannot reach, '{I} {can\'t} reach {the target} through
+        return  msgText(cannot reach, '{I} {can\'t} reach {the target} through
             {the obj}. ');
     }
     
@@ -3844,7 +3844,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         local obj = self;
         gMessageParams(obj);
-        return BMsg(too far away, '{The subj obj} {is} too far away. ');
+        return msgText(too far away, '{The subj obj} {is} too far away. ');
     }
     
     /* 
@@ -3856,7 +3856,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         local loc = self;
         gMessageParams(loc, target);
-        return BMsg(cannot reach out, '{I} {can\'t} reach {the target} from
+        return msgText(cannot reach out, '{I} {can\'t} reach {the target} from
                     {the loc}. ');
     }
     
@@ -4251,17 +4251,17 @@ class Thing:  ReplaceRedirector, Mentionable
      */    
     handleCommand(action)
     {
-        DMsg(cannot command thing, 'There{dummy}\'s no point trying to give
+        showMsg(cannot command thing, 'There{dummy}\'s no point trying to give
             orders to {1}. ', aName);
     }
     
     
     /* 
      *   The preAction handling on this Thing if it's the current actor. This is called just before
-     *   the relevant Doer is executed to provide a convenient entrypoint to intervene in an action
+     *   the relevant CommandRule is executed to provide a convenient entrypoint to intervene in an action
      *   before it can do anything at all (typically when the actor is tied up, paralysed, or
      *   otherwise temporarily incapacitated, which might require the intervention of three or four
-     *   simlar Doers to trap). the object combination to execute: this is an [action, dobj, iobj,
+     *   simlar CommandRules to trap). the object combination to execute: this is an [action, dobj, iobj,
      *...] list.
      */
     
@@ -4391,7 +4391,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    notImportantMsg = BMsg(not important, '{The subj cobj} {is} not important.
+    notImportantMsg = msgText(not important, '{The subj cobj} {is} not important.
          ')
     
     
@@ -4476,7 +4476,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   saying we nothing special about this object.
              */
             if(!descDisplayed)
-                DMsg(nothing special,  '{I} {see} nothing special about 
+                showMsg(nothing special,  '{I} {see} nothing special about 
                 {the 1}. ', self); 
                
             
@@ -4498,7 +4498,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     /* The message to display when it's too dark to see anything */
-    tooDarkToSeeMsg = BMsg(too dark to see, 'It{dummy}{\'s} too dark to see
+    tooDarkToSeeMsg = msgText(too dark to see, 'It{dummy}{\'s} too dark to see
         anything. ')
     
     /* 
@@ -4508,7 +4508,7 @@ class Thing:  ReplaceRedirector, Mentionable
     isSmellable = true
        
     
-    cannotSmellMsg = BMsg(cannot smell, '{I} {can\'t} smell {the dobj}. ')
+    cannotSmellMsg = msgText(cannot smell, '{I} {can\'t} smell {the dobj}. ')
     
     dobj SmellSomething
     {
@@ -4526,7 +4526,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    smellNothingMsg = BMsg(smell nothing, '{I} {smell} nothing out of the
+    smellNothingMsg = msgText(smell nothing, '{I} {smell} nothing out of the
                     ordinary.<.p>')
     
     dobj ListenTo
@@ -4540,7 +4540,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    hearNothingMsg = BMsg(hear nothing listen to, '{I} hear{s/d} nothing out of
+    hearNothingMsg = msgText(hear nothing listen to, '{I} hear{s/d} nothing out of
         the ordinary.<.p>')
     
     /* 
@@ -4550,7 +4550,7 @@ class Thing:  ReplaceRedirector, Mentionable
     isTasteable = true
     
     
-    cannotTasteMsg = BMsg(cannot taste, '{The subj dobj} {is} not suitable for
+    cannotTasteMsg = msgText(cannot taste, '{The subj dobj} {is} not suitable for
         tasting. ')
     
     dobj Taste
@@ -4566,7 +4566,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             if(propType(&tasteDesc) == TypeNil)           
-                DMsg(taste nothing, '{I} taste{s/d} nothing unexpected.<.p>');
+                showMsg(taste nothing, '{I} taste{s/d} nothing unexpected.<.p>');
             else
                 display(&tasteDesc);      
         }
@@ -4580,7 +4580,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     isFeelable = true
     
-    cannotFeelMsg = BMsg(cannot feel, 'It{\'s} hardly a good idea to try feeling
+    cannotFeelMsg = msgText(cannot feel, 'It{\'s} hardly a good idea to try feeling
         {the dobj}. ')
     
     /* 
@@ -4614,7 +4614,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 display(&touchDesc);
             
             else if(propType(&feelDesc) == TypeNil)            
-                DMsg(feel nothing, '{I} {feel} nothing unexpected.<.p>');
+                showMsg(feel nothing, '{I} {feel} nothing unexpected.<.p>');
             else
                 display(&feelDesc);
         }
@@ -4683,20 +4683,20 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         report()
         {            
-            DMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);
+            showMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);
         }
     }
        
-    cannotTakeMsg = BMsg(cannot take, '{The subj cobj} {is} fixed in place.
+    cannotTakeMsg = msgText(cannot take, '{The subj cobj} {is} fixed in place.
         ')
     
-    alreadyHeldMsg = BMsg(already holding, '{I}{\'m} already holding {the dobj}.
+    alreadyHeldMsg = msgText(already holding, '{I}{\'m} already holding {the dobj}.
         ')
     
-    cannotTakeMyContainerMsg = BMsg(cannot take my container, '{I} {can\'t}
+    cannotTakeMyContainerMsg = msgText(cannot take my container, '{I} {can\'t}
         take {the dobj} while {i}{\'m} {1} {him dobj}. ', objInPrep)
     
-    cannotTakeSelfMsg = BMsg(cannot take self, '{I} {can} hardly take {myself}. ')
+    cannotTakeSelfMsg = msgText(cannot take self, '{I} {can} hardly take {myself}. ')
     
     /* 
      *   Flag, should any items behind me be left behind when I'm moved; by
@@ -4757,7 +4757,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(hiddenUnder.length > 0)
         {
             moveReport += 
-                BMsg(reveal move under,'Moving {1} {dummy} reveal{s/ed} {2}
+                msgText(reveal move under,'Moving {1} {dummy} reveal{s/ed} {2}
                     previously hidden under {3}. ',
                      theName, makeListStr(hiddenUnder), himName);
                      
@@ -4774,7 +4774,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(hiddenBehind.length > 0)
         {
             moveReport += 
-                BMsg(reveal move behind,'Moving {1} {dummy} reveal{s/ed} {2}
+                msgText(reveal move behind,'Moving {1} {dummy} reveal{s/ed} {2}
                     previously hidden behind {3}. ',
                      theName, makeListStr(hiddenBehind), himName);
                         
@@ -4811,7 +4811,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 cur.moveInto(location);                
          
             moveReport +=
-                BMsg(report left behind, '<<if moveReport == ''>>Moving {1}
+                msgText(report left behind, '<<if moveReport == ''>>Moving {1}
                     <<else>>It also <<end>> {dummy} {leaves} {2} behind. ',
                      theName, makeListStr(lst));
         }
@@ -4854,7 +4854,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   First check whether this item is individually too big for the actor to carry.
          */
         if(bulk > gActor.maxSingleBulk)
-            DMsg(too big to carry, '{The subj dobj} {is} too big for {me} to
+            showMsg(too big to carry, '{The subj dobj} {is} too big for {me} to
                 carry. ');
         
         /* 
@@ -4873,7 +4873,7 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         else if(bulk > gActor.bulkCapacity - gActor.getCarriedBulk ||
                 gActor.directlyHeld.length > gActor.maxItemsCarried - 1)
-            DMsg(cannot carry any more, '{I} {can\'t} carry any more than
+            showMsg(cannot carry any more, '{I} {can\'t} carry any more than
                 {i}{\'m} already carrying. ');
     }
     
@@ -4881,7 +4881,7 @@ class Thing:  ReplaceRedirector, Mentionable
     isDroppable = true
     
     /* The message to display if something can't be dropped. */
-    cannotDropMsg = BMsg(cannot drop, '{The subj dobj} {can\'t} be dropped. ')
+    cannotDropMsg = msgText(cannot drop, '{The subj dobj} {can\'t} be dropped. ')
     
     /* The location in which something dropped in me should land. */
     dropLocation = self
@@ -4915,12 +4915,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report drop, 'Dropped. |{I} drop{s/?ed} {1}. ', gActionListStr);            
+            showMsg(report drop, 'Dropped. |{I} drop{s/?ed} {1}. ', gActionListStr);            
         }
     }
     
-    notHoldingMsg = BMsg(not holding, '{I} {amn\'t} holding {the dobj}. ')
-    partOfYouMsg = BMsg(part of me, '{The subj dobj} {is} part of {me}. ')
+    notHoldingMsg = msgText(not holding, '{I} {amn\'t} holding {the dobj}. ')
+    partOfYouMsg = msgText(part of me, '{The subj dobj} {is} part of {me}. ')
     
     /* By default an object is readable if it defines a non-nil readDesc */
     isReadable = (propType(&readDesc) != TypeNil)
@@ -4944,7 +4944,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotReadMsg = BMsg(cannot read, 'There {dummy} {is} nothing to read on
+    cannotReadMsg = msgText(cannot read, 'There {dummy} {is} nothing to read on
         {the dobj}. ')
     
 
@@ -4969,10 +4969,10 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    cannotFollowMsg = BMsg(cannot follow, '{The subj dobj} {isn\'t} going
+    cannotFollowMsg = msgText(cannot follow, '{The subj dobj} {isn\'t} going
         anywhere. ')
     
-    cannotFollowSelfMsg = BMsg(cannot follow self, '{I} {can\'t} follow
+    cannotFollowSelfMsg = msgText(cannot follow self, '{I} {can\'t} follow
         {myself}. ')
 
     
@@ -5015,7 +5015,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */ 
     checkAttackMsg = nil
     
-    cannotAttackMsg = BMsg(cannot attack, 'It{dummy}{\'s} best to avoid
+    cannotAttackMsg = msgText(cannot attack, 'It{dummy}{\'s} best to avoid
         pointless violence. ')
     
     dobj AttackWith
@@ -5039,7 +5039,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }       
     }
     
-    futileToAttackMsg = BMsg(futile attack, 'Attacking {1} prove{s/d} futile. ', 
+    futileToAttackMsg = msgText(futile attack, 'Attacking {1} prove{s/d} futile. ', 
                              gActionListStr)
     
     iobj AttackWith
@@ -5059,10 +5059,10 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default we can't use most things as weapons */    
     canAttackWithMe = nil
     
-    cannotAttackWithSelfMsg = BMsg(cannot attack with self, '{I} {can\'t}
+    cannotAttackWithSelfMsg = msgText(cannot attack with self, '{I} {can\'t}
         attack anything with itself. ')
     
-    cannotAttackWithMsg = BMsg(cannot attack with, '{I} {can\'t} attack
+    cannotAttackWithMsg = msgText(cannot attack with, '{I} {can\'t} attack
         anything with {that iobj}. ')
     
     dobj Strike as Attack
@@ -5089,10 +5089,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }       
     }
     
-    cannotBreakMsg = BMsg(cannot break, '{The subj dobj} {is} not the sort of
+    cannotBreakMsg = msgText(cannot break, '{The subj dobj} {is} not the sort of
         thing (i) {can} break. ')
     
-    shouldNotBreakMsg = BMsg(dont break, '{I} {see} no point in breaking {that
+    shouldNotBreakMsg = msgText(dont break, '{I} {see} no point in breaking {that
         dobj}. ')
     
     /* By default something is throwable unless it's fixed in place. */
@@ -5121,12 +5121,12 @@ class Thing:  ReplaceRedirector, Mentionable
             
             gMessageParams(obj);
             
-            DMsg(throw dir, '{I} {throw} {the obj} {1} and {he obj}
+            showMsg(throw dir, '{I} {throw} {the obj} {1} and {he obj}
                 land{s/ed} on the ground. ', gAction.direction.name );
         }
     }
     
-    cannotThrowMsg = BMsg(cannot throw, '{I} {can\'t} throw {the dobj} anywhere.
+    cannotThrowMsg = msgText(cannot throw, '{I} {can\'t} throw {the dobj} anywhere.
         ')
     
     
@@ -5229,7 +5229,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay open, okayOpenMsg, gActionListStr);
+            showMsg(okay open, okayOpenMsg, gActionListStr);
         }
     }
     
@@ -5241,10 +5241,10 @@ class Thing:  ReplaceRedirector, Mentionable
 
     okayOpenMsg = 'Opened.|{I} open{s/ed} {1}. '
     
-    cannotOpenMsg = BMsg(cannot open, '{The subj dobj} {is} not something {i}
+    cannotOpenMsg = msgText(cannot open, '{The subj dobj} {is} not something {i}
         {can} open. ')
-    alreadyOpenMsg = BMsg(already open, '{The subj dobj} {is} already open. ')
-    lockedMsg = BMsg(locked, '{The subj dobj} {is} locked. ')
+    alreadyOpenMsg = msgText(already open, '{The subj dobj} {is} already open. ')
+    lockedMsg = msgText(locked, '{The subj dobj} {is} locked. ')
  
     
     /* By default something is closeable if it's openable */         
@@ -5280,13 +5280,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report close, 'Done. |{I} close{s/d} {1}. ',  gActionListStr);
+            showMsg(report close, 'Done. |{I} close{s/d} {1}. ',  gActionListStr);
         }
     }
     
-    cannotCloseMsg = BMsg(not closeable, '{The subj dobj} {is} not something
+    cannotCloseMsg = msgText(not closeable, '{The subj dobj} {is} not something
         that {can} be closed. ')
-    alreadyClosedMsg = BMsg(already closed,'{The subj dobj} {isn\'t} open. ')
+    alreadyClosedMsg = msgText(already closed,'{The subj dobj} {isn\'t} open. ')
     
        
     
@@ -5319,9 +5319,9 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    cannotTurnMsg = BMsg(cannot turn, '{The subj dobj} {can\'t} be turned. ')
+    cannotTurnMsg = msgText(cannot turn, '{The subj dobj} {can\'t} be turned. ')
     
-    turnNoEffectMsg = BMsg(turn useless, 'Turning {1} {dummy} achieve{s/d}
+    turnNoEffectMsg = msgText(turn useless, 'Turning {1} {dummy} achieve{s/d}
         nothing. ', gActionListStr)
     
     dobj TurnWith
@@ -5362,10 +5362,10 @@ class Thing:  ReplaceRedirector, Mentionable
     }
         
     
-    cannotTurnWithMsg = BMsg(cannot turn with, '{I} {can\'t} turn anything with
+    cannotTurnWithMsg = msgText(cannot turn with, '{I} {can\'t} turn anything with
         {that iobj}. ')
     
-    cannotTurnWithSelfMsg = BMsg(turn self, '{I} {cannot} turn anything with
+    cannotTurnWithSelfMsg = msgText(turn self, '{I} {cannot} turn anything with
         itself. ')
     
     /* By default things can't be cut */
@@ -5410,10 +5410,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotCutMsg = BMsg(cannot cut, '{I} {can\'t} cut {the dobj}. ')
-    cannotCutWithMsg = BMsg(cannot cut with, '{I} {can\'t} cut anything with
+    cannotCutMsg = msgText(cannot cut, '{I} {can\'t} cut {the dobj}. ')
+    cannotCutWithMsg = msgText(cannot cut with, '{I} {can\'t} cut anything with
         {that iobj}. ')
-    cannotCutWithSelfMsg = BMsg(cannot cut with self, '{I} {cannot} cut anything
+    cannotCutWithSelfMsg = msgText(cannot cut with self, '{I} {cannot} cut anything
         with itself. ')
                      
     
@@ -5516,7 +5516,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   in us; this could be overridden for an objecy with a more interesting
      *   interior.
      */
-    lookInMsg = BMsg(look in, '{I} {find} nothing of interest in {the
+    lookInMsg = msgText(look in, '{I} {find} nothing of interest in {the
         dobj}. ')
     
     
@@ -5542,7 +5542,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     sayFindHidden(prop, prep)
     {
-         DMsg(find hidden, '\^{1} {the dobj} {i} {find} {2}<<if findHiddenDest ==
+         showMsg(find hidden, '\^{1} {the dobj} {i} {find} {2}<<if findHiddenDest ==
               gActor>>, which {i} {take}<<end>>. ',
              prep.prep, makeListStr(self.(prop)));
     }
@@ -5630,10 +5630,10 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     myLookUnderLister = lookInLister
     
-    cannotLookUnderMsg = BMsg(cannot look under, '{I} {can\'t} look under {that
+    cannotLookUnderMsg = msgText(cannot look under, '{I} {can\'t} look under {that
         dobj}. ')
     
-    lookUnderMsg = BMsg(look under, '{I} {find} nothing of interest under
+    lookUnderMsg = msgText(look under, '{I} {find} nothing of interest under
         {the dobj}. ')
     
      
@@ -5726,10 +5726,10 @@ class Thing:  ReplaceRedirector, Mentionable
     myLookBehindLister = lookInLister
     
     
-    cannotLookBehindMsg = BMsg(cannot look behind, '{I} {can\'t} look behind
+    cannotLookBehindMsg = msgText(cannot look behind, '{I} {can\'t} look behind
         {that dobj}. ')
     
-    lookBehindMsg = BMsg(look behind, '{I} {find} nothing of interest behind {the
+    lookBehindMsg = msgText(look behind, '{I} {find} nothing of interest behind {the
         dobj}. ')
     
            
@@ -5753,10 +5753,10 @@ class Thing:  ReplaceRedirector, Mentionable
         action() { display(&lookThroughMsg); }
     }
     
-    cannotLookThroughMsg = BMsg(cannot look through, '{I} {can\'t} look through
+    cannotLookThroughMsg = msgText(cannot look through, '{I} {can\'t} look through
         {that dobj}. ')
     
-    lookThroughMsg = BMsg(look through, '{I} {see} nothing of interest through {the
+    lookThroughMsg = msgText(look through, '{I} {see} nothing of interest through {the
         dobj}. ')
     
     
@@ -5773,7 +5773,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotGoThroughMsg = BMsg(cannot go through,'{I} {can\'t} go through {that
+    cannotGoThroughMsg = msgText(cannot go through,'{I} {can\'t} go through {that
         dobj}. ')
     
     
@@ -5790,7 +5790,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotGoAlongMsg = BMsg(cannot go through,'{I} {can\'t} go along {that
+    cannotGoAlongMsg = msgText(cannot go through,'{I} {can\'t} go along {that
         dobj}. ')
     
     
@@ -5809,10 +5809,10 @@ class Thing:  ReplaceRedirector, Mentionable
         report() { say(pushNoEffectMsg); }
     }
         
-    cannotPushMsg = BMsg(cannot push, 'There{\'s} no point trying to push
+    cannotPushMsg = msgText(cannot push, 'There{\'s} no point trying to push
         {that dobj}. ')
     
-    pushNoEffectMsg = BMsg(push no effect, 'Pushing {1} {dummy} {has} no
+    pushNoEffectMsg = msgText(push no effect, 'Pushing {1} {dummy} {has} no
         effect. ', gActionListStr)
     
     /* We can at least try to pull most things. */
@@ -5831,10 +5831,10 @@ class Thing:  ReplaceRedirector, Mentionable
         report() { say(pullNoEffectMsg); }
     }
     
-    cannotPullMsg = BMsg(cannot pull, 'There{\'s} no point trying to pull
+    cannotPullMsg = msgText(cannot pull, 'There{\'s} no point trying to pull
         {that dobj}. ')
     
-    pullNoEffectMsg = BMsg(pull no effect, 'Pulling {1} {dummy} {has} no
+    pullNoEffectMsg = msgText(pull no effect, 'Pulling {1} {dummy} {has} no
         effect. ', gActionListStr)
     
     /* 
@@ -5876,16 +5876,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report put on, '{I} {put} {1} on {the iobj}. ', gActionListStr);            
+            showMsg(report put on, '{I} {put} {1} on {the iobj}. ', gActionListStr);            
         }
     }
     
-    alreadyInMsg = BMsg(already in, '{The subj dobj} {is} already {1}. ', gVerifyIobj.objInName)
+    alreadyInMsg = msgText(already in, '{The subj dobj} {is} already {1}. ', gVerifyIobj.objInName)
     
-    circularlyInMsg = BMsg(circularly in, '{I} {can\'t} put {the dobj} {1}
+    circularlyInMsg = msgText(circularly in, '{I} {can\'t} put {the dobj} {1}
         while {the subj iobj} {is} {in dobj}. ', gVerifyIobj.objInName)
         
-    cannotPutInSelfMsg = BMsg(cannot put in self, '{I} {can\'t} put {the dobj}
+    cannotPutInSelfMsg = msgText(cannot put in self, '{I} {can\'t} put {the dobj}
         {1} {itself dobj}. ', gIobj.objInPrep)
     
     iobj PutOn
@@ -5915,7 +5915,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     }
     
-    cannotPutOnMsg = BMsg(cannot put on,'{I} {can\'t} put anything on {the
+    cannotPutOnMsg = msgText(cannot put on,'{I} {can\'t} put anything on {the
         iobj}. '   )
     
     dobj PutIn
@@ -5948,7 +5948,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report put in, '{I} {put} {1} in {the iobj}. ', gActionListStr);            
+            showMsg(report put in, '{I} {put} {1} in {the iobj}. ', gActionListStr);            
         }
     }
     
@@ -5983,7 +5983,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   hiddenIn list would exceed the amount of bulk allowed there.
              */
             else if(gDobj.bulk > maxBulkHiddenIn - getBulkHiddenIn)
-                DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
+                showMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
                     dobj} in {the iobj}. ');            
         }
         
@@ -6007,7 +6007,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     }
     
-    cannotPutInMsg = BMsg(cannot put in, '{I} {can\'t} put anything in {the
+    cannotPutInMsg = msgText(cannot put in, '{I} {can\'t} put anything in {the
         iobj}. ')
     
     
@@ -6042,7 +6042,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report put under, '{I} {put} {1} under {the iobj}. ', 
+            showMsg(report put under, '{I} {put} {1} under {the iobj}. ', 
                  gActionListStr);
         }
         
@@ -6078,7 +6078,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   hiddenUnder list would exceed the amount of bulk allowed there.
              */
             else if(gDobj.bulk > maxBulkHiddenUnder - getBulkHiddenUnder)
-                DMsg(no room under, 'There {dummy}{isn\'t} enough room for {the
+                showMsg(no room under, 'There {dummy}{isn\'t} enough room for {the
                     dobj} under {the iobj}. ');    
         }
         
@@ -6102,7 +6102,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    cannotPutUnderMsg = BMsg(cannot put under, '{I} {cannot} put anything under
+    cannotPutUnderMsg = msgText(cannot put under, '{I} {cannot} put anything under
         {the iobj}. ' )
         
     dobj PutBehind
@@ -6134,7 +6134,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report put behind, '{I} {put} {1} behind {the iobj}. ', 
+            showMsg(report put behind, '{I} {put} {1} behind {the iobj}. ', 
                  gActionListStr);
         }
         
@@ -6171,7 +6171,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   there.
              */
              else if(gDobj.bulk > maxBulkHiddenBehind - getBulkHiddenBehind)
-                DMsg(no room behind, 'There {dummy}{isn\'t} enough room for {the
+                showMsg(no room behind, 'There {dummy}{isn\'t} enough room for {the
                     dobj} behind {the iobj}. ');    
         }
         
@@ -6195,7 +6195,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }   
     
-    cannotPutBehindMsg = BMsg(cannot put behind, '{I} {cannot} put anything
+    cannotPutBehindMsg = msgText(cannot put behind, '{I} {cannot} put anything
         behind {the iobj}. ')
     
     /* 
@@ -6273,12 +6273,12 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    notLockableMsg = BMsg(not lockable, '{The subj dobj} {isn\'t} lockable. ')
-    keyNotNeededMsg = BMsg(key not needed,'{I} {don\'t need[ed]} a key to lock
+    notLockableMsg = msgText(not lockable, '{The subj dobj} {isn\'t} lockable. ')
+    keyNotNeededMsg = msgText(key not needed,'{I} {don\'t need[ed]} a key to lock
         and unlock {the dobj}. ')
-    indirectLockableMsg = BMsg(indirect lockable,'{The dobj} appear{s/ed} to use
+    indirectLockableMsg = msgText(indirect lockable,'{The dobj} appear{s/ed} to use
         some other kind of locking mechanism. ')
-    notLockedMsg = BMsg(not locked, '{The subj dobj} {isn\'t} locked. ')
+    notLockedMsg = msgText(not locked, '{The subj dobj} {isn\'t} locked. ')
     
     /* 
      *   Most things can't be used to unlock with. In practice there's probably
@@ -6301,10 +6301,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }      
     }
     
-    cannotUnlockWithMsg = BMsg(cannot unlock with, '{I} {can\'t} unlock
+    cannotUnlockWithMsg = msgText(cannot unlock with, '{I} {can\'t} unlock
         anything with {that iobj}. ' )
     
-    cannotUnlockWithSelfMsg = BMsg(cannot unlock with self, '{I} {can\'t} unlock
+    cannotUnlockWithSelfMsg = msgText(cannot unlock with self, '{I} {can\'t} unlock
         anything with itself. ' )
     
     dobj LockWith
@@ -6347,7 +6347,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    alreadyLockedMsg = BMsg(already locked, '{The subj dobj} {is} already
+    alreadyLockedMsg = msgText(already locked, '{The subj dobj} {is} already
         locked. ')
     
     
@@ -6371,10 +6371,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }      
     }
     
-    cannotLockWithMsg = BMsg(cannot lock with, '{I} {can\'t} lock anything with
+    cannotLockWithMsg = msgText(cannot lock with, '{I} {can\'t} lock anything with
         {that iobj}. ' )
     
-    cannotLockWithSelfMsg = BMsg(cannot lock with self, '{I} {can\'t} lock
+    cannotLockWithSelfMsg = msgText(cannot lock with self, '{I} {can\'t} lock
         anything with itself. ' )
     
     
@@ -6447,7 +6447,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report unlock, okayUnlockMsg, gActionListStr);
+            showMsg(report unlock, okayUnlockMsg, gActionListStr);
         }
         
     }
@@ -6524,7 +6524,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report lock, okayLockMsg, gActionListStr);
+            showMsg(report lock, okayLockMsg, gActionListStr);
         }
     }
     
@@ -6533,7 +6533,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     okayLockMsg = 'Locked.|{I} lock{s/ed} {1}. '
     
-    withKeyMsg = BMsg(with key, '<.assume>with {1}<./assume>\n', useKey_.theName)
+    withKeyMsg = msgText(with key, '<.assume>with {1}<./assume>\n', useKey_.theName)
     
     /* 
      *   Find a key among the actor's possessions that might plausibly lock or
@@ -6603,7 +6603,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
   
     
-    keyDoesntWorkMsg = BMsg(key doesnt work, 'Unfortunately {1} {dummy}
+    keyDoesntWorkMsg = msgText(key doesnt work, 'Unfortunately {1} {dummy}
         {doesn\'t work[ed]} on {the dobj}. ', useKey_.theName)
     
     useKey_ = nil
@@ -6630,13 +6630,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report turn on, 'Done.|{I} turn{s/ed} on {the dobj}. ');
+            showMsg(report turn on, 'Done.|{I} turn{s/ed} on {the dobj}. ');
         } 
     }
     
-    notSwitchableMsg = BMsg(not switchable, '{The subj dobj} {can\'t} be
+    notSwitchableMsg = msgText(not switchable, '{The subj dobj} {can\'t} be
         switched on and off. ')
-    alreadyOnMsg = BMsg(already switched on, '{The subj dobj} {is} already
+    alreadyOnMsg = msgText(already switched on, '{The subj dobj} {is} already
         switched on. ')
     
     dobj SwitchOff
@@ -6658,11 +6658,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report turn off, 'Done.|{I} turn{s/ed} off {the dobj}. ');
+            showMsg(report turn off, 'Done.|{I} turn{s/ed} off {the dobj}. ');
         } 
     }
     
-   alreadyOffMsg = BMsg(not switched on, '{The subj dobj} {isn\'t} switched on.
+   alreadyOffMsg = msgText(not switched on, '{The subj dobj} {isn\'t} switched on.
        ')
     
     
@@ -6681,7 +6681,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report switch, 'Okay, {i} turn{s/ed} {1} {2}. ', isOn ? 
+            showMsg(report switch, 'Okay, {i} turn{s/ed} {1} {2}. ', isOn ? 
                  'on' : 'off', gActionListStr);
         }
     }
@@ -6701,7 +6701,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotFlipMsg = BMsg(cannot flip, '{I} {can\'t} usefully flip {the dobj}. ')
+    cannotFlipMsg = msgText(cannot flip, '{I} {can\'t} usefully flip {the dobj}. ')
     
     
     /* By default we assume most things aren't burnable */
@@ -6743,8 +6743,8 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotBurnMsg = BMsg(cannot burn, '{I} {cannot} burn {the dobj}. ')
-    cannotBurnWithMsg = BMsg(cannot burn with, '{I} {can\'t} burn {the dobj}
+    cannotBurnMsg = msgText(cannot burn, '{I} {cannot} burn {the dobj}. ')
+    cannotBurnWithMsg = msgText(cannot burn with, '{I} {can\'t} burn {the dobj}
         with {that iobj}. ')
     
     dobj Wear
@@ -6764,13 +6764,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay wear, 'Okay, {i}{\'m} now wearing {1}. ',
+            showMsg(okay wear, 'Okay, {i}{\'m} now wearing {1}. ',
                  gActionListStr);
         }
     }
     
-    cannotWearMsg = BMsg(cannot wear, '{The subj dobj} {can\'t} be worn. ')
-    alreadyWornMsg = BMsg(already worn, '{I}{\'m} already wearing {the dobj}. ')
+    cannotWearMsg = msgText(cannot wear, '{The subj dobj} {can\'t} be worn. ')
+    alreadyWornMsg = msgText(already worn, '{I}{\'m} already wearing {the dobj}. ')
     
     
     /* By default we assume that something's doffable if it's wearable */
@@ -6797,7 +6797,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay doff, 'Okay, {I}{\'m} no longer wearing {1}. ', 
+            showMsg(okay doff, 'Okay, {I}{\'m} no longer wearing {1}. ', 
                  gActionListStr);
             
         }
@@ -6806,7 +6806,7 @@ class Thing:  ReplaceRedirector, Mentionable
   
     cannotDoffMsg = (cannotWearMsg)
     
-    notWornMsg = BMsg(not worn, '{I}{\'m} not wearing {the dobj}. ')
+    notWornMsg = msgText(not worn, '{I}{\'m} not wearing {the dobj}. ')
     
     /* Most things can't be climbed */
     isClimbable = nil
@@ -6833,7 +6833,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotClimbMsg = BMsg(cannot climb,'{The subj dobj} {is} not something {i}
+    cannotClimbMsg = msgText(cannot climb,'{The subj dobj} {is} not something {i}
         {can} climb. ')
     
     canClimbDownMe = (isClimbable)
@@ -6848,7 +6848,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotClimbDownMsg = BMsg(cannot climb down, '{The subj dobj} {is} not
+    cannotClimbDownMsg = msgText(cannot climb down, '{The subj dobj} {is} not
         something {i} {can} climb down. ')
     
     dobj Throw
@@ -6870,7 +6870,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             local obj = gActionListObj;
             gMessageParams(obj);
-            DMsg(throw, '{The subj obj} sail{s/ed} through the air and land{s/ed}
+            showMsg(throw, '{The subj obj} sail{s/ed} through the air and land{s/ed}
                 on the ground. ' );
         }
         
@@ -6907,18 +6907,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay get on, '{I} {get} on {1}. ', gActionListStr);
+            showMsg(okay get on, '{I} {get} on {1}. ', gActionListStr);
         }
     }
     
-    cannotBoardMsg = BMsg(cannot board, '{The subj dobj} {is} not something {i}
+    cannotBoardMsg = msgText(cannot board, '{The subj dobj} {is} not something {i}
         {can} get on. ')
     
-    cannotBoardSelfMsg = BMsg(cannot board self, '{I} {can} hardly get on {myself}. ')         
+    cannotBoardSelfMsg = msgText(cannot board self, '{I} {can} hardly get on {myself}. ')         
     
-    actorAlreadyOnMsg = BMsg(already on, '{I}{\'m} already {in dobj}. ')
+    actorAlreadyOnMsg = msgText(already on, '{I}{\'m} already {in dobj}. ')
      
-    cannotGetOnCarriedMsg = BMsg(cannot board carried, '{I} {can\'t} get on {the
+    cannotGetOnCarriedMsg = msgText(cannot board carried, '{I} {can\'t} get on {the
         dobj} while {i}{\'m} carrying {him dobj}. ')
     
     /* 
@@ -6999,11 +6999,11 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotStandOnMsg = BMsg(cannot stand on, '{The subj dobj} {isn\'t}
+    cannotStandOnMsg = msgText(cannot stand on, '{The subj dobj} {isn\'t}
         something {i} {can} stand on. ')
-    cannotSitOnMsg = BMsg(cannot sit on, '{The subj dobj} {isn\'t}
+    cannotSitOnMsg = msgText(cannot sit on, '{The subj dobj} {isn\'t}
         something {i} {can} sit on. ')
-    cannotLieOnMsg = BMsg(cannot lie on, '{The subj dobj} {isn\'t}
+    cannotLieOnMsg = msgText(cannot lie on, '{The subj dobj} {isn\'t}
         something {i} {can} lie on. ')
     
     
@@ -7042,16 +7042,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay get in, '{I} {get} in {1}. ', gActionListStr);
+            showMsg(okay get in, '{I} {get} in {1}. ', gActionListStr);
         }
         
     }
     
-    cannotEnterMsg = BMsg(cannot enter, '{The subj dobj} {is} not something {i}
+    cannotEnterMsg = msgText(cannot enter, '{The subj dobj} {is} not something {i}
         {can} enter. ')
-    actorAlreadyInMsg = BMsg(actor already in, '{I}{\'m} already {in dobj}. ')
+    actorAlreadyInMsg = msgText(actor already in, '{I}{\'m} already {in dobj}. ')
      
-    cannotGetInCarriedMsg = BMsg(cannot enter carried, '{I} {can\'t} get in {the
+    cannotGetInCarriedMsg = msgText(cannot enter carried, '{I} {can\'t} get in {the
         dobj} while {i}{\'m} carrying {him dobj}. ')
     
     
@@ -7115,15 +7115,15 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    okayGetOutOfMsg = BMsg(okay get outof, 'Okay, {i} {get} {outof dobj}. ')
+    okayGetOutOfMsg = msgText(okay get outof, 'Okay, {i} {get} {outof dobj}. ')
     
-    actorNotInMsg = BMsg(actor not in,'{I}{\'m} not in {the dobj}. ')
-    actorNotOnMsg = BMsg(actor not on,'{I}{\'m} not on {the dobj}. ')
+    actorNotInMsg = msgText(actor not in,'{I}{\'m} not in {the dobj}. ')
+    actorNotOnMsg = msgText(actor not on,'{I}{\'m} not on {the dobj}. ')
     
     /* 
      *   We'll take REMOVE to mean DOFF when it's dobj is worn and TAKE otherwise. This
-     *   handling will be dealt with by removeDoer insteadof remap, since this form of
-     *   remap has now been discontinued. See english.hxn for removeDoer (which seems to be
+     *   handling will be dealt with by removeCommandRule insteadof remap, since this form of
+     *   remap has now been discontinued. See english.hxn for removeCommandRule (which seems to be
      *   a language-specific construct). If we want REMOVE to be treated as a separate
      *   action, set separateRemove to to true.
      */    
@@ -7157,10 +7157,10 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* 
      *   Note that this message should never display in an English-language game
-     *   since removeDoer will intercept the action before it gets to this
+     *   since removeCommandRule will intercept the action before it gets to this
      *   point.
      */
-    cannotRemoveMsg = BMsg(cannot remove, '{The subj dobj} {cannot} be removed.
+    cannotRemoveMsg = msgText(cannot remove, '{The subj dobj} {cannot} be removed.
         ')
     
     /* Treat SEARCH as equivalent to LOOK IN */
@@ -7195,7 +7195,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotMoveMsg = BMsg(cannot move, '{The subj dobj} {won\'t} budge. ')  
+    cannotMoveMsg = msgText(cannot move, '{The subj dobj} {won\'t} budge. ')  
     
     dobj MoveWith
     {
@@ -7216,7 +7216,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    moveNoEffectMsg = BMsg(move no effect, 'Moving {1} {dummy} {has} no effect. ',
+    moveNoEffectMsg = msgText(move no effect, 'Moving {1} {dummy} {has} no effect. ',
                  gActionListStr)
     
     /* 
@@ -7241,10 +7241,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotMoveWithMsg = BMsg(cannot move with, '{I} {can\'t} move {the dobj}
+    cannotMoveWithMsg = msgText(cannot move with, '{I} {can\'t} move {the dobj}
         with {the iobj}. ')
     
-    cannotMoveWithSelfMsg = BMsg(cannot move with self, '{The subj dobj}
+    cannotMoveWithSelfMsg = msgText(cannot move with self, '{The subj dobj}
         {can\'t} be used to move {itself dobj}. ')
     
     
@@ -7289,7 +7289,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay move to, '{I} move{s/d} {1} {dummy} to {the iobj}. ',
+            showMsg(okay move to, '{I} move{s/d} {1} {dummy} to {the iobj}. ',
                  gActionListStr);
         }
     }
@@ -7331,13 +7331,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    cannotMoveToMsg = BMsg(cannot move to, '{The subj dobj} {can\'t} be moved to
+    cannotMoveToMsg = msgText(cannot move to, '{The subj dobj} {can\'t} be moved to
         {the iobj}. ')
     
-    cannotMoveToSelfMsg = BMsg(cannot move to self, '{The subj dobj} {can\'t}
+    cannotMoveToSelfMsg = msgText(cannot move to self, '{The subj dobj} {can\'t}
         be moved to {itself dobj}. ')
     
-    alreadyMovedToMsg = BMsg(already moved to, '{The subj dobj} {has} already
+    alreadyMovedToMsg = msgText(already moved to, '{The subj dobj} {has} already
         been moved to {the iobj}. ')
     
     dobj MoveAwayFrom
@@ -7360,7 +7360,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay move from, '{I} move{s/d} {1} {dummy} away from {the iobj}. ',
+            showMsg(okay move from, '{I} move{s/d} {1} {dummy} away from {the iobj}. ',
                  gActionListStr);   
         }
     } 
@@ -7377,10 +7377,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cantMoveAwayFromSelfMsg = BMsg(cant move away from self, '{I} {can\'t} move {the dobj} away from
+    cantMoveAwayFromSelfMsg = msgText(cant move away from self, '{I} {can\'t} move {the dobj} away from
         {itself dobj}. ')
     
-    notMovedToMsg = BMsg(not by obj, '{The subj dobj} {is}n\'t by {the iobj}. ')
+    notMovedToMsg = msgText(not by obj, '{The subj dobj} {is}n\'t by {the iobj}. ')
     
     /* 
      *   Lighting an object makes it a light source by making its isLit property
@@ -7405,14 +7405,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay lit,'Done.|{I} {light} {1}. ', gActionListStr);
+            showMsg(okay lit,'Done.|{I} {light} {1}. ', gActionListStr);
         }
     }
     
-    cannotLightMsg = BMsg(cannot light, '{The subj dobj} {is} not something
+    cannotLightMsg = msgText(cannot light, '{The subj dobj} {is} not something
         {i} {can} light. ')
     
-    alreadyLitMsg = BMsg(already lit, '{The subj dobj} {is} already lit. ')
+    alreadyLitMsg = msgText(already lit, '{The subj dobj} {is} already lit. ')
     
     /* 
      *   Most things are extinguishable if they're lit, but some things (like
@@ -7445,13 +7445,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(extinguish, '{I} {put} out {1}. ', gActionListStr);
+            showMsg(extinguish, '{I} {put} out {1}. ', gActionListStr);
         }
     }
     
-    notLitMsg = BMsg(not lit, '{The subj dobj} {isn\'t} lit. ')
+    notLitMsg = msgText(not lit, '{The subj dobj} {isn\'t} lit. ')
     
-    cannotExtinguishMsg = BMsg(cannot extinguish, '{The dobj} {cannot} be
+    cannotExtinguishMsg = msgText(cannot extinguish, '{The dobj} {cannot} be
         extinguished. ')
     
         
@@ -7472,11 +7472,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(eat, '{I} {eat} {1}. ', gActionListStr);
+            showMsg(eat, '{I} {eat} {1}. ', gActionListStr);
         }
     }
     
-    cannotEatMsg = BMsg(cannot eat, '{The subj dobj} {is} plainly inedible. ')
+    cannotEatMsg = msgText(cannot eat, '{The subj dobj} {is} plainly inedible. ')
     
     /* Most things aren't drinkable */
     isDrinkable = nil
@@ -7494,7 +7494,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 
     }
         
-    cannotDrinkMsg = BMsg(not potable, '{I} {can\'t} drink {1}. ', fluidName)
+    cannotDrinkMsg = msgText(not potable, '{I} {can\'t} drink {1}. ', fluidName)
     
     
     /* 
@@ -7571,20 +7571,20 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     makeCleaned(stat) { isClean = stat; }
     
-    cannotCleanMsg = BMsg(cannot clean, '{The subj dobj} {is} not something {i}
+    cannotCleanMsg = msgText(cannot clean, '{The subj dobj} {is} not something {i}
         {can} clean. ')
     
-    alreadyCleanMsg = BMsg(already clean, '{The subj dobj} {is} already quite
+    alreadyCleanMsg = msgText(already clean, '{The subj dobj} {is} already quite
         clean enough. ')
     
-    noNeedToCleanMsg = BMsg(no clean, '{The subj dobj} {doesn\'t need[ed]}
+    noNeedToCleanMsg = msgText(no clean, '{The subj dobj} {doesn\'t need[ed]}
         cleaning. ')
         
     
-    dontNeedCleaningObjMsg = BMsg(dont need cleaning obj, '{I} {don\'t need[ed]}
+    dontNeedCleaningObjMsg = msgText(dont need cleaning obj, '{I} {don\'t need[ed]}
         anything to clean {the dobj} with. ')
     
-    okayCleanMsg = DMsg(okay clean, 'Cleaned.|{I} clean{s/ed} {1}. ',
+    okayCleanMsg = showMsg(okay clean, 'Cleaned.|{I} clean{s/ed} {1}. ',
                         gActionListStr)
     
     dobj CleanWith
@@ -7637,7 +7637,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotCleanWithMsg = BMsg(cannot clean with, '{I} {can\'t} clean {the dobj}
+    cannotCleanWithMsg = msgText(cannot clean with, '{I} {can\'t} clean {the dobj}
         with {the iobj}. ')
     
     /* Most things are not suitable for digging in*/
@@ -7693,10 +7693,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotDigMsg = BMsg(cannot dig, '{I} {can\'t} dig there. ')
-    cannotDigWithMsg = BMsg(cannot dig with, '{I} {can\'t} dig anything with
+    cannotDigMsg = msgText(cannot dig, '{I} {can\'t} dig there. ')
+    cannotDigWithMsg = msgText(cannot dig with, '{I} {can\'t} dig anything with
         {that iobj}. ')
-    cannotDigWithSelfMsg = BMsg(cannot dig with self, '{I} {can\'t} dig {the
+    cannotDigWithSelfMsg = msgText(cannot dig with self, '{I} {can\'t} dig {the
         dobj} with {itself dobj}. ')
     
     
@@ -7780,10 +7780,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }      
     }
     
-    notInMsg = BMsg(not inside, '{The dobj} {is}n\'t ' + 
+    notInMsg = msgText(not inside, '{The dobj} {is}n\'t ' + 
                     (gIobj ? '{in iobj}.' : '{1}.'), gVerifyIobj.objInName)
     
-    cannotTakeFromSelfMsg =  BMsg(cannot take from self, '{I} {can\'t} take
+    cannotTakeFromSelfMsg =  msgText(cannot take from self, '{I} {can\'t} take
         {the subj dobj} from {himself dobj}. ')
     
     /* 
@@ -7841,7 +7841,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             local obj = gActionListObj;
             gMessageParams(obj);
-            DMsg(throw at, '{The subj obj} {strikes} {the iobj} and land{s/ed}
+            showMsg(throw at, '{The subj obj} {strikes} {the iobj} and land{s/ed}
                 on the ground. ');            
         }
         
@@ -7851,10 +7851,10 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Particular instances will nearly always need to override with a less
      *   generic and more plausible refusal message.
      */
-    cannotThrowAtMsg = BMsg(cannot throw at, '{I} {can\'t} throw anything at
+    cannotThrowAtMsg = msgText(cannot throw at, '{I} {can\'t} throw anything at
         {the iobj}. ')
     
-    cannotThrowAtSelfMsg = BMsg(cannot throw at self, '{The subj dobj} {can\'t}
+    cannotThrowAtSelfMsg = msgText(cannot throw at self, '{The subj dobj} {can\'t}
         be thrown at {itself dobj}. ')
     
     dobj ThrowTo
@@ -7886,13 +7886,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    cannotThrowToMsg = BMsg(cannot throw to, '{The subj iobj} {can\'t} catch
+    cannotThrowToMsg = msgText(cannot throw to, '{The subj iobj} {can\'t} catch
         anything. ')
     
-    cannotThrowToSelfMsg = BMsg(cannot throw to self, '{The subj dobj} {can\'t}
+    cannotThrowToSelfMsg = msgText(cannot throw to self, '{The subj dobj} {can\'t}
         be thrown to {itself dobj}. ')
     
-    throwFallsShortMsg = BMsg(throw falls short, '{The subj dobj} land{s/ed} far
+    throwFallsShortMsg = msgText(throw falls short, '{The subj dobj} land{s/ed} far
         short of {the iobj}. ')
     
     canTurnMeTo = nil
@@ -7924,7 +7924,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay turn to, 'Okay, {I} turn{s/ed} {1} to {2}', gActionListStr, 
+            showMsg(okay turn to, 'Okay, {I} turn{s/ed} {1} to {2}', gActionListStr, 
                  gLiteral);
         }
     }
@@ -7940,7 +7940,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* The value we're currently set to. */
     curSetting = ''
     
-    cannotTurnToMsg = BMsg(cannot turn to, '{I} {cannot} turn {that dobj} to
+    cannotTurnToMsg = msgText(cannot turn to, '{I} {cannot} turn {that dobj} to
         anything. ')
     
     
@@ -7975,10 +7975,10 @@ class Thing:  ReplaceRedirector, Mentionable
        
     makeSetting(val) { curSetting = val; }
     
-    okaySetMsg = BMsg(okay set to, '{I} {set} {1} to {2}. ', gActionListStr,
+    okaySetMsg = msgText(okay set to, '{I} {set} {1} to {2}. ', gActionListStr,
         curSetting)
     
-    cannotSetToMsg = BMsg(cannot set to, '{I} {cannot} set {that dobj} to
+    cannotSetToMsg = msgText(cannot set to, '{I} {cannot} set {that dobj} to
         anything. ')
     
     
@@ -8113,18 +8113,18 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   We make these two sayDontKnowHowTo... methods separate methods so that
      *   they can be reused on the Distant class without having to repeat the
-     *   DMsg() definitions.
+     *   showMsg() definitions.
      */
     sayDontKnowHowToGetThere() 
-        { DMsg(route unknown, '{I} {don\'t know} how to get there. ');}
+        { showMsg(route unknown, '{I} {don\'t know} how to get there. ');}
    
     sayDontKnowHowToReach()
-        {  DMsg(destination unknown, '{I} {don\'t know} how to reach
+        {  showMsg(destination unknown, '{I} {don\'t know} how to reach
             {him dobj}.' );}
     
     
-    alreadyThereMsg = BMsg(already there, '{I}{\'m} already there. ')
-    alreadyPresentMsg = BMsg(already present, '{The subj dobj} {is} right
+    alreadyThereMsg = msgText(already there, '{I}{\'m} already there. ')
+    alreadyPresentMsg = msgText(already present, '{The subj dobj} {is} right
         {here}. ')    
     
     /* 
@@ -8171,12 +8171,12 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotAttachMsg = BMsg(cannot attach, '{I} {cannot} attach {the dobj} to
+    cannotAttachMsg = msgText(cannot attach, '{I} {cannot} attach {the dobj} to
         anything. ')
-    cannotAttachToMsg = BMsg(cannot attach to, '{I} {cannot} attach anything to
+    cannotAttachToMsg = msgText(cannot attach to, '{I} {cannot} attach anything to
         {the iobj}. ')
     
-    cannotAttachToSelfMsg = BMsg(cannot attach to self, '{I} {cannot} attach
+    cannotAttachToSelfMsg = msgText(cannot attach to self, '{I} {cannot} attach
         {the iobj} to {itself iobj}. ')
    
     
@@ -8192,7 +8192,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }            
     }
     
-    cannotDetachMsg = BMsg(cannot detach, 'There{dummy} {is}n\'t anything from
+    cannotDetachMsg = msgText(cannot detach, 'There{dummy} {is}n\'t anything from
         which {the subj dobj} could be detached. ')
     
     
@@ -8221,10 +8221,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotDetachFromMsg = BMsg(cannot detach from, 'There{dummy} {is}n\'t
+    cannotDetachFromMsg = msgText(cannot detach from, 'There{dummy} {is}n\'t
         anything that could be detached from {the iobj}. ')
     
-    cannotDetachFromSelfMsg = BMsg(cannot detach from self, '{The subj dobj}
+    cannotDetachFromSelfMsg = msgText(cannot detach from self, '{The subj dobj}
         {can\'t} be detached from {itself dobj}. ')
     
     
@@ -8261,14 +8261,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay fasten, 'Done|{I} fasten{s/ed} {1}. ', gActionListStr);
+            showMsg(okay fasten, 'Done|{I} fasten{s/ed} {1}. ', gActionListStr);
         }
     }
     
-    cannotFastenMsg = BMsg(cannot fasten, '{That subj dobj}{\'s} not something
+    cannotFastenMsg = msgText(cannot fasten, '{That subj dobj}{\'s} not something
         {i} {can} fasten. ')
     
-    alreadyFastenedMsg = BMsg(already fastened, '{The subj dobj} {is} already
+    alreadyFastenedMsg = msgText(already fastened, '{The subj dobj} {is} already
         fastened. ')
 
         
@@ -8298,10 +8298,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }  
     }
     
-    cannotFastenToMsg = BMsg(cannot fasten to, '{I} {can\'t} fasten anything to
+    cannotFastenToMsg = msgText(cannot fasten to, '{I} {can\'t} fasten anything to
         {that iobj}. ')
     
-    cannotFastenToSelfMsg = BMsg(cannot fasten to self, '{The subj iobj}
+    cannotFastenToSelfMsg = msgText(cannot fasten to self, '{The subj iobj}
         {can\'t} be fastened to {itself iobj}. ')
                                 
     isUnfastenable = nil
@@ -8347,16 +8347,16 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotUnfastenMsg = BMsg(cannot unfasten, '{The subj dobj} {cannot} be
+    cannotUnfastenMsg = msgText(cannot unfasten, '{The subj dobj} {cannot} be
         unfastened. ')
     
-    cannotUnfastenFromMsg = BMsg(cannot unfasten from, '{I} {can\'t} unfasten
+    cannotUnfastenFromMsg = msgText(cannot unfasten from, '{I} {can\'t} unfasten
         anything from {that iobj}. ')
     
-    cannotUnfastenFromSelfMsg = BMsg(cannot unfasten from self, '{I} {can\'t}
+    cannotUnfastenFromSelfMsg = msgText(cannot unfasten from self, '{I} {can\'t}
         unfasten {the dobj} from {itself dobj}. ')
 
-    notFastenedMsg = BMsg(not fastened, '{The subj dobj} {isn\'t} fastened. ')
+    notFastenedMsg = msgText(not fastened, '{The subj dobj} {isn\'t} fastened. ')
     
     /* 
      *   Most things can't be plugged into other things or have other things
@@ -8397,11 +8397,11 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    cannotPlugMsg = BMsg(cannot plug, '{The subj dobj} {can\'t} be plugged into
+    cannotPlugMsg = msgText(cannot plug, '{The subj dobj} {can\'t} be plugged into
         anything. ')
-    cannotPlugIntoSelfMsg = BMsg(cannot plug into self, '{I} {can\'t} plug
+    cannotPlugIntoSelfMsg = msgText(cannot plug into self, '{I} {can\'t} plug
         {the dobj} into {itself dobj}. ')
-    cannotPlugIntoMsg = BMsg(cannot plug into, '{I} {can\'t} plug anything into
+    cannotPlugIntoMsg = msgText(cannot plug into, '{I} {can\'t} plug anything into
         {the iobj}. ')
     
     isUnplugable = (isPlugable)
@@ -8434,13 +8434,13 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotUnplugMsg = BMsg(cannot unplug, '{The subj dobj} {can\'t} be
+    cannotUnplugMsg = msgText(cannot unplug, '{The subj dobj} {can\'t} be
         unplugged. ')
     
-    cannotUnplugFromSelfMsg = BMsg(cannot unplug from self, '{I} {can\'t} unplug
+    cannotUnplugFromSelfMsg = msgText(cannot unplug from self, '{I} {can\'t} unplug
         {the dobj} from {itself dobj}. ')
     
-    cannotUnplugFromMsg = BMsg(cannot unplug from, '{I} {can\'t} unplug anything
+    cannotUnplugFromMsg = msgText(cannot unplug from, '{I} {can\'t} unplug anything
         from {the iobj}. ')
     
     dobj PlugIn
@@ -8506,14 +8506,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report kiss, 'Kissing {1} {dummy}prove{s/d} remarkably
+            showMsg(report kiss, 'Kissing {1} {dummy}prove{s/d} remarkably
                 unrewarding. ',  gActionListStr); 
         }
     }
     
     futileToKissMsg = nil
     
-    cannotKissMsg = BMsg(cannot kiss, '{I} really {can\'t} kiss {that dobj}. ')
+    cannotKissMsg = msgText(cannot kiss, '{I} really {can\'t} kiss {that dobj}. ')
 
     /* 
      *   If we want Kissing to fail at the check stage we can supply a message
@@ -8555,12 +8555,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(jump off, '{I} jump{s/ed} off {1} and land{s/ed} on the ground', 
+            showMsg(jump off, '{I} jump{s/ed} off {1} and land{s/ed} on the ground', 
                  gActionListStr);
         }
     }
     
-    cannotJumpOffMsg = BMsg(cannot jump off, '{I}{\'m} not on {the dobj}. ')
+    cannotJumpOffMsg = msgText(cannot jump off, '{I}{\'m} not on {the dobj}. ')
     
     /* It usually isn't possible (or at least useful) to jump over things. */
     canJumpOverMe = nil
@@ -8582,10 +8582,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotJumpOverMsg = BMsg(pointless to jump over, 'It {dummy}{is}
+    cannotJumpOverMsg = msgText(pointless to jump over, 'It {dummy}{is}
         pointless to try to jump over {the dobj}. ')
     
-    cannotJumpOverSelfMsg = BMsg(cannot jump over self, '{I} {can} hardly jump over {myself}. '  )
+    cannotJumpOverSelfMsg = msgText(cannot jump over self, '{I} {can} hardly jump over {myself}. '  )
     
     
     /* Most things aren't settable. */
@@ -8605,7 +8605,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotSetMsg = BMsg(cannot set, '{The subj dobj} {is} not something {i}
+    cannotSetMsg = msgText(cannot set, '{The subj dobj} {is} not something {i}
         {can} set. ')
     
     /* Most things can't be typed on. */
@@ -8639,7 +8639,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action() { askMissingLiteral(TypeOn, DirectObject); }
     }
     
-    cannotTypeOnMsg = BMsg(cannot type on, '{I} {can\'t} type anything on {the
+    cannotTypeOnMsg = msgText(cannot type on, '{I} {can\'t} type anything on {the
         dobj}. ')
     
     
@@ -8666,7 +8666,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotEnterOnMsg = BMsg(cannot enter on, '{I} {can\'t} enter anything on
+    cannotEnterOnMsg = msgText(cannot enter on, '{I} {can\'t} enter anything on
         {the dobj}. ')
     
     
@@ -8685,7 +8685,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    cannotWriteOnMsg = BMsg(cannot write on, '{I} {can\'t} write anything on
+    cannotWriteOnMsg = msgText(cannot write on, '{I} {can\'t} write anything on
         {the dobj}. ')
     
     /* Most things aren't consultable */
@@ -8707,7 +8707,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    cannotConsultMsg = BMsg(cannot consult, '{The subj dobj} {is} not a
+    cannotConsultMsg = msgText(cannot consult, '{The subj dobj} {is} not a
         provider of information. ')
     
     /* 
@@ -8833,20 +8833,20 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotPourMsg = BMsg(cannot pour, '{I} {can\'t} pour {1} anywhere. ',
+    cannotPourMsg = msgText(cannot pour, '{I} {can\'t} pour {1} anywhere. ',
                          fluidName)
-    cannotPourOntoSelfMsg = BMsg(cannot pour on self, '{I} {can\'t} pour {the
+    cannotPourOntoSelfMsg = msgText(cannot pour on self, '{I} {can\'t} pour {the
         dobj} onto {itself dobj}. ')
-    cannotPourIntoSelfMsg = BMsg(cannot pour in self, '{I} {can\'t} pour {the
+    cannotPourIntoSelfMsg = msgText(cannot pour in self, '{I} {can\'t} pour {the
         dobj} into {itself dobj}. ')
-    cannotPourIntoMsg = BMsg(cannot pour into, '{I} {can\'t} pour {1}
+    cannotPourIntoMsg = msgText(cannot pour into, '{I} {can\'t} pour {1}
         into {that dobj}. ', gDobj.fluidName)
-    cannotPourOntoMsg = BMsg(cannot pour onto, '{I} {can\'t} pour {1}
+    cannotPourOntoMsg = msgText(cannot pour onto, '{I} {can\'t} pour {1}
         into {that dobj}. ', gDobj.fluidName)
-    shouldNotPourIntoMsg = BMsg(should not pour into, 'It{dummy}{\'s} better not
+    shouldNotPourIntoMsg = msgText(should not pour into, 'It{dummy}{\'s} better not
         to pour {1} into {the iobj}. ', gDobj.fluidName)
     
-    shouldNotPourOntoMsg = BMsg(should not pour onto, 'It{dummy}{\'s} better not
+    shouldNotPourOntoMsg = msgText(should not pour onto, 'It{dummy}{\'s} better not
         to pour {1} onto {the iobj}. ', gDobj.fluidName)  
     
     
@@ -8930,15 +8930,15 @@ class Thing:  ReplaceRedirector, Mentionable
         }        
     }
     
-    cannotScrewMsg = BMsg(cannot screw, '{I} {can\'t} screw {the dobj}. ')
-    cannotScrewWithMsg = BMsg(cannot screw with, '{I} {can\'t} screw anything
+    cannotScrewMsg = msgText(cannot screw, '{I} {can\'t} screw {the dobj}. ')
+    cannotScrewWithMsg = msgText(cannot screw with, '{I} {can\'t} screw anything
         with {that iobj}. ') 
-    cannotScrewWithSelfMsg = BMsg(cannot screw with self, '{I} {can\'t} screw
+    cannotScrewWithSelfMsg = msgText(cannot screw with self, '{I} {can\'t} screw
         {the iobj} with {itself iobj}. ')
-    cannotUnscrewMsg = BMsg(cannot unscrew, '{I} {can\'t} unscrew {the dobj}. ')
-    cannotUnscrewWithMsg = BMsg(cannot unscrew with, '{I} {can\'t} unscrew
+    cannotUnscrewMsg = msgText(cannot unscrew, '{I} {can\'t} unscrew {the dobj}. ')
+    cannotUnscrewWithMsg = msgText(cannot unscrew with, '{I} {can\'t} unscrew
         anything with {that iobj}. ')
-    cannotUnscrewWithSelfMsg = BMsg(cannot unscrew with self, '{I} {can\'t}
+    cannotUnscrewWithSelfMsg = msgText(cannot unscrew with self, '{I} {can\'t}
         unscrew {the iobj} with {itself iobj}. ')
     
     
@@ -8988,11 +8988,11 @@ class Thing:  ReplaceRedirector, Mentionable
        
     viaMode = ''
     
-    cannotPushOwnContainerMsg = BMsg(cannot push own container, '{I} {can\'t}
+    cannotPushOwnContainerMsg = msgText(cannot push own container, '{I} {can\'t}
         {1} {the dobj} anywhere while {he actor}{\'s} {2} {him dobj}. ',
                                      gVerbWord, gDobj.objInPrep)
     
-    cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} {1} {the
+    cannotPushViaSelfMsg = msgText(cannot push via self, '{I} {can\'t} {1} {the
         dobj} {2} {itself dobj}. ', gVerbWord, viaMode.prep)
     
     /* 
@@ -9067,7 +9067,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Display a message saying we pushed the direct object in a particular direction. */
     sayPushTravel(dir)
     {
-        DMsg(before push travel dir, '{I} <<gDobj.matchPullOnly ? 'pull(s/ed}' : 'push{es/ed}'>>
+        showMsg(before push travel dir, '{I} <<gDobj.matchPullOnly ? 'pull(s/ed}' : 'push{es/ed}'>>
               {the dobj} {1}. ',  dir.departureName);   
         "<.p>";
     }    
@@ -9102,7 +9102,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         if(isFixed)
             return cannotTakeMsg;
-        return BMsg(cannot push travel, 'There{dummy}{\'s} no point trying to
+        return msgText(cannot push travel, 'There{dummy}{\'s} no point trying to
             {1} {that dobj} anywhere. ', gVerbWord);
     }
 
@@ -9243,7 +9243,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         local obj = self;
         gMessageParams(obj, dest);
-        DMsg(describe move pushable, '{The subj obj} {comes} to a halt. ' );
+        showMsg(describe move pushable, '{The subj obj} {comes} to a halt. ' );
         
     }
     
@@ -9259,11 +9259,11 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         /* If I have a traversalMsg, use it */
         if(gIobj && gIobj.propType(&traversalMsg) != TypeNil)
-            DMsg(push travel traversal, '{I} <<if matchPullOnly>> pull{s/ed}
+            showMsg(push travel traversal, '{I} <<if matchPullOnly>> pull{s/ed}
                 <<else>> push{es/ed}<<end>> {the dobj} {1}. <.p>',
                  gIobj.traversalMsg);
         else
-            DMsg(push travel somewhere, '{I} <<if matchPullOnly>> pull{s/ed}
+            showMsg(push travel somewhere, '{I} <<if matchPullOnly>> pull{s/ed}
                 <<else>> push{es/ed}<<end>> {the dobj} {1} {the iobj}. <.p>', 
                  via.prep); 
         
@@ -9296,7 +9296,7 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }       
     }
     
-    cannotPushThroughMsg = BMsg(cannot push through, '{I} {can\'t} {1}
+    cannotPushThroughMsg = msgText(cannot push through, '{I} {can\'t} {1}
         anything through {the iobj}. ', gVerbWord)
     
     
@@ -9314,7 +9314,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    okayPushIntoMsg = BMsg(okay push into, '{I} <<if matchPullOnly>> pull{s/ed}
+    okayPushIntoMsg = msgText(okay push into, '{I} <<if matchPullOnly>> pull{s/ed}
                 <<else>> push{es/ed}<<end>> {the dobj} into {the iobj}. ')
     
     iobj PushTravelEnter
@@ -9342,7 +9342,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotPushIntoMsg = BMsg(cannot push into, '{I} {can\'t} {1}
+    cannotPushIntoMsg = msgText(cannot push into, '{I} {can\'t} {1}
         anything into {the iobj}. ', gVerbWord)
     
     dobj PushTravelGetOutOf
@@ -9382,7 +9382,7 @@ class Thing:  ReplaceRedirector, Mentionable
        
     }
     
-    okayPushOutOfMsg = BMsg(okay push out of, '{I} <<if matchPullOnly>> pull{s/ed}
+    okayPushOutOfMsg = msgText(okay push out of, '{I} <<if matchPullOnly>> pull{s/ed}
                 <<else>> push{es/ed}<<end>> {the dobj} {outof iobj}. ')
     
     dobj PushTravelClimbUp
@@ -9406,7 +9406,7 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }
     }
     
-    cannotPushUpMsg = BMsg(cannot push up, '{I} {can\'t} {1}
+    cannotPushUpMsg = msgText(cannot push up, '{I} {can\'t} {1}
         anything up {the iobj}. ', gVerbWord)
     
     dobj PushTravelClimbDown
@@ -9430,7 +9430,7 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }
     }
     
-    cannotPushDownMsg = BMsg(cannot push down, '{I} {can\'t} {1}
+    cannotPushDownMsg = msgText(cannot push down, '{I} {can\'t} {1}
         anything down {the iobj}. ', gVerbWord)
     
     /* 
@@ -9553,10 +9553,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotTalkToMsg = BMsg(cannot talk, 'There{dummy}{\'s} no point trying to
+    cannotTalkToMsg = msgText(cannot talk, 'There{dummy}{\'s} no point trying to
         talk to {the cobj}. ')
     
-    cannotTalkToSelfMsg = BMsg(cannot talk to self, 'Talking to oneself {dummy}
+    cannotTalkToSelfMsg = msgText(cannot talk to self, 'Talking to oneself {dummy}
         {is} generally pointless. ')
         
     
@@ -9579,7 +9579,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    alreadyHasMsg = BMsg(already has, '{The subj iobj} already {has}
+    alreadyHasMsg = msgText(already has, '{The subj iobj} already {has}
         {the dobj}.')
     
     iobj GiveTo
@@ -9595,10 +9595,10 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    cannotGiveToMsg = BMsg(cannot give to, '{I} {can\'t} give anything to {that
+    cannotGiveToMsg = msgText(cannot give to, '{I} {can\'t} give anything to {that
         iobj}. ')
     
-    cannotGiveToSelfMsg = BMsg(cannot give to self, '{I} {can\'t} give anything
+    cannotGiveToSelfMsg = msgText(cannot give to self, '{I} {can\'t} give anything
         to {himself actor}. ')
     
     dobj ShowTo
@@ -9626,10 +9626,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotShowToMsg = BMsg(cannot show to, '{I} {can\'t} show anything to {that
+    cannotShowToMsg = msgText(cannot show to, '{I} {can\'t} show anything to {that
         iobj}. ')
     
-    cannotShowToSelfMsg = BMsg(cannot show to self, '{I} {can\'t} show anything
+    cannotShowToSelfMsg = msgText(cannot show to self, '{I} {can\'t} show anything
         to {himself actor}. ')
     
     
@@ -9689,10 +9689,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    notTalkingToAnyoneMsg = BMsg(not talking to anyone, '{I}{\'m} not talking to
+    notTalkingToAnyoneMsg = msgText(not talking to anyone, '{I}{\'m} not talking to
         anyone. ')
     
-    noLongerTalkingToAnyoneMsg = BMsg(no longer talking to anyone, '{I}{\'m} no
+    noLongerTalkingToAnyoneMsg = msgText(no longer talking to anyone, '{I}{\'m} no
         longer talking to anyone. ')
     
    
@@ -9704,7 +9704,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cantSpecialActionMsg = BMsg(cant do special, '{I} {can\'t} {1} {the dobj}. ',
+    cantSpecialActionMsg = msgText(cant do special, '{I} {can\'t} {1} {the dobj}. ',
                                 gAction.specialPhrase )
     
     
@@ -9768,16 +9768,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(purloin, '{I} suddenly {find} {myself} holding {1}. ',                 
+            showMsg(purloin, '{I} suddenly {find} {myself} holding {1}. ',                 
                 gActionListStr );
         }
     }
         
-    cannotPurloinSelfMsg = BMsg(cannot purloin self, '{I} {can\'t} purloin
+    cannotPurloinSelfMsg = msgText(cannot purloin self, '{I} {can\'t} purloin
         {myself}. ')
-    cannotPurloinRoomMsg = BMsg(cannot purloin room, '{I} {can\'t} purloin a
+    cannotPurloinRoomMsg = msgText(cannot purloin room, '{I} {can\'t} purloin a
         room. ')
-    cannotPurloinContainerMsg = BMsg(cannot purloin container, '{I} {can\'t}
+    cannotPurloinContainerMsg = msgText(cannot purloin container, '{I} {can\'t}
         purloin something {i}{\'m} contained within. ')
     
     
@@ -9798,7 +9798,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            DMsg(gonear, '{I} {am} translated in the twinkling of an
+            showMsg(gonear, '{I} {am} translated in the twinkling of an
                 eye...<.p>');
             getOutermostRoom.travelVia(gActor);
         }
@@ -9806,7 +9806,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
      
     
-    cannotGoNearThereMsg = BMsg(cannot go there, '{I} {can\'t} go there right
+    cannotGoNearThereMsg = msgText(cannot go there, '{I} {can\'t} go there right
         {now}. ')
     
  #endif
@@ -9970,7 +9970,7 @@ class Key: Thing
         
         report()
         {
-            DMsg(okay unlock with, okayUnlockWithMsg, gActionListStr);
+            showMsg(okay unlock with, okayUnlockWithMsg, gActionListStr);
         }
         
     }
@@ -10027,7 +10027,7 @@ class Key: Thing
         
         report()
         {
-             DMsg(okay lock with, okayLockWithMsg, gActionListStr);
+             showMsg(okay lock with, okayLockWithMsg, gActionListStr);
         }
     }
     
@@ -10675,7 +10675,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     ownsContents = true
     mood = nil
     stance = nil
-    cannotTalkToMsg = BMsg(cannot talk basicactor, '{The subj cobj} {doesn\'t seem} interested. ')
+    cannotTalkToMsg = msgText(cannot talk basicactor, '{The subj cobj} {doesn\'t seem} interested. ')
     cannotGiveToMsg = cannotTalkToMsg
     cannotShowToMsg = cannotTalkToMsg
     isAttackable = true

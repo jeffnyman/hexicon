@@ -117,7 +117,7 @@ containerOpen: PreCondition
          *   open it; display a message explaining the problem.
          */
         gMessageParams(obj);
-        DMsg(container needs to be open, '{The subj obj} need{s/ed} to be open
+        showMsg(container needs to be open, '{The subj obj} need{s/ed} to be open
             for that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -238,7 +238,7 @@ objOpen: PreCondition
          *   open it; display a message explaining the problem.
          */
         gMessageParams(obj);
-        DMsg(object needs to be open, '{The subj obj} need{s/ed} to be open for
+        showMsg(object needs to be open, '{The subj obj} need{s/ed} to be open for
             that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -307,7 +307,7 @@ objClosed: PreCondition
          *   close it; display a message explaining the problem.
          */
         gMessageParams(obj);        
-        DMsg(obj needs to be closed, '{The subj obj} need{s/ed} to be closed for
+        showMsg(obj needs to be closed, '{The subj obj} need{s/ed} to be closed for
             that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -488,7 +488,7 @@ objHeld: PreCondition
          *   problem.
          */
         gMessageParams(obj);
-        DMsg(need to hold, '{I} need{s/ed} to be holding {the obj} to do that. ');
+        showMsg(need to hold, '{I} need{s/ed} to be holding {the obj} to do that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
         return nil;        
@@ -541,7 +541,7 @@ objNotWorn: PreCondition
          *   try to take it off; display a message explaining the problem.
          */
         gMessageParams(obj);
-        DMsg(cannot do that while wearing, '{I} {can\'t} do that while
+        showMsg(cannot do that while wearing, '{I} {can\'t} do that while
             {he actor}{\'m} wearing {the obj}. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -560,7 +560,7 @@ objVisible: PreCondition
         
         /* If the actor can't see the obj then we can't examine the object. */
         if(!Q.canSee(gActor, obj))
-            inaccessible(BMsg(cannot see obj, '{I} {can\'t} see {1}. ',
+            inaccessible(msgText(cannot see obj, '{I} {can\'t} see {1}. ',
                          obj.theName));
     }   
 ;
@@ -591,7 +591,7 @@ objAudible: PreCondition
              *   too far away.
              */
             if(lst[1].ofKind(Room))
-                errMsg = BMsg(too far away to hear obj, '{The subj obj} {is} too
+                errMsg = msgText(too far away to hear obj, '{The subj obj} {is} too
                     far away to hear. ');
             
             /* 
@@ -599,7 +599,7 @@ objAudible: PreCondition
              *   blocking object is in the way.
              */
             else           
-                errMsg = BMsg(cannot hear, '{I} {can\'t} hear {1} 
+                errMsg = msgText(cannot hear, '{I} {can\'t} hear {1} 
                 through {2}. ', obj.theName, lst[1].theName);
                 
             /* Declare obj to be inaccessible to hearing. */
@@ -634,7 +634,7 @@ objSmellable: PreCondition
              *   too far away.
              */
             if(lst[1].ofKind(Room))
-                errMsg = BMsg(too far away to smell obj, '{The subj obj} {is}
+                errMsg = msgText(too far away to smell obj, '{The subj obj} {is}
                     too far away to smell. ');
             
             /* 
@@ -642,7 +642,7 @@ objSmellable: PreCondition
              *   blocking object is in the way.
              */
             else           
-                errMsg = BMsg(cannot smell through, '{I} {can\'t} smell {1} 
+                errMsg = msgText(cannot smell through, '{I} {can\'t} smell {1} 
                 through {2}. ', obj.theName, lst[1].theName);
                 
             /* Declare obj to be inaccessible to hearing. */
@@ -767,7 +767,7 @@ objDetached: PreCondition
         local att = obj.attachedTo;
         gMessageParams(obj, att);
         
-        DMsg(cannot do that while attached, '{I} {can\'t} do that while {the subj
+        showMsg(cannot do that while attached, '{I} {can\'t} do that while {the subj
             obj} is attached to {the att}. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -831,7 +831,7 @@ actorInStagingLocation: PreCondition
         if(stagingLoc == nil)
         {
             gMessageParams(obj);
-            DMsg(no staging loc, '{The subj obj} {can\'t} be reached. ');
+            showMsg(no staging loc, '{The subj obj} {can\'t} be reached. ');
             return nil;
         }
         
@@ -880,7 +880,7 @@ actorInStagingLocation: PreCondition
         
         gMessageParams(stagingLoc);
         
-        DMsg(not in staging location, '{I} need{s/ed} to be <<if
+        showMsg(not in staging location, '{I} need{s/ed} to be <<if
               stagingLoc.ofKind(Room)>> directly <<end>>
             {in stagingloc} to do that. ');
     
@@ -932,7 +932,7 @@ actorOutOfNested: PreCondition
         }
         
         gMessageParams(loc);
-        DMsg(still in nested, '{I} {can\'t} do that while {he actor} {is} 
+        showMsg(still in nested, '{I} {can\'t} do that while {he actor} {is} 
             {in loc}. ');
         return nil;
     }
@@ -987,7 +987,7 @@ actorOutOfSubNested: PreCondition
          *   Otherwise display our failure message and return nil to tell our caller the main action
          *   cannot go ahead.
          */
-        DMsg(not out of subnested, '{I} need{s/ed} to be {1} before {i} {can} get {2}. ',
+        showMsg(not out of subnested, '{I} need{s/ed} to be {1} before {i} {can} get {2}. ',
             loc.objOutOfName, obj.objOutOfName);
         
         return nil;
@@ -1105,7 +1105,7 @@ objCarried: PreCondition
          *   problem.
          */
         gMessageParams(obj);
-        DMsg(not held, '{I} {am} not holding {the obj}. ');
+        showMsg(not held, '{I} {am} not holding {the obj}. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
         return nil;        
@@ -1125,9 +1125,9 @@ canTalkToObj: PreCondition
             gMessageParams(obj);
             
             if(!obj.isIn(gActorRoom))
-                errMsg = BMsg(too far away to talk, '{The subj obj} {is} too far away to talk to. ');
+                errMsg = msgText(too far away to talk, '{The subj obj} {is} too far away to talk to. ');
             else
-                errMsg = BMsg(cannot talk to obj, '{I} {can\'t} talk to {the obj} just {now}. ');
+                errMsg = msgText(cannot talk to obj, '{I} {can\'t} talk to {the obj} just {now}. ');
             
             inaccessible(errMsg);
         }        

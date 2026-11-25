@@ -41,7 +41,7 @@ modify Actor
          */
         if(stat && !(objOfKind(stat, ActorState) && stat.getActor == self))
         {
-            DMsg(illegal actor state, '<FONT COLOR=RED><b>WARNING!</b></FONT> In the call to
+            showMsg(illegal actor state, '<FONT COLOR=RED><b>WARNING!</b></FONT> In the call to
                 setState(stat) on Actor <<theName>>, stat <<stat>> was not an ActorState belonging
                 to <<theName>>. ');
             
@@ -134,9 +134,9 @@ modify Actor
             return;
         
         if(location == getOutermostRoom)
-            DMsg(actor here, '\^<<theNameIs>> <<postureDesc>> {here}. ');
+            showMsg(actor here, '\^<<theNameIs>> <<postureDesc>> {here}. ');
         else
-            DMsg(actor in location, '\^<<theNameIs>> <<postureDesc>> <<location.objInName>>. ');        		
+            showMsg(actor in location, '\^<<theNameIs>> <<postureDesc>> <<location.objInName>>. ');        		
     }
     
     /*   
@@ -169,7 +169,7 @@ modify Actor
     actorRemoteSpecialDesc(pov) 
     { 
         if(fDaemon == nil)
-            DMsg(actor in remote location, '\^<<theNameIs>> <<if location != getOutermostRoom>>
+            showMsg(actor in remote location, '\^<<theNameIs>> <<if location != getOutermostRoom>>
                 <<location.remoteObjInName(pov)>> <<end>> 
                 <<getOutermostRoom.inRoomName(pov)>>. ');
     }
@@ -182,7 +182,7 @@ modify Actor
     isFixed = true    
     
     /*   The message to display when someone tries to take this actor. */
-    cannotTakeMsg = BMsg(cannot take actor, '{The subj dobj} {won\'t} let {me}
+    cannotTakeMsg = msgText(cannot take actor, '{The subj dobj} {won\'t} let {me}
         {dummy} pick {him dobj} up. ')
     
     /*   The (portable) contents of an actor are regarded as being carried. */
@@ -198,7 +198,7 @@ modify Actor
      *   The default response of the actor to a conversational command that is
      *   not handled anywhere else.
      */
-    noResponseMsg = BMsg(no response, '{The subj cobj} {doesnot respond[ed]}. ')
+    noResponseMsg = msgText(no response, '{The subj cobj} {doesnot respond[ed]}. ')
     
     
     /* Handle a command (e.g. BOB, JUMP) directed at this actor. */
@@ -265,7 +265,7 @@ modify Actor
         /* exclude SystemActions as a matter of course */
         else if(action.ofKind(SystemAction))
         {
-            DMsg(cannot command system action, 'Only the player can carry out
+            showMsg(cannot command system action, 'Only the player can carry out
                 that kind of command. ');
         }
         
@@ -325,7 +325,7 @@ modify Actor
      *   The default message to use in response to a command directed to this
      *   actor that is not handled in any other way.
      */
-    refuseCommandMsg = BMsg(refuse command, '{I} {have} better things to do. ')
+    refuseCommandMsg = msgText(refuse command, '{I} {have} better things to do. ')
         
     
     /* 
@@ -1277,7 +1277,7 @@ modify Actor
         gMessageParams(follower, pc);
         
         /* Display our default following message */
-        DMsg(follow, '<.p>{The follower} follow{s/ed} behind {the pc}. ');
+        showMsg(follow, '<.p>{The follower} follow{s/ed} behind {the pc}. ');
     }
     
     
@@ -1392,13 +1392,13 @@ modify Actor
             conn.sayActorFollowing(gActor, self);
     }
     
-    followActorMsg = BMsg(follow actor, '{I} follow{s/ed} {1}. ', theName)
+    followActorMsg = msgText(follow actor, '{I} follow{s/ed} {1}. ', theName)
     
     /* 
      *   The message to display when this actor doesn't go anywhere when the
      *   player character tries to follow this actor.
      */
-    actorStaysPutMsg = BMsg(actor stays put, '{I} wait{s/ed} in vain for {1} to
+    actorStaysPutMsg = msgText(actor stays put, '{I} wait{s/ed} in vain for {1} to
         go anywhere. ', theName)
     
     
@@ -1498,12 +1498,12 @@ modify Actor
         
         /* If we find it, display a message saying we've arrived from that direction. */
         if(dir)
-            DMsg(actor arriving from dir,
+            showMsg(actor arriving from dir,
                  '{The subj traveler} arrive{s/d} from <<dir.arrivalName>>. ');
         
         /* Otherwise, just say the actor arrived in the player character's locatton. */
         else            
-            DMsg(actor arriving, '{The subj traveler} arrive{s/d} in the area. ');
+            showMsg(actor arriving, '{The subj traveler} arrive{s/d} in the area. ');
     }
     
     
@@ -2175,7 +2175,7 @@ modify Actor
          */
         if(gPlayerChar.currentInterlocutor != self && reason == endConvBye)
         {
-            DMsg(not interlocutor, '{I}{\'m} not talking to {1}. ', theName);
+            showMsg(not interlocutor, '{I}{\'m} not talking to {1}. ', theName);
         }        
         else
         {
@@ -2200,13 +2200,13 @@ modify Actor
      *   there's no accessible HelloTopic defined.
      */
    
-    noHelloResponseMsg = BMsg(no hello response, '{I} now {have} {1} attention.
+    noHelloResponseMsg = msgText(no hello response, '{I} now {have} {1} attention.
         ', possAdj)
     
-    alreadyTalkingMsg = BMsg(already talking, '{I} {am} already talking to {1}.
+    alreadyTalkingMsg = msgText(already talking, '{I} {am} already talking to {1}.
         ', theName)
     
-    noGoodbyeResponseMsg = BMsg(no goodbye response, 'The conversation{dummy}
+    noGoodbyeResponseMsg = msgText(no goodbye response, 'The conversation{dummy}
         {is} ended. ')
     
     
@@ -2404,7 +2404,7 @@ modify Actor
         gMessageParams(obj, this);
                
         /* Return the text of the message. */
-        return BMsg(cannot take from actor, '{The subj this} {won\'t} let {me}
+        return msgText(cannot take from actor, '{The subj this} {won\'t} let {me}
             have {the obj} while {he obj}{\'s} in {her this} possession. ');
     }
     
@@ -2491,7 +2491,7 @@ modify Actor
     
     defaultSayResponse = '<<pcDefaultSayQuip>><.p><<noResponseMsg>>'
     
-    pcDefaultSayQuip = BMsg(default pcsayquip, 
+    pcDefaultSayQuip = msgText(default pcsayquip, 
                   '<q><<gTopicText.substr(1,1).toUpper()>><<gTopicText.substr(2).toLower()>>,</q> 
         {i} {say}. ')   
     
@@ -2506,14 +2506,14 @@ modify Actor
     
         
     /* The message to display if isKissable is nil */
-    cannotKissMsg = BMsg(should not kiss, 'That hardly {dummy} seem{s/ed}
+    cannotKissMsg = msgText(should not kiss, 'That hardly {dummy} seem{s/ed}
         appropriate. ')
     
     /*   
      *   The default response of the actor to an attempt to kiss him/her/it
      *   where this is not handled anywhere else, but allowKiss is true.
      */
-    kissResponseMsg = BMsg(kiss response, '{The subj dobj} {doesn\'t like[d]}
+    kissResponseMsg = msgText(kiss response, '{The subj dobj} {doesn\'t like[d]}
         that. ')
     
     /*  
@@ -2553,7 +2553,7 @@ modify Actor
     
     
     /* The message to display if isAttackable is nil */
-    cannotAttackMsg = BMsg(cannot attack actor, 'That hardly {dummy} seem{s/ed}
+    cannotAttackMsg = msgText(cannot attack actor, 'That hardly {dummy} seem{s/ed}
         appropriate. ')
        
     /* 
@@ -2582,7 +2582,7 @@ modify Actor
     dobj AttackWith as Attack
     
     
-    touchResponseMsg = BMsg(should not touch actor, '{The subj dobj} {doesn\'t
+    touchResponseMsg = msgText(should not touch actor, '{The subj dobj} {doesn\'t
         appreciate[d]} being touched. ')
     
     feelDesc = touchResponseMsg
@@ -2682,14 +2682,14 @@ modify Actor
     sayActorCatches(obj)
     {
         gMessageParams(obj);
-        DMsg(catch okay, '{The subj iobj} {catches} {the obj}. ');
+        showMsg(catch okay, '{The subj iobj} {catches} {the obj}. ');
     }
     
     /* Display a message saying that this actor failst to catch obj */
     sayActorDropsCatch(obj)
     {
         gMessageParams(obj);
-        DMsg(drop catch, '{The subj iobj} fail{s/ed} to catch {the obj},
+        showMsg(drop catch, '{The subj iobj} fail{s/ed} to catch {the obj},
             so that {he obj} land{s/ed} on the ground instead. ');
     }
     
@@ -2762,19 +2762,19 @@ modify Actor
    
     sayHeadAfterActor(conn)
     {
-        DMsg(say head after actor, '{I} head{s/ed} off {1} after {2}. ',
+        showMsg(say head after actor, '{I} head{s/ed} off {1} after {2}. ',
              conn.traversalMsg, theName);
     }
     
-    waitToSeeMsg = BMsg(wait to see, '{I} wait{s/ed} to see where {he dobj}
+    waitToSeeMsg = msgText(wait to see, '{I} wait{s/ed} to see where {he dobj}
         {goes}. ')
      
 
-    dontKnowWhereGoneMsg = BMsg(dont know where gone, '{I} {don\'t know} where
+    dontKnowWhereGoneMsg = msgText(dont know where gone, '{I} {don\'t know} where
         {the subj dobj} {has} gone. ')
-    cantStartFromHereMsg = BMsg(cannot start from here, '{I}{\'m} not where {i}
+    cantStartFromHereMsg = msgText(cannot start from here, '{I}{\'m} not where {i}
         last saw {the dobj}. ')
-    cantFollowFromHereMsg = BMsg(cannot follow from here, '{I} {can\'t} follow
+    cantFollowFromHereMsg = msgText(cannot follow from here, '{I} {can\'t} follow
         {him dobj} from {here}. ')
     
     /* This actor's current stance towards the player character */
@@ -2807,7 +2807,7 @@ modify Actor
         if(objOfKind(actor, Actor) && objOfKind(stance_, Stance))
             stanceTab[actor] = stance_;
         else
-            DMsg(set stance error, '<FONT color=red><b>WARNING</b></FONT>: in
+            showMsg(set stance error, '<FONT color=red><b>WARNING</b></FONT>: in
                 setStanceToward(<<actor>>, <<stance_>>) <<actor>> is not an Actor and/or <<stance_>>
                 is not a Stance. ');
     }
@@ -2935,7 +2935,7 @@ modify Actor
         }
         else
         {
-            DMsg(set mood error, '<FONT color=red><b>WARNING!</b></FONT>: in setMood(<<mood_>>),
+            showMsg(set mood error, '<FONT color=red><b>WARNING!</b></FONT>: in setMood(<<mood_>>),
                 <<mood_>> is not a Mood. ');
         }
     }
@@ -3050,7 +3050,7 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
         gMessageParams(follower, pc);
         
         /* Display the message */
-        DMsg(state follow, '{The follower} follow{s/ed} behind {the pc}. ');
+        showMsg(state follow, '{The follower} follow{s/ed} behind {the pc}. ');
     }
     
     /*  
@@ -4183,10 +4183,10 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         else
         {
             if(parent.mayAddSubtopics)                
-                DMsg(nothing to discuss on that topic, '{I} {have} nothing to
+                showMsg(nothing to discuss on that topic, '{I} {have} nothing to
                     discuss on that topic just {then}. '); 
             else
-                DMsg(nothing more to discuss on that topic, '{I} {have} nothing more to
+                showMsg(nothing more to discuss on that topic, '{I} {have} nothing more to
                     discuss on that topic. ');
         }
     }
@@ -4631,7 +4631,7 @@ class YesTopic: MiscTopic
      *   We give YesTopic a name so that it can be suggested in response to a
      *   request to display a list of suggested topics.
      */
-    name = BMsg(say yes, 'say yes')
+    name = msgText(say yes, 'say yes')
 ;
 
 /* A NoTopic is a TopicEntry that responds to NO or SAY NO */
@@ -4646,7 +4646,7 @@ class NoTopic: MiscTopic
      *   We give NoTopic a name so that it can be suggested in response to a
      *   request to display a list of suggested topics.
      */
-    name = BMsg(say no, 'say no')
+    name = msgText(say no, 'say no')
     
     /* 
      *   We define the suggestAs property of the NoTopic so that the
@@ -4670,7 +4670,7 @@ class YesNoTopic: MiscTopic
      *   We give YesNoTopic a name so that it can be suggested in response to a
      *   request to display a list of suggested topics.
      */
-    name = BMsg(say yes or no, 'say yes or no')
+    name = msgText(say yes or no, 'say yes or no')
 ;
 
 /*  
@@ -5129,7 +5129,7 @@ class DefaultConvstayTopic: DefaultAnyTopic
     
     
     /* The response we show to KISS, HIT, or FEEL. Game code can override. */
-    nonConvResponse = DMsg(non conv response, 'Best keep {my} mind on the conversation. ')
+    nonConvResponse = showMsg(non conv response, 'Best keep {my} mind on the conversation. ')
     
     /* 
      *   The tag to add to the end of every response. By default this is <.convstay> but game code
@@ -7084,7 +7084,7 @@ modify AgendaManager
     {
         if(!(objOfKind(ag, AgendaItem) && ag.getActor == self))
         {
-            DMsg(bad agenda item, '<FONT COLOR=RED><b>WARNING!</b></FONT>: attempt to add something
+            showMsg(bad agenda item, '<FONT COLOR=RED><b>WARNING!</b></FONT>: attempt to add something
                 to the agenda for <<getActor.theName>> that is not an AgendaItem belonging to that
                 Actor. ');
             return nil;
@@ -7687,10 +7687,10 @@ class FollowAgendaItem: AgendaItem
         local nd = nextDirection;
         
         if(nd != nil)
-            DMsg(waiting for follow, '{The subj myactor} {is} waiting for {the
+            showMsg(waiting for follow, '{The subj myactor} {is} waiting for {the
                 pc} {dummy} to follow {him myactor} {1}. ', nd.departureName);
         else
-            DMsg(actor is here, '{The subj myactor} {is} {here}. '); 
+            showMsg(actor is here, '{The subj myactor} {is} {here}. '); 
     }
         
     nextDirection = getActor.getOutermostRoom.getDirection(nextConnector)
@@ -7855,10 +7855,10 @@ suggestedTopicLister: object
     {
         if(suggestionStyle == suggestionStyleExhaustive ||
            (suggestionStyle == suggestionStyleAuto && !pl))
-            DMsg(suggestion list intro, '{I} could ');
+            showMsg(suggestion list intro, '{I} could ');
         
         else
-            DMsg(open suggestion list intro, 'Among other things, {i} could ');
+            showMsg(open suggestion list intro, 'Among other things, {i} could ');
     }
     
     /* End the list with a closing parenthesis or full stop as appropriate */
@@ -7892,10 +7892,10 @@ suggestedTopicLister: object
     {
         "\n<.p><.notification>";
         if(systemInfo(SysInfoInterpClass) == SysInfoIClassHTML)
-            DMsg(explain enumerating and hyperlinking,'Enumeration and/or hyperlinking of topic
+            showMsg(explain enumerating and hyperlinking,'Enumeration and/or hyperlinking of topic
                 suggestions can be toggled on and off using the commands ENUM SUGGS and/or HYPER
                 SUGGS respectively.'); 
-        else DMsg(explain numbering, 'Enumeration of topic suggestions can be toggled on and off
+        else showMsg(explain numbering, 'Enumeration of topic suggestions can be toggled on and off
             using the command ENUM SUGGS.');
         
         "<./notification><.p>";        
@@ -7909,11 +7909,11 @@ suggestedTopicLister: object
         {
             if(suggestionStyle == suggestionStyleExhaustive ||
                (suggestionStyle == suggestionStyleAuto && oll == 0))
-                DMsg(nothing in mind, '{I} {have} nothing in mind to discuss
+                showMsg(nothing in mind, '{I} {have} nothing in mind to discuss
                     with {1} just {then}. ',
                      gPlayerChar.currentInterlocutor.theObjName);
             else
-                DMsg(nothing specfic in mind, '{I}\'ll have to decide for {myself}
+                showMsg(nothing specfic in mind, '{I}\'ll have to decide for {myself}
                     what to discuss with {1} at this point. ',
                      gPlayerChar.currentInterlocutor.theObjName);
                 
@@ -8129,7 +8129,7 @@ suggestedTopicLister: object
             
             /* Output a comma or 'or', depending where we are in the list */
             if(i == lst.length - 1)
-                DMsg(or, ' or ');
+                showMsg(or, ' or ');
             if(i < lst.length - 1)
                 ", ";
             
@@ -8205,18 +8205,18 @@ suggestedTopicLister: object
      *   The prefix to use when suggesting a SayTopic, if it explicitly wants
      *   the suggestion to start with 'say'.
      */
-    sayPrefix = BMsg(say prefix, 'say ')
-    queryPrefix = BMsg(ask query, 'ask {him interlocutor} ')
-    askPrefix = BMsg(ask about, 'ask {him interlocutor} about ')
-    tellPrefix = BMsg(tell about, 'tell {him interlocutor} about ')
-    talkPrefix = BMsg(talk about, 'talk about ')    
-    givePrefix = BMsg(give, 'give {him interlocutor} ')
-    showPrefix = BMsg(show, 'show {him interlocutor} ')
-    askForPrefix = BMsg(ask for, 'ask {him interlocutor} for ')
-    tellToPrefix = BMsg(tell to, 'tell {him interlocutor} to ')
+    sayPrefix = msgText(say prefix, 'say ')
+    queryPrefix = msgText(ask query, 'ask {him interlocutor} ')
+    askPrefix = msgText(ask about, 'ask {him interlocutor} about ')
+    tellPrefix = msgText(tell about, 'tell {him interlocutor} about ')
+    talkPrefix = msgText(talk about, 'talk about ')    
+    givePrefix = msgText(give, 'give {him interlocutor} ')
+    showPrefix = msgText(show, 'show {him interlocutor} ')
+    askForPrefix = msgText(ask for, 'ask {him interlocutor} for ')
+    tellToPrefix = msgText(tell to, 'tell {him interlocutor} to ')
     
     /*  The conjunction to use at the end of a list of alternatives */
-    orListSep = BMsg(or list separator, '; or ')
+    orListSep = msgText(or list separator, '; or ')
 
     
     /* 
@@ -8290,9 +8290,9 @@ enumSuggestionsPreparser: StringPreParser
             else if(num)
             {
                 if(suggestionEnumerator.count == 0)
-                    DMsg(no enumerations, 'Enumerated suggestions aren\'t available right now. ');
+                    showMsg(no enumerations, 'Enumerated suggestions aren\'t available right now. ');
                 else
-                    DMsg(enmeration out of range, 'To select an enumerated suggestion, please enter
+                    showMsg(enmeration out of range, 'To select an enumerated suggestion, please enter
                         a number between 1 and {1}. ', suggestionEnumerator.count);
                 
                 str = nil;

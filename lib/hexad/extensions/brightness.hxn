@@ -390,7 +390,7 @@ modify Thing
     }
     
     /* The message to display if there's not enough light to read this item. [BRIGHTNESS EXTENSION]*/
-    tooDarkToReadMsg = BMsg(too dark to read, 'There{\'s} not enough light {here} to read 
+    tooDarkToReadMsg = msgText(too dark to read, 'There{\'s} not enough light {here} to read 
         {the dobj}. ');
 ;
 

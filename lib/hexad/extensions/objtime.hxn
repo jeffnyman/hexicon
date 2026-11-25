@@ -290,7 +290,7 @@ class TimeFuse: Fuse
             
             /* Fall through deliberately if we're some other kind of object */
         default:
-            DMsg(time fuse interval error, 'Bad interval <<interval>> supplied
+            showMsg(time fuse interval error, 'Bad interval <<interval>> supplied
                 to TimeFuse constructor. ');
             break;              
             

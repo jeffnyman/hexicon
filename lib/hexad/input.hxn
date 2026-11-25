@@ -761,11 +761,11 @@ commentPreParser: StringPreParser
              *   the comment isn't being saved anywhere 
              */
             if (scriptStatus.scriptFile != nil)
-                DMsg(note with script, 'Comment recorded. ');
+                showMsg(note with script, 'Comment recorded. ');
             else if (warningCount++ == 0)
-                DMsg(note without script warning, 'Comment NOT recorded. ');
+                showMsg(note without script warning, 'Comment NOT recorded. ');
             else
-                DMsg(note without script, 'Comment NOT recorded. ');
+                showMsg(note without script, 'Comment NOT recorded. ');
 
             /* 
              *   Otherwise completely ignore the command line.  To do this,

@@ -274,7 +274,7 @@ class Room: TravelConnector, Thing
      *   The Message to display if travel is disallowed in any given direction
      *   (because the corresponding direction property of the Room is nil).
      */    
-    cannotGoThatWayMsg = BMsg(cannot go, '{I} {can\'t} go that way. ' )
+    cannotGoThatWayMsg = msgText(cannot go, '{I} {can\'t} go that way. ' )
     
     /*   
      *   The method that is called when travel is attempted in a direction
@@ -298,7 +298,7 @@ class Room: TravelConnector, Thing
      *   a direction for which no destination (or other handling) is defined, or
      *   in a direction in which the exit is not visible in the dark.
      */
-    cannotGoThatWayInDarkMsg = BMsg(cannot go in dark, 'It{dummy}{\'s} too dark
+    cannotGoThatWayInDarkMsg = msgText(cannot go in dark, 'It{dummy}{\'s} too dark
         to see where {i}{\'m} going. ')
     
     
@@ -398,7 +398,7 @@ class Room: TravelConnector, Thing
          *   immediate container in parentheses after the room name.
          */
         if(!actor.location.ofKind(Room))
-            nestedLoc = BMsg(actor nested location name,  
+            nestedLoc = msgText(actor nested location name,  
                              ' (<<actor.location.objInPrep>> 
                 <<actor.location.theName>>)');
         
@@ -989,7 +989,7 @@ class Door: TravelConnector, Thing
         gMessageParams(traveler);
         local obj = self;
         gMessageParams(obj);
-        DMsg(npc opens door, '{The subj traveler} open{s/ed} {the
+        showMsg(npc opens door, '{The subj traveler} open{s/ed} {the
             obj}. ');
         
     }
@@ -1002,7 +1002,7 @@ class Door: TravelConnector, Thing
     {
         local obj = otherSide;
         gMessageParams(obj);
-        DMsg(door opens, '{The subj obj} open{s/ed}. ');
+        showMsg(door opens, '{The subj obj} open{s/ed}. ');
     }
     
     /*  Execute travel through this door. */
@@ -1033,7 +1033,7 @@ class Door: TravelConnector, Thing
      *   The message to display if travel is attempted through this door when
      *   it's closed and we're not allowed to open it via an implicit action.
      */
-    cannotGoThroughClosedDoorMsg =  BMsg(cannot go through closed door, 
+    cannotGoThroughClosedDoorMsg =  msgText(cannot go through closed door, 
                                          '{The subj obj} {is} in the way. ')
     
     /*   
@@ -1155,7 +1155,7 @@ class Door: TravelConnector, Thing
     sayDeparting(traveler)
     {
         gMessageParams(traveler);
-        DMsg(say departing through door, '{The subj traveler} {leaves} through
+        showMsg(say departing through door, '{The subj traveler} {leaves} through
             {1}. ', theName);
     }
     
@@ -1168,11 +1168,11 @@ class Door: TravelConnector, Thing
         /* Create message parameter substitutions for the follower and leader */
         gMessageParams(follower, leader);  
         
-        DMsg(say following through door, '{The subj follower} follow{s/ed} {the
+        showMsg(say following through door, '{The subj follower} follow{s/ed} {the
             leader} through {1}. ', theName);
     }
     
-    traversalMsg = BMsg(traverse door, 'through {1}', theName)
+    traversalMsg = msgText(traverse door, 'through {1}', theName)
     
     /* 
      *   Facilitate defining a Door as a nested anonymous object on a direction property of a
@@ -1642,7 +1642,7 @@ class TravelConnector: object
      */
     sayNoDestination()
     {
-        DMsg(no destination, 'That{dummy} {doesn\'t lead} anywhere. ');
+        showMsg(no destination, 'That{dummy} {doesn\'t lead} anywhere. ');
     }
 
        
@@ -1854,10 +1854,10 @@ class TravelConnector: object
         local depdir = getDepartingDirection(traveler);
         
         if(depdir == nil)
-            DMsg(say departing vague, '<.p>{The subj traveler} {leaves} the
+            showMsg(say departing vague, '<.p>{The subj traveler} {leaves} the
                 area. ');
         else        
-            DMsg(say departing dir, '<.p>{The subj traveler} {goes} {1}. '
+            showMsg(say departing dir, '<.p>{The subj traveler} {goes} {1}. '
                  , depdir.departureName);
                         
     }
@@ -1875,10 +1875,10 @@ class TravelConnector: object
         local depdir = getDepartingDirection(follower);
         
         if(depdir == nil)
-            DMsg(say following vague, '<.p>{The subj follower} follow{s/ed} {the
+            showMsg(say following vague, '<.p>{The subj follower} follow{s/ed} {the
                 leader}. ');
         else        
-            DMsg(say following dir, '<.p>{The subj follower} follow{s/ed} {the
+            showMsg(say following dir, '<.p>{The subj follower} follow{s/ed} {the
                 leader} {1}. ', depdir.departureName);
         
     }
@@ -1891,7 +1891,7 @@ class TravelConnector: object
     {
         local depDir = getDepartingDirection(gActor);
         
-        return  BMsg(traverse connector, '{1}', depDir.departureName);
+        return  msgText(traverse connector, '{1}', depDir.departureName);
     }
     
    
@@ -1924,7 +1924,7 @@ class TravelConnector: object
     sayNotInStagingLocation(traveler)
     {
         gMessageParams(traveler);
-        DMsg(not in staging location, '{The subj traveler} {can\'t} access that exit from
+        showMsg(not in staging location, '{The subj traveler} {can\'t} access that exit from
             {his traveler} current location. ' );
     }
     
@@ -2336,108 +2336,108 @@ class CompassDirection: Direction
 /*  The sixteen directions defined in the library */
 northDir: CompassDirection
     dirProp = &north
-    name = BMsg(north, 'north')
-    departureName = BMsg(depart north, 'to the north')
-    arrivalName = BMsg(arrive north, 'from the north')
+    name = msgText(north, 'north')
+    departureName = msgText(depart north, 'to the north')
+    arrivalName = msgText(arrive north, 'from the north')
     sortingOrder = 1000
     opposite = southDir
 ;
 
 eastDir: CompassDirection
     dirProp = &east
-    name = BMsg(east, 'east')
-    departureName = BMsg(depart east, 'to the east')
-    arrivalName = BMsg(arrive east, 'from the east')
+    name = msgText(east, 'east')
+    departureName = msgText(depart east, 'to the east')
+    arrivalName = msgText(arrive east, 'from the east')
     sortingOrder = 1100
     opposite = westDir
 ;
 
 southDir: CompassDirection
     dirProp = &south
-    name = BMsg(south, 'south')
-    departureName = BMsg(depart south, 'to the south')
-    arrivalName = BMsg(arrive south, 'from the south')
+    name = msgText(south, 'south')
+    departureName = msgText(depart south, 'to the south')
+    arrivalName = msgText(arrive south, 'from the south')
     sortingOrder = 1200
     opposite = northDir
 ;
 
 westDir: CompassDirection
     dirProp = &west
-    name = BMsg(west, 'west')
-    departureName = BMsg(depart west, 'to the west')
-    arrivalName = BMsg(arrive west, 'from the west')
+    name = msgText(west, 'west')
+    departureName = msgText(depart west, 'to the west')
+    arrivalName = msgText(arrive west, 'from the west')
     sortingOrder = 1300
     opposite = eastDir
 ;
 
 northeastDir: CompassDirection
     dirProp = &northeast
-    name = BMsg(northeast, 'northeast')
-    departureName = BMsg(depart northeast, 'to the northeast')
-    arrivalName = BMsg(arrive northeast, 'from the northeast')
+    name = msgText(northeast, 'northeast')
+    departureName = msgText(depart northeast, 'to the northeast')
+    arrivalName = msgText(arrive northeast, 'from the northeast')
     sortingOrder = 1400
     opposite = southwestDir
 ;
 
 northwestDir: CompassDirection
     dirProp = &northwest
-    name = BMsg(northwest, 'northwest')
-    departureName = BMsg(depart northwest, 'to the northwest')
-    arrivalName = BMsg(arrive northwest, 'from the northwest')
+    name = msgText(northwest, 'northwest')
+    departureName = msgText(depart northwest, 'to the northwest')
+    arrivalName = msgText(arrive northwest, 'from the northwest')
     sortingOrder = 1500
     opposite = southeastDir
 ;
 
 southeastDir: CompassDirection
     dirProp = &southeast
-    name = BMsg(southeast, 'southeast')
-    departureName = BMsg(depart southeast, 'to the southeast')
-    arrivalName = BMsg(arrive southeast, 'from the southeast')
+    name = msgText(southeast, 'southeast')
+    departureName = msgText(depart southeast, 'to the southeast')
+    arrivalName = msgText(arrive southeast, 'from the southeast')
     sortingOrder = 1600
     opposite = northwestDir
 ;
 
 southwestDir: CompassDirection
     dirProp = &southwest
-    name = BMsg(southwest, 'southwest')
-    departureName = BMsg(depart southwest, 'to the southwest')
-    arrivalName = BMsg(arrive southwest, 'from the southwest')
+    name = msgText(southwest, 'southwest')
+    departureName = msgText(depart southwest, 'to the southwest')
+    arrivalName = msgText(arrive southwest, 'from the southwest')
     sortingOrder = 1700
     opposite = northeastDir
 ;
 
 downDir: Direction
     dirProp = &down
-    name = BMsg(down, 'down')
-    departureName = BMsg(depart down, 'down')
-    arrivalName = BMsg(arrive down, 'from below')
+    name = msgText(down, 'down')
+    departureName = msgText(depart down, 'down')
+    arrivalName = msgText(arrive down, 'from below')
     sortingOrder = 2000
     opposite = upDir
 ;
 
 upDir: Direction
     dirProp = &up
-    name = BMsg(up, 'up')
-    departureName = BMsg(depart up, 'up')
-    arrivalName = BMsg(arrive up, 'from above')
+    name = msgText(up, 'up')
+    departureName = msgText(depart up, 'up')
+    arrivalName = msgText(arrive up, 'from above')
     sortingOrder = 2100
     opposite = downDir
 ;
 
 inDir: Direction
     dirProp = &in
-    name = BMsg(in, 'in')
-    departureName = BMsg(depart in, 'inside')
-    arrivalName = BMsg(arrive in, 'from inside')
+    name = msgText(in, 'in')
+    departureName = msgText(depart in, 'inside')
+    arrivalName = msgText(arrive in, 'from inside')
     sortingOrder = 3000
     opposite = outDir
 ;
 
 outDir: Direction
     dirProp = &out
-    name = BMsg(out, 'out')
-    departureName = BMsg(depart out, 'out')
-    arrivalName = BMsg(arrive out, 'from outside')
+    name = msgText(out, 'out')
+    departureName = msgText(depart out, 'out')
+    arrivalName = msgText(arrive out, 'from outside')
     sortingOrder = 3100
     opposite = inDir
 ;
@@ -2463,36 +2463,36 @@ class ShipboardDirection: Direction
 
 portDir: ShipboardDirection
     dirProp = &port
-    name = BMsg(port, 'port')
-    departureName = BMsg(depart port, 'to port')
-    arrivalName = BMsg(depart port, 'from port')
+    name = msgText(port, 'port')
+    departureName = msgText(depart port, 'to port')
+    arrivalName = msgText(depart port, 'from port')
     sortingOrder = 4000
     opposite = starboardDir
 ;
 
 starboardDir: ShipboardDirection
     dirProp = &starboard
-    name = BMsg(starboard, 'starboard')
-    departureName = BMsg(depart starboard, 'to starboard')
-    arrivalName = BMsg(arrive starboard, 'from starboard')
+    name = msgText(starboard, 'starboard')
+    departureName = msgText(depart starboard, 'to starboard')
+    arrivalName = msgText(arrive starboard, 'from starboard')
     sortingOrder = 4100
     opposite = portDir
 ;
 
 foreDir: ShipboardDirection
     dirProp = &fore
-    name = BMsg(forward, 'forward')
-    departureName = BMsg(depart forward, 'forward')
-    arrivalName = BMsg(arrive forward, 'from forward')
+    name = msgText(forward, 'forward')
+    departureName = msgText(depart forward, 'forward')
+    arrivalName = msgText(arrive forward, 'from forward')
     sortingOrder = 4200
     opposite = aftDir
 ;
 
 aftDir: ShipboardDirection
     dirProp = &aft
-    name = BMsg(aft, 'aft')
-    departureName = BMsg(depart aft, 'aft')
-    arrivalName = BMsg(arrive aft, 'from aft')
+    name = msgText(aft, 'aft')
+    departureName = msgText(depart aft, 'aft')
+    arrivalName = msgText(arrive aft, 'from aft')
     sortingOrder = 4300
     opposite = foreDir
 ;

@@ -3104,7 +3104,7 @@ specialActionPreparser: StringPreParser
     {
         if(str.find('sp#act'))
         {
-            DMsg(reject spaction input, 'I <i>really</i> refuse to understand that command. ');
+            showMsg(reject spaction input, 'I <i>really</i> refuse to understand that command. ');
             return nil;                
         }
         return str;
@@ -3185,23 +3185,23 @@ property grammarTemplates, grammarAlts, verbRule;
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Initialize the DoerParser table.  This populates the given
- *   DoerParserTable with DoerParser objects that describe the syntax
- *   available for use in Doer 'cmd' strings.
+ *   Initialize the CommandRuleParser table.  This populates the given
+ *   CommandRuleParserTable with CommandRuleParser objects that describe the syntax
+ *   available for use in CommandRule 'cmd' strings.
  *   
- *   Each DoerParser object simply provides a regular expression for
+ *   Each CommandRuleParser object simply provides a regular expression for
  *   parsing one action phrasing.  The regular expression defines the
  *   language-specific template for the action phrasing, with the proviso
  *   that each noun phrase is replaced with an object or class name, or a
  *   list of object or class names separated with '|' characters.
  *   
  *   For example, for a Give To command in English, we might define one
- *   DoerParser for each of the following regular expressions:
+ *   CommandRuleParser for each of the following regular expressions:
  *   
  *.     'give (<alphanum|_|vbar>+) to (<alphanum|_|vbar>+)'
  *.     'give (<alphanum|_|vbar>+) (<alphanum|_|vbar>+)'
  *   
- *   After you create a DoerParser, simply call ptab.addParser() to add the
+ *   After you create a CommandRuleParser, simply call ptab.addParser() to add the
  *   new parser to the table.
  *   
  *   Note that, regardless of the language, you MUST use a verb syntax that
@@ -3210,7 +3210,7 @@ property grammarTemplates, grammarAlts, verbRule;
  *   anyway, so this is usually what you'd do even without this
  *   requirement.  For a language that uses another word order for
  *   imperatives, though, you'll have to use an unnatural syntax for the
- *   DoerParser syntax, and thus for the Doer 'cmd' string syntax.  This
+ *   CommandRuleParser syntax, and thus for the CommandRule 'cmd' string syntax.  This
  *   unnatural syntax is purely internal to the library and games, though -
  *   players won't see it.
  *   
@@ -3224,11 +3224,11 @@ property grammarTemplates, grammarAlts, verbRule;
  *   grammar templates for each Action.  This is purely for our own use in
  *   the English library, so other languages don't have to replicate that
  *   functionality.  We do this here because we build these from the same
- *   information that we use to build the DoerParsers.
+ *   information that we use to build the CommandRuleParsers.
  *   
  *   [Required] 
  */
-initDoerParsers(ptab)
+initCommandRuleParsers(ptab)
 {
     /* set up inherited empty template lists in the base classes */
     VerbProduction.grammarAlts = [];
@@ -3246,7 +3246,7 @@ initDoerParsers(ptab)
         /* save the alternative info with the match object */
         mo.grammarAlts += alt;
         
-        /* build it into a string template and a Doer parser */
+        /* build it into a string template and a CommandRule parser */
         local t = [], pt = [], ptRoles = [];
         foreach (local tok in alt.gramTokens)
         {
@@ -3306,8 +3306,8 @@ initDoerParsers(ptab)
         }
         
         
-        /* add a DoerParser for the verb template to the parser table */
-        ptab.addParser(new DoerParser(action, pt[1], pt.join(' '), ptRoles));
+        /* add a CommandRuleParser for the verb template to the parser table */
+        ptab.addParser(new CommandRuleParser(action, pt[1], pt.join(' '), ptRoles));
     }
 }
 

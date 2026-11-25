@@ -572,7 +572,7 @@ hintManager: PreinitObject
         sessionHintStatus.hintsDisabled = true;
 
         /* acknowledge it */
-        DMsg(hints disabled, '<.notification>Hints are now disabled.<./notification> ');
+        showMsg(hints disabled, '<.notification>Hints are now disabled.<./notification> ');
     }
 
     /*
@@ -605,7 +605,7 @@ hintManager: PreinitObject
         /* if hints are disabled, reject the request */
         if (sessionHintStatus.hintsDisabled)
         {
-            DMsg(sorry hints disabled, '<.parser>Sorry, but hints have been
+            showMsg(sorry hints disabled, '<.parser>Sorry, but hints have been
                 disabled for this session, as you requested.  If you&rsquo;ve
                 changed your mind, you&rsquo;ll have to save your current
                 position, quit, and start a new session.<./parser> ');
@@ -618,7 +618,7 @@ hintManager: PreinitObject
         /* if there are no hints available, say so and give up */
         if (topHintMenuObj.contents.length() == 0)
         {
-            DMsg(currently no hints, '<.parser>Sorry, no hints are currently
+            showMsg(currently no hints, '<.parser>Sorry, no hints are currently
                 available. Please check back later.<./parser> ');
             return;
         }
@@ -631,7 +631,7 @@ hintManager: PreinitObject
         topHintMenuObj.display();
 
         /* all done */
-        DMsg(hints done, '<.parser>Done.<./parser> ');
+        showMsg(hints done, '<.parser>Done.<./parser> ');
     }
 
     /*
@@ -657,7 +657,7 @@ hintManager: PreinitObject
              */
             cquoteOutputFilter.deactivate();
             
-             DMsg(showHintWarning, '<.notification>Warning: Some people
+             showMsg(showHintWarning, '<.notification>Warning: Some people
                  don&rsquo;t like built-in hints, since the temptation to ask
                  for help prematurely can become overwhelming when hints are so
                  close at hand.  If you&rsquo;re worried that your willpower
@@ -943,7 +943,7 @@ extraHintManager: PreinitObject
     
     explainExtraHints()
     {
-        DMsg(explain extra hints, 'If you\'re new to Interactive Fiction and
+        showMsg(explain extra hints, 'If you\'re new to Interactive Fiction and
             would like to read a few extra hints and tips that will pop up here
             and there as you explore the story, type <<cmdStr('ON')>>. If you
             decide you don\'t want any more of these bonus tips, simply type
@@ -952,7 +952,7 @@ extraHintManager: PreinitObject
     
     cmdStr(stat)
     {
-        return BMsg(extra hint cmd str, 
+        return msgText(extra hint cmd str, 
         '<<aHref('EXTRA ' + stat, 'EXTRA ' + stat, 'Turning extra hints ' +
                 stat.toLower)>>');
     }

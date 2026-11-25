@@ -40,7 +40,7 @@ modify Parser
 action CmdMenu: SystemAction
     showOptions()
     {
-        DMsg(cmdhelp show options,
+        showMsg(cmdhelp show options,
         'What would you like to do?\b
         <<aHrefFmt(hlinkFormat,'1','1')>>. Go to another location\n
         <<aHrefFmt(hlinkFormat,'2','2')>>. Investigate your surroundings\n
@@ -53,7 +53,7 @@ action CmdMenu: SystemAction
             {
                 if(a != gPlayerChar && Q.canTalkTo(gPlayerChar, a))
                 {
-                    DMsg(cmdhelp talk to someone, '<<aHref('5','5')>>. 
+                    showMsg(cmdhelp talk to someone, '<<aHref('5','5')>>. 
                         Talk to someone\n');
                     break;
                 }
@@ -127,7 +127,7 @@ action CmdMenu: SystemAction
         if(num == 1)
         {
             /* Ask the player where s/he wants to go. */
-            DMsg(cmdhelp where go, 'Where would you like to go?\n
+            showMsg(cmdhelp where go, 'Where would you like to go?\n
             The possible exits are: ');
             
             {
@@ -147,7 +147,7 @@ action CmdMenu: SystemAction
                 }
                 /* If we didn't find any exits, say so. */
                 if(dirFound == nil)
-                    DMsg(cmdhelp no exit, 'None ');
+                    showMsg(cmdhelp no exit, 'None ');
             }
             "<.p>";
             
@@ -173,7 +173,7 @@ action CmdMenu: SystemAction
                 if(rmList.length > 0)
                 {
                     /* Introduce the list. */
-                    DMsg(cmdhelp go to, 'Or you could: ');
+                    showMsg(cmdhelp go to, 'Or you could: ');
                     
                     /* 
                      *   Display a hyperlinked GO TO ROOM command for every room
@@ -208,7 +208,7 @@ action CmdMenu: SystemAction
         if(num == 2)
         {
             /* First offer the basic set of intransitive commands. */
-            DMsg(cmdhelp investigate, 'Here are some suggestions (other
+            showMsg(cmdhelp investigate, 'Here are some suggestions (other
                 actions may also be possible):\n');
             "<<aHrefFmt(hlinkFormat, 'look', 'look', 'Look around the room')>>\ \ 
             <<aHrefFmt(hlinkFormat, 'listen', 'listen')>>\ \
@@ -305,7 +305,7 @@ action CmdMenu: SystemAction
         if(num == 3)
         {
             /* Display an introductory message. */         
-            DMsg(cmdhelp relocate, 'Here are some suggestions (there may well
+            showMsg(cmdhelp relocate, 'Here are some suggestions (there may well
                 be several other possibilities):\n');
             
             /* 
@@ -575,7 +575,7 @@ action CmdMenu: SystemAction
         if(num == 4)
         {
             /* Display an introductory message. */
-            DMsg(cmdhelp manipulate, 'Some things you could try include (there
+            showMsg(cmdhelp manipulate, 'Some things you could try include (there
                 may be many other possibilities):\b');
             
             /* Go through every action in out manipulationActions list */
@@ -729,7 +729,7 @@ action CmdMenu: SystemAction
             
             /* If we didn't find any, say so. */
             if(actor_lst.length == 0)                  
-                DMsg(cmdhelp no one to talk to, 'Sorry, but there\'s no one here 
+                showMsg(cmdhelp no one to talk to, 'Sorry, but there\'s no one here 
                     to talk to right now.\b');
             /* 
              *   Otherwise, if we only found one and the player character is

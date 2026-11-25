@@ -81,34 +81,34 @@ class Posture: object
 
 /* The standing posture. [POSTURES EXTENSION] */
 standing: Posture
-    participle = BMsg(standing, 'standing')
+    participle = msgText(standing, 'standing')
     allowedOnProp = &canStandOnMe
     allowedInProp = &canStandInMe
     cannotInMsgProp = &cannotStandInMsg
     cannotOnMsgProp = &cannotStandOnMsg    
-    verbPhrase = BMsg(i stand, '{I} {stand}')
+    verbPhrase = msgText(i stand, '{I} {stand}')
     action = Stand
 ;
 
 /* The sitting posture [POSTURES EXTENSION] */
 sitting: Posture
-    participle = BMsg(sitting, 'sitting')
+    participle = msgText(sitting, 'sitting')
     allowedOnProp = &canSitOnMe
     allowedInProp = &canSitInMe
     cannotInMsgProp = &cannotSitInMsg
     cannotOnMsgProp = &cannotSitOnMsg   
-    verbPhrase = BMsg(i sit, '{I} {sit}')
+    verbPhrase = msgText(i sit, '{I} {sit}')
     action = Sit
 ;
 
 /* The lying posture {POSTURES EXTENSION] */
 lying: Posture
-    participle = BMsg(lying, 'lying')
+    participle = msgText(lying, 'lying')
     allowedOnProp = &canLieOnMe
     allowedInProp = &canLieInMe
     cannotInMsgProp = &cannotLieInMsg
     cannotOnMsgProp = &cannotLieOnMsg    
-    verbPhrase = BMsg(i lie, '{I} {lie}')
+    verbPhrase = msgText(i lie, '{I} {lie}')
     action = Lie
 ;
 
@@ -152,7 +152,7 @@ modify Thing
          *   display a message explaining the fact.
          */
         if(posture == pos)
-            DMsg(posture already adopted, '{I} {am} already {1}. ',
+            showMsg(posture already adopted, '{I} {am} already {1}. ',
                  pos.participle);
         
         /*  
@@ -162,7 +162,7 @@ modify Thing
         else if(pos.canAdoptIn(location))
         {
             posture = pos;
-            DMsg(okay adopt posture, 'Okay, {i} {am} {now} {1}. ', 
+            showMsg(okay adopt posture, 'Okay, {i} {am} {now} {1}. ', 
                  pos.participle); 
         }
         /*  
@@ -217,7 +217,7 @@ modify Thing
     }
     
     /* [DEFINED IN POSTURES EXTENSION] */
-    okayStandOnMsg = BMsg(okay stand on, '{I} {stand} on {1}. ', gActionListStr)
+    okayStandOnMsg = msgText(okay stand on, '{I} {stand} on {1}. ', gActionListStr)
     
     /*  
      *   Modification for SitOn handling [DEFINED IN POSTURES EXTENSION] If the actor is already on
@@ -247,7 +247,7 @@ modify Thing
     }
     
     /* [DEFINED IN POSTURES EXTENSION] */
-    okaySitOnMsg = BMsg(okay sit on, '{I} {sit} on {1}. ', gActionListStr)
+    okaySitOnMsg = msgText(okay sit on, '{I} {sit} on {1}. ', gActionListStr)
     
     /*  
 	 * 	Modification for LieOn handling [DEFINED IN POSTURES EXTENSION]
@@ -279,7 +279,7 @@ modify Thing
     }
     
     /* [DEFINED IN POSTURES EXTENSION] */
-    okayLieOnMsg = BMsg(okay lie on, '{I} {lie} on {1}. ', gActionListStr)
+    okayLieOnMsg = msgText(okay lie on, '{I} {lie} on {1}. ', gActionListStr)
             
     /* 
      *   If an actor Boards something, we need to know what posture the actor
@@ -302,7 +302,7 @@ modify Thing
         
         report()
         {
-            DMsg(okay get on posture, '{1} on {2}. ', gActor.posture.verbPhrase,
+            showMsg(okay get on posture, '{1} on {2}. ', gActor.posture.verbPhrase,
                  gActionListStr);
         }
     }
@@ -399,11 +399,11 @@ modify Thing
     }
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
-    cannotStandInMsg = BMsg(cannot stand in, '{I} {can\'t} stand in {the dobj}.
+    cannotStandInMsg = msgText(cannot stand in, '{I} {can\'t} stand in {the dobj}.
         ')
         
     /* [MODIFIED FOR POSTURES EXTENSION] */    
-    okayStandInMsg = BMsg(okay stand in, '{I} {stand} in {1}. ', gActionListStr)
+    okayStandInMsg = msgText(okay stand in, '{I} {stand} in {1}. ', gActionListStr)
     
     /* 
      *  SitIn is handled much like StandIn 
@@ -432,10 +432,10 @@ modify Thing
     }
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
-    okaySitInMsg = BMsg(okay sit in, '{I} {sit} in {1}. ', gActionListStr)
+    okaySitInMsg = msgText(okay sit in, '{I} {sit} in {1}. ', gActionListStr)
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
-    cannotSitInMsg = BMsg(cannot sit in, '{I} {can\'t} sit in {the dobj}. ')
+    cannotSitInMsg = msgText(cannot sit in, '{I} {can\'t} sit in {the dobj}. ')
     
     /*
      *  LieIn is handled much like StandIn 
@@ -464,10 +464,10 @@ modify Thing
     }
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
-    okayLieInMsg = BMsg(okay lie in, '{I} {lie} in {1}. ', gActionListStr)
+    okayLieInMsg = msgText(okay lie in, '{I} {lie} in {1}. ', gActionListStr)
     
     /* [MODIFIED FOR POSTURES EXTENSION] */
-    cannotLieInMsg = BMsg(cannot lie in, '{I} {can\'t} lie in {the dobj}. ')
+    cannotLieInMsg = msgText(cannot lie in, '{I} {can\'t} lie in {the dobj}. ')
     
     /* 
      *   When an actor enters something we need to determine what posture the
@@ -522,7 +522,7 @@ modify Thing
     /* MODIFIED FOR POSTURES EXTENSION to include the actor's posture */
     nestedLoc(actor)
     {
-        return BMsg(actor nested location posture name,  
+        return msgText(actor nested location posture name,  
                              ' (<<actor.posture.participle>>
                              <<actor.location.objInPrep>> 
                              <<actor.location.theName>>)');
@@ -675,7 +675,7 @@ actorInTravelPosture: PreCondition
         if(allowImplicit && tryImplicitAction(requiredPosture.action))
             return true;
         
-        DMsg(not in posture to travel, '{I} need{s/ed} to be {1} first. ',
+        showMsg(not in posture to travel, '{I} need{s/ed} to be {1} first. ',
              requiredPosture.participle);
         
         return nil;

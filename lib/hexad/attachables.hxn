@@ -156,13 +156,13 @@ class SimpleAttachable: Thing
    
     
     
-    okayAttachMsg = BMsg(okay attach, '{I} attach{es/ed} {1} to {the iobj}. ',
+    okayAttachMsg = msgText(okay attach, '{I} attach{es/ed} {1} to {the iobj}. ',
                          gActionListStr) 
     
-    alreadyAttachedMsg = BMsg(already attached, '{The subj dobj} {is} already
+    alreadyAttachedMsg = msgText(already attached, '{The subj dobj} {is} already
         attached to {1}. ', attachedTo.theName)
     
-    cannotAttachToMoreMsg = BMsg(cannot attach to more, '{I} {can\'t} attach
+    cannotAttachToMoreMsg = msgText(cannot attach to more, '{I} {can\'t} attach
         {the dobj} to anything else while {he dobj}{\'s} attached to {1}. ',
                                  makeListStr(attachedToList, &theName))      
     
@@ -184,7 +184,7 @@ class SimpleAttachable: Thing
         }
     }
     
-    notAttachedMsg = BMsg(not attached, '{The subj dobj} {is}n\'t attached to
+    notAttachedMsg = msgText(not attached, '{The subj dobj} {is}n\'t attached to
         anything. ')
     
     dobj Detach
@@ -212,7 +212,7 @@ class SimpleAttachable: Thing
         
     }
     
-    okayDetachMsg = BMsg(okay detach, '{I} detach{es/ed} {1}. ', gActionListStr)
+    okayDetachMsg = msgText(okay detach, '{I} detach{es/ed} {1}. ', gActionListStr)
     
     
     dobj DetachFrom
@@ -249,10 +249,10 @@ class SimpleAttachable: Thing
         }
     }
     
-    okayDetachFromMsg = BMsg(okay detach from, '{I} detach{es/ed} {1} from
+    okayDetachFromMsg = msgText(okay detach from, '{I} detach{es/ed} {1} from
         {the iobj}. ',  gActionListStr)
     
-    cannotDetachMsg = BMsg(cannot detach this, '{The subj dobj} {cannot} be
+    cannotDetachMsg = msgText(cannot detach this, '{The subj dobj} {cannot} be
         detached from {1}. ', location.theName)
     
     iobj DetachFrom
@@ -283,13 +283,13 @@ class SimpleAttachable: Thing
         }
     }
     
-    cannotDetachFromMsg = BMsg(cannot detach from this , '{The {ubj dobj}
+    cannotDetachFromMsg = msgText(cannot detach from this , '{The {ubj dobj}
         {can\'t} be detached from {the iobj}. ')
     
-    notAttachedToThatMsg = BMsg(not attached to that, '{The subj dobj} {isn\'t}
+    notAttachedToThatMsg = msgText(not attached to that, '{The subj dobj} {isn\'t}
         attached to {the iobj}. ')
     
-    nothingAttachedMsg = BMsg(nothing attached, 'There {dummy} {isn\'t} anything
+    nothingAttachedMsg = msgText(nothing attached, 'There {dummy} {isn\'t} anything
         attached to {the iobj}. ')
 
     /* Treat Fasten and Unfasten as equivalent to Attach and Detach */
@@ -349,12 +349,12 @@ class SimpleAttachable: Thing
     sayCannotMoveWhileAttached(other)
     {
         gMessageParams(other);            
-        DMsg(cannot move while attached, '{The subj cobj} {cannot} be moved
+        showMsg(cannot move while attached, '{The subj cobj} {cannot} be moved
             while {he cobj} {is} attached to {the other}. ');   
     }
     
     
-    cannotBeAttachedMsg = BMsg(cannot be attached, '{The subj dobj} {cannot} be
+    cannotBeAttachedMsg = msgText(cannot be attached, '{The subj dobj} {cannot} be
         attached to {the iobj}. ')
     
     
@@ -632,7 +632,7 @@ class Attachable: NearbyAttachable
    
                       
     
-    alreadyAttachedToIobjMsg = BMsg(alreadt attached to iobj, '{The subj dobj} {is} already
+    alreadyAttachedToIobjMsg = msgText(alreadt attached to iobj, '{The subj dobj} {is} already
         attachd to {1}. ', gVerifyIobj.theName) 
     
     /* 
@@ -652,7 +652,7 @@ class Attachable: NearbyAttachable
     multiPluggable = true
 ;
 
-reverseAttachableDoer: Doer 'attach SimpleAttachable to Attachable'
+reverseAttachableCommandRule: CommandRule 'attach SimpleAttachable to Attachable'
     execAction(c)
     {
         if(gIobj.reverseConnect(gDobj))
@@ -746,16 +746,16 @@ class PlugAttachable: object
     okayAttachMsg ()
     {
         if(reportAttachAsPlug || gActionIn(PlugIn, PlugInto))        
-            return  BMsg(okay plug, '{I} plug{s/?ed} {1} into {the iobj}. ',
+            return  msgText(okay plug, '{I} plug{s/?ed} {1} into {the iobj}. ',
                          gActionListStr) ;
         else
             return inherited;
     }
     
-    alreadyAttachedMsg = BMsg(already plugged in, '{The subj dobj} {is} already
+    alreadyAttachedMsg = msgText(already plugged in, '{The subj dobj} {is} already
         plugged into {1}. ', attachedTo.theName)
     
-    alreadyPluggedInMsg = BMsg(already plugged in vague, '{The subj {dobj} {is}
+    alreadyPluggedInMsg = msgText(already plugged in vague, '{The subj {dobj} {is}
         already plugged in. ')
     
     iobj PlugInto
@@ -787,7 +787,7 @@ class PlugAttachable: object
         }
     }
     
-    cannotPlugInAnyMoreMsg = BMsg(cannot plug in any more, '{I} {can\'t} plug
+    cannotPlugInAnyMoreMsg = msgText(cannot plug in any more, '{I} {can\'t} plug
         any more into {the iobj}. ')
     
     
@@ -807,7 +807,7 @@ class PlugAttachable: object
         }
     }
     
-    cannotBeAttachedMsg = BMsg(cannot be plugged in, '{The subj dobj} {can\'t}
+    cannotBeAttachedMsg = msgText(cannot be plugged in, '{The subj dobj} {can\'t}
         be plugged into {the iobj}. ')
     
     
@@ -842,13 +842,13 @@ class PlugAttachable: object
         report() { reportDobjDetachFrom(); }
     }
     
-    okayDetachFromMsg = BMsg(okay unplug from, '{I} unplug{s/?ed} {1} from
+    okayDetachFromMsg = msgText(okay unplug from, '{I} unplug{s/?ed} {1} from
         {the iobj}. ', gActionListStr)
     
-    notAttachedMsg = BMsg(not plugged in, '{The subj dobj} {isn\'t} plugged into
+    notAttachedMsg = msgText(not plugged in, '{The subj dobj} {isn\'t} plugged into
         anything. ') 
     
-    notAttachedToThatMsg = BMsg(not plugged into that, '{The subj dobj} {isn\'t}
+    notAttachedToThatMsg = msgText(not plugged into that, '{The subj dobj} {isn\'t}
         plugged into {the iobj}. ')
     
     
@@ -881,7 +881,7 @@ class PlugAttachable: object
         report() { say(okayDetachMsg); }
     }
     
-    okayDetachMsg = BMsg(okay unplug, '{I} unplug{s/?ed} {1}. ', gActionListStr)
+    okayDetachMsg = msgText(okay unplug, '{I} unplug{s/?ed} {1}. ', gActionListStr)
     
     dobj PlugIn
     {
@@ -920,7 +920,7 @@ class PlugAttachable: object
         report() 
         { 
             if(reportAttachAsPlug || gActionIn(PlugIn, PlugInto))            
-                DMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', gActionListStr); 
+                showMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', gActionListStr); 
             else
                 inherited();
         }

@@ -128,7 +128,7 @@ defaultCeiling: Ceiling 'ceiling';
  * [DEFINED IN ROOMPARTS EXTENSION]
  */
 defaultSky: Ceiling 'sky'    
-    notImportantMsg = BMsg(sky beyond reach, '{The subj cobj} {is} way beyond
+    notImportantMsg = msgText(sky beyond reach, '{The subj cobj} {is} way beyond
         {my} reach. ')
 ;
 

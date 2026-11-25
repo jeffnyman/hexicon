@@ -138,7 +138,7 @@ class GameMainDef: object
         local succ;
 
         /* mention that we're about to restore the saved position */
-        DMsg(note main restore, 'Game restored.<.p>');
+        showMsg(note main restore, 'Game restored.<.p>');
 
         /* try restoring it */
         succ = Restore.startupRestore(filename);
@@ -976,16 +976,16 @@ class FinishType: object
 ;
 
 /* 'death' - the game has ended due to the player character's demise */
-ftDeath: FinishType finishMsg = BMsg(finish death, 'YOU HAVE DIED');
+ftDeath: FinishType finishMsg = msgText(finish death, 'YOU HAVE DIED');
 
 /* 'victory' - the player has won the game */
-ftVictory: FinishType finishMsg = BMsg(finish victory,'YOU HAVE WON');
+ftVictory: FinishType finishMsg = msgText(finish victory,'YOU HAVE WON');
 
 /* 'failure' - the game has ended in failure (but not necessarily death) */
-ftFailure: FinishType finishMsg = BMsg(finish failure, 'YOU HAVE FAILED');
+ftFailure: FinishType finishMsg = msgText(finish failure, 'YOU HAVE FAILED');
 
 /* 'game over' - the game has simply ended */
-ftGameOver: FinishType finishMsg = BMsg(finish game over, 'GAME OVER');
+ftGameOver: FinishType finishMsg = msgText(finish game over, 'GAME OVER');
 
 /*
  *   Finish the game, showing a message explaining why the game has ended.
@@ -1042,7 +1042,7 @@ finishGameMsg(msg, extra)
 
     /* if we have a message, display it */
     if (msg != nil)
-        DMsg(show finish msg, '\b*** {1} ***\b\b', msg);
+        showMsg(show finish msg, '\b*** {1} ***\b\b', msg);
         
 
     /* if the extra options include a scoring option, show the score */
@@ -1148,7 +1148,7 @@ promptLoop:
          *   looping so that we show the prompt again and read a new
          *   option.  
          */       
-        DMsg(invalid finish option, '<q>{1}</q> was not one of the
+        showMsg(invalid finish option, '<q>{1}</q> was not one of the
             options.<.p>', resp);
     }
 }
@@ -1444,7 +1444,7 @@ finishOptionAmusing: FinishOption
 
 firstPersonObj: Thing
     person = 1
-    name =  BMsg(first person pronoun, 'I')
+    name =  msgText(first person pronoun, 'I')
     globalParamName = 'fpo'
 ;
 
@@ -2970,13 +2970,13 @@ tipMode: object
 ;
 
 undoTip: Tip
-    desc() { DMsg(undo tip, 'If this didn\'t turn out quite as intended, note that you can
+    desc() { showMsg(undo tip, 'If this didn\'t turn out quite as intended, note that you can
         always take back one or more commands by typing 
         <<aHref('undo', 'UNDO', 'Take back the most recent command')>>.');  }     
 ;
 
 oopsTip:Tip 
-    desc() { DMsg(oops tip, '''If this was an accidental misspelling, you can correct
+    desc() { showMsg(oops tip, '''If this was an accidental misspelling, you can correct
         it by typing OOPS followed by the corrected word now. Any time the story points out an
         unknown word, you can correct a misspelling using OOPS as your next command.''');
     }      
@@ -3132,7 +3132,7 @@ failVerifyObj: Thing
     iobj Default { verify {inaccessible(inaccessibleMsg);}}    
     aobj Default { verify {inaccessible(inaccessibleMsg);}}   
     
-    inaccessibleMsg = BMsg(dummy object inaccessible, 'The dummy failVerifyObj is not a valid object
+    inaccessibleMsg = msgText(dummy object inaccessible, 'The dummy failVerifyObj is not a valid object
         of a command. ')
 ;
 

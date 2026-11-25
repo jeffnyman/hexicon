@@ -149,7 +149,7 @@ exitLister: PreinitObject
          */
         if (!exitsOnOffExplained)
         {
-            DMsg(explain exits on off, 
+            showMsg(explain exits on off, 
                  '<.p>Exit Listing can be adjusted with the following
         commands:\n
         EXITS ON -- show exits in both the status line and in room
@@ -181,7 +181,7 @@ exitLister: PreinitObject
         exitsMode.inRoomDesc = look;
 
         /* confirm the new status */
-        DMsg(exits on off okay, 'Okay. Exit listing in the status line is now 
+        showMsg(exits on off okay, 'Okay. Exit listing in the status line is now 
             <<stat ? 'ON' : 'OFF'>>, while exit listing in room descriptions is
             now <<look ? 'ON' : 'OFF'>>. ');
         
@@ -374,7 +374,7 @@ ExitLister: Lister
     
     listerShowsDest = nil
     
-    exitsPrefix = BMsg(exits, 'Exits:')
+    exitsPrefix = msgText(exits, 'Exits:')
 
     roomProp = &listExits  
     
@@ -434,7 +434,7 @@ statuslineExitLister: ExitLister
         if(loc.hasProp(&noExits) && loc.propType(&noExits) is in (TypeString, TypeCode))
             return loc.noExits;
         else
-            return BMsg(status line noexits, '<i>None</i>');           
+            return msgText(status line noexits, '<i>None</i>');           
     }
     
     roomProp = &listStatusExits
@@ -443,7 +443,7 @@ statuslineExitLister: ExitLister
 lookAroundExitLister: ExitLister
     showListEmpty(pov, parent)
     {        
-        DMsg(no exits from here, 'There {plural} {are} no exits from {here}. ');
+        showMsg(no exits from here, 'There {plural} {are} no exits from {here}. ');
     }
     
     showListPrefixWide(cnt, pov, parent)
@@ -472,7 +472,7 @@ lookAroundExitLister: ExitLister
 lookAroundTerseExitLister: ExitLister
     showListEmpty(pov, parent)
     {        
-        DMsg(no exits, 'Exits: none. ');
+        showMsg(no exits, 'Exits: none. ');
     }
     
     showListPrefixWide(cnt, pov, parent)
@@ -502,7 +502,7 @@ lookAroundTerseExitLister: ExitLister
 explicitExitLister: ExitLister
     showListEmpty(pov, parent)
     {       
-        DMsg(no clear exits, 'It{dummy}{\'s} not clear where {i} {can} go from
+        showMsg(no clear exits, 'It{dummy}{\'s} not clear where {i} {can} go from
             {here}. ');
     }
     
@@ -513,7 +513,7 @@ explicitExitLister: ExitLister
         if(loc.hasProp(&exitListPrefix) && loc.propType(&exitListPrefix) == TypeCode)
             loc.exitListPrefix(cnt);
         else               
-            DMsg(exits from here, 'From {here} {i} could go ');
+            showMsg(exits from here, 'From {here} {i} could go ');
     }
     showListSuffixWide(cnt, pov, parent)
     {
@@ -525,7 +525,7 @@ explicitExitLister: ExitLister
         htmlSay('<<aHref(obj.dir_.name, obj.dir_.name, 'Go ' + obj.dir_.name,
                  0)>>');    
         if(showDestNames && obj.dest_ && (obj.dest_.visited || obj.dest_.familiar))
-            DMsg(exit lister dest name, ' to <<obj.dest_.destName>>');
+            showMsg(exit lister dest name, ' to <<obj.dest_.destName>>');
         
     }    
     
@@ -585,7 +585,7 @@ exitsMode: object
     /* show our description */
     settingDesc()
     {
-        DMsg(current exit settings, 'Exits are listed 
+        showMsg(current exit settings, 'Exits are listed 
             <<if(inStatusLine && inRoomDesc)>>
             both in the status line and in room descriptions. 
             <<else if(inStatusLine && !inRoomDesc)>>

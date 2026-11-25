@@ -16,7 +16,7 @@ sources = [
     "console",
     "debug",
     "debug_dynfunc",
-    "doer",
+    "commandRule",
     "input",
     "lister",
     "main",

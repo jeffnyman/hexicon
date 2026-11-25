@@ -272,7 +272,7 @@ class Scene: object
     
     
     /* 
-     *   This method is called on each active scene before any Doers and can be used to
+     *   This method is called on each active scene before any CommandRules and can be used to
      *   conditionally rule out the action (by using abort or exit), for example if the player is
      *   character is tied up or otherwise incapacitated during the Scene. The lst parameter
      *   contains a list in the form [action, dobj, iobj] (or just [action] for an IAction or just

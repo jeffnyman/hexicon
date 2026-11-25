@@ -526,7 +526,7 @@ modify FactHelper
         
         /* If we found any contradications, display a message to that effect. */
         if(contradictionCount > 0)
-            DMsg(contradiction, '<.p>There would seem to be some contradiction {here}.<.p>');
+            showMsg(contradiction, '<.p>There would seem to be some contradiction {here}.<.p>');
         
         
     }

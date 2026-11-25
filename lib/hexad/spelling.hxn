@@ -767,7 +767,7 @@ class SpellingHistory: object
          *   corrected string includes HTML markups to highlight the word
          *   or words that the spelling corrector changed.  
          */
-        DMsg(corrected spelling, '(<i>{1}</i>)<br>', str);
+        showMsg(corrected spelling, '(<i>{1}</i>)<br>', str);
         
     }
 

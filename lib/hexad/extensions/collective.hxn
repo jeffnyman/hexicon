@@ -285,7 +285,7 @@ class DispensingCollective: Collective
         local objDesc = numberWanted == 1 ? obj.aName :
         spellNumber(numberWanted) + ' ' + obj.pluralNameFrom(obj.name);
         
-        DMsg(say dispensed, '{I} {take} {1} from {2}. ', objDesc, dispenserName);
+        showMsg(say dispensed, '{I} {take} {1} from {2}. ', objDesc, dispenserName);
         
     }
     
@@ -398,7 +398,7 @@ class DispensingCollective: Collective
     }
     
     /*	[COLLECTIVE EXTENSION] */
-    cannotTakeFromHereMsg = BMsg(cant take from dispenser, '{I} {can\'t} take {a
+    cannotTakeFromHereMsg = msgText(cant take from dispenser, '{I} {can\'t} take {a
         dobj} from {1}. ', exhaustedName)
     
     /*	[COLLECTIVE EXTENSION] */
@@ -426,14 +426,14 @@ class DispensingCollective: Collective
     }
     
     /* The message to display when there's no more items to dispense from us. [COLLECTIVE EXTENSION]*/
-    cannotDispenseMsg = BMsg(cannot dispense, '{I} {can\'t} take any more from
+    cannotDispenseMsg = msgText(cannot dispense, '{I} {can\'t} take any more from
         {1}. ', exhaustedName )
     
     /* 
      *   The message to display when the player has asked us for more items than
      *   we have left. [COLLECTIVE EXTENSION]
      */
-    notEnoughLeftMsg = BMsg(not that many left, 'There{plural} {aren\'t} that
+    notEnoughLeftMsg = msgText(not that many left, 'There{plural} {aren\'t} that
         many left to take. ')
     
     /* Are we the Collective for obj? [COLLECTIVE EXTENSION] */

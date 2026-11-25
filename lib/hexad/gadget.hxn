@@ -27,7 +27,7 @@ class Button: Thing
         action() { makePushed(); }
         
         /* If nothing else happens, just say 'Click!' */
-        report() { DMsg(click, 'Click!'); }
+        report() { showMsg(click, 'Click!'); }
     }
     
     /* 
@@ -86,12 +86,12 @@ class Lever: Thing
         action() { makePulled(true); }
         
         /* The default report to display after pulling one or more levers */
-        report() { DMsg(okay pulled, 'Done. |{I} pull{s/ed} {1}. ', gActionListStr); }
+        report() { showMsg(okay pulled, 'Done. |{I} pull{s/ed} {1}. ', gActionListStr); }
         
     }
     
     /* The message to display when we can't be pulled any further */
-    alreadyPulledMsg = BMsg(already pulled, '{The subj dobj} {is} already in the
+    alreadyPulledMsg = msgText(already pulled, '{The subj dobj} {is} already in the
         pulled position. ')
     
     /* Handle Pushing this Lever */
@@ -111,11 +111,11 @@ class Lever: Thing
         action() { makePulled(nil); }
         
         /* The default report to display after pushing one or more levers */
-        report() { DMsg(okay pushed, 'Done. |{I} push{es/ed} {1}. ', gActionListStr); }
+        report() { showMsg(okay pushed, 'Done. |{I} push{es/ed} {1}. ', gActionListStr); }
     }
     
     /* The message to display when we can't be pushed any further */
-    alreadyPushedMsg = BMsg(already pushed, '{The subj dobj} {is} already in the
+    alreadyPushedMsg = msgText(already pushed, '{The subj dobj} {is} already in the
         pushed position. ');
     
 ;
@@ -198,10 +198,10 @@ class Settable: Thing
         /* Note that the action() handling for SET TO is defined on Thing */
     }
     
-    invalidSettingMsg = BMsg(invalid setting, 'That {dummy} {is} not a valid
+    invalidSettingMsg = msgText(invalid setting, 'That {dummy} {is} not a valid
         setting for {the dobj}. ')
     
-    alreadySetMsg = BMsg(already set, '{The subj dobj} {is} already set to {1}.
+    alreadySetMsg = msgText(already set, '{The subj dobj} {is} already set to {1}.
         ', curSetting)
     
     /*  

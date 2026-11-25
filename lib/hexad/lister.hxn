@@ -255,7 +255,7 @@ class ItemLister: Lister
         { 
             /* If we're reaching the final item in the list, prepend ' and ' */
             if(i == len && i > 1)
-                DMsg(list and, ' and ');
+                showMsg(list and, ' and ');
             
             /* Note the punctuation that should follow this item. */
             local punct = ', ';
@@ -469,11 +469,11 @@ inventoryTallLister: ItemLister
      */
     listRecursively = (gActor == gPlayerChar)
     
-    showListPrefix(lst, pl, paraCnt)  { DMsg(list tall prefix, '\n{I} {am} carrying:\n '); }
+    showListPrefix(lst, pl, paraCnt)  { showMsg(list tall prefix, '\n{I} {am} carrying:\n '); }
     
     showListSuffix(lst, pl, paraCnt)  { }
     
-    showListEmpty(paraCnt)  { DMsg(list tall empty, '\n{I} {am} empty-handed. '); }
+    showListEmpty(paraCnt)  { showMsg(list tall empty, '\n{I} {am} empty-handed. '); }
     
 ;
 

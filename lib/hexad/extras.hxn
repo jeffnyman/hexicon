@@ -46,7 +46,7 @@ class Odor: SensoryEmanation
     /*  
      *   The message to display when any other action is attempted with an Odor
      */
-    notImportantMsg = BMsg(only smell, '{I} {can\'t} do that to a smell. ')
+    notImportantMsg = msgText(only smell, '{I} {can\'t} do that to a smell. ')
     
     /*   Treat Smelling an Odor as equivalent to Examining it. */
     dobj SmellSomething as Examine   
@@ -86,7 +86,7 @@ class Noise: SensoryEmanation
     /*  
      *   The message to display when any other action is attempted with a Noise
      */
-    notImportantMsg = BMsg(only listen, '{I} {can\'t} do that to a sound. ')
+    notImportantMsg = msgText(only listen, '{I} {can\'t} do that to a sound. ')
     
     /*   Treat Listening to a Noise as equivalent to Examining it. */
     dobj ListenTo as Examine    
@@ -191,7 +191,7 @@ class Surface: Thing
         }
     }
     
-    nothingOnMsg = BMsg(nothing on, '{I} {find} nothing of interest on
+    nothingOnMsg = msgText(nothing on, '{I} {find} nothing of interest on
         {the dobj}. ')
     
     /* 
@@ -275,7 +275,7 @@ class Decoration: Fixture
  *   else, like the handle of a suitcase or a dial on a safe.
  */
 class Component: Fixture    
-    cannotTakeMsg = BMsg(cannot take component, '{I} {can\'t} have {that cobj},
+    cannotTakeMsg = msgText(cannot take component, '{I} {can\'t} have {that cobj},
         {he dobj}{\'s} part of {1}. ', location.theName)
     
     locType = PartOf
@@ -289,7 +289,7 @@ class Component: Fixture
 class Distant: ProxyDest, Decoration
    
     /* Message to say that this object is too far away. */
-    notImportantMsg = BMsg(distant, '{The subj cobj} {is} too far away. ')
+    notImportantMsg = msgText(distant, '{The subj cobj} {is} too far away. ')
     
     /* 
      *   The base Decoration class includes GoTo as a decorationAction. For a
@@ -406,7 +406,7 @@ class Unthing: Decoration
      *   normally want to override this message to explain the reason for the
      *   absence.
      */  
-    notImportantMsg = BMsg(unthing absent, '{The subj cobj} {isn\'t} {here}. ')
+    notImportantMsg = msgText(unthing absent, '{The subj cobj} {isn\'t} {here}. ')
                    
     /* 
      *   Authors may expect Unthings to have a notHereMsg, so
@@ -577,7 +577,7 @@ class CollectiveGroup: Fixture
         
         /*   If none of our items are in scope, say so */
         if(nilToList(lst).length == 0 && nilToList(heldLst).length == 0)
-            DMsg(collective group empty, 'There{\'s} no {1} {here}. ', name);
+            showMsg(collective group empty, 'There{\'s} no {1} {here}. ', name);
         
         /*  
          *   Otherwise display lists of which of my members the player character
@@ -586,11 +586,11 @@ class CollectiveGroup: Fixture
         else
         {
             if(heldLst.length > 0)
-                DMsg(carrying collective group, '{I} {am} carrying {1}. ',
+                showMsg(carrying collective group, '{I} {am} carrying {1}. ',
                      makeListStr(heldLst));
             
             if(lst.length > 0)            
-                DMsg(collective group members, 'There{\'s} {1} {here}. ',       
+                showMsg(collective group members, 'There{\'s} {1} {here}. ',       
                      makeListStr(lst));
         }
     }
@@ -608,7 +608,7 @@ class CollectiveGroup: Fixture
  */
 
 class Heavy: Fixture
-    cannotTakeMsg = BMsg(too heavy, '{The subj cobj} {is} too heavy to move. ')
+    cannotTakeMsg = msgText(too heavy, '{The subj cobj} {is} too heavy to move. ')
     
 ;
 
@@ -627,7 +627,7 @@ class Immovable: Thing
     }
     
     /* The message to display to explain why this object can't be taken. */
-    cannotTakeMsg = BMsg(cannot take immovable, '{I} {cannot} take {the cobj}.
+    cannotTakeMsg = msgText(cannot take immovable, '{I} {cannot} take {the cobj}.
         ')
     
     /* 
@@ -675,7 +675,7 @@ class StairwayUp: TravelConnector, Thing
     sayDeparting(traveler)
     {
         gMessageParams(traveler);
-        DMsg(say departing up stairs, '{The subj traveler} {goes} up
+        showMsg(say departing up stairs, '{The subj traveler} {goes} up
             {1}. ', theName);
     }
     
@@ -689,11 +689,11 @@ class StairwayUp: TravelConnector, Thing
         /* Create message parameter substitutions for the follower and leader */
         gMessageParams(follower, leader);  
         
-        DMsg(say following up staircase, '{The subj follower} follow{s/ed} {the
+        showMsg(say following up staircase, '{The subj follower} follow{s/ed} {the
             leader} up {1}. ', theName);
     }
     
-    traversalMsg = BMsg(traverse stairway up, 'up {1}', theName)
+    traversalMsg = msgText(traverse stairway up, 'up {1}', theName)
     
     /* 
      *   Facilitate defining a StairwayUp as a nested anonymous object on a direction property of a
@@ -738,7 +738,7 @@ class StairwayDown: TravelConnector, Thing
     sayDeparting(traveler)
     {
         gMessageParams(traveler);
-        DMsg(say departing down stairs, '{The subj traveler} {goes} down
+        showMsg(say departing down stairs, '{The subj traveler} {goes} down
             {1}. ', theName);
     }
     
@@ -751,13 +751,13 @@ class StairwayDown: TravelConnector, Thing
         /* Create message parameter substitutions for the follower and leader */
         gMessageParams(follower, leader);  
         
-        DMsg(say following down staircase, '{The subj follower} follow{s/ed}
+        showMsg(say following down staircase, '{The subj follower} follow{s/ed}
             {the leader} down {1}. ', theName);
     }
     
-    traversalMsg = BMsg(traverse stairway down, 'down {1}', theName)
+    traversalMsg = msgText(traverse stairway down, 'down {1}', theName)
     
-    cannotClimbMsg = BMsg(cannot climb stairway down, '{I} {can\'t} climb {the
+    cannotClimbMsg = msgText(cannot climb stairway down, '{I} {can\'t} climb {the
         dobj}, but {i} could go down {him dobj}. ')
     
     /* 
@@ -914,7 +914,7 @@ class DSStairway: DSCon, StairwayUp
         }
     }
     
-    cannotClimbMsg = BMsg(cant climb from here, '{I} {can\'t} climb up {the dobj} from {here}. ')
+    cannotClimbMsg = msgText(cant climb from here, '{I} {can\'t} climb up {the dobj} from {here}. ')
     
     dobj ClimbDown
     {
@@ -936,7 +936,7 @@ class DSStairway: DSCon, StairwayUp
         }
     }
     
-    cannotClimbDownMsg = BMsg(cant climb doen from here, 
+    cannotClimbDownMsg = msgText(cant climb doen from here, 
                               '{I} {can\'t} climb down {the dobj} from {here}. ')
     
     iobj PushTravelClimbUp
@@ -961,10 +961,10 @@ class DSStairway: DSCon, StairwayUp
         }        
     }
     
-    cannotPushClimbMsg = BMsg(cannot push climb here, '{I} {can\'t} ascend {the iobj} from {here}.
+    cannotPushClimbMsg = msgText(cannot push climb here, '{I} {can\'t} ascend {the iobj} from {here}.
         ')
     
-    cannotPushClimbDownMsg = BMsg(cannot push climb down here, '{I} {can\'t} descend {the iobj} from {here}.
+    cannotPushClimbDownMsg = msgText(cannot push climb down here, '{I} {can\'t} descend {the iobj} from {here}.
         ')
 ;
 
@@ -1035,7 +1035,7 @@ class PathPassage: Passage
     dobj ClimbUp as GoThrough
     
     /* One most naturally talks of going 'down' a path */
-    traversalMsg = BMsg(traverse path passage, 'down {1}', theName)
+    traversalMsg = msgText(traverse path passage, 'down {1}', theName)
 ;
 
 
@@ -1176,7 +1176,7 @@ class Enterable: ProxyDest, Fixture
  *   descriptions.
  */     
 class ProxyRoom: ProxyDest, Passage    
-    desc = DMsg(proxy room desc, '{I} {can\'t} see much of {him dobj} from {here}. ')    
+    desc = showMsg(proxy room desc, '{I} {can\'t} see much of {him dobj} from {here}. ')    
     
     /* If we don't define our own vocab property, take it from our destination. */
     initVocab()
@@ -1324,7 +1324,7 @@ class ContainerDoor: Fixture
      */
     remapIn = location.remapIn
     
-    cannotTakeMsg = BMsg(cannot take container door, '{I} {can\'t} have {the
+    cannotTakeMsg = msgText(cannot take container door, '{I} {can\'t} have {the
         cobj}; {he dobj}{\'s} part of {1}. ', location.theName)
 ;
 

@@ -1363,7 +1363,7 @@ transient commandSequencer: OutputFilter
                      *   and the next text.
                      */
                     
-                    ret += BMsg(command results prefix, '<.p0>');
+                    ret += msgText(command results prefix, '<.p0>');
 
                     /* we're now inside some command result text */
                     state_ = stateInCommand;
@@ -1402,7 +1402,7 @@ transient commandSequencer: OutputFilter
                      *   construction.
                      */
                     
-                    ret += BMsg(command interuption prefix, '<.p>');
+                    ret += msgText(command interuption prefix, '<.p>');
                     break;
 
                 case stateBetweenCommands:
@@ -1432,7 +1432,7 @@ transient commandSequencer: OutputFilter
                      *   By default, we'll just start a new paragraph.
                      */
                     
-                    ret += BMsg(command results separator, '<.p>');
+                    ret += msgText(command results separator, '<.p>');
 
                     /* we're now inside some command result text */
                     state_ = stateInCommand;
@@ -1512,7 +1512,7 @@ transient commandSequencer: OutputFilter
                      *   By default, we'll return a message indicating that
                      *   nothing happened.
                      */
-                    writeThrough(BMsg(command results empty, 
+                    writeThrough(msgText(command results empty, 
                                       'Nothing obvious {dummy}{happens}.<.p>'));
                     break;
 
@@ -1530,7 +1530,7 @@ transient commandSequencer: OutputFilter
                      *
                      *   By default, we'll show nothing extra.
                      */
-                    writeThrough(BMsg(command results suffix, ''));
+                    writeThrough(msgText(command results suffix, ''));
                     break;
 
                 default:

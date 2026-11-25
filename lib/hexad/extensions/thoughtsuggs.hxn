@@ -84,7 +84,7 @@ thoughtSuggestionLister: suggestedTopicLister
     { 
         gCommand.actor = gPlayerChar;
         if(explicit)
-            DMsg(no thought in mind, '{I} {have} nothing in mind to think about just {then}. ');
+            showMsg(no thought in mind, '{I} {have} nothing in mind to think about just {then}. ');
     }
     
     /* 
@@ -106,7 +106,7 @@ thoughtSuggestionLister: suggestedTopicLister
     thoughtList = []
  
     /* The text to introduce our list of suggested Thoughts, following "You could ". */
-    thinkPrefix = BMsg(think about, 'think about ')
+    thinkPrefix = msgText(think about, 'think about ')
     
 ;
 

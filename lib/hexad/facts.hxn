@@ -336,7 +336,7 @@ class Fact: object
                  *   Append a message explaining that these people/things were the sources of
                  *   information and append it to a formatted list of the source names.
                  */
-                srcList = andList(srcList) + BMsg(told me that, ' told {me} that ');
+                srcList = andList(srcList) + msgText(told me that, ' told {me} that ');
             }            
         }
         
@@ -451,7 +451,7 @@ class Fact: object
         /* If fact already exists, display and error message and exit. */
         if(fact)
         {
-            DMsg(duplicate fact name, 'ERROR! Attempt to create duplicate Fact with name
+            showMsg(duplicate fact name, 'ERROR! Attempt to create duplicate Fact with name
                 \'<<name_>>\'.');
             return;
         }
@@ -685,7 +685,7 @@ class FactHelper: object
      *   The parenthetical message to append to a listed fact if the player character has been
      *   informed of something they already knew.
      */
-    knewFactAlreadyMsg = BMsg(knew fact already, ' (but {i} knew that already)')
+    knewFactAlreadyMsg = msgText(knew fact already, ' (but {i} knew that already)')
     
     /* 
      *   Return a message stating that a fact was already known if the player character started out
@@ -721,7 +721,7 @@ class FactHelper: object
     
     doubtFactMsg(beliefVal)
     {
-        return BMsg(doubt fact, ' (though {i} now regard{s/ed} that as
+        return msgText(doubt fact, ' (though {i} now regard{s/ed} that as
             <<str(beliefVal)>>)');
     }
     
@@ -729,7 +729,7 @@ class FactHelper: object
      *   The word or phrase used to introduce the description of a fact or list of facts. In English
      *   this is simply 'that'.
      */
-    factIntro = BMsg(fact intro, 'that')
+    factIntro = msgText(fact intro, 'that')
     
     /* 
      *   The topicResponse to be provided by the TopicEntry we're mixed-in with. This performs the
@@ -922,8 +922,8 @@ class FactConsultTopic:  FactHelper, ConsultTopic
      */
     matchScore = 50    
     
-    prefix = BMsg(consult prefix, '{The subj dobj} inform{s/ed} {me}')
-    noFactsMsg = BMsg(no consult, '{The subj dobj} {has} nothing useful to say on that subject. ')
+    prefix = msgText(consult prefix, '{The subj dobj} inform{s/ed} {me}')
+    noFactsMsg = msgText(no consult, '{The subj dobj} {has} nothing useful to say on that subject. ')
     
     /* 
      *   On a FactConsultTopic it makes sense to reveal the tags encountered in the display of our
@@ -951,9 +951,9 @@ class FactThought: FactHelper, Thought
      */
     matchScore = 50    
     
-    prefix = BMsg(thoughts prefix, 'It {dummy} {comes} to mind')
+    prefix = msgText(thoughts prefix, 'It {dummy} {comes} to mind')
     
-    noFactsMsg = BMsg(no thoughts, 'Nothing relevant {dummy} {comes} to mind. ')
+    noFactsMsg = msgText(no thoughts, 'Nothing relevant {dummy} {comes} to mind. ')
     
     /* 
      *   Enable a Tnought to show the player character's comment on a fact that's being listed as
@@ -1528,7 +1528,7 @@ action ListFacts: SystemAction
         /* First check whether any facts have been added to the facts table. */
         if(factManager.factTab == nil)
         {
-            DMsg(no facts defined, 'No Facts have been defined in this game. ');
+            showMsg(no facts defined, 'No Facts have been defined in this game. ');
             return;
         }
         
@@ -1561,7 +1561,7 @@ action FactInfo: SystemAction
         
         if(fact == nil)
         {
-            DMsg(no such fact, '''No fact with the name '<<literal>>' is defined in the game. ''');
+            showMsg(no such fact, '''No fact with the name '<<literal>>' is defined in the game. ''');
             return;
         }
         

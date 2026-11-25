@@ -865,7 +865,7 @@ class CustomMessages: object
      *   priority for language module overrides.  Each language module
      *   provides a translated set of the standard library messages, via a
      *   CustomMessages object with priority 100.  (The default English
-     *   messages defined in-line throughout the library via DMsg() macros
+     *   messages defined in-line throughout the library via showMsg() macros
      *   effectively have a priority of negative infinity, since any custom
      *   message of any priority overrides a default.)
      *   
@@ -895,7 +895,7 @@ class CustomMessages: object
      *   
      *.     Msg(id key, 'Message text'),  ...
      *   
-     *   The "id key" is the message ID that the library uses in the DMsg()
+     *   The "id key" is the message ID that the library uses in the showMsg()
      *   message that you're customizing.  (DON'T use quotes around the ID
      *   key.)  The message text is a single-quoted string giving the
      *   message text.  This can contain curly-brace replacement

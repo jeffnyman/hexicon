@@ -185,12 +185,12 @@ modify Room
                 
                 /* If we find one, display a suiteable message relating to it. */
                 if(ent)
-                    DMsg(enterable with door, '\^{1} {i} {see} {2} enterable via {3}. ', 
+                    showMsg(enterable with door, '\^{1} {i} {see} {2} enterable via {3}. ', 
                          dir.departureName, ent.aName, obj.aName);
                 
                 /* Otherwise just say we see the obj in that direction. */
                 else                        
-                    DMsg(passage that way, '\^{1} {i} {see} {2}. ', dir.departureName, obj.theName);
+                    showMsg(passage that way, '\^{1} {i} {see} {2}. ', dir.departureName, obj.theName);
                 break;
             }
             
@@ -203,7 +203,7 @@ modify Room
                 local optList = obj.options.subset({x: x.ofKind(Thing)});
                 if(optList.length > 0)
                 {                        
-                    DMsg(ask connector options, '\^{1} {i} {see} {2}. ', dir.departureName, 
+                    showMsg(ask connector options, '\^{1} {i} {see} {2}. ', dir.departureName, 
                          makeListStr(optList, &theName));
                     break;
                 }
@@ -230,7 +230,7 @@ modify Room
             if(obj.ofKind(Room) && (obj.familiar || obj.visited || gActor.canSee(obj)) 
                && obj != self)
             {
-                DMsg(room that way, '\^{1} {dummy}{lies} {2}. ', dir.departureName, obj.theName);
+                showMsg(room that way, '\^{1} {dummy}{lies} {2}. ', dir.departureName, obj.theName);
                 break;
             }
             
@@ -260,7 +260,7 @@ modify Room
    
     sayCouldGoThatWay(dir)
     {
-        DMsg(could go that way, 'It {dummy} look{s/ed} like {i} might be able to go that
+        showMsg(could go that way, 'It {dummy} look{s/ed} like {i} might be able to go that
             way. ');
     }
     
@@ -274,7 +274,7 @@ modify Room
      */
     introLookDirDesc(dir)
     {
-        DMsg(intro look dirdesc, '\^{1} {i} {see} ', dir.departureName);
+        showMsg(intro look dirdesc, '\^{1} {i} {see} ', dir.departureName);
     }
 ;
 
@@ -284,7 +284,7 @@ modify Thing
     /* Display a message saying we see nothing unexpected in the direction we're looking in. */
     sayNothingUnexpectedThatWay(dir)
     {
-        DMsg(nothing unexpected that way, '{I} {see} nothing unexpected in that direction. ');
+        showMsg(nothing unexpected that way, '{I} {see} nothing unexpected in that direction. ');
     }
     
     /* 
@@ -293,7 +293,7 @@ modify Thing
      */
     sayTooDarkToLookDir() 
     {
-        DMsg(too dark to look that way, 'It{dummy}{\'s} too dark to see anything that way. ' );        
+        showMsg(too dark to look that way, 'It{dummy}{\'s} too dark to see anything that way. ' );        
     }
     
     /* 

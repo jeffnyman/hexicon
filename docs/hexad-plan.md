@@ -60,7 +60,7 @@ None is owed (2026-11-24). Hexicon builds no TADS 3 game, and the converter is g
 
 ## Hexad's words
 
-Draft, 2026-11-25, for decision. [vocabulary.md](vocabulary.md) renamed what is built into Hexicon; these are the library's own. The same cost applies (vocabulary.md, section 3): a name a library defines is taken for the whole program, so a short noun is a poor name for anything Hexad defines globally, and a macro is worse, because it replaces the word everywhere, a property or local of that name included.
+Decided, 2026-11-25: all of the below, `now` included. [vocabulary.md](vocabulary.md) renamed what is built into Hexicon; these are the library's own. The same cost applies (vocabulary.md, section 3): a name a library defines is taken for the whole program, so a short noun is a poor name for anything Hexad defines globally, and a macro is worse, because it replaces the word everywhere, a property or local of that name included.
 
 ### The current turn's values: the `g` macros
 
@@ -74,15 +74,15 @@ They cannot become plain words. `actor` is used 1,480 times in Hexad as a proper
 | **B. One object for the current turn** | `now.actor`, `now.dobj`, `now.room` | one name: `now`, `turn`, or `current`. None is used in Hexad or the game tests outside strings, but a game could want `current` (Exercise 23 has a river with one) |
 | **C. Both, for a while** | either | against "no aliases" (vocabulary.md) |
 
-Recommended: **B**, named `now`, with its properties forwarding to where the values live now. It reads as English, it is how other languages expose such state, and it takes one name instead of fifty. The cost is the 962 and more uses, mechanical, and a property call where a macro expanded inline, which the VM's lookup cache makes cheap. The few `g` macros that take arguments (`gActionIs(Take)`, `gReveal(key)`) become methods (`now.actionIs(Take)`, `now.reveal(key)`) or functions of their own.
+Decided: **B**, named `now`, with its properties forwarding to where the values live now. It reads as English, it is how other languages expose such state, and it takes one name instead of fifty. The cost is the 962 and more uses, mechanical, and a property call where a macro expanded inline, which the VM's lookup cache makes cheap. The few `g` macros that take arguments (`gActionIs(Take)`, `gReveal(key)`) become methods (`now.actionIs(Take)`, `now.reveal(key)`) or functions of their own.
 
 ### Messages: `DMsg` and `BMsg`
 
-`DMsg(take, 'Taken. ')` shows a message by its id, and `BMsg(...)` gives it as a string; a game replaces a message by its id (802 uses). The macro gives the bare id (`take`, not `'take'`), so the form is worth keeping, under clearer names. Proposed: `showMsg(id, text)` and `msgText(id, text)`. Neither is used now.
+`DMsg(take, 'Taken. ')` shows a message by its id, and `BMsg(...)` gives it as a string; a game replaces a message by its id (802 uses). The macro gives the bare id (`take`, not `'take'`), so the form is worth keeping, under clearer names. Done (2026-11-25): `showMsg(id, text)` and `msgText(id, text)`.
 
 ### `Doer`
 
-A rule that replaces or redirects a command (`Doer 'take Thing'`, 69 uses). `Rule` is taken by the `rules` extension's class. Proposed: `CommandRule`.
+A rule that replaces or redirects a command (`Doer 'take Thing'`, 69 uses). `Rule` is taken by the `rules` extension's class. Done (2026-11-25): `CommandRule`, with its family (`CommandRuleCmd`, `CommandRuleParser`, `execCommandRule`, `findCommandRules`, and the rest) and its source, `commandRule.hxn`. The debugging option that shows which rule ran is `DEBUG RULES`, was `DEBUG DOERS`; a game's own debug output says "[Executing CommandRule; ...]".
 
 ### Kept
 
@@ -98,7 +98,7 @@ A rule that replaces or redirects a command (`Doer 'take Thing'`, 69 uses). `Rul
 ## Open questions
 
 1. Which of adv3's features matter most to bring back? The senses, nested rooms and postures, and report grouping are the likely ones.
-2. Hexad's words, above.
+2. Hexad's words: decided, above; `now` is to be made.
 
 Settled since the draft: compatibility with adv3Lite games (none is owed, above), and whether the English messages are a module of their own (they are, as `lib/hexad/english` with its own manifest).
 
@@ -126,5 +126,5 @@ Settled since the draft: compatibility with adv3Lite games (none is owed, above)
    - **Verb rules are declarations** (2026-11-24, language milestone 6). `hexicon convert` rewrote Hexad's 288 `VerbRule`s as `verb Take ('take' | 'get') multiDobj: ...`, with `for` where a rule's name is not its action's (`verb SetDownWhat for Drop 'set' 'down':`). Games built on it give identical images. `hexad.h` still defines `VerbRule`, for games not yet converted and for its shortcut macros (`DefineTVerb` and the rest).
    - **Hexad is imported** (2026-11-24, language milestone 5). Its manifest names `advlite.h` as the header a Hexicon source gets by `import hexad;`, and its own sources import it rather than including it. The images are the same.
    - **`hexicon run --norand` makes play repeatable** even for a game that reseeds at random. It used to leave only the start-up seed out, as the reference's `-norand` does, so a `randomize()` in the program still drew on the system's entropy. Now every seed is the same.
-4. **Hexad's own words** (above). Each decided rename is made through Hexad, its English, its extensions, the guide, and the game tests together, and checked by the games playing the same. Done so far, with the built-in renames (vocabulary.md, 2026-11-24): Hexad uses `Map`, `Decimal`, `typeOf`, `regexMatch`, and the rest.
+4. **Hexad's own words** (above). Each decided rename is made through Hexad, its English, its extensions, the guide, and the game tests together, and checked by the games playing the same. Done so far: the built-in renames (vocabulary.md, 2026-11-24), so Hexad uses `Map`, `Decimal`, `typeOf`, `regexMatch`, and the rest; and `CommandRule`, `showMsg`, and `msgText` (2026-11-25), with the games playing the same. Next: `now`.
 5. **adv3's depth as modules.** The senses, nested rooms and postures, and whatever else is chosen. Each is optional and comes with a test game of its own.

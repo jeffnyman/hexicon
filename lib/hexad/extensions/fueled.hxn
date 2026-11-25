@@ -117,8 +117,8 @@ class FueledLightSource: object
         ". ";
     }
     
-    burnedOutMsg = BMsg(say burned out, '{The subj obj} {goes} out')
-    plungedIntoDarknessMsg = BMsg(plunged into darkness, ', plunging {1} into
+    burnedOutMsg = msgText(say burned out, '{The subj obj} {goes} out')
+    plungedIntoDarknessMsg = msgText(plunged into darkness, ', plunging {1} into
         darkness', gPlayerChar.theName)
     
     /* Modifications to the makeLit() method for FueledLightSource [FUELED EXTENSION] */
@@ -153,7 +153,7 @@ class FueledLightSource: object
      *   Most instances will probably want to override this to something more
      *   specific.
      */
-    wontLightMsg = BMsg(wont light, '\^{1} {dummy} {won\'t} light. ', theName)
+    wontLightMsg = msgText(wont light, '\^{1} {dummy} {won\'t} light. ', theName)
     
     /* 
      *   If we have an external fuel source then removing or disabling it will

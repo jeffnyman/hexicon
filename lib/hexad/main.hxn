@@ -189,7 +189,7 @@ readCommandLine()
 {
     /* Read a new command from the keyboard. */
     "<.inputline>";
-    DMsg(command prompt, '>');
+    showMsg(command prompt, '>');
     local txt = inputManager.getInputLine();
     "<./inputline>\n";   
     

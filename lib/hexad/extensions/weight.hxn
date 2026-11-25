@@ -78,7 +78,7 @@ modify Thing
           /* Create a message parameter substitution. */
         gMessageParams(obj);
         
-        DMsg(too heavy, '{The subj obj} {is} too heavy to go {1} {2}. ', 
+        showMsg(too heavy, '{The subj obj} {is} too heavy to go {1} {2}. ', 
                  objInPrep, theName);
     }
     
@@ -90,7 +90,7 @@ modify Thing
           /* Create a message parameter substitution. */
         gMessageParams(obj, this);
         
-        DMsg(cant bear more weight, '{The subj this} {can\'t} bear any more
+        showMsg(cant bear more weight, '{The subj this} {can\'t} bear any more
             weight. ');
     }
     
@@ -113,7 +113,7 @@ modify Thing
          *   actor to carry.
          */
         if(tWeight > gActor.maxSingleWeight || tWeight > gActor.weightCapacity)
-            DMsg(too heavy to carry, '{The subj dobj} {is} too heavy for {me} to
+            showMsg(too heavy to carry, '{The subj dobj} {is} too heavy for {me} to
                 carry. ');
                
         
@@ -122,7 +122,7 @@ modify Thing
          *   capacity.
          */
         else if(tWeight > gActor.weightCapacity - gActor.getCarriedWeight())
-            DMsg(cannot carry any more weight, '{I} {can\'t} carry that much
+            showMsg(cannot carry any more weight, '{I} {can\'t} carry that much
                 more weight. ');
     }
     
@@ -223,7 +223,7 @@ modify Thing
     {
         gMessageParams(obj);
         
-        DMsg(too heavy to hide, '{The sub obj} {is} too heavy to hide {1} {2}. ',
+        showMsg(too heavy to hide, '{The sub obj} {is} too heavy to hide {1} {2}. ',
              insType.prep, theName);
     }
     

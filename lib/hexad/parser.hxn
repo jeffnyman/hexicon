@@ -230,7 +230,7 @@ class Parser: object
              *   The tokenizer found a character (usually a punctuation
              *   mark) that doesn't fit any of the token rules.  
              */
-            DMsg(token error, 'I don\'t understand the punctuation {1}',
+            showMsg(token error, 'I don\'t understand the punctuation {1}',
                  err.curChar_);
 
            
@@ -765,7 +765,7 @@ class Parser: object
              *   is disabled, since otherwise an empty command implicitly
              *   means LOOK AROUND.  
              */
-            DMsg(empty command line, 'I beg your pardon?');
+            showMsg(empty command line, 'I beg your pardon?');
 
         }
     }
@@ -2453,7 +2453,7 @@ class NounPhrase: object
              *   retyping a more specific form of the noun phrase. For example,
              *   after GET THE TWO MATCHES doesn't work, they might just want to
              *   type THE LIT MATCH AND AN UNLIT MATCH, but currently the parser
-             *   does not do this.  Probably the DMsg should also refer to the
+             *   does not do this.  Probably the showMsg should also refer to the
              *   specific noun phrase that is ambiguous in its message.
              */
             throw new AmbiguousMultiDefiniteError(cmd,self);
@@ -5100,7 +5100,7 @@ class NotUnderstoodError: ParseError
          *   to find any grammar match for the input, so we basically have
          *   no idea what the player was trying to say.  
          */
-        DMsg(not understood, 'I don\'t understand that command.');        
+        showMsg(not understood, 'I don\'t understand that command.');        
     }
 
     /* 
@@ -5174,7 +5174,7 @@ class UnknownWordError: ParseError
          *   words that aren't in the dictionary, since objects and topics
          *   can sometimes match arbitrary input.)  
          */
-        DMsg(unknown word, 'I don\'t know the word "{1}".', badWord);
+        showMsg(unknown word, 'I don\'t know the word "{1}".', badWord);
 
     }
 
@@ -5201,7 +5201,7 @@ class CantOopsError: OopsError
          *   either the last command succeeded, or that it simply didn't
          *   contain any non-dictionary words. 
          */
-        DMsg(no oops now, 'Sorry, I\'m not sure what you\'re correcting.');
+        showMsg(no oops now, 'Sorry, I\'m not sure what you\'re correcting.');
     }
 ;
 
@@ -5399,7 +5399,7 @@ class UnmatchedActorError: ResolutionError
          *   match anything, all we have is the text of the actor phrase
          *   from the player's input.  
          */
-        DMsg(unmatched actor, '{I} {see} no {1} {here}.', txt);
+        showMsg(unmatched actor, '{I} {see} no {1} {here}.', txt);
     }
 ;
 
@@ -5416,7 +5416,7 @@ class UnmatchedNounError: ActorResolutionError
          *   in scope.  Since we didn't find an object, all we have is the
          *   text of the noun phrase from the player's input.  
          */
-        DMsg(unmatched noun, '{I} {see} no {2} {here}.', cmd, stripArticle(txt));
+        showMsg(unmatched noun, '{I} {see} no {2} {here}.', cmd, stripArticle(txt));
         
         oopsTip.showTip();
     }
@@ -5447,7 +5447,7 @@ class NoAntecedentError: PronounError
          *   The player used a pronoun for which there's currently no
          *   antecedent.  
          */
-        DMsg(no antecedent,
+        showMsg(no antecedent,
              'I\'m not sure what you mean by "{1}".', np.prod.getText());
     }
 ;
@@ -5471,7 +5471,7 @@ class AntecedentScopeError: PronounError
          *   The player used a pronoun that refers to an object that's no
          *   longer in scope. 
          */
-        DMsg(antecedent out of scope,
+        showMsg(antecedent out of scope,
              '{I} no longer {see} that {here}.', cmd);
     }
 ;
@@ -5491,7 +5491,7 @@ class InsufficientNounsError: ActorResolutionError
              *   The player used ALL when there's nothing suitable for all to
              *   refer to.
              */
-            DMsg(nothing suitable for all, 'There{\'s} nothing suitable for        
+            showMsg(nothing suitable for all, 'There{\'s} nothing suitable for        
                 ALL to refer to. ');
         
         else
@@ -5501,7 +5501,7 @@ class InsufficientNounsError: ActorResolutionError
              *   number of objects (such as FIVE COINS or BOTH BOOKS), but there
              *   aren't enough of those objects present.
              */
-            DMsg(not enough nouns,
+            showMsg(not enough nouns,
                  '{I} {don\'t see} that many {2} {here}.', cmd, txt);       
 
     }
@@ -5540,7 +5540,7 @@ class NoneInOwnerError: ActorResolutionError
              *   present, but neither of them has a sword (not that's in
              *   scope, anyway).  
              */
-            DMsg(none in owners, 'No {2} {dummy}appear{s/ed} to have any {3}.',
+            showMsg(none in owners, 'No {2} {dummy}appear{s/ed} to have any {3}.',
                  cmd, possQual.prod.getText(), txt);
         }
         else
@@ -5556,7 +5556,7 @@ class NoneInOwnerError: ActorResolutionError
             local obj = possQual.matches[1].obj;
             gMessageParams(obj);
             
-            DMsg(none in owner, '{The subj obj} {doesn\'t appear[ed]} to have
+            showMsg(none in owner, '{The subj obj} {doesn\'t appear[ed]} to have
                 any {2}.',  cmd,  txt);
                       
         }
@@ -5596,7 +5596,7 @@ class NoneInLocationError: ActorResolutionError
              *   THE TABLE, and we have two tables in scope, but there's no
              *   box in scope that's on either of them.  
              */
-            DMsg(none in locations,
+            showMsg(none in locations,
                  '{I} {see} no {2} {3} any {4}.',
                  cmd, txt, locQual.locType.prep, locQual.prod.getText());
         }
@@ -5610,7 +5610,7 @@ class NoneInLocationError: ActorResolutionError
              *   TABLE, and we have a table in scope, but there's no box on
              *   it. 
              */
-            DMsg(none in location,
+            showMsg(none in location,
                  '{I} {see} no {2} {3} {the 4}.',
                  cmd, txt, locQual.locType.prep, locQual.matches[1].obj);
         }
@@ -5650,7 +5650,7 @@ class NoneWithContentsError: ActorResolutionError
              *   have multiple "water" objects present, but none of them
              *   are inside buckets that are in scope.  
              */
-            DMsg(none with contents in list,
+            showMsg(none with contents in list,
                  '{I} {see} no {2} of {3}.',
                  cmd, txt, contQual.prod.getText());
         }
@@ -5665,7 +5665,7 @@ class NoneWithContentsError: ActorResolutionError
              *   object present, but it's not inside anything called a
              *   bucket (not one that's in scope, anyway).  
              */
-            DMsg(none with contents,
+            showMsg(none with contents,
                  '{I} {see} no {2} of {3}.',
                  cmd, txt, contQual.matches[1].obj);
         }
@@ -5752,7 +5752,7 @@ class AmbiguousError: ResolutionError
 class AmbiguousMultiDefiniteError: UnmatchedNounError
     display()
     {
-        DMsg(be more specific, 'I don\'t know which ones you mean.  
+        showMsg(be more specific, 'I don\'t know which ones you mean.  
             Can you be more specific?');
     }
 
@@ -5785,7 +5785,7 @@ class OrdinalRangeError: ResolutionError
          *   blue book?", and the player answered THE THIRD ONE.  There are
          *   only two options, so THIRD is out of range.  
          */
-        DMsg(ordinal out of range,
+        showMsg(ordinal out of range,
              'Sorry, I don\'t see what you\'re referring to.');
     }
 
@@ -5796,7 +5796,7 @@ class OrdinalRangeError: ResolutionError
 class BadMultiError: ParseError
     display() 
     { 
-        DMsg(multi not allowed, 'Sorry; multiple objects aren\'t allowed with
+        showMsg(multi not allowed, 'Sorry; multiple objects aren\'t allowed with
             that command.'); 
     }
 ;
@@ -5963,7 +5963,7 @@ class SpecialVerb: object
     /* Display our failure message. By default this is "You can't <<svPhrase>> that. */
     showFailureMsg(svPhrase)
     {
-        DMsg(cant do that special, '{I} {can\'t} <<svPhrase>> {that dobj}. ');
+        showMsg(cant do that special, '{I} {can\'t} <<svPhrase>> {that dobj}. ');
     }
     
     /* Initialise (in fact preinitialize) this SpecialVerb */
@@ -6349,7 +6349,7 @@ specialVerbMgr: PreinitObject
     
     /* 
      *   Call the checkSV() method on our currently active SpecialVerb, if we have one. Tbis is
-     *   called by the current Command object just before invoking the relevant Doer for the
+     *   called by the current Command object just before invoking the relevant CommandRule for the
      *   command.
      */
     checkSV(lst)

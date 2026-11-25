@@ -110,7 +110,7 @@ class Footnote: object
     footnoteRef(num)
     {
         /* set up a hyperlink for the note that enters the "note n" command */
-        return BMsg(footnote ref, '<sup>[<<aHref('footnote ' + num, 
+        return msgText(footnote ref, '<sup>[<<aHref('footnote ' + num, 
                                                  toString(num))>>]</sup>');
     }
     
@@ -148,7 +148,7 @@ class Footnote: object
         else
         {
             /* there is no such footnote */
-             DMsg(no such footnote, '<.parser>The story has never referred to
+             showMsg(no such footnote, '<.parser>The story has never referred to
                  any such footnote.<./parser> ');
         }
     }
@@ -200,7 +200,7 @@ class Footnote: object
         if (everShownFootnote)
         {
             /* show the first footnote notification */
-            DMsg(first footnote,  'A number in [square brackets] like the one
+            showMsg(first footnote,  'A number in [square brackets] like the one
                 above refers to a footnote, which you can read by typing
                 FOOTNOTE followed by the number: <<aHref('footnote 1',
                     'FOOTNOTE 1', 'Show footnote [1]')>>, for example.
@@ -296,7 +296,7 @@ footnotePreinit: PreinitObject
  *  file (e.g. footnotes_fr.hxn or footnotes_de.hxn) and in it include (a)
  *  your language-specific modifications to the following VerbRules
  *  (using modify VerbRule) and (b) a CustomMessages object containing
- *  translations of any DMsg and BMsg text used in this extension. Then
+ *  translations of any showMsg and msgText text used in this extension. Then
  *  instruct users to include your language-specific file after this one.
  *  [FOOTNOTE EXTENSION]
  */
@@ -371,18 +371,18 @@ action Footnotes: SystemAction
     
     acknowledgeFootnoteStatus(stat)
     {
-        DMsg(acknowledge footnote status, '<.parser>The setting is now {1}.
+        showMsg(acknowledge footnote status, '<.parser>The setting is now {1}.
             <./parser>', shortFootnoteStatus(stat));
     }
 
     /* show the footnote status, in short form */
     shortFootnoteStatus(stat)
     {
-        local msg = BMsg(footnotes, 'FOOTNOTES ');
+        local msg = msgText(footnotes, 'FOOTNOTES ');
         
-        msg += (stat == FootnotesOff ? BMsg(footnote off, 'OFF')
-          : stat == FootnotesMedium ? BMsg(footnote medium, 'MEDIUM')
-          : BMsg(footnote full, 'FULL'));
+        msg += (stat == FootnotesOff ? msgText(footnote off, 'OFF')
+          : stat == FootnotesMedium ? msgText(footnote medium, 'MEDIUM')
+          : msgText(footnote full, 'FULL'));
         
         return msg;
     }
@@ -421,7 +421,7 @@ action FootnotesStatus: SystemAction
         switch(stat)
         {
         case FootnotesOff:
-            DMsg(show footnotes off,
+            showMsg(show footnotes off,
             'OFF, which hides all footnote references.
             Type <<aHref('footnotes medium', 'FOOTNOTES MEDIUM',
                          'Set footnotes to Medium')>> to
@@ -432,7 +432,7 @@ action FootnotesStatus: SystemAction
             break;
 
         case FootnotesMedium:
-            DMsg(show footnotes medium,
+            showMsg(show footnotes medium,
             'MEDIUM, which shows references to unread footnotes, but
             hides references to those you&rsquo;ve already read.  Type
             <<aHref('footnotes off', 'FOOTNOTES OFF',
@@ -444,7 +444,7 @@ action FootnotesStatus: SystemAction
             break;
 
         case FootnotesFull:
-            DMsg(show footnotes full,
+            showMsg(show footnotes full,
             'FULL, which shows every footnote reference, even to
             notes you&rsquo;ve already read.  Type <<aHref('footnotes medium',
             'FOOTNOTES MEDIUM', 'Set footnotes to Medium')>> to show

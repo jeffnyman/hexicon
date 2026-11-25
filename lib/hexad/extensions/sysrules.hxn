@@ -173,7 +173,7 @@ checkIlluminationRule: AfterRule
             }
             else if(ac.wasIlluminated)
             {
-                DMsg(onset of darkness, '\n{I} {am} plunged into darkness. ');
+                showMsg(onset of darkness, '\n{I} {am} plunged into darkness. ');
             }
         }
         "<.p>";
@@ -641,7 +641,7 @@ startInputLineRule: TurnStartRule
 displayCommandPromptRule: TurnStartRule
     follow()    
     {            
-        DMsg(command prompt, '>');        
+        showMsg(command prompt, '>');        
     }
     
     /* 

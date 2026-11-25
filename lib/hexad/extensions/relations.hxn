@@ -488,7 +488,7 @@ DerivedRelation: Relation
      */
     addRelation(objs)
     {
-        DMsg(cannot add to derived relation, 'ERROR! You cannot explicitly
+        showMsg(cannot add to derived relation, 'ERROR! You cannot explicitly
             relate items via a derived relation (%1). ', name);
     }
     
@@ -499,7 +499,7 @@ DerivedRelation: Relation
      */
     removeRelation(objs)
     {
-        DMsg(cannot remove from derived relation, 'ERROR! You cannot explicitly
+        showMsg(cannot remove from derived relation, 'ERROR! You cannot explicitly
             remove a derived relation (%1) between items. ', name);
     }
     
@@ -568,7 +568,7 @@ relationTable: PreinitObject
      */
     sayNoSuchRelation(rel)
     {
-        DMsg(no such relation, 'ERROR, there is no such relation as <q>{1}</q>. ',
+        showMsg(no such relation, 'ERROR, there is no such relation as <q>{1}</q>. ',
              rel);
     }
 ;
@@ -853,7 +853,7 @@ action ListRelations: SystemAction
         /* If the list is empty, say so and exit. */
         if(lst.length == 0)
         {
-            DMsg(no relations defined, 'No relations are defined in this game.
+            showMsg(no relations defined, 'No relations are defined in this game.
                 ');
         }
         
@@ -950,7 +950,7 @@ action RelationDetails: SystemAction
             if(rel == nil || typeOf(rel) != TypeObject ||
                !rel.ofKind(Relation))
             {
-                DMsg(no such relation, 'There is no such relation in the game as
+                showMsg(no such relation, 'There is no such relation in the game as
                     {1}. ', literal);
                 return;
             }
@@ -973,7 +973,7 @@ action RelationDetails: SystemAction
          */
         if(rel.ofKind(DerivedRelation))
         {
-            //            DMsg(cant list derived relation, '<i>Since {1} is a DerivedRelation,
+            //            showMsg(cant list derived relation, '<i>Since {1} is a DerivedRelation,
             //                any items it relates cannot be listed.</i> ', valToSym(rel));
             
             //            local vec = new Vector();
@@ -994,7 +994,7 @@ action RelationDetails: SystemAction
         /*  If the list is empty, say so and exit. */
         if(lst.length == 0)
         {
-            DMsg(no relations defined, '<i>no relations defined</i> ');
+            showMsg(no relations defined, '<i>no relations defined</i> ');
             return;
         }
         

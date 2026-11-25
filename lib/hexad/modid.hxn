@@ -68,7 +68,7 @@ class ModuleID: object
     
     showVersionMsg(nam, ver)
     {
-        DMsg(show version, '{1} version {2}', nam, ver);        
+        showMsg(show version, '{1} version {2}', nam, ver);        
     }
 
     /*

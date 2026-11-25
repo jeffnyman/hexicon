@@ -286,7 +286,7 @@ class Action: ReplaceRedirector
             }
             else if(wasIlluminated)
             {
-                DMsg(onset of darkness, '\n{I} {am} plunged into darkness. ');
+                showMsg(onset of darkness, '\n{I} {am} plunged into darkness. ');
             }
         }
         "<.p>";
@@ -485,8 +485,8 @@ class Action: ReplaceRedirector
                 exit;
             }
             
-//            DMsg(remap error, '<b>ERROR!</b> The long form of remap is no longer
-//                available; please use a Doer instead. ');
+//            showMsg(remap error, '<b>ERROR!</b> The long form of remap is no longer
+//                available; please use a CommandRule instead. ');
  
         default:
 //          
@@ -991,14 +991,14 @@ class Action: ReplaceRedirector
      *   The message to display if an action fails at the check stage (via an
      *   exit macro) without any other explanatory text being displayed.
      */
-    failCheckMsg = BMsg(fail check, '{I} {cannot} do that (but the author of
+    failCheckMsg = msgText(fail check, '{I} {cannot} do that (but the author of
         this game failed to specify why).')
     
     
     /* optional command is not supported in this game */
     commandNotPresent()
     {
-       DMsg(command not present, '<.parser>That command isn&rsquo;t needed
+       showMsg(command not present, '<.parser>That command isn&rsquo;t needed
            in this story.<./parser> ');
     }
         
@@ -1006,7 +1006,7 @@ class Action: ReplaceRedirector
     /* acknowledge a change in the score notification status */
     acknowledgeNotifyStatus(stat)
     {
-        DMsg(acknowledge notify status, '<.notification>Score notifications are now
+        showMsg(acknowledge notify status, '<.notification>Score notifications are now
         <<stat ? 'on' : 'off'>>.<./notification> ');
     }
     
@@ -1641,7 +1641,7 @@ class TAction: Action
          */        
         if(cmd.matchedAll && !(allowAll || parentAllowAll) )
         {
-            DMsg(all not allowed, 'Sorry; ALL is not allowed with this command.
+            showMsg(all not allowed, 'Sorry; ALL is not allowed with this command.
                 ');
             abort;
         }
@@ -3257,7 +3257,7 @@ askMissingObject(action, role, findBest = true)
                 /* Execute the new action with the new set of objects. */
                 
                 
-                gCommand.execDoer([action, gCommand.dobj, gCommand.iobj]);            
+                gCommand.execCommandRule([action, gCommand.dobj, gCommand.iobj]);            
                 
                 
                 /* 

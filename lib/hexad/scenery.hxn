@@ -400,7 +400,7 @@ class MultiScenItem: MultiLoc, ScenItem
  */
 nullObj: object
     /* Our description. Game code is free to override this if some other method is preferred. */
-    descStr = BMsg(no need to refer, 'That\'s not something you need to refer to. ')
+    descStr = msgText(no need to refer, 'That\'s not something you need to refer to. ')
     
     /* 
      *   Our notImportantMsg is the same as our description. Game code is free to override this to

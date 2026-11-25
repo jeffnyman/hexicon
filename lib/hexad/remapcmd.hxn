@@ -24,7 +24,7 @@ import hexad;
  */
 
 /*
- *   RemapCmd is similar a Doer in that it remaps one command into another command, but
+ *   RemapCmd is similar a CommandRule in that it remaps one command into another command, but
  *   there the differences end.  What are the differences?
  *
  *   RemapCmd parses up the cmd and does not make any attempt to map them to existing
@@ -420,7 +420,7 @@ modify Parser
              *   The tokenizer found a character (usually a punctuation
              *   mark) that doesn't fit any of the token rules.  
              */
-            DMsg(token error, 'I don\'t understand the punctuation {1}',
+            showMsg(token error, 'I don\'t understand the punctuation {1}',
                  err.curChar_);
             
             /* give up on the parse */

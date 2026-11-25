@@ -633,7 +633,7 @@ class AskConnector: TravelConnector
         }
         
         /* Otherwise ask the player which connector to use. */            
-        DMsg(multi destination, 'That way {plural}{lie} {1}. ',  
+        showMsg(multi destination, 'That way {plural}{lie} {1}. ',  
              makeListStr(options, &theName, 'and', true));
         askForDobjX(travelAction);            
         return;        

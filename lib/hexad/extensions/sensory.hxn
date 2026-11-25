@@ -171,7 +171,7 @@ modify SensoryEmanation
      *   The message to display when the player tries to do something with us
      *   other than sense us. [DEFINED IN SENSORY EXTENSION]
      */
-    notImportantMsg = BMsg(cannot do to sensory, '{I} {can\'t} do that to {a
+    notImportantMsg = msgText(cannot do to sensory, '{I} {can\'t} do that to {a
         cobj}. ')
 ;
 

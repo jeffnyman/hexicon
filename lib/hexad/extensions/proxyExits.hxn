@@ -23,14 +23,14 @@ DefSpecialTravel(Doorway, &doorway, 'doorway' | 'door');
  *   commands aimed at generic doors/doorways mentioned in room descriptions. 
  */
 doorwayProxy: ProxyExit 
-    vocab = BMsg(doorway vocab, 'doorway;ordinary;door')
-    desc = DMsg(doorway desc, 'A doorway is just an ordinary doorway. ')
+    vocab = msgText(doorway vocab, 'doorway;ordinary;door')
+    desc = showMsg(doorway desc, 'A doorway is just an ordinary doorway. ')
     exitProp = &doorway
     travelAction = Doorway
     decorationActions = inherited + [Open, Close]
-    cannotOpenMsg = BMsg(open doorway, 'No need in this case')
-    cannotCloseMsg = BMsg(close doorway, 'No need in this case.')
-    notImportantMsg = BMsg(door not important, 'There\'s no need to fiddle with such an ordinary door.
+    cannotOpenMsg = msgText(open doorway, 'No need in this case')
+    cannotCloseMsg = msgText(close doorway, 'No need in this case.')
+    notImportantMsg = msgText(door not important, 'There\'s no need to fiddle with such an ordinary door.
         ')
     
 ;
@@ -42,8 +42,8 @@ DefSpecialTravel(Passageway, &passageway, 'passageway' | 'passage');
  *   handle commands aimed at generic passages mentioned in room descriptions.
  */
 passagewayProxy: ProxyExit 
-    vocab = BMsg(passageway vocab, 'passageway;ordinary wide long short narrow straight;passage')
-    desc = DMsg(passageway desc, 'A passage is just an ordinary passage. ')
+    vocab = msgText(passageway vocab, 'passageway;ordinary wide long short narrow straight;passage')
+    desc = showMsg(passageway desc, 'A passage is just an ordinary passage. ')
     exitProp = &passageway
     travelAction = Passageway
     decorationActions = inherited + [ClimbUp, ClimbDown, GoAlong, Follow]
@@ -51,7 +51,7 @@ passagewayProxy: ProxyExit
     dobj ClimbDown as TravelVia
     dobj Follow as TravelVia
     dobj GoAlong as TravelVia
-    notImportantMsg = BMsg(passage not important, 'There\'s no need to fiddle with such an ordinary
+    notImportantMsg = msgText(passage not important, 'There\'s no need to fiddle with such an ordinary
         passage. ')
 ;
 
@@ -62,9 +62,9 @@ DefSpecialTravel(Pathway, &pathway, 'pathway' | 'path');
  *   commands aimed at generic paths/pathways mentioned in room descriptions.
  */
 pathwayProxy: ProxyExit
-    vocab = BMsg(pathway vocab, 'pathway;ordinary narrow wide broad long short straight windy 
+    vocab = msgText(pathway vocab, 'pathway;ordinary narrow wide broad long short straight windy 
         crooked;path')
-    desc = DMsg(pathway desc, 'A path is just an ordinary path. ')
+    desc = showMsg(pathway desc, 'A path is just an ordinary path. ')
     exitProp = &pathway
     travelAction = Pathway
     decorationActions = inherited + [Take, Climb, ClimbUp, ClimbDown, GoAlong, Follow]
@@ -86,7 +86,7 @@ pathwayProxy: ProxyExit
     dobj Follow as TravelVia
     dobj GoAlong as TravelVia
     
-    notImportantMsg = BMsg(path not important, 'There\'s no need to fiddle with such an ordinary
+    notImportantMsg = msgText(path not important, 'There\'s no need to fiddle with such an ordinary
         path. ')
 ;
 
@@ -97,11 +97,11 @@ DefSpecialTravel(Archway, &archway, 'archway' | 'arch');
  *   commands aimed at generic arches/archways mentioned in room descriptions. 
  */
 archwayProxy: ProxyExit 
-    vocab = BMsg(archway vocab, 'archway;ordinary; large small big arch')
-    desc = DMsg(archway desc, 'An archway is just an ordinary archway. ')
+    vocab = msgText(archway vocab, 'archway;ordinary; large small big arch')
+    desc = showMsg(archway desc, 'An archway is just an ordinary archway. ')
     exitProp = &archway
     travelAction = Archway    
-    notImportantMsg = BMsg(arch not important, 'There\'s no need to fiddle with such an ordinary
+    notImportantMsg = msgText(arch not important, 'There\'s no need to fiddle with such an ordinary
         archway. ')
 ;
 
@@ -115,27 +115,27 @@ modify Room
      *   This can be attached to the doorway property of a Room with multiple doors to explain that
      *   the player has to choose which way to go.
      */
-    multiDoorMsg = DMsg(multi door, 'More than one doorway leads off from here; you\'ll have to say
+    multiDoorMsg = showMsg(multi door, 'More than one doorway leads off from here; you\'ll have to say
         which way you want to go. ')
     
     /* 
      *   This can be attached to the pasageway property of a Room with multiple pasaages to explain
      *   that the player has to choose which way to go.
      */
-    multiPassageMsg = DMsg(multi passage, 'More than one pasageway leads off from here; you\'ll have
+    multiPassageMsg = showMsg(multi passage, 'More than one pasageway leads off from here; you\'ll have
         to say which way you want to go. ')
     
     /* 
      *   This can be attached to the pathway property of a Room with multiple paths to explain that
      *   the player has to choose which way to go.
      */
-    multiPathMsg = DMsg(multi path, 'More than one path leads off from here; you\'ll have to say
+    multiPathMsg = showMsg(multi path, 'More than one path leads off from here; you\'ll have to say
         which way you want to go. ')
     
     /* 
      *   This can be attached to the archway property of a Room with multiple archways to explain
      *   that the player has to choose which way to go.
      */
-    multiArchMsg = DMsg(multi arch, 'More than one archway leads off from here; you\'ll have to say
+    multiArchMsg = showMsg(multi arch, 'More than one archway leads off from here; you\'ll have to say
         which way you want to go. ')   
 ;

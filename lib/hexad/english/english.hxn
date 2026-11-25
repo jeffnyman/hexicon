@@ -2342,7 +2342,7 @@ modify Thing
           
     /* 
      *   Flag - do we want Remove on this object to be an action separate from both TAKE and DOFF?
-     *   See removeDoer below.
+     *   See removeCommandRule below.
      */
     separateRemove = nil
 ;
@@ -2382,7 +2382,7 @@ modify Room
      *   changed for individual Rooms or overrideen on the Room class. or by overriding the Room's
      *   getMiscListSuffix(pove) method, or by using a CustomMessages object.
      */
-    miscListSuffix = BMsg(misc list suffix, '{here}');
+    miscListSuffix = msgText(misc list suffix, '{here}');
 ;
 
 
@@ -3165,7 +3165,7 @@ modify ItemLister
          *   objects being worn, add ' (being worn)' to the name
          */
         if(o.wornBy != nil && showWornInfo)
-            lName += BMsg(being worn, ' (being worn)');
+            lName += msgText(being worn, ' (being worn)');
         
                
         /* 
@@ -3176,7 +3176,7 @@ modify ItemLister
         {
             local obj = o.movedTo;
             gMessageParams(obj);
-            lName += BMsg(moved to, ' (by {the obj})');
+            lName += msgText(moved to, ' (by {the obj})');
         }
         
         /* 
@@ -4064,7 +4064,7 @@ askAmbiguous(cmd, role, names)
      */
     local q;
     if (role is in (DirectObject, ActorRole))
-        q = BMsg(which do you mean, 'Which do you mean');
+        q = msgText(which do you mean, 'Which do you mean');
     else
         q = nounRoleQuestion(cmd, role)
         .findReplace('what', 'which', ReplaceOnce);
@@ -5808,7 +5808,7 @@ modify Action
              *   Begin our report with an opening parenthesis and the word
              *   'first'
              */
-            rep = BMsg(implicit action report start, '<.assume>first ');
+            rep = msgText(implicit action report start, '<.assume>first ');
             
             /* 
              *   Then go through all the implicit action reports on the current
@@ -5823,7 +5823,7 @@ modify Action
                  *   separate one report from the next
                  */
                 if(i < lst.length)
-                    rep += BMsg(implicit action report separator, ' then ');
+                    rep += msgText(implicit action report separator, ' then ');
             }
             
             local prp = getPostImplicitReports();
@@ -5837,7 +5837,7 @@ modify Action
             }
             
             /* Return the completed implicit action report */
-            return rep + BMsg(implicit action report terminator, '<./assume>\n') + prp;
+            return rep + msgText(implicit action report terminator, '<./assume>\n') + prp;
         }
         
         /* 
@@ -5863,7 +5863,7 @@ modify Action
     implicitAnnouncement(success)
     {
         return success ? getVerbPhrase(nil, nil) : 
-              BMsg(implicit action report failure, 'trying to ') 
+              msgText(implicit action report failure, 'trying to ') 
             + getVerbPhrase(true, nil);
     }
     
@@ -6278,11 +6278,11 @@ yesOrNo()
 
 /* 
  *   In English, Remove X might mean take it off (if we're wearing it) or take
- *   it (if it's simply a free-standing object). We handle this with a Doer in
+ *   it (if it's simply a free-standing object). We handle this with a CommandRule in
  *   the English-specific library (a) because this ambiguity may be
  *   language-specific and (b) because remap is now deprecated. */
 
-removeDoer: Doer 'remove Thing'
+removeCommandRule: CommandRule 'remove Thing'
 
     execAction(c)
     {
@@ -6305,7 +6305,7 @@ removeDoer: Doer 'remove Thing'
  *   English-language grammar of the actions concerned it needs to appear in the
  *   English-specific part of the library.
  */
-putOnGroundDoer: Doer 'put Thing on Floor; throw Thing at Floor'
+putOnGroundCommandRule: CommandRule 'put Thing on Floor; throw Thing at Floor'
     execAction(c)
     {
         /* 
@@ -6341,7 +6341,7 @@ putOnGroundDoer: Doer 'put Thing on Floor; throw Thing at Floor'
  *   otherwise we take the command as equivalent to getting out of the actor's
  *   immediate container.
  */
-getOnGroundDoer: Doer 'stand on Floor; get on Floor'
+getOnGroundCommandRule: CommandRule 'stand on Floor; get on Floor'
     execAction(c)
     {
         if(gPlayerChar.location.ofKind(Room))
@@ -6352,7 +6352,7 @@ getOnGroundDoer: Doer 'stand on Floor; get on Floor'
 ;
 
 /*  In English taking a path means going along it */
-takePathDoer: Doer 'take PathPassage'
+takePathCommandRule: CommandRule 'take PathPassage'
     execAction(c)
     {
         redirect(c, GoThrough);
@@ -6365,7 +6365,7 @@ takePathDoer: Doer 'take PathPassage'
     strict = true
     
     /* 
-     *   Ignore an error report for this Doer in PreInit, since it only means
+     *   Ignore an error report for this CommandRule in PreInit, since it only means
      *   that extras.hxn hasn't been included.
      */
     ignoreError = true

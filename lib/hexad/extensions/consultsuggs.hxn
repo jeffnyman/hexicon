@@ -74,7 +74,7 @@ consultableSuggestionLister: suggestedTopicLister
     
     /* The text to introduce our list of suggested ConsultTopics, following "You could ". */
     consultPrefix = (source && source.customPrefix) ? source.customPrefix + ' ' : 
-       BMsg(look up, 'look up ')
+       msgText(look up, 'look up ')
     
     /* 
      *   The Consultable object whose showSuggestions method has just been called to generating a
@@ -142,7 +142,7 @@ modify Consultable
     customPrefix = useVerbosePrefix ? verbosePrefix : nil    
     
     /* A more verbose form of the suggestion prefix, e.g., 'consult the black book about' */
-    verbosePrefix = BMsg(verbose consult prefix, 'consult ' + theName + ' about')
+    verbosePrefix = msgText(verbose consult prefix, 'consult ' + theName + ' about')
     
     /* Flag, do we want this Consultable to use the more verbose prefix? By default we don't */
     useVerbosePrefix = nil  

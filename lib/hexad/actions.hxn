@@ -25,7 +25,7 @@ action Quit: SystemAction
     
     execAction(cmd)
     {        
-        DMsg(quit query, '<.p>Do you really want to quit? (y/n)?\n>');
+        showMsg(quit query, '<.p>Do you really want to quit? (y/n)?\n>');
        
         if(yesOrNo())
             throw new QuittingException;        
@@ -39,7 +39,7 @@ action Undo: SystemAction
     {
         if(undo())
         {
-            DMsg(undo okay, 'One turn undone: {1}', 
+            showMsg(undo okay, 'One turn undone: {1}', 
                  libGlobal.lastCommandForUndo);
             
             /* notify all PostUndoObject instances */
@@ -49,7 +49,7 @@ action Undo: SystemAction
         }
         else
         {
-            DMsg(undo failed, 'Undo failed. ');
+            showMsg(undo failed, 'Undo failed. ');
             return nil;
         }
     }
@@ -61,7 +61,7 @@ action Restart: SystemAction
     
     execAction(cmd)
     {
-        DMsg(restart query, 
+        showMsg(restart query, 
              'Do you really want to start again from the beginning (y/n)?\n>');
         
         if(inputManager.getInputLine().toLower.startsWith(affirmativeLetter))
@@ -178,7 +178,7 @@ action ExitsColour: SystemAction
             statuslineExitLister.highlightUnvisitedExits = 
                 (cmd.verbProd.on_ == 'on');
             
-            DMsg(exit color onoff, 'Okay, colouring of unvisited exits is now
+            showMsg(exit color onoff, 'Okay, colouring of unvisited exits is now
                 {1}.<.p>', cmd.verbProd.on_);
         }
         
@@ -186,7 +186,7 @@ action ExitsColour: SystemAction
         {
             statuslineExitLister.unvisitedExitColour = cmd.verbProd.colour_;
             statuslineExitLister.highlightUnvisitedExits = true;
-            DMsg(exit color change, 'Okay, unvisited exits in the status line
+            showMsg(exit color change, 'Okay, unvisited exits in the status line
                 will now be shown in {1}. ', cmd.verbProd.colour_);
         }
     }
@@ -194,7 +194,7 @@ action ExitsColour: SystemAction
 
 sayNoExitLister()
 {
-    DMsg(no exit lister, 'Sorry, that command is not available in this
+    showMsg(no exit lister, 'Sorry, that command is not available in this
                 game, since there\'s no exit lister. ');    
 }
 
@@ -215,7 +215,7 @@ action Score: SystemAction
             if (!mentionedFullScore)
             {
                 /* explain about it */
-                htmlSay(BMsg(mention full score, 'To see your complete list of
+                htmlSay(msgText(mention full score, 'To see your complete list of
                     achievements, use the <<aHref('full score', 'FULL SCORE',
                                                   'show full score')>> command. 
                     '));
@@ -232,7 +232,7 @@ action Score: SystemAction
     
     scoreNotPresent()
     {
-          DMsg(score not present, '<.parser>This story doesn&rsquo;t use
+          showMsg(score not present, '<.parser>This story doesn&rsquo;t use
                scoring.<./parser> ');            
     }
     
@@ -274,7 +274,7 @@ action Notify: SystemAction
       /* show the current score notify status */
     showNotifyStatus(stat)
     {
-        DMsg(show notify status, '<.notification>Score notifications are
+        showMsg(show notify status, '<.notification>Score notifications are
         currently <<stat ? 'on' : 'off'>>.<./notifcation> ');
     }
 ;
@@ -313,12 +313,12 @@ action ToggleDisambigEnumeration: SystemAction
         if(libGlobal.enumerateDisambigOptions)
         {
             libGlobal.enumerateDisambigOptions = nil;
-            DMsg(disambig enum off, 'Enumeration of disambiguation choices is now off. ');
+            showMsg(disambig enum off, 'Enumeration of disambiguation choices is now off. ');
         }
         else
         {
             libGlobal.enumerateDisambigOptions = true;
-            DMsg(disambig enum on, 'Enumeration of disambiguation choices is now on. ');
+            showMsg(disambig enum on, 'Enumeration of disambiguation choices is now on. ');
         }
     }
 ;
@@ -330,11 +330,11 @@ action EnumerateSuggestions: SystemAction
         {
             suggestedTopicLister.enumerateSuggestions = !suggestedTopicLister.enumerateSuggestions;
             
-            DMsg(toggle suggestion enum, 'Enumeration of topic suggestions is now 
+            showMsg(toggle suggestion enum, 'Enumeration of topic suggestions is now 
                 <b><<suggestedTopicLister.enumerateSuggestions ? 'on' : 'off'>></b>.<.p>');          
         }
         if(!defined(suggestedTopicLister))
-            DMsg(no suggestions present, 'Topic suggestions are not present in this game');
+            showMsg(no suggestions present, 'Topic suggestions are not present in this game');
     }
 ;
 
@@ -344,7 +344,7 @@ action HyperlinkSuggestions: SystemAction
         /* First check that the player's interpreter is capable of displaying hyperlinks. */
         if(systemInfo(SysInfoInterpClass) != SysInfoIClassHTML)
         {
-            DMsg(needs html terp, 'This feature requires an HTML interpreter. ');
+            showMsg(needs html terp, 'This feature requires an HTML interpreter. ');
             abort;
         }
         
@@ -352,11 +352,11 @@ action HyperlinkSuggestions: SystemAction
         {
             suggestedTopicLister.hyperlinkSuggestions = !suggestedTopicLister.hyperlinkSuggestions;
             
-            DMsg(toggle suggestion enum, 'Hyperlinking of topic suggestions is now 
+            showMsg(toggle suggestion enum, 'Hyperlinking of topic suggestions is now 
                 <b><<suggestedTopicLister.hyperlinkSuggestions ? 'on' : 'off'>></b>.<.p>');
         }
         if(!defined(suggestedTopicLister))
-            DMsg(no suggestions present, 'Topic suggestions are not present in this game');
+            showMsg(no suggestions present, 'Topic suggestions are not present in this game');
     }
 ;
 
@@ -372,7 +372,7 @@ action Hints: SystemAction
     
     sayHintsNotPresent() 
     {
-        DMsg(hints not present, '<.parser>Sorry, this story doesn&rsquo;t
+        showMsg(hints not present, '<.parser>Sorry, this story doesn&rsquo;t
                 have any built-in hints.<./parser> ');
     }
 ;
@@ -382,7 +382,7 @@ action HintsOff: SystemAction
     execAction(cmd)
     {
         if(gHintManager == nil)
-            DMsg(no hints to disable, '<.parser>This game doesn\'t have any
+            showMsg(no hints to disable, '<.parser>This game doesn\'t have any
                 hints to turn off.<./parser> ');
         else
             gHintManager.disableHints();
@@ -394,7 +394,7 @@ action ExtraHints: SystemAction
     {
         if(gExtraHintManager == nil || !gExtraHintManager.extraHintsExist())
         {
-            DMsg(no extra hints, 'Sorry, there are no extra hints in this game.
+            showMsg(no extra hints, 'Sorry, there are no extra hints in this game.
                 ');
             return;
         }
@@ -415,7 +415,7 @@ action ExtraHints: SystemAction
         else
             gExtraHintManager.activate();
         
-        DMsg(extra hints on or off, 'Okay; extra hints are now {1}. ', onOff );
+        showMsg(extra hints on or off, 'Okay; extra hints are now {1}. ', onOff );
     }
     
     /* 
@@ -427,7 +427,7 @@ action ExtraHints: SystemAction
     {
         local cmdstr = extraHintsCmd + onOrOff(!extraHintsActive).toUpper();
         
-        DMsg(extra hints status,            
+        showMsg(extra hints status,            
             'Extra hints are currently <<onOrOff(extraHintsActive)>>. To turn
             them <<onOrOff(!extraHintsActive)>> use the command <<aHref(cmdstr,
                 cmdstr, 'Turn extra hints ' + onOrOff(!extraHintsActive))>>. ',
@@ -441,17 +441,17 @@ action ExtraHints: SystemAction
     
     onOff = nil
     
-    hintsOff = BMsg(extra hints off, 'off')
-    hintsOn = BMsg(extra hints on, 'on')
+    hintsOff = msgText(extra hints off, 'off')
+    hintsOn = msgText(extra hints on, 'on')
     
-    extraHintsCmd = BMsg(extra hints command, 'EXTRA ')
+    extraHintsCmd = msgText(extra hints command, 'EXTRA ')
 ;
 
 action TipsOn: SystemAction
     execAction(cmd)
     {
         tipMode.isOn = true;
-        DMsg(tips on, 'Tips are now on. ');
+        showMsg(tips on, 'Tips are now on. ');
     }    
 ;
 
@@ -459,7 +459,7 @@ action TipsOff: SystemAction
     execAction(cmd)
     {
         tipMode.isOn = nil;
-        DMsg(tips off, 'Tips are now off. ');
+        showMsg(tips off, 'Tips are now off. ');
     }    
 ;
 
@@ -469,14 +469,14 @@ action Brief: SystemAction
         if(gameMain.verbose)
         {
             gameMain.verbose = nil;
-            DMsg(game now brief, 'The game is now in BRIEF mode. <<first
+            showMsg(game now brief, 'The game is now in BRIEF mode. <<first
                   time>>Full room descriptions will now only be shown on the
                 first visit to a room or in response to an explicit
                 <<aHref('LOOK', 'LOOK', 'Look
                     around')>> command.<<only>> ');
         }
         else
-            DMsg(game already brief, 'The game is already in BRIEF mode. ');
+            showMsg(game already brief, 'The game is already in BRIEF mode. ');
     }
 ;
 
@@ -484,11 +484,11 @@ action Verbose: SystemAction
     execAction(cmd)
     {
         if(gameMain.verbose)            
-            DMsg(game already verbose, 'The game is already in VERBOSE mode. ');        
+            showMsg(game already verbose, 'The game is already in VERBOSE mode. ');        
         else
         {
             gameMain.verbose = true;
-            DMsg(game now verbose, 'The game is now in VERBOSE mode. <<first
+            showMsg(game now verbose, 'The game is now in VERBOSE mode. <<first
                   time>>Full room descriptions be shown each time a room is
                 visited.<<only>> ');
         }            
@@ -504,7 +504,7 @@ action InventoryTall: SystemAction
         Inventory.inventoryStyle = self;
         
         /* Display a confirmation that this change has just taken place. */
-        DMsg(inventory tall, 'Inventory Listing is now set to TALL');
+        showMsg(inventory tall, 'Inventory Listing is now set to TALL');
     }
 ;
   
@@ -516,7 +516,7 @@ action InventoryWide: SystemAction
         Inventory.inventoryStyle = self;
         
         /* Display a confirmation that this change has just taken place. */
-        DMsg(inventory wide, 'Inventory Listing is now set to WIDE');
+        showMsg(inventory wide, 'Inventory Listing is now set to WIDE');
     }
 ;
 
@@ -528,7 +528,7 @@ action InventoryHybrid: SystemAction
         Inventory.inventoryStyle = self;
         
         /* Display a confirmation that this change has just taken place. */
-        DMsg(inventory hybrid, 'Inventory Listing is now set to HYBRID');
+        showMsg(inventory hybrid, 'Inventory Listing is now set to HYBRID');
     }
 ;
 
@@ -615,7 +615,7 @@ action Look: IAction
 action Wait: IAction
     execAction(cmd)
     {
-        DMsg(wait, 'Time {dummy} pass{es/ed}. ');
+        showMsg(wait, 'Time {dummy} pass{es/ed}. ');
     }
    
 ;
@@ -626,11 +626,11 @@ Jump: SpecialTravelAction
                [actorOutOfNested]: nil)
     travelProp = &jump
     
-    fallback(loc) {  DMsg(jump, '{I} jump{s/ed} on the spot, fruitlessly. ');    }
+    fallback(loc) {  showMsg(jump, '{I} jump{s/ed} on the spot, fruitlessly. ');    }
     
     connotTravelInDark(loc)
     {
-        DMsg(leap in the dark, 'It might be wiser not to hazard a leap in the dark {here}. ');
+        showMsg(leap in the dark, 'It might be wiser not to hazard a leap in the dark {here}. ');
     }
     
 ;
@@ -638,7 +638,7 @@ Jump: SpecialTravelAction
 action Yell: IAction
     execAction(cmd)
     {
-        DMsg(yell, '{I} shout{s/ed} very loudly. ');
+        showMsg(yell, '{I} shout{s/ed} very loudly. ');
     }
 ;
 
@@ -686,7 +686,7 @@ action Smell: IAction
         
         /*  If nothing has been displayed report that there is nothing to smell */        
         if(!somethingDisplayed)            
-            DMsg(smell nothing intransitive, '{I} {smell} nothing out of the
+            showMsg(smell nothing intransitive, '{I} {smell} nothing out of the
                 ordinary.<.p>');
 
     }
@@ -733,7 +733,7 @@ action Listen: IAction
         
         
         if(!somethingDisplayed)
-            DMsg(hear nothing listen, '{I} hear{s/d} nothing out of the
+            showMsg(hear nothing listen, '{I} hear{s/d} nothing out of the
                 ordinary.<.p>');
 
         
@@ -749,7 +749,7 @@ action Listen: IAction
 action Sleep: IAction
     execAction(cmd)
     {
-        DMsg(no sleeping, 'This {dummy} {is} no time for sleeping. ');
+        showMsg(no sleeping, 'This {dummy} {is} no time for sleeping. ');
     }
 ;
 
@@ -950,7 +950,7 @@ Go: TravelAction
      *   The message to display when our travelProp doesn't point to anything usable in the current
      *   location.
      */
-    noGoodHereMsg = DMsg(doesnt work here, 'That doesn\'t work here. ')
+    noGoodHereMsg = showMsg(doesnt work here, 'That doesn\'t work here. ')
     
     /* 
      *   A chance to do something else with the return value of a method, triggered by travel,
@@ -1003,7 +1003,7 @@ action Stand: IAction
             replaceAction(GetOff, gActor.location);
         else
         {
-            DMsg(already standing, '{I} {am} standing. ');
+            showMsg(already standing, '{I} {am} standing. ');
         }
         
     }
@@ -1032,7 +1032,7 @@ Travel: TravelAction
 action VagueTravel: IAction
     execAction(cmd)
     {
-        DMsg(vague travel, 'Which way do you want to go? ');       
+        showMsg(vague travel, 'Which way do you want to go? ');       
     }
 ;
 
@@ -1044,7 +1044,7 @@ action GoBack: IAction
         
         if(libGlobal.lastLoc == nil)
         {
-            DMsg(nowhere back, '{I} {have} nowhere to go back to. ');
+            showMsg(nowhere back, '{I} {have} nowhere to go back to. ');
             return;            
         }
         
@@ -1055,19 +1055,19 @@ action GoBack: IAction
         
         if(pathBack == nil)
         {
-            DMsg(no way back, 'There{dummy}{\'s} no way back. ');
+            showMsg(no way back, 'There{dummy}{\'s} no way back. ');
             return;
         }
         
         if(pathBack.length == 1)
         {
-            DMsg(already back there, '{I}{\'m} already there. ');
+            showMsg(already back there, '{I}{\'m} already there. ');
             return;
         }
         
         local dir = pathBack[2][1];
         
-        DMsg(going back dir, '(going {1})\n', dir.name);
+        showMsg(going back dir, '(going {1})\n', dir.name);
         
         gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
         
@@ -1081,19 +1081,19 @@ action GoToMode: SystemAction
         if(vp.brief_ != nil)
         {
             gameMain.briefGoTo = true;
-            DMsg(brief goto, 'Goto mode is now brief (no room descriptions or stopping to CONTINUE)');
+            showMsg(brief goto, 'Goto mode is now brief (no room descriptions or stopping to CONTINUE)');
         }
         if(vp.fast_ != nil)
         {
             gameMain.briefGoTo = nil;
             gameMain.fastGoTo = true;
-            DMsg(brief goto, 'Goto mode is now fast (no stopping to CONTINUE)');
+            showMsg(brief goto, 'Goto mode is now fast (no stopping to CONTINUE)');
         }
         if(vp.normal_ != nil)
         {
             gameMain.briefGoTo = nil;
             gameMain.fastGoTo = nil;
-            DMsg(brief goto, 'Goto mode is now normal (explicit CONTINUE needed for each step)');
+            showMsg(brief goto, 'Goto mode is now normal (explicit CONTINUE needed for each step)');
         }       
         
     }
@@ -1119,7 +1119,7 @@ action Continue: IAction
         path = defined(pcRouteFinder) ? pcRouteFinder.cachedRoute : nil;
         if(path == nil)
         {
-            DMsg(no journey, '{I}{\'m} not going anywhere. ');
+            showMsg(no journey, '{I}{\'m} not going anywhere. ');
             return;
         }
         
@@ -1133,7 +1133,7 @@ action Continue: IAction
             
             if(path == nil)
             {
-                DMsg(off route, '{I}{\'m} no longer on {my} route. Use the GO TO
+                showMsg(off route, '{I}{\'m} no longer on {my} route. Use the GO TO
                     command to set up a new route. ');
                 return;
             }
@@ -1171,7 +1171,7 @@ action Continue: IAction
         }
         
         /* Report which way we're going in our next step. */
-        DMsg(going dir, '(going {1})\n', dir.name);
+        showMsg(going dir, '(going {1})\n', dir.name);
         
         /* 
          *   Note where the actor is before we attempt to move the actor so we can check whether the
@@ -1218,7 +1218,7 @@ action Continue: IAction
      */
     turnPerStep = true
     
-    contMsg =  BMsg(explain continue, 'To continue the journey
+    contMsg =  msgText(explain continue, 'To continue the journey
                 use the command
                 <<aHref('Continue','CONTINUE','Continue')>> or C. ')
     
@@ -1227,7 +1227,7 @@ action Continue: IAction
     
     explainOptions()
     {
-        DMsg(explain goto options, '<.p><.parser>To enable swift GO TO without CONTINUE, use GOTO
+        showMsg(explain goto options, '<.p><.parser>To enable swift GO TO without CONTINUE, use GOTO
             MODE FAST or GOTO MODE BRIEF (the latter suppresses the room descriptions of the rooms
             along the way). To resume the use of CONTINUE use GOTO MODE CONTINUE. Any change of mode
             will take effect on the next GO TO command.<./parser> ');
@@ -1240,7 +1240,7 @@ action Topics: SystemAction
         local otherActor = gPlayerChar.currentInterlocutor;
         
         if(otherActor == nil)
-            DMsg(no interlocutor, '{I}{\'m} not talking to anyone. ');
+            showMsg(no interlocutor, '{I}{\'m} not talking to anyone. ');
         else
         {            
             otherActor.showSuggestions(true);
@@ -1443,7 +1443,7 @@ action Take(dobj): TAction
             if(heldList.length > 0)
             {
                 local heldObjsList = heldList.mapAll({d:d.obj});
-                DMsg(already holding objects, '{I} {am} aleady holding {1}.\n', 
+                showMsg(already holding objects, '{I} {am} aleady holding {1}.\n', 
                      makeListStr(heldObjsList, &theName));
             }
             
@@ -1452,7 +1452,7 @@ action Take(dobj): TAction
             {
 
                 local tooBigObjs = tooBigList.mapAll({d:d.obj});
-                DMsg(too big for me to hold, '{1} for {me} to hold. ', listStrIs(tooBigObjs));                
+                showMsg(too big for me to hold, '{1} for {me} to hold. ', listStrIs(tooBigObjs));                
             }
             
             /* 
@@ -1521,7 +1521,7 @@ action Take(dobj): TAction
                  *   Add the list to be displayed to our after reports so that it is displayed after
                  *   any announcements of items that are successfully taken.
                  */
-                local tooFullToHoldMsg = BMsg(hands too full to hold, '{My} hands are too full to 
+                local tooFullToHoldMsg = msgText(hands too full to hold, '{My} hands are too full to 
                     hold {1}.\n ', makeListStr(excessItems, &theName));
                 
                 reportAfter(tooFullToHoldMsg);
@@ -1565,7 +1565,7 @@ action Drop(dobj): TAction
             
             /* If there's nothing left to act on, say so. */
             if(cmd.dobjs.length < 1)
-                DMsg(not holding any, '''{I}{'m} not holding any. ''');
+                showMsg(not holding any, '''{I}{'m} not holding any. ''');
         }
     }
 ;
@@ -1640,7 +1640,7 @@ action LookDir: IAction
     
     sayNoNeedToLookDir()
     {
-        DMsg(no need to lookdir, '<.parser>{There}{\'s} no need to look in particular directions
+        showMsg(no need to lookdir, '<.parser>{There}{\'s} no need to look in particular directions
             {here}.<./parser>');
         abort;
     }
@@ -1690,7 +1690,7 @@ action Doff(dobj): TAction
 action TakeOff: IAction
     execAction(c)
     {
-        DMsg(not a bird, '{I} {\'m} not a bird or a plane. ');
+        showMsg(not a bird, '{I} {\'m} not a bird or a plane. ');
         
         /* 
          *   Some game authors may prefer to comment out the line above and use the one below
@@ -1996,7 +1996,7 @@ action TakeFrom(dobj, iobj): TIAction
          *   take we need to report this
          */
         else if(gCommand.matchedAll)
-            DMsg(nothing to take, 'There{dummy}{\'s} nothing available to
+            showMsg(nothing to take, 'There{dummy}{\'s} nothing available to
                     take from {1}. ', gCommand.iobj.theName);
     }
     
@@ -2040,7 +2040,7 @@ action JumpOffIntransitive: IAction
         if(gActor.location.contType == On)
             replaceAction(JumpOff, gActor.location);
         else
-            DMsg(not on anything, '{I}{\'m} not on anything. ');
+            showMsg(not on anything, '{I}{\'m} not on anything. ');
     }    
 ;
 
@@ -2126,7 +2126,7 @@ action ConsultWhatAbout: TopicAction
 action ConsultAboutVague: IAction
     execAction(c)
     {
-        DMsg(consult about vague, 'Please be more specific, e.g, CONSULT BLACK BOOK ABOUT MAGIC or
+        showMsg(consult about vague, 'Please be more specific, e.g, CONSULT BLACK BOOK ABOUT MAGIC or
             READ ABOUT MAGIC IN BLACK BOOK. ' );
     }
 ;
@@ -2398,7 +2398,7 @@ class MiscConvAction: IAction
 
 sayNotTalking()
 {
-    DMsg(not talking, '{I}{\'m} not talking to anyone. ');
+    showMsg(not talking, '{I}{\'m} not talking to anyone. ');
 }
 
 
@@ -2499,7 +2499,7 @@ Hello: IAction
             /* If there are no other actors in scope, say so. */            
             if(greetCount == 0)
             {
-                DMsg(no one here, 'There{dummy}{\'s} no one {here} to talk to.
+                showMsg(no one here, 'There{dummy}{\'s} no one {here} to talk to.
                     ');
             }
             /* 
@@ -2592,7 +2592,7 @@ action SayTo(dobj): TopicTAction
 action GiveTo(dobj, iobj): TIAction     
     /* 
      *   The summaryReport can be set by a GiveTopic to a single-quoted string in
-     *   BMsg format, with {1} standing in for gActionListStr, in order to
+     *   msgText format, with {1} standing in for gActionListStr, in order to
      *   report on a whole set of objects given at once; e.g. '{I} {give} Bob
      *   {1}. '
      */
@@ -2689,7 +2689,7 @@ ThinkAbout: TopicAction
     }
     
     /* Our fallback message if we can't match anything. */
-    noThought = BMsg(no thought comes to mind, 'Nothing comes to mind. ')
+    noThought = msgText(no thought comes to mind, 'Nothing comes to mind. ')
     
     againRepeatsParse = nil
     
@@ -2710,7 +2710,7 @@ action Think: IAction
         sayDefaultThought();
     }    
     
-    sayDefaultThought() { DMsg(think, '{I} {think}, therefore {i} {am}. '); }
+    sayDefaultThought() { showMsg(think, '{I} {think}, therefore {i} {am}. '); }
     
     /* 
      *   A rulebook to follow when a THINK command is issued. This required the Rules extension to
@@ -3015,14 +3015,14 @@ class FileOpAction: SystemAction
  */
 action ScriptOn: FileOpAction
     /* our file dialog parameters - ask for a log file to save */
-    filePromptMsg = (BMsg(get scripting prompt, 'Please select a name for the
+    filePromptMsg = (msgText(get scripting prompt, 'Please select a name for the
         new script file'))
     
     fileTypeID = FileTypeLog
     fileDisposition = InFileSave
 
     /* show our cancellation mesasge */
-    showCancelMsg() { DMsg(scripting canceled, '<.parser>Canceled.<./parser>'); }
+    showCancelMsg() { showMsg(scripting canceled, '<.parser>Canceled.<./parser>'); }
 
     /* 
      *   set up scripting - this can be used to set up scripting
@@ -3076,25 +3076,25 @@ action ScriptOn: FileOpAction
             if (ack)
             {
                 if (exc != nil)
-                    DMsg(scripting failed exception, '<.parser>Failed; 
+                    showMsg(scripting failed exception, '<.parser>Failed; 
                         <<exc.displayException>><./parser><.p>');
                     
                 else
-                    DMsg(scripting failed, '<.parser>Failed; an error occurred
+                    showMsg(scripting failed, '<.parser>Failed; an error occurred
                         opening the script file.<./parser><.p> ');
                    
             }
         }
     }
     
-    scriptingOkayWebTemp = BMsg(scripting okay web temp,
+    scriptingOkayWebTemp = msgText(scripting okay web temp,
                                 '<.parser>The transcript will be saved.
                                 Type <<aHref('script off', 'SCRIPT OFF', 
                                              'Turn off scripting')>>
                                 to discontinue scripting and download the saved
                                 transcript.<./parser><.p> ')
     
-    scriptingOkay = BMsg(scripting okay, '<.parser>The transcript will
+    scriptingOkay = msgText(scripting okay, '<.parser>The transcript will
                         be saved to the file. Type <<aHref('script off', 
                             'SCRIPT OFF', 'Turn off scripting')>> to
                         discontinue scripting.<./parser><.p> ')
@@ -3139,7 +3139,7 @@ action ScriptOff: SystemAction
         /* if we're not in a script file, ignore it */
         if (scriptStatus.scriptFile == nil)
         {
-            DMsg(script off ignored, '<.parser>No script is currently being
+            showMsg(script off ignored, '<.parser>No script is currently being
                         recorded.<./parser><.p>');
 
             return;
@@ -3153,7 +3153,7 @@ action ScriptOff: SystemAction
 
         /* acknowledge the change, if desired */
         if (ack)
-            DMsg(script off okay, '<.parser>Scripting ended.<./parser><.p>');
+            showMsg(script off okay, '<.parser>Scripting ended.<./parser><.p>');
            
     }
 
@@ -3167,14 +3167,14 @@ action ScriptOff: SystemAction
  */
 action Record: FileOpAction
     /* our file dialog parameters - ask for a log file to save */
-    filePromptMsg = (BMsg(get recording prompt, 'Please select a name for the 
+    filePromptMsg = (msgText(get recording prompt, 'Please select a name for the 
         new command log file'))
     
     fileTypeID = FileTypeCmd
     fileDisposition = InFileSave
 
     /* show our cancellation mesasge */
-    showCancelMsg() { DMsg(recording canceled, '<.parser>Canceled.<./parser><.p> '); }
+    showCancelMsg() { showMsg(recording canceled, '<.parser>Canceled.<./parser><.p> '); }
 
     /* 
      *   set up recording - this can be used to set up scripting
@@ -3202,7 +3202,7 @@ action Record: FileOpAction
 
             /* note that logging is active, if acknowledgment is desired */
             if (ack)
-                 htmlSay(BMsg(recording okay, 
+                 htmlSay(msgText(recording okay, 
                               '<.parser>Commands will now be recorded.  Type
                      <<aHref('record off', 'RECORD OFF',
                              'Turn off recording')>>
@@ -3218,11 +3218,11 @@ action Record: FileOpAction
             if (ack)
             {
                 if (exc != nil)
-                    DMsg(recording failed exception, '<.parser>Failed; 
+                    showMsg(recording failed exception, '<.parser>Failed; 
                         <<exc.displayException()>><./parser>');
                     
                 else
-                    DMsg(recording failed, '<.parser>Failed; an error occurred
+                    showMsg(recording failed, '<.parser>Failed; an error occurred
                         opening the command recording file.<./parser><.p>');
             }
         }
@@ -3268,7 +3268,7 @@ action RecordOff: SystemAction
         /* if we're not recording anything, ignore it */
         if (scriptStatus.recordFile == nil)
         {
-            DMsg(record off ignored, '<.parser>No command recording is currently
+            showMsg(record off ignored, '<.parser>No command recording is currently
                 being made.<./parser><.p> ');
            
             return;
@@ -3282,7 +3282,7 @@ action RecordOff: SystemAction
 
         /* acknowledge the change, if desired */
         if (ack)
-            DMsg(record off okay, '<.parser>Command recording ended.<./parser><.p> ');
+            showMsg(record off okay, '<.parser>Command recording ended.<./parser><.p> ');
     }
 
     /* we can't include this in undo, as it affects external files */
@@ -3294,14 +3294,14 @@ action RecordOff: SystemAction
  */
 action Replay: FileOpAction
     /* our file dialog parameters - ask for a log file to save */
-    filePromptMsg = (BMsg(get replay prompt, 'Please select the command log file
+    filePromptMsg = (msgText(get replay prompt, 'Please select the command log file
         to replay'))
     
     fileTypeID = FileTypeCmd
     fileDisposition = InFileOpen
 
     /* show our cancellation mesasge */
-    showCancelMsg() { DMsg(replay canceled, '<.parser>Canceled.<./parser><.p> '); }
+    showCancelMsg() { showMsg(replay canceled, '<.parser>Canceled.<./parser><.p> '); }
 
     /* script flags passed to setScriptFile */
     scriptOptionFlags = 0
@@ -3331,10 +3331,10 @@ action Replay: FileOpAction
         if (!ok)
         {
             if (exc != nil)
-                DMsg(input script failed exception, '<.parser>Failed; 
+                showMsg(input script failed exception, '<.parser>Failed; 
                     <<exc.displayException>><./parser>');               
             else
-                DMsg(input script failed, '<.parser>Failed; the script input
+                showMsg(input script failed, '<.parser>Failed; the script input
                     file could not be opened.<./parser>');
               
         }
@@ -3343,7 +3343,7 @@ action Replay: FileOpAction
     /* acknowledge starting an input script */
     inputScriptOkay(fname)
     {
-        DMsg(input script okay, '<.parser>Reading commands from <q><<
+        showMsg(input script okay, '<.parser>Reading commands from <q><<
           File.getRootName(fname).escapeHtml()>></q>...<./parser>\n ');
     }
 
@@ -3379,14 +3379,14 @@ action ReplayString: Replay
  */
 action Save: FileOpAction
     /* the file dialog prompt */
-    filePromptMsg = (BMsg(get save prompt, 'Save game to file'))
+    filePromptMsg = (msgText(get save prompt, 'Save game to file'))
 
     /* we're asking for a file to save, or type t3-save */
     fileDisposition = InFileSave
     fileTypeID = FileTypeSave
 
     /* cancel message */
-    showCancelMsg() { DMsg(save cancelled, '<.parser>Canceled.<./parser> '); }
+    showCancelMsg() { showMsg(save cancelled, '<.parser>Canceled.<./parser> '); }
     
     /* perform a save */
     performFileOp(fname, ack, desc:?)
@@ -3406,7 +3406,7 @@ action Save: FileOpAction
         catch (StorageServerError sse)
         {
             /* the save failed due to a storage server problem - explain */           
-            DMsg(save failed on server, '<.parser>Failed, because of a problem
+            showMsg(save failed on server, '<.parser>Failed, because of a problem
                 accessing the storage server:
                 <<makeSentence(sse.errMsg)>><./parser>');
 
@@ -3416,7 +3416,7 @@ action Save: FileOpAction
         catch (RuntimeError err)
         {
             /* the save failed - mention the problem */
-            DMsg(save failed, '<.parser>Failed; your computer might be running
+            showMsg(save failed, '<.parser>Failed; your computer might be running
                 low on disk space, or you might not have the necessary
                 permissions to write this file.<./parser>');            
             
@@ -3425,7 +3425,7 @@ action Save: FileOpAction
         }
         
         /* note the successful save */
-        DMsg(save okay, '<.parser>Saved.<./parser> ');
+        showMsg(save okay, '<.parser>Saved.<./parser> ');
         
     }
 
@@ -3493,7 +3493,7 @@ action Restore: SystemAction
         succ = nil;
 
         /* ask for a file */
-        result = getInputFile(BMsg(get restore prompt, 'Restore game from file'), 
+        result = getInputFile(msgText(get restore prompt, 'Restore game from file'), 
                               InFileOpen, FileTypeSave, 0);
 
         /* check the inputFile response */
@@ -3523,7 +3523,7 @@ action Restore: SystemAction
 
         case InFileCancel:
             /* acknowledge the cancellation */
-            DMsg(restore canceled, '<.parser>Canceled.<./parser> ');            
+            showMsg(restore canceled, '<.parser>Canceled.<./parser> ');            
             break;
         }
 
@@ -3603,7 +3603,7 @@ action Restore: SystemAction
         catch (StorageServerError sse)
         {
             /* failed due to a storage server error - explain the problem */
-            DMsg(restore failed on server,'<.parser>Failed, because of a problem
+            showMsg(restore failed on server,'<.parser>Failed, because of a problem
                 accessing the storage server:
                 <<makeSentence(sse.errMsg)>><./parser>');            
 
@@ -3617,20 +3617,20 @@ action Restore: SystemAction
             {
             case 1201:
                 /* not a saved state file */
-                DMsg(restore invalid file, '<.parser>Failed: this is not a valid
+                showMsg(restore invalid file, '<.parser>Failed: this is not a valid
                     saved position file.<./parser> ');                
                 break;
                 
             case 1202:
                 /* saved by different game or different version */
-                DMsg(restore invalid match, '<.parser>Failed: the file was not
+                showMsg(restore invalid match, '<.parser>Failed: the file was not
                     saved by this story (or was saved by an incompatible version
                     of the story).<./parser> ');               
                 break;
                 
             case 1207:
                 /* corrupted saved state file */
-                DMsg(restore corrupted file, '<.parser>Failed: this saved state
+                showMsg(restore corrupted file, '<.parser>Failed: this saved state
                     file appears to be corrupted.  This can occur if the file
                     was modified by another program, or the file was copied
                     between computers in a non-binary transfer mode, or the
@@ -3639,7 +3639,7 @@ action Restore: SystemAction
                 
             default:
                 /* some other failure */
-                DMsg(restore failed, '<.parser>Failed: the position could not be
+                showMsg(restore failed, '<.parser>Failed: the position could not be
                     restored.<./parser>');                
                 break;
             }
@@ -3649,7 +3649,7 @@ action Restore: SystemAction
         }
 
         /* note that we've successfully restored the game */
-        DMsg(restore okay, '<.parser>Restored.<./parser> ');
+        showMsg(restore okay, '<.parser>Restored.<./parser> ');
                
         /* set the appropriate restore-action code */
         PostRestoreObject.restoreCode = code;
@@ -3680,7 +3680,7 @@ action Restore: SystemAction
     /* error showing the input file dialog (or character-mode equivalent) */
     filePromptFailed()
     {
-        DMsg(file prompt failed, '<.parser>A system error occurred asking for a
+        showMsg(file prompt failed, '<.parser>A system error occurred asking for a
             filename. Your computer might be running low on memory, or might
             have a configuration problem.<./parser> ');
     }
@@ -3688,7 +3688,7 @@ action Restore: SystemAction
     /* error showing the input file dialog, with a system error message */
     filePromptFailedMsg(msg)
     {
-        DMsg(file prompt failed msg, '<.parser>Failed:
+        showMsg(file prompt failed msg, '<.parser>Failed:
             <<makeSentence(msg)>><./parser> ');
     }
 ;
@@ -3723,7 +3723,7 @@ action Again: SystemAction
            ('',nil)) || (!gameMain.againRepeatsParse && libGlobal.lastCommand is
            in ('', nil)))
         {
-            DMsg(no repeat, 'Sorry, there is no action available to repeat. ');
+            showMsg(no repeat, 'Sorry, there is no action available to repeat. ');
         }
         else if (gameMain.againRepeatsParse)
         {

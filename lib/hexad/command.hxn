@@ -368,12 +368,12 @@ class Command: object
             getTokVal(x)}).join(' ');
     }
     
-    /*  A list of actions executed directly by this command or via a Doer */
+    /*  A list of actions executed directly by this command or via a CommandRule */
     actions = []
 
     /*  
      *   The originalAction this Command started out with, which may be changed
-     *   by a Doer (or some other mechanism)
+     *   by a CommandRule (or some other mechanism)
      */
     originalAction = nil
     
@@ -486,7 +486,7 @@ class Command: object
             
             /* 
              *   Give our actor's preAction method the chance to veto this action (or maybe do
-             *   something else) before it's passed to a Doer.
+             *   something else) before it's passed to a CommandRule.
              */
             gActor.preAction(lst);
             
@@ -499,7 +499,7 @@ class Command: object
             
             
             /* carry out the default action processing */            
-            execDoer(lst);
+            execCommandRule(lst);
         }
         catch (ExitSignal ex)
         {
@@ -521,11 +521,11 @@ class Command: object
     }
 
     /*
-     *   Execute the command via the Doers that match the command's action
+     *   Execute the command via the CommandRules that match the command's action
      *   and objects.  'lst' is the object combination to execute: [action,
      *   dobj, iobj, ...].  
      */
-    execDoer(lst)
+    execCommandRule(lst)
     {
         /* 
          *   In case the author tries to use gDobj and the like to match a
@@ -539,10 +539,10 @@ class Command: object
         if(acc)
             gAobj = aobj;
         
-        /* find the list of matching Doers */
-        local dlst = DoerCmd.findDoers(lst);
+        /* find the list of matching CommandRules */
+        local dlst = CommandRuleCmd.findCommandRules(lst);
       
-        IfDebug(doers, oSay('''[Executing Doer; cmd = '<<dlst[1].cmd>>']\n'''));       
+        IfDebug(rules, oSay('''[Executing CommandRule; cmd = '<<dlst[1].cmd>>']\n'''));       
         dlst[1].exec(self);
         
     }
@@ -711,7 +711,7 @@ class Command: object
              *   Indirect Objects are dealt with in the right order as specified
              *   by the action's resolveIobjFirst property. We do this on a copy
              *   of the list (npSorted) so we don't break anything that needs
-             *   the original order (such as matching a Doer).
+             *   the original order (such as matching a CommandRule).
              */
             
             npListSorted = npList;

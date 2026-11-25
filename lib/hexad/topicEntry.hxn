@@ -386,7 +386,7 @@ class Consultable: TopicDatabase, Thing
         }
     }
     
-    noMatchedTopicMsg = BMsg(no matched topic, '{The subj dobj} {has} nothing to
+    noMatchedTopicMsg = msgText(no matched topic, '{The subj dobj} {has} nothing to
         say on that. ')
     
     /* 

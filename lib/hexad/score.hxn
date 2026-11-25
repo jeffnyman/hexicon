@@ -99,7 +99,7 @@ class Achievement: object
     listFullScoreItem()
     {
         /* show the number of points I'm worth */
-        DMsg(full score item points, '\n <<totalPoints>> point<<totalPoints == 1
+        showMsg(full score item points, '\n <<totalPoints>> point<<totalPoints == 1
               ?  '' : 's'>> for ');
 
         /* show my description */
@@ -207,7 +207,7 @@ fullScoreLister: Lister
     showListPrefix(lst, pl, paraCnt)
     {
         /* show the full score list intro message */
-        DMsg(full score prefix, 'Your score consists of:');
+        showMsg(full score prefix, 'Your score consists of:');
     }
 
     /* every achievement is listed */
@@ -287,7 +287,7 @@ scoreNotifier: object
     firstScoreChange(delta)
     {
         scoreChange(delta);
-        DMsg(first score change, '<.p><.parser>If you</sq>d prefer not to be notified about score
+        showMsg(first score change, '<.p><.parser>If you</sq>d prefer not to be notified about score
             changes in the future, type NOTIFY OFF.<./parser>');
     }
 
@@ -306,7 +306,7 @@ scoreNotifier: object
     {
         cquoteOutputFilter.deactivate();
         
-        DMsg(basic score change,         
+        showMsg(basic score change,         
              '''Your <<aHref('full score', 'score', 
                             'Show full score')>>
         has just <<delta > 0 ? 'in' : 'de'>>creased by
@@ -438,7 +438,7 @@ libScore: PreinitObject
     /* show the basic score message */
     showScoreMessage(points, maxPoints, turns)
     {
-        DMsg(show score, 'In {1} turn<<turns == 1 ? '' : 's'>> you have scored 
+        showMsg(show score, 'In {1} turn<<turns == 1 ? '' : 's'>> you have scored 
             {2} of a total {3} point<<maxPoints == 1 ? '' : 's'>>. ',
         turns, points, maxPoints);
     }
@@ -447,7 +447,7 @@ libScore: PreinitObject
     /* show the basic score message with no maximum */
     showScoreNoMaxMessage(points, turns)
     {
-        DMsg(show score no max, 'In {1} turn<<turns == 1 ? '' : 's'>> you have
+        showMsg(show score no max, 'In {1} turn<<turns == 1 ? '' : 's'>> you have
             scored {2} point<<points == 1 ? '' : 's'>>. ', turns, points);
         
     }
@@ -483,7 +483,7 @@ libScore: PreinitObject
      /* show the full message for a given score rank string */
     showScoreRankMessage(msg) 
     { 
-        DMsg(show score rank, 'This makes you {1}. ', msg ); 
+        showMsg(show score rank, 'This makes you {1}. ', msg ); 
     }
     
     
@@ -583,6 +583,6 @@ scoreNotifySettingsItem: object
     /* show our description */
     settingDesc() 
     { 
-        DMsg(short notify status, 'NOTIFY <<isOn ? 'ON' : 'OFF'>>');
+        showMsg(short notify status, 'NOTIFY <<isOn ? 'ON' : 'OFF'>>');
     }    
 ;

@@ -443,7 +443,7 @@ enum rmcDisambig;
  *   restrictions on object role references.
  *   
  *   Note that role reversals can almost always be handled with other
- *   mechanisms that handle reversals cleanly.  Always consider Doer.doInstead()
+ *   mechanisms that handle reversals cleanly.  Always consider CommandRule.doInstead()
  *   first when confronted with a situation that seems to call for a
  *   role-reversing asObjFor() mapping, as doInstead() specifically allows for
  *   object role changes.  
@@ -984,7 +984,7 @@ ProxyActor template @location;
 ProxyRoom template 'vocab'? "desc"? ->destination;
 ProxyRoom template 'vocab'? ->destination "desc"?; 
 
-Doer template 'cmd';
+CommandRule template 'cmd';
 RemapCmd template 'cmd' @where? 'remappedCmd'?;
 
 /* Templates for use with test sequences */
@@ -1128,7 +1128,7 @@ enum OtherObject;
 /* ------------------------------------------------------------------------ */
 /*
  *   Msg() - define a custom message to override a library message.  'id' is
- *   the message ID, which is the same ID used for the DMsg() message that
+ *   the message ID, which is the same ID used for the showMsg() message that
  *   you wish to override.  Do NOT use quotes around the ID - just enter it
  *   as though it were a variable name.  'txt' is the message text, as a
  *   single-quoted string.  
@@ -1145,9 +1145,9 @@ CustomMessages template [messages] +priority?;
 
 /* ------------------------------------------------------------------------ */
 /*
- *   DMsg() - default English library message cover macro.
+ *   showMsg() - default English library message cover macro.
  *   
- *   Whenever the library displays a message, it uses the DMsg() macro.  The
+ *   Whenever the library displays a message, it uses the showMsg() macro.  The
  *   arguments are a message ID, and the default English message text to
  *   display.  The message ID is a string that identifies the message; this
  *   is used to look for overriding customizations of the message.  Refer to
@@ -1168,12 +1168,12 @@ CustomMessages template [messages] +priority?;
  *   
  *   Here's how we accomplish the message separation required for
  *   translations, and also for games that wish to customize the library
- *   defaults.  The DMsg() macro requires both the default English message
+ *   defaults.  The showMsg() macro requires both the default English message
  *   text *and* an ID key for the message.  The message display function
  *   receives both.  The display function proceeds to look up the ID key in a
  *   translation table; if it finds an entry, it uses the version of the
  *   message in the translation table instead of the English default passed
- *   in via DMsg().  A language module can provide a message table that
+ *   in via showMsg().  A language module can provide a message table that
  *   defines the language translations, and a game can provide a table that
  *   further customizes the library messages to fit its narrative style.
  *   
@@ -1192,11 +1192,11 @@ CustomMessages template [messages] +priority?;
  *   including their text in the final compiled program.  
  */
 #if STRINGIZE(LANGUAGE) == 'english'
-#define DMsg(id, txt, args...)  message(#@id, txt, ##args)
-#define BMsg(id, txt, args...)  buildMessage(#@id, txt, ##args)
+#define showMsg(id, txt, args...)  message(#@id, txt, ##args)
+#define msgText(id, txt, args...)  buildMessage(#@id, txt, ##args)
 #else
-#define DMsg(id, txt, args...)  message(#@id, nil, ##args)
-#define BMsg(id, txt, args...)  buildMessage(#@id, nil, ##args)
+#define showMsg(id, txt, args...)  message(#@id, nil, ##args)
+#define msgText(id, txt, args...)  buildMessage(#@id, nil, ##args)
 #endif
 
 /* ------------------------------------------------------------------------ */
