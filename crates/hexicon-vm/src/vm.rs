@@ -318,8 +318,14 @@ pub(crate) struct Layout {
 /// recursion gets before it is stopped.
 pub(crate) const STACK_LIMIT: usize = 4096;
 
-/// Extra slots released while a stack overflow error is being reported.
-pub(crate) const STACK_RESERVE: usize = 64;
+/// Extra slots released while a stack overflow error is being reported:
+/// enough to build its stack trace, which then keeps only the innermost and
+/// outermost levels (`OVERFLOW_TRACE_LEVELS` of each).
+pub(crate) const STACK_RESERVE: usize = 512;
+
+/// How many of the innermost, and of the outermost, levels the stack trace
+/// of a stack overflow keeps.
+pub(crate) const OVERFLOW_TRACE_LEVELS: usize = 40;
 
 /// Stack slots the reference VM spends on each call for bookkeeping that
 /// Hexicon keeps elsewhere. They still count against the limit.
@@ -402,6 +408,8 @@ pub struct Vm {
     pub(crate) pattern_cache: std::collections::HashMap<Vec<u8>, Rc<crate::regex::Pattern>>,
     /// Report each VM error on standard error as it is raised.
     pub(crate) trace_errors: bool,
+    /// A stack overflow is being reported: its stack trace is shortened.
+    pub(crate) reporting_overflow: bool,
     /// Formats what the program displays into lines for the host.
     pub(crate) console: Formatter,
     pub(crate) io: crate::io::IoState,

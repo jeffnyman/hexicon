@@ -3490,11 +3490,13 @@ modify openingContentsLister
         ".\n";
     }
     
-    showListEmpty(parent)  
-    {
-        "{I} open{s/ed} {the dobj}. ";
-    }
-    
+    /*
+     *   Nothing listable revealed: say nothing, so that what the thing's own
+     *   makeOpen() said stands alone, and if it said nothing, Open's report
+     *   says the thing is open.
+     */
+    showListEmpty(parent) { }
+
     showSubListing = (gameMain.useParentheticalListing)
 ;
 

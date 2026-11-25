@@ -363,6 +363,15 @@ Runtime error: wrong number of arguments: the function at start.hxn:51 takes 3,
 and was given 2
 ```
 
+A method that calls itself without end runs out of stack. The line it ran away on is shown once, followed by the line that started it:
+
+```
+Runtime error: stack overflow
+  --> start.hxn:72
+      (the same, again and again)
+      start.hxn:63
+```
+
 ## Where to go next
 
 - Change *The Lighthouse*: add a room, a thing to find, something to ask the keeper about.

@@ -392,6 +392,7 @@ impl Vm {
             symbol_table: None,
             macro_table: None,
             trace_errors: false,
+            reporting_overflow: false,
             console: crate::console::Formatter::new(CONSOLE_WIDTH),
             io: crate::io::IoState::default(),
             host,

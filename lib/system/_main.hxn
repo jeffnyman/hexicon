@@ -741,9 +741,30 @@ class Exception: object
             local seenGame = nil;
             local shownLib = 0;
             local hidden = 0;
+
+            /*
+             *   A runaway recursion is one line called from itself over and
+             *   over: a run of levels at the place just shown is one line
+             *   saying so.
+             */
+            local lastPlace = nil;
+            local repeats = 0;
             for (local i = 1, local cnt = stackList.length() ; i <= cnt ; ++i)
             {
                 local cur = stackList[i];
+                local place = (cur.srcInfo_ == nil ? nil
+                               : cur.srcInfo_[1] + ':' + cur.srcInfo_[2]);
+                if (place != nil && place == lastPlace)
+                {
+                    ++repeats;
+                    continue;
+                }
+                if (repeats > 0)
+                {
+                    "\ \ \ \ \ \ (the same, again and again)\n";
+                    repeats = 0;
+                }
+                lastPlace = nil;
                 local inLibrary = (cur.srcInfo_ == nil
                                    || cur.srcInfo_[1].startsWith('<hexicon>/'));
                 if (i > 1 && inLibrary && (seenGame || shownLib >= 5))
@@ -755,6 +776,7 @@ class Exception: object
                     ++shownLib;
                 else
                     seenGame = true;
+                lastPlace = place;
 
                 /* 
                  *   show a mark next to level 1, where the error happened,
@@ -795,6 +817,9 @@ class Exception: object
                 /* end the line */
                 "\n";
             }
+
+            if (repeats > 0)
+                "\ \ \ \ \ \ (the same, again and again)\n";
 
             /* say how many library levels were left out */
             if (hidden > 0)

@@ -662,8 +662,11 @@ impl Vm {
     pub(crate) fn runtime_exception(&mut self, error: RuntimeError) -> VmResult<ObjId> {
         if self.trace_errors {
             let func = self.frames.last().map_or(0, |f| f.func);
+            let place = self
+                .source_place(func, self.pc.saturating_sub(func))
+                .map_or(String::new(), |p| format!(" ({p})"));
             eprintln!(
-                "[vm error {}: {} at {:#x} in function {:#x}]",
+                "[vm error {}: {} at {:#x} in function {:#x}{place}]",
                 error.code, error, self.pc, func
             );
         }
@@ -671,10 +674,12 @@ impl Vm {
         let overflow = error.code == code::STACK_OVERFLOW;
         if overflow {
             self.stack_limit = crate::vm::STACK_LIMIT + STACK_RESERVE;
+            self.reporting_overflow = true;
         }
         let result = self.build_runtime_exception(&error);
         if overflow {
             self.stack_limit = crate::vm::STACK_LIMIT;
+            self.reporting_overflow = false;
         }
         result
     }

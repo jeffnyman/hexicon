@@ -10328,6 +10328,12 @@ class MultiLoc: object
      *   this is not nil) and then remove it from the contents list of every
      *   item in its exceptions list.
      */    
+    /*
+     *   The locations this MultiLoc's definition gives it, noted at preinit
+     *   before any MultiLoc is set up. [Used by multiLocInitiator.]
+     */
+    declaredLocations_ = nil
+
     addToLocations()
     {
         /* 
@@ -10339,10 +10345,16 @@ class MultiLoc: object
          *   set the locationList to an empty list before attempting to build
          *   it.
          */
-        if(initialLocationList == nil || initialLocationList.length == 0)
+        if(declaredLocations_ != nil)
+        {
+            initialLocationList = declaredLocations_;
+            locationList = [];
+            declaredLocations_ = nil;
+        }
+        else if(initialLocationList == nil || initialLocationList.length == 0)
         {
             initialLocationList = locationList;
-            locationList = [];               
+            locationList = [];
         }
         
         /* Create a new Vector to keep track of our list of locations. */
@@ -10616,7 +10628,21 @@ multiLocInitiator: PreinitObject
          */
         for(local cur = firstObj(MultiLoc); cur !=nil ; cur = nextObj(cur,
             MultiLoc))
-            
+        {
+            /*
+             *   Note each MultiLoc's locations as its definition gives them
+             *   before any is set up. Otherwise an object defined on another
+             *   MultiLoc object (alleyFloor: defaultGround) would take the
+             *   other's worked-out locationList for its own, and be in all of
+             *   its rooms.
+             */
+            cur.declaredLocations_ = (cur.initialLocationList == nil
+                                      || cur.initialLocationList.length == 0)
+                ? cur.locationList : cur.initialLocationList;
+        }
+        for(local cur = firstObj(MultiLoc); cur !=nil ; cur = nextObj(cur,
+            MultiLoc))
+
             cur.addToLocations();
     }
     

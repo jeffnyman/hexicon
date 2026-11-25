@@ -124,7 +124,14 @@ impl Vm {
             0
         };
 
-        let levels = self.stack_levels();
+        let mut levels = self.stack_levels();
+        // A runaway recursion leaves thousands of levels, more than the
+        // reserve allows to describe: keep the innermost, where it ran
+        // away, and the outermost, which started it.
+        let keep = crate::vm::OVERFLOW_TRACE_LEVELS;
+        if self.reporting_overflow && single_level.is_none() && levels.len() > 2 * keep {
+            levels.drain(keep..levels.len() - keep);
+        }
         let mut entries = Vec::new();
         for (number, level) in levels.iter().enumerate() {
             if single_level.is_some_and(|wanted| wanted != number) {
@@ -379,6 +386,14 @@ impl Vm {
         let entry = table + 2;
         let source = bytes(entry + 2, 2).map(|b| u16::from_le_bytes([b[0], b[1]]))?;
         let line = bytes(entry + 4, 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))?;
+        let file = self.debug.source_files.get(source as usize)?;
+        Some(format!("{}:{line}", file.name))
+    }
+
+    /// Where an offset within a function is in the source, as `file:line`,
+    /// or `None` if the image does not record it.
+    pub(crate) fn source_place(&self, func: u32, offset: u32) -> Option<String> {
+        let (source, line) = self.source_line(func, offset)?;
         let file = self.debug.source_files.get(source as usize)?;
         Some(format!("{}:{line}", file.name))
     }
