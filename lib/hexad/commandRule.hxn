@@ -17,14 +17,17 @@ import hexad;
  */
 class Redirector: object
     
-    /* 
+    /*
      *   doInstead() turns the current action into altAction with the objects
      *   specified in args, and executes altAction as a replacement for the
-     *   current action.
+     *   current action, which is then done, as with replaceAction(): what
+     *   would have followed it (its report, say) does not happen. So
+     *   goInstead(north), in a handler, is going north and nothing else.
      */
     doInstead(altAction, [args])
     {
         doOtherAction(true, altAction, args...);
+        exit;
     }
     
     /* 

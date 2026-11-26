@@ -35,6 +35,8 @@ How a thing holds others depends on its class:
 
 A `Booth` or `Platform` that is somewhere to hide, a wardrobe or a locker, says `isHidingPlace = true`: HIDE on its own then gets in it, as HIDE IN THE WARDROBE does anywhere.
 
+A room's exit can lead into one: with `in = wardrobe`, IN is GET IN THE WARDROBE. A connector's `destination` can be one too, in another room, and the traveler arrives in it.
+
 Each of these can be taken, like any `Thing`. One that cannot is given `Fixture` as well, as its second class:
 
 ```hexicon
@@ -142,6 +144,8 @@ A thing that locks has a `lockability`:
 | `lockableWithKey` | by LOCK and UNLOCK with a key |
 | `indirectLockable` | not by command at all, but by something the game does: a lever, a combination. LOCK and UNLOCK are told it uses some other kind of mechanism |
 
+The lock can also be a rule rather than a state: `isLocked = (!keycard.isIn(now.actor))` is a door that opens only for whoever carries the keycard. A door's other side follows the rule.
+
 A thing with a `keyList` is `lockableWithKey` unless it says otherwise, and anything lockable starts locked (`isLocked`). `LockableContainer` and `KeyedContainer` set these for a container:
 
 ```hexicon
@@ -245,5 +249,5 @@ A thing attached is in the thing it is attached to, and its `attachedTo` says wh
 You attach the small picture to the brass hook.
 
 >x hook
-A brass hook.  You see a small picture attached to the brass hook.
+A brass hook.  Attached to it is a small picture.
 ```

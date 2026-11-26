@@ -911,6 +911,16 @@ class Door: TravelConnector, Thing
         }
     }
     
+    /*
+     *   Is door d's isLocked a rule of its own, an expression or method
+     *   written on it, rather than a value or what its class says?
+     */
+    lockIsRule(d)
+    {
+        return d.hasProp(&isLocked, PropDefDirectly)
+            && d.propType(&isLocked) == TypeCode;
+    }
+
     /*  Make a Door locked (stat = true) or unlocked (stat = nil) */
     makeLocked(stat)
     {
@@ -1112,7 +1122,21 @@ class Door: TravelConnector, Thing
              *   If we've made one side of the door locked, the chances are we
              *   intend the other side of the door to start out locked too.
              */
-            if(isLocked)
+            if(lockIsRule(self))
+            {
+                /*
+                 *   Our lock is a rule, an expression such as (!card.isIn(me))
+                 *   rather than a value: the other side follows it, as it
+                 *   stands each time it is asked, unless it has a rule of its
+                 *   own.
+                 */
+                if(!lockIsRule(otherSide))
+                {
+                    local src = self;
+                    otherSide.setMethod(&isLocked, {: src.isLocked });
+                }
+            }
+            else if(isLocked && !lockIsRule(otherSide))
                 otherSide.isLocked = true;
             
             

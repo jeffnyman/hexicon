@@ -103,7 +103,14 @@ class Odor: SensoryEmanation
     notImportantMsg = msgText(only smell, '{I} {can\'t} do that to a smell. ')
     
     /*   Treat Smelling an Odor as equivalent to Examining it. */
-    dobj SmellSomething as Examine   
+    dobj SmellSomething as Examine
+
+    /*
+     *   And SMELL on its own smells it as its description says, unless it
+     *   has a smellDesc of its own: an odour is a smell, so what is said of
+     *   it is what it smells like.
+     */
+    smellDesc() { desc; }   
         
     dobj Examine { preCond = [objSmellable] }
     
@@ -143,7 +150,10 @@ class Noise: SensoryEmanation
     notImportantMsg = msgText(only listen, '{I} {can\'t} do that to a sound. ')
     
     /*   Treat Listening to a Noise as equivalent to Examining it. */
-    dobj ListenTo as Examine    
+    dobj ListenTo as Examine
+
+    /* LISTEN on its own hears it as its description says, likewise. */
+    listenDesc() { desc; }    
        
     dobj Examine { preCond = [objAudible] }
     

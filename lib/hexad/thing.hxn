@@ -8818,6 +8818,27 @@ class Thing:  ReplaceRedirector, Mentionable
     /* A place to hide in, which HIDE on its own gets into. */
     isHidingPlace = nil
 
+    /*
+     *   Travel to this thing, when a connector's destination is a thing
+     *   rather than a room: a Booth to get into, say. The traveler goes to
+     *   the room it is in, and then into it or onto it. A thing that cannot
+     *   be got into or onto is no destination, and says so.
+     */
+    execTravel(actor, traveler, conn)
+    {
+        local room = getOutermostRoom();
+        if(room == nil || !(isEnterable || isBoardable))
+        {
+            showMsg(not a destination, '{I} {can\'t} go into {the 1}. ',
+                    self);
+            return;
+        }
+        if(traveler.getOutermostRoom() != room)
+            room.execTravel(actor, traveler, conn);
+        if(traveler.isIn(room) && !traveler.isIn(self))
+            nestedActorAction(actor, isEnterable ? Enter : Board, self);
+    }
+
     /* RING: nothing rings, unless a game says so with a handler. */
     dobj Ring
     {

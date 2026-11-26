@@ -493,6 +493,17 @@ The first port from adv3: the sample game of the Inform Designer's Manual, from 
 - **The actor of the command cannot be taken out of play during it.** Moving the warthog to nil while it acts stopped the game; it is hidden instead.
 - SMELL in the square chamber does not find the tortilla odour of the mist, which is a `MultiLoc` there.
 
+**Done, 2026-11-26: the small defects.** The four above, and four found since, each with a check in `hexad-fixes` or a test:
+
+- **`goInstead` and `doInstead` end the command they replace**, as `replaceAction` does. Ruins's `exit` after its `goInstead` is gone, and without the fix Ruins's warthog jumps on the spot again.
+- **A thing to get into or onto can be where an exit leads.** `in = cage`, or `east = cage`, on a room is GET IN THE CAGE (GET ON for a `Platform`), and a connector whose destination is a `Booth` takes the traveler to its room and into it. A thing that cannot be got into says so, where before nothing at all was said.
+- **Taking the actor out of play during its own command** turned out not to stop the game any more. Ruins now moves the warthog to nil, rather than hiding it, and plays as before.
+- **An odour's description is what SMELL on its own smells**, and a noise's what LISTEN hears, unless it has a `smellDesc` or `listenDesc` of its own. The mist's odour had only a description, so SMELL had nothing to say of it. That it was a `MultiLoc` did not matter. Exercise 21's LISTEN now describes its radio's music, too.
+- **A door's lock can be a rule**, `isLocked = (!card.isIn(now.actor))`. The other side follows the rule as it stands, where before preinitialization copied its first value across, and the other side's own default (locked) was copied back over the rule.
+- **What is attached to a thing is said of it as "it"**: "A brass hook. Attached to it is a small picture." (and "Plugged into it", for plugs), not "You see a small picture attached to the brass hook."
+- **An object's description after its name is reported on its own line** when something in it is wrong, not on the line of the property after it. Every value of an object's template had taken the line where the template ended.
+- **The compiler warns of `typeOf(x == TypeObject)`**: the type of a comparison is always the same, so the comparison belongs outside the call.
+
 ## Open questions
 
 1. Hexad's words: decided and made, above, except the later ones.

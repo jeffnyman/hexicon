@@ -430,6 +430,9 @@ struct TemplateInst {
     def_tok: Tok,
     value: Option<PropValue>,
     prop: Option<usize>,
+    /// Where the value is, which is where what is said about it is said.
+    file: usize,
+    line: u32,
 }
 
 /// A definition at the outermost level of the source that code or data
@@ -2474,7 +2477,13 @@ impl<'p, 'a> Parser<'p, 'a> {
         }
         let mut insts: Vec<TemplateInst> = Vec::new();
         loop {
-            let (file, line) = self.tok.last_pos();
+            // Where the value starts: the token's own place, since the
+            // tokenizer may have read on past it (a string that runs over
+            // lines), and what is said about the value is said here.
+            let (file, line) = {
+                let token = self.tok.cur_token();
+                (token.file, token.line)
+            };
             (self.cur_file, self.cur_line) = (file, line);
             let mut def_tok = self.cur();
             let saved = self.begin_prop_value();
@@ -2511,6 +2520,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                 def_tok,
                 value,
                 prop: None,
+                file,
+                line,
             });
         }
 
@@ -2541,8 +2552,8 @@ impl<'p, 'a> Parser<'p, 'a> {
                     value,
                     overwritable: false,
                     is_static: false,
-                    file: self.cur_file,
-                    line: self.cur_line,
+                    file: inst.file,
+                    line: inst.line,
                     body_pos: None,
                 });
             }

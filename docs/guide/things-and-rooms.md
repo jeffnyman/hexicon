@@ -357,4 +357,4 @@ A lightable thing answers LIGHT and PUT OUT; TURN ON and TURN OFF are for things
 
 A thing with `visibleInDark = true` can be seen in the dark without lighting anything else, like the stars.
 
-Smoke, mist, and steam can be seen, and smelled, but not touched: a `Vaporous` is a decoration that answers EXAMINE, SMELL, LISTEN TO, LOOK THROUGH, LOOK IN, and SEARCH, and tells any other action that it is too insubstantial for that. An `Odor` and a `Noise` are a smell and a sound as things, which answer EXAMINE and SMELL, or EXAMINE and LISTEN TO.
+Smoke, mist, and steam can be seen, and smelled, but not touched: a `Vaporous` is a decoration that answers EXAMINE, SMELL, LISTEN TO, LOOK THROUGH, LOOK IN, and SEARCH, and tells any other action that it is too insubstantial for that. An `Odor` and a `Noise` are a smell and a sound as things, which answer EXAMINE and SMELL, or EXAMINE and LISTEN TO. Their description is also what SMELL or LISTEN on its own reports, unless they have a `smellDesc` or `listenDesc` of their own.

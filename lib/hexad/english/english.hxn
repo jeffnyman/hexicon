@@ -3530,15 +3530,23 @@ modify lookInLister
  *   attached to a SimpleAttachable.
  */
 modify simpleAttachmentLister
+    /*
+     *   Said of the thing being described, so it is "it": "Attached to it is
+     *   a small picture", rather than naming it again.
+     */
     showListPrefix(lst, pl, parent)
     {
-        "{I} {see} ";        
+        messageParams(parent);
+        "<<attachedPrep>> {him parent} <<pl ? '{plural} {is}' :
+          '{dummy} {is}'>> ";
     }
 
     showListSuffix(lst, pl, parent)
     {
-        " attached to <<parent.theName>>. ";
+        ". ";
     }
+
+    attachedPrep = 'Attached to'
      
     showSubListing = (gameMain.useParentheticalListing) 
 ;
@@ -3548,10 +3556,7 @@ modify simpleAttachmentLister
  *   into a PlugAttachable.
  */
 modify plugAttachableLister
-    showListSuffix(lst, pl, parent)
-    {
-        " plugged into <<parent.theName>>. ";
-    }    
+    attachedPrep = 'Plugged into'    
 ;
 
 /* 

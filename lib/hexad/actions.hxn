@@ -892,6 +892,13 @@ Go: TravelAction
                 getOutOfNested(conn);
                 travelOnCommand(conn, now.actor);
             }
+            /*
+             *   A thing here to get into or onto, such as a Booth or a
+             *   Platform: going that way is getting in it, or on it.
+             */
+            else if(conn.ofKind(Thing) && conn.isIn(loc)
+                    && (conn.isEnterable || conn.isBoardable))
+                replaceAction(conn.isEnterable ? Enter : Board, conn);
             else
                 /* If it's any other kind of object, just display our noGoodHereMsg. */
                 noGoodHereMsg;

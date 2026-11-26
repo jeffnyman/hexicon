@@ -4249,6 +4249,13 @@ impl Gen<'_> {
                 self.gen_rand(func, args, discard, for_condition);
             }
             Expr::Call(func, args) => {
+                if Self::is_type_of_comparison(func, args) {
+                    self.log(
+                        Severity::Warning,
+                        "typeOf() is given a comparison, whose type is always the same; \
+                         the comparison belongs outside: typeOf(x) == TypeObject",
+                    );
+                }
                 let CallArgs {
                     argc,
                     varargs,
@@ -4257,6 +4264,20 @@ impl Gen<'_> {
                 self.gen_call(func, discard, argc, varargs, named);
             }
         }
+    }
+
+    /// Whether a call is `typeOf(x == TypeObject)`, a slip for
+    /// `typeOf(x) == TypeObject`: the type of a comparison is always
+    /// true or nil, never what it is compared with.
+    fn is_type_of_comparison(func: &Expr, args: &[Arg]) -> bool {
+        matches!(func, Expr::Sym(name) if name == b"typeOf")
+            && matches!(
+                args,
+                [Arg {
+                    expr: Expr::Binary(BinOp::Eq | BinOp::Ne, ..),
+                    ..
+                }]
+            )
     }
 
     /// Whether what a call calls is `rand` by name: the built-in

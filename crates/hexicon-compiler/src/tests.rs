@@ -1033,6 +1033,39 @@ fn an_undefined_name_is_reported_once() {
 }
 
 #[test]
+fn a_template_value_is_reported_where_it_is() {
+    // Not at the property after it, which is where the template's values
+    // ended.
+    assert_eq!(
+        compile_messages(
+            "object template 'name' \"desc\";\n\
+             thing: object 'thing'\n\
+             \x20   \"A thing, <<nosuch>> and\n\
+             \x20   more. \"\n\
+             \x20   size = 2\n\
+             ;\n\
+             _main(args) { }\n"
+        ),
+        ["3: warning: \"nosuch\" is not defined anywhere"]
+    );
+}
+
+#[test]
+fn a_comparison_inside_type_of_is_warned_about() {
+    assert_eq!(
+        compile_messages(
+            "builtin 'hexicon-gen/030008' { typeOf(val); }\n\
+             f(x) { if (typeOf(x == 2)) return 1; return typeOf(x) == 2; }\n\
+             _main(args) { f(1); }\n"
+        ),
+        [
+            "2: warning: typeOf() is given a comparison, whose type is always the same; \
+             the comparison belongs outside: typeOf(x) == TypeObject"
+        ]
+    );
+}
+
+#[test]
 fn a_long_string_in_a_message_is_cut_short() {
     assert_eq!(
         compile_messages("_main(args) { 1 'a string that goes on\\nand on'; }\n"),

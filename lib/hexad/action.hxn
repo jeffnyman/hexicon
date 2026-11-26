@@ -1435,6 +1435,18 @@ class TravelAction: Action
         
         /* Note our connector */
         local conn = loc.(direction.dirProp);
+
+        /*
+         *   A thing here to get into or onto, such as a Booth or a Platform,
+         *   rather than a connector: going that way is getting in it, or on
+         *   it, as the Go action has it too.
+         */
+        if(conn.ofKind(Thing) && !conn.ofKind(TravelConnector) && conn.isIn(loc)
+           && (conn.isEnterable || conn.isBoardable))
+        {
+            replaceAction(conn.isEnterable ? Enter : Board, conn);
+            return;
+        }
         
         /* 
          *   If the connector is visible to the actor then attempt travel via the connector.
