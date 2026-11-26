@@ -272,7 +272,7 @@ hexicon run lighthouse.hxg
 The door is locked.
 
 >x box
-A battered tin box, wedged between two rocks.
+A battered tin box, wedged between two rocks.  It’s closed.
 
 >open box
 Opening the tin box reveals a small brass key.

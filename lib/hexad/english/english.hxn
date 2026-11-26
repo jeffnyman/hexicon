@@ -3613,7 +3613,7 @@ makeListStr(objList, nameProp = &aName, conjunction = 'and', suppressStateInfo =
      */       
     if(objList.length > 0 && objList[1].hasProp(&listOrder) &&
        objList.indexWhich({x: x.listOrder != objList[1].listOrder}))
-        objList = objList.sort(SortAsc, {a, b: a.listOrder - b.listOrder});
+        objList = sortInOrder(objList, {a, b: a.listOrder - b.listOrder});
     
     /* Go through every item in our sorted list */
     for(i = 1, obj in objList ; ; ++i)

@@ -49,16 +49,16 @@ Each of these can be taken, like any `Thing`. One that cannot is given `Fixture`
 The vase is on the shelf, and the room says so:
 
 ```transcript
-You can see a puzzle box and a wicker basket here.
-
-On the writing desk you see an inkwell.
+You can see a wicker basket and a puzzle box here.
 
 On the shelf you see a vase.
+
+On the writing desk you see an inkwell.
 
 In the glass cabinet you see a medal.
 ```
 
-What is inside a closed container cannot be seen, unless it is `isTransparent`, like the glass cabinet. Opening one shows what it holds:
+What is inside a closed container cannot be seen, unless it is `isTransparent`, like the glass cabinet. Examining something that can be opened says when it is closed ("It's closed."); a thing whose own description already says so sets `closedStatusReportable = nil`. Opening one shows what it holds:
 
 ```transcript
 >open cabinet

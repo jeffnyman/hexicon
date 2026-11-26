@@ -41,7 +41,7 @@ class Lister: object
         if (lst.length() > 0)
         {
             /* sort into listing order */
-            lst = lst.sort(SortAsc, { a, b: listOrder(a) - listOrder(b) });
+            lst = sortInOrder(lst, { a, b: listOrder(a) - listOrder(b) });
             
             /* 
              *   The list is plural if it has multiple items, or a single item
@@ -238,7 +238,7 @@ class ItemLister: Lister
         lst = lst - listed + groupTab.keysToList();
         
         /* Sort the resulting list in ascending order of listOrder. */
-        lst = lst.sort(SortAsc, {a, b: a.listOrder - b.listOrder});
+        lst = sortInOrder(lst, {a, b: a.listOrder - b.listOrder});
         
         /* Return the resulting list. */
         return lst;
@@ -411,7 +411,7 @@ inventoryTallLister: ItemLister
                     indentLevel++;
                     
                     /* sort the list of subcontents in ascending order of their listOrder property */
-                    subList = subList.sort(true, {x, y: y.listOrder - x.listOrder});
+                    subList = sortInOrder(subList, {x, y: x.listOrder - y.listOrder});
                     
                     /* call this method recursively to list the subcontents. */
                     showContentsTall(subList, cur, paraBrk);
@@ -654,7 +654,7 @@ class ListGroupSorted: ListGroup
     }
     
     /* Sort our list of items. By default we do so in their listOrder order. */
-    sortList(lst) { return lst.sort(SortAsc, {a, b: compareGroupItems(a, b)});  }
+    sortList(lst) { return sortInOrder(lst, {a, b: compareGroupItems(a, b)});  }
 ;
 
 

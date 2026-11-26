@@ -978,6 +978,17 @@ class DSStairway: DSCon, StairwayUp
  */
 class Passage: TravelConnector, Thing
 
+    /*
+     *   An actor the player sees leave through a Passage is said to leave
+     *   through it, as through a Door, not just to leave.
+     */
+    sayDeparting(traveler)
+    {
+        messageParams(traveler);
+        showMsg(say departing through passage, '{The subj traveler} {leaves}
+            through {1}. ', theName);
+    }
+
     /* Going through a Passage is equivalent to travelling via it. */
     dobj GoThrough
     {        

@@ -347,10 +347,10 @@ modify Room
         }
         
         /* Sort the first list of specials in specialDescOrder */        
-        specialVec1.sort(nil, {a, b: a.specialDescOrder - b.specialDescOrder});
+        sortInOrder(specialVec1, {a, b: a.specialDescOrder - b.specialDescOrder});
         
         /* Sort the second list of specials in specialDescOrder */
-        specialVec2.sort(nil, {a, b: a.specialDescOrder - b.specialDescOrder});
+        sortInOrder(specialVec2, {a, b: a.specialDescOrder - b.specialDescOrder});
                        
         /* 
          *   Show the items in the first list, i.e. the list of items with
@@ -495,7 +495,7 @@ modify Room
             return sublist;
                
         
-        return sublist.sort(nil, {a, b: a.remoteRoomListOrder(pov) - b.remoteRoomListOrder(pov) });
+        return sortInOrder(sublist, {a, b: a.remoteRoomListOrder(pov) - b.remoteRoomListOrder(pov) });
     }
     
     /* 
@@ -630,7 +630,7 @@ modify Thing
          *   this helps give a consistent ordering for the listing of 
          *   SubComponents.
          */
-        contList = contList.sort(nil, {a, b: a.listOrder - b.listOrder});
+        contList = sortInOrder(contList, {a, b: a.listOrder - b.listOrder});
                      
         
         foreach(local obj in contList)           
@@ -698,14 +698,14 @@ modify Thing
              *   Sort the list of items with specialDescs to be displayed before
              *   miscellaneous items by specialDescOrder
              */
-            firstSpecialList = firstSpecialList.sort(nil, {a, b: a.specialDescOrder -
+            firstSpecialList = sortInOrder(firstSpecialList, {a, b: a.specialDescOrder -
                 b.specialDescOrder});
             
             /*   
              *   Sort the list of items with specialDescs to be displayed after
              *   miscellaneous items by specialDescOrder
              */
-            secondSpecialList = secondSpecialList.sort(nil, {a, b: a.specialDescOrder -
+            secondSpecialList = sortInOrder(secondSpecialList, {a, b: a.specialDescOrder -
                 b.specialDescOrder});
             
             

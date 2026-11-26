@@ -2,11 +2,11 @@ Study
 Books line the walls, above a writing desk and a glass cabinet.  A rug covers
 the floor, and a wardrobe stands by the door to the north.
 
-You can see a puzzle box and a wicker basket here.
-
-On the writing desk you see an inkwell.
+You can see a wicker basket and a puzzle box here.
 
 On the shelf you see a vase.
+
+On the writing desk you see an inkwell.
 
 In the glass cabinet you see a medal.
 
@@ -15,11 +15,11 @@ Study
 Books line the walls, above a writing desk and a glass cabinet.  A rug covers
 the floor, and a wardrobe stands by the door to the north.
 
-You can see a puzzle box and a wicker basket here.
-
-On the writing desk you see an inkwell.
+You can see a wicker basket and a puzzle box here.
 
 On the shelf you see a vase.
+
+On the writing desk you see an inkwell.
 
 In the glass cabinet you see a medal.
 
@@ -45,7 +45,8 @@ Taken.
 You put the pen on the writing desk.
 
 >x cabinet
-A cabinet with glass doors.  In the glass cabinet you see a medal.
+A cabinet with glass doors.  It’s closed.  In the glass cabinet you see a
+medal.
 
 >open cabinet
 The glass cabinet is locked.
@@ -97,10 +98,10 @@ Study
 Books line the walls, above a writing desk and a glass cabinet.  A rug covers
 the floor, and a wardrobe stands by the door to the north.
 
-You can see a puzzle box and a wicker basket here.
-
-On the writing desk you see a pen and an inkwell.
+You can see a wicker basket and a puzzle box here.
 
 In the wicker basket you see a vase.
+
+On the writing desk you see an inkwell and a pen.
 
 >

@@ -61,10 +61,10 @@ A letter lies on the floor.
 
 A grandfather clock ticks in the corner.
 
-You can see a candle, a sprig of lavender, an apple, and a scarf here.
+You can see a sprig of lavender, an apple, a scarf, and a candle here.
 ```
 
-- **Things that can be taken are listed**, together, in the last paragraph.
+- **Things that can be taken are listed**, together, in the last paragraph, in the order they are defined in the source; a thing with a lower `listOrder` (100 by default) comes first.
 - **Fixtures, and the classes built on them, are not**, since a room's own description is the place to mention them, as the landing's mentions the portrait and the window. `isListed` decides it: `true` for a thing that can be taken, `nil` for one that cannot, and either can be given to any thing.
 - **A `specialDesc` is a paragraph of its own**, shown whenever the thing is there, whether or not it is listed:
 

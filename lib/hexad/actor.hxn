@@ -4670,6 +4670,15 @@ class NoTopic: MiscTopic
 ;
 
 /* A YesNoTopic is a TopicEntry that responds to either YES or NO */
+/* 
+ *   What the suggestion lister shows for yes and no suggested together.
+ */
+yesNoSuggestion: object
+    name = msgText(say yes or no, 'say yes or no')
+    listOrder = 100
+    includeSayInName = nil
+;
+
 class YesNoTopic: MiscTopic
         /* 
          *   YesNoTopics are included in the miscTopics list of their
@@ -8028,6 +8037,18 @@ suggestedTopicLister: object
         /* 
          *   Introduce the list.
          */
+        /* 
+         *   Suggest yes and no together ("say yes or no"), unless the
+         *   suggestions are numbered or links, when each needs one of its
+         *   own.
+         */
+        if(yesList.length > 0 && noList.length > 0
+           && !enumerateSuggestions && !hyperlinkSuggestions)
+        {
+            yesList = [yesNoSuggestion];
+            noList = [];
+        }
+        
         showListPrefix(lst, pl, explicit);
         
         /* Note that we haven't listed any items yet */
@@ -8091,15 +8112,8 @@ suggestedTopicLister: object
     {
         local prfx = sectionIntro ? self.(sectionIntro) + ' ' : '';
         
-        /*
-         *   Sort the list by listOrder, keeping the order the topics were
-         *   defined in among those with the same listOrder: the sort itself
-         *   need not keep it.
-         */
-        local orig = lst;
-        lst = lst.sort(SortAsc, {x, y: x.listOrder != y.listOrder
-                                 ? x.listOrder - y.listOrder
-                                 : orig.indexOf(x) - orig.indexOf(y)});
+        /* Sort the list, keeping the order it has among equals */
+        lst = sortInOrder(lst, {x, y: x.listOrder - y.listOrder});
         
         
         /* For each element in the list */

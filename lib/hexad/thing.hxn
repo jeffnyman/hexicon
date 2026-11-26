@@ -1478,11 +1478,11 @@ class Thing:  ReplaceRedirector, Mentionable
         }
         
         /* Sort the first list of specials in order of their specialDescOrder */
-        firstSpecialList = firstSpecialList.sort(nil, {a, b: a.specialDescOrder -
+        firstSpecialList = sortInOrder(firstSpecialList, {a, b: a.specialDescOrder -
                                                  b.specialDescOrder});
                  
         /* Sort the second list of specials in order of their specialDescOrder */
-        secondSpecialList = secondSpecialList.sort(nil, {a, b: a.specialDescOrder -
+        secondSpecialList = sortInOrder(secondSpecialList, {a, b: a.specialDescOrder -
                                                  b.specialDescOrder});
 
         /* 
@@ -1603,7 +1603,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   this helps give a consistent ordering for the listing of 
          *   SubComponents.
          */
-        contList = contList.sort(nil, {a, b: a.listOrder - b.listOrder});
+        contList = sortInOrder(contList, {a, b: a.listOrder - b.listOrder});
                      
         
         foreach(local obj in contList)
@@ -1677,14 +1677,14 @@ class Thing:  ReplaceRedirector, Mentionable
              *   Sort the list of items with specialDescs to be displayed before
              *   miscellaneous items by specialDescOrder
              */
-            firstSpecialList = firstSpecialList.sort(nil, {a, b: a.specialDescOrder -
+            firstSpecialList = sortInOrder(firstSpecialList, {a, b: a.specialDescOrder -
                 b.specialDescOrder});
             
             /*   
              *   Sort the list of items with specialDescs to be displayed after
              *   miscellaneous items by specialDescOrder
              */
-            secondSpecialList = secondSpecialList.sort(nil, {a, b: a.specialDescOrder -
+            secondSpecialList = sortInOrder(secondSpecialList, {a, b: a.specialDescOrder -
                 b.specialDescOrder});
             
             
@@ -1869,6 +1869,17 @@ class Thing:  ReplaceRedirector, Mentionable
     {        
         /* First display our stateDesc (our state-specific information) */
         display(&stateDesc);
+
+        /*
+         *   Say that we're closed, if we can be opened: our contents, which
+         *   aren't listed then, give no sign of it.
+         */
+        if(closedStatusReportable)
+        {
+            local obj = self;
+            messageParams(obj);
+            showMsg(closed status, '{He obj}{\'s} closed. ');
+        }
         
         /* 
          *   Then display our list of contents, unless we're a Carrier (an actor
@@ -1909,6 +1920,12 @@ class Thing:  ReplaceRedirector, Mentionable
      *   it's both openable and open.
      */
     openStatusReportable = (isOpenable && isOpen)
+
+    /*
+     *   Do we want this object to say it's closed when it's examined? By
+     *   default we do if it's openable and closed.
+     */
+    closedStatusReportable = (isOpenable && !isOpen)
             
     /* 
      *   If present, a description of this object shown in a separate paragraph

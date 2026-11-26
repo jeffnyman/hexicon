@@ -7,7 +7,7 @@ A letter lies on the floor.
 
 A grandfather clock ticks in the corner.
 
-You can see a candle, a sprig of lavender, an apple, and a scarf here.
+You can see a sprig of lavender, an apple, a scarf, and a candle here.
 
 >look
 Landing
@@ -19,7 +19,7 @@ A letter lies on the floor.
 
 A grandfather clock ticks in the corner.
 
-You can see a candle, a sprig of lavender, an apple, and a scarf here.
+You can see a sprig of lavender, an apple, a scarf, and a candle here.
 
 >take portrait
 The portrait is fixed in place.
@@ -47,7 +47,7 @@ lead down.
 
 A grandfather clock ticks in the corner.
 
-You can see a candle, a sprig of lavender, an apple, and a scarf here.
+You can see a sprig of lavender, an apple, a scarf, and a candle here.
 
 >listen
 Tick.  Tock.
@@ -85,7 +85,7 @@ You eat the apple.
 Okay, you’re now wearing the scarf.
 
 >i
-You are wearing a scarf, and carrying a letter and a folded note.
+You are wearing a scarf, and carrying a folded note and a letter.
 
 >west
 The walls of the landing close in on every side.  From here you could go down
