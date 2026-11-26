@@ -661,9 +661,9 @@ class Mentionable: LMentionable
      *   The filterResolveList method allows this object to remove itself or
      *   other objects from the list of resolved objects.
      *
-     *   np is the noun phrase, so np.matches gives the current list of matches,
-     *   and np.matches[i].obj gives the ith object match. To change the list of
-     *   matches, manipulate the np.matches list.
+     *   np is the noun phrase, so np.npMatches gives the current list of matches,
+     *   and np.npMatches[i].obj gives the ith object match. To change the list of
+     *   matches, manipulate the np.npMatches list.
      *
      *   cmd is the command object, so that cmd.action gives the action about to
      *   be executed.
@@ -676,16 +676,16 @@ class Mentionable: LMentionable
      */
     filterResolveList(np, cmd, mode)
     {
-        if(np.matches.length < 2 || mode == All)
+        if(np.npMatches.length < 2 || mode == All)
             return;
 
         local yields = valToList(yieldsTo);
         if((yieldsToOthers
-            && np.matches.indexWhich({m: m.obj != self && !m.obj.yieldsToOthers}))
-           || np.matches.indexWhich(
+            && np.npMatches.indexWhich({m: m.obj != self && !m.obj.yieldsToOthers}))
+           || np.npMatches.indexWhich(
                {m: m.obj != self
                    && yields.indexWhich({y: m.obj == y || m.obj.ofKind(y)})}))
-            np.matches = np.matches.subset({m: m.obj != self});
+            np.npMatches = np.npMatches.subset({m: m.obj != self});
     }
 
     /*
@@ -10562,12 +10562,12 @@ class SubComponent : Thing
      
     filterResolveList(np, cmd, mode)
     {       
-        if(np.matches.length > 1)
+        if(np.npMatches.length > 1)
         {
             if(now.actor.isIn(self) && contType == In)
-                np.matches = np.matches.subset({m: m.obj == self});
+                np.npMatches = np.npMatches.subset({m: m.obj == self});
             else
-                np.matches = np.matches.subset({m: m.obj != self});
+                np.npMatches = np.npMatches.subset({m: m.obj != self});
         }
     }
     

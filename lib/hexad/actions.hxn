@@ -2737,7 +2737,7 @@ action Think: IAction
          *   If we have an associated RuleBook and it returns something other than nil, then assume
          *   the RuleBook has handled the THINK command, so stop here.
          */
-        if(ruleBook && ruleBook.follow() != null)
+        if(thinkRuleBook && thinkRuleBook.follow() != null)
             return;
         
         /* Otherwise, display our default response. */
@@ -2750,7 +2750,7 @@ action Think: IAction
      *   A rulebook to follow when a THINK command is issued. This required the Rules extension to
      *   be present.
      */
-    ruleBook = nil
+    thinkRuleBook = nil
 ;
 
 class ImplicitConversationAction: TopicAction

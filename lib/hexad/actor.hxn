@@ -2011,7 +2011,7 @@ modify Actor
          *   If we have a current ConvNode, it will be the one specified by the
          *   first element in our activeKeys list.
          */
-        local node = activeKeys.element(1);
+        local node = activeKeys.elementAt(1);
         
         /*   If we don't have any activeKeys, then we don't have a ConvNode */
         if(node == nil)
@@ -3606,7 +3606,7 @@ class ConvNode: TopicGroup
      *   NodeEndCheck and NodeContinuationTopic objects.
      *.
      */
-    register()
+    registerNode()
     {
         /* Get our asociated actor. */
         local actor = getActor;
@@ -3724,7 +3724,7 @@ class ConvNode: TopicGroup
 convNodePreinit: PreinitObject
     execute()
     {
-        forEachInstance(ConvNode, {c: c.register() });
+        forEachInstance(ConvNode, {c: c.registerNode() });
     }
     
     execBeforeMe = [actorPreinit]
@@ -5955,7 +5955,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
              */
         case endConvBye:
             if(hasProp(&sayBlockBye))
-                return block(&sayBlockBye);
+                return handleBlock(&sayBlockBye);
             break;
             
             /* 
@@ -5965,7 +5965,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
              */
         case endConvLeave:
             if(hasProp(&sayBlockLeave))
-               return block(&sayBlockLeave);
+               return handleBlock(&sayBlockLeave);
             break;
             
             /* 
@@ -5975,7 +5975,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
              */
         case endConvBoredom:
             if(hasProp(&sayBlockBoredom))
-               return block(&sayBlockBoredom);
+               return handleBlock(&sayBlockBoredom);
             break;
             
             
@@ -5986,7 +5986,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
              */
         case endConvActor:    
             if(hasProp(&sayBlockActor))
-               return block(&sayBlockActor);
+               return handleBlock(&sayBlockActor);
             break;
             
             /* 
@@ -6032,7 +6032,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
      *   The method that handles prop (a proprty pointer) according to its property type. For the
      *   possibilities, see the immediately preceeding comment.
      */
-    block(prop)
+    handleBlock(prop)
     {
         switch(propType(prop))
         {
@@ -6057,8 +6057,8 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
             }
             
             /* This is provided to handle cases not handled by any other mechanism. */
-            if(obj.hasProp(&block))
-                return obj.block();
+            if(obj.hasProp(&blockResponse))
+                return obj.blockResponse();
             
             return defaultVal;
             /* 
@@ -7645,7 +7645,7 @@ class FollowAgendaItem: AgendaItem
     connectorList = []
     
     /*  The next connector our NPC wants to lead the PC via */
-    nextConnector = connectorList.element(nextConnNum + 1)
+    nextConnector = connectorList.elementAt(nextConnNum + 1)
     
     /* 
      *   This method is called when our NPC attempts to travel via conn but the
@@ -8145,7 +8145,7 @@ suggestedTopicLister: object
                  *   The number associated with this suggestion is the incremented
                  *   suggestionEnumerator's count.
                  */
-                local num = ++suggestionEnumerator.count;
+                local num = ++suggestionEnumerator.suggestionCount;
                 
                 /* Add the full name of this suggestion to suggestionEnumerator's suggestionList. */
                 suggestionEnumerator.suggestionList[num] = fullname;
@@ -8270,7 +8270,7 @@ suggestedTopicLister: object
  */
 suggestionEnumerator: object
     /* The number of the current suggestion when numbered topic suggestions are being listed. */
-    count = 0
+    suggestionCount = 0
     
     /* Our list (or Vector) of topic suggestions. */
     suggestionList = nil
@@ -8279,7 +8279,7 @@ suggestionEnumerator: object
     initialize()
     {
         /* Reset our enumeration count to 0 */
-        count = 0;
+        suggestionCount = 0;
         
         /* Reset our suggestion list to a new empty Vector. */
         suggestionList = new Vector(20);
@@ -8308,7 +8308,7 @@ enumSuggestionsPreparser: StringPreParser
              *   If we have a number and that number is in the range of the number of topic
              *   suggestions listed then replace str with the corresponding conversational command.
              */
-            if(num && num <= suggestionEnumerator.count && num > 0)
+            if(num && num <= suggestionEnumerator.suggestionCount && num > 0)
             {
                 /* 
                  *   Change str to the corresponding item in suggestionEnumerator's suggestion list.
@@ -8323,11 +8323,11 @@ enumSuggestionsPreparser: StringPreParser
             }     
             else if(num)
             {
-                if(suggestionEnumerator.count == 0)
+                if(suggestionEnumerator.suggestionCount == 0)
                     showMsg(no enumerations, 'Enumerated suggestions aren\'t available right now. ');
                 else
                     showMsg(enmeration out of range, 'To select an enumerated suggestion, please enter
-                        a number between 1 and {1}. ', suggestionEnumerator.count);
+                        a number between 1 and {1}. ', suggestionEnumerator.suggestionCount);
                 
                 str = nil;
             }

@@ -4353,6 +4353,33 @@ mod hexicon_messages {
     }
 
     #[test]
+    fn an_object_named_with_a_macro_is_told_so() {
+        let text = "#define stop return 1;\n\
+                    + property location;\n\
+                    room: object;\n\
+                    + stop: object;\n\
+                    _main(args) { stop }\n";
+        let found = diagnostics("game.hxn", text);
+        assert_eq!(found[0].line, 4, "{found:?}");
+        assert_eq!(
+            found[0].note.as_deref(),
+            Some(
+                "\"stop\" is a macro, which stands for \"return 1;\", so it cannot be an \
+                 object's name: give the object a name of its own"
+            )
+        );
+        // The macro used as the macro it is, in code, is said nothing of.
+        assert!(
+            found
+                .iter()
+                .filter(|d| d.note.as_deref().is_some_and(|n| n.contains("is a macro")))
+                .count()
+                == 1,
+            "{found:?}"
+        );
+    }
+
+    #[test]
     fn a_slip_for_a_parameter_is_said_to_be_one() {
         // `stats` is nearer `stat`, the method's own parameter, than
         // `State`, a name of the whole program.

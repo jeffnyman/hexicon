@@ -325,6 +325,10 @@ pub struct Preprocessor<'a> {
     p: usize,
     /// The macro-expanded line.
     expbuf: Vec<u8>,
+    /// A macro whose name stands where an object's name goes in the line
+    /// being read (`stop: Fixture ...`, with `stop` a macro), and what it
+    /// stands for: the first error on the line says so.
+    macro_as_name: Option<(Vec<u8>, Vec<u8>)>,
     /// Text read ahead and put back, to be the next line.
     unsplicebuf: Vec<u8>,
     curtok: Token,
@@ -410,6 +414,7 @@ impl<'a> Preprocessor<'a> {
             linebuf: Vec::new(),
             p: 0,
             expbuf: Vec::new(),
+            macro_as_name: None,
             unsplicebuf: Vec::new(),
             curtok: Token::new(Tok::Eof),
             in_quote: 0,
@@ -669,11 +674,25 @@ impl<'a> Preprocessor<'a> {
             .last_desc
             .map(|desc| self.file_name(desc).to_owned())
             .unwrap_or_default();
+        // An object named with a macro's name: the first error says why.
+        let note = if severity == Severity::Error {
+            self.macro_as_name.take().map(|(name, orig)| {
+                format!(
+                    "\"{}\" is a macro, which stands for \"{}\", so it cannot be an object's \
+                     name: give the object a name of its own",
+                    show_name(&name),
+                    String::from_utf8_lossy(&orig).trim()
+                )
+            })
+        } else {
+            None
+        };
         self.push_diagnostic(Diagnostic {
             file,
             line: self.last_line,
             severity,
             message,
+            note,
             ..Default::default()
         });
     }
@@ -1325,6 +1344,9 @@ impl<'a> Preprocessor<'a> {
         allow_defined: bool,
         append: bool,
     ) -> bool {
+        if !append {
+            self.macro_as_name = None;
+        }
         let mut src = std::mem::take(&mut self.linebuf);
         let mut expbuf = std::mem::take(&mut self.expbuf);
         let mut pos = self.p;
@@ -1388,6 +1410,13 @@ impl<'a> Preprocessor<'a> {
                     entry.is_some_and(|id| !scan_for_prior_expansion(src, *pos, end, id));
                 if expandable || (allow_defined && name == b"defined") {
                     let macro_ofs = tok.pos;
+                    if read_more
+                        && let Some(id) = entry
+                        && self.macros[id].kind == MacroKind::Define
+                        && stands_as_name(src, macro_ofs, *pos)
+                    {
+                        self.macro_as_name = Some((name.clone(), self.macros[id].orig.clone()));
+                    }
                     let expanded = match entry {
                         Some(id) => {
                             let (err, did) = self.expand_macro(
@@ -3206,4 +3235,24 @@ fn decode_source(
         .or_else(|| decode_charset("us-ascii", data))
         .unwrap_or_default();
     (text, charset_error)
+}
+
+/// Whether the word from `start` to `end` in a line stands where an
+/// object's name goes: nothing but spaces and `+` signs before it, and a
+/// colon after it (not `::`).
+fn stands_as_name(line: &[u8], start: usize, end: usize) -> bool {
+    let start = start.min(line.len());
+    let end = end.clamp(start, line.len());
+    if !line[..start]
+        .iter()
+        .all(|&c| c == b' ' || c == b'\t' || c == b'+')
+    {
+        return false;
+    }
+    let rest = &line[end..];
+    let after = rest
+        .iter()
+        .position(|&c| c != b' ' && c != b'\t')
+        .map(|i| &rest[i..]);
+    matches!(after, Some([b':', next, ..]) if *next != b':') || after == Some(b":")
 }

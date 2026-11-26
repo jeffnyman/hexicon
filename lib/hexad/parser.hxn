@@ -1835,7 +1835,7 @@ class NounPhrase: object
         }
 
         /* save the match list so far */
-        matches = v;
+        npMatches = v;
 
         /* if we have a contents qualifier, match its vocabulary */
         if (contQual != nil)
@@ -1847,7 +1847,7 @@ class NounPhrase: object
             contQual.applyContQual();
 
             /* if that empties our list, flag it */
-            if (matches.length() == 0)
+            if (npMatches.length() == 0)
                 throw new NoneWithContentsError(cmd, self, contQual);
 
             /* 
@@ -1876,7 +1876,7 @@ class NounPhrase: object
             possQual.applyPossessive();
 
             /* if that empties our list, flag it */
-            if (matches.length() == 0)
+            if (npMatches.length() == 0)
                 throw new NoneInOwnerError(cmd, self, possQual);
 
             /* expand the error text to include the possessive qualifier */
@@ -1893,7 +1893,7 @@ class NounPhrase: object
             locQual.applyLocational();
 
             /* if that empties our list, flag it */
-            if (matches.length() == 0)
+            if (npMatches.length() == 0)
                 throw new NoneInLocationError(cmd, self, locQual);
 
             /* expand the error name to include the locational */
@@ -1993,7 +1993,7 @@ class NounPhrase: object
     matchVocabPoss(cmd)
     {
         /* start with an empty vector */
-        local v = matches = new Vector(32);
+        local v = npMatches = new Vector(32);
 
         /* check what kind of phrase we have */
         if (pronoun != nil)
@@ -2037,13 +2037,13 @@ class NounPhrase: object
                  */
                 if (np.role == ActorRole && pronoun.person == 2)
                 {
-                    v.appendAll(np.matches);
+                    v.appendAll(np.npMatches);
                     done = true;
                     return;
                 }
 
                 /* check for matches to this pronoun in this match list */
-                local s = np.matches.subset(
+                local s = np.npMatches.subset(
                     { o: pronoun.matchObj(o.obj) });
 
                 /* 
@@ -2073,7 +2073,7 @@ class NounPhrase: object
              *   underlying noun phrase that we qualify.  
              */
             local expScope = new Vector(32);
-            foreach (local obj in parent.matches)
+            foreach (local obj in parent.npMatches)
             {
                 /* 
                  *   if this object has an owner or owners, add it/them to
@@ -2118,21 +2118,21 @@ class NounPhrase: object
          *   is, there's an object 'p' in the parent list where 'p' is
          *   owned by 'o'.)  
          */
-        local m = matches.subset(
-            { o: parent.matches.indexWhich(
+        local m = npMatches.subset(
+            { o: parent.npMatches.indexWhich(
                 { p: p.obj.ownedBy(o.obj) }) != nil });
 
         /* if the reverse filter didn't rule everything out, apply it */
         if (m.length() > 0)
-            matches = m;
+            npMatches = m;
         
         /* next, apply any possessive qualifier of my own */
         if (possQual != nil)
             possQual.applyPossessive();
 
         /* filter parent objects not owned by anything in my list */
-        parent.matches = parent.matches.subset(
-            { p: matches.indexWhich(
+        parent.npMatches = parent.npMatches.subset(
+            { p: npMatches.indexWhich(
                 { o: p.obj.ownedBy(o.obj) }) != nil });
     }
 
@@ -2147,21 +2147,21 @@ class NounPhrase: object
          *   First, do the reverse filtering, to keep only objects that
          *   could be inside objects in the underlying list.  
          */
-        local m = matches.subset(
-            { o: parent.matches.indexWhich(
+        local m = npMatches.subset(
+            { o: parent.npMatches.indexWhich(
                 { p: o.obj.isChild(p.obj, nil) }) != nil });
 
         /* if that didn't rule everything out, apply the filter */
         if (m.length() > 0)
-            matches = m;
+            npMatches = m;
 
         /* next, apply any locational qualifier of my own */
         if (contQual != nil)
             contQual.applyContQual();
 
         /* filter parent objects not containing anything in my list */
-        parent.matches = parent.matches.subset(
-            { p: matches.indexWhich(
+        parent.npMatches = parent.npMatches.subset(
+            { p: npMatches.indexWhich(
                 { o: o.obj.isChild(p.obj, nil) }) != nil });
     }
     
@@ -2176,31 +2176,31 @@ class NounPhrase: object
          *   First, do the reverse filtering, to keep only objects that
          *   could contain objects in the underlying list. 
          */
-        local m = matches.subset(
-            { o: parent.matches.indexWhich(
+        local m = npMatches.subset(
+            { o: parent.npMatches.indexWhich(
                 { p: p.obj.isChild(o.obj, locType) }) != nil });
 
         /* if that didn't rule everything out, apply the filter */
         if (m.length() > 0)
-            matches = m;
+            npMatches = m;
 
         /* next, apply any locational qualifier of my own */
         if (locQual != nil)
             locQual.applyLocational();
 
         /* first, try limiting to items DIRECTLY in the location */
-        m = parent.matches.subset(
-            { p: matches.indexWhich(
+        m = parent.npMatches.subset(
+            { p: npMatches.indexWhich(
                 { o: p.obj.isDirectChild(o.obj, locType) }) != nil });
 
         /* if there weren't any, try items indirectly in the location */
         if (m.length() == 0)
-            m = parent.matches.subset(
-                { p: matches.indexWhich(
+            m = parent.npMatches.subset(
+                { p: npMatches.indexWhich(
                     { o: p.obj.isChild(o.obj, locType) }) != nil });
 
         /* save the filtered list in the parent */
-        parent.matches = m;
+        parent.npMatches = m;
     }
     
     /*
@@ -2214,8 +2214,8 @@ class NounPhrase: object
         matchVocab(cmd);
 
         /* filter the parent list to exclude everything we matched */
-        parent.matches = parent.matches.subset(
-            { p: matches.indexWhich(
+        parent.npMatches = parent.npMatches.subset(
+            { p: npMatches.indexWhich(
                 { o: o.obj == p.obj }) == nil });
     }
 
@@ -2279,7 +2279,7 @@ class NounPhrase: object
          *   some kind of natural order (such as alphabetized or numbered
          *   items).  
          */
-        matches.groupSort(
+        npMatches.groupSort(
             { ent, idx: [ent.obj.disambigGroup, ent.obj.disambigOrder] });
 
         /* if there's no determiner, assume definite */
@@ -2296,7 +2296,7 @@ class NounPhrase: object
          */
         if (mode == Definite
             && quantifier == nil
-            && matches.indexWhich({ m: m.match & MatchPlural }) != nil)
+            && npMatches.indexWhich({ m: m.match & MatchPlural }) != nil)
             mode = All;
 
         /* 
@@ -2311,11 +2311,11 @@ class NounPhrase: object
          *   If we don't have enough objects to satisfy the request,
          *   complain about it. 
          */
-        if (num > matches.length() 
+        if (num > npMatches.length() 
             && objs.indexWhich({o: o.canSupply}) == nil)
             throw new InsufficientNounsError(cmd, self);
         
-        if (mode == Definite && isAllEquivalent(matches) && matches.length > 1)
+        if (mode == Definite && isAllEquivalent(npMatches) && npMatches.length > 1)
             mode = Indefinite;
 
         
@@ -2330,7 +2330,7 @@ class NounPhrase: object
              *   Definite mode.  If we have more than the desired number,
              *   we must disambiguate.  
              */
-            if (matches.length() > num)
+            if (npMatches.length() > num)
                 disambiguate(cmd, num, cmd.action);
             else
                 /* 
@@ -2350,16 +2350,16 @@ class NounPhrase: object
              */
             
             /* start by getting object rankings from the verb */
-            cmd.action.scoreObjects(cmd, role, matches);
+            cmd.action.scoreObjects(cmd, role, npMatches);
             
             /* sort by score (highest to lowest), except for the ActorRole */
-            matches.sort(SortDesc, { a, b: a.score - b.score });
+            npMatches.sort(SortDesc, { a, b: a.score - b.score });
             
-            if (matches.length() > num)
-                matches.removeRange(num + 1, matches.length());
+            if (npMatches.length() > num)
+                npMatches.removeRange(num + 1, npMatches.length());
 
             /* flag the objects as arbitrarily chosen */
-            matches.forEach({ m: m.flags |= SelArbitrary });
+            npMatches.forEach({ m: m.flags |= SelArbitrary });
             cmd.matchedMulti = true;
             break;
 
@@ -2368,7 +2368,7 @@ class NounPhrase: object
              *   Plural mode - select all of the objects.  Simply use the
              *   set we've already built.  Flag the selections as plural.  
              */
-            matches.forEach({ m: m.flags |= SelPlural });
+            npMatches.forEach({ m: m.flags |= SelPlural });
             cmd.matchedMulti = true;
             break;
         }
@@ -2391,10 +2391,10 @@ class NounPhrase: object
     disambiguate(cmd, num, action)
     {
         /* start by getting object rankings from the verb */
-        action.scoreObjects(cmd, role, matches);
+        action.scoreObjects(cmd, role, npMatches);
 
         /* sort by score (highest to lowest) */
-        matches.sort(SortDesc, { a, b: a.score - b.score });
+        npMatches.sort(SortDesc, { a, b: a.score - b.score });
 
         /* 
          *   To pick automatically, we need exactly 'num' objects at the
@@ -2412,7 +2412,7 @@ class NounPhrase: object
          *   from theirs, we're not thinking alike, so we need to ask for
          *   clarification.  
          */
-        local sub = matches.subset({x: x.score == matches[1].score});
+        local sub = npMatches.subset({x: x.score == npMatches[1].score});
         
         if (isAllEquivalent(sub))
             sub.setLength(num);
@@ -2427,13 +2427,13 @@ class NounPhrase: object
              *   other items we could have matched.  
              */
             local names = Distinguisher.getNames(
-                matches.mapAll({ x: x.obj }), nil);            
+                npMatches.mapAll({ x: x.obj }), nil);            
 
             /* save the disambiguated subset */
-            matches = sub;
+            npMatches = sub;
 
             /* mark each as disambiguated, and save the distinctive name */
-            foreach (local m in matches)
+            foreach (local m in npMatches)
             {
                 m.flags |= SelDisambig;
                 m.name = names.valWhich({ n: n[2].indexOf(m.obj) != nil })[1];
@@ -2466,12 +2466,12 @@ class NounPhrase: object
          *   it will only try to disambiguate among the things you are holding.
          *   I think this behavior is more desirable, but am not certain.
          */
-        matches = sub;
+        npMatches = sub;
         
 
         /* it's still ambiguous, so throw an error to ask for help */
         ambigError(cmd);
-        matches.setLength(num);
+        npMatches.setLength(num);
     }
 
     /*
@@ -2484,7 +2484,7 @@ class NounPhrase: object
         if (disambig != nil)
         {
             /* start a list for the result */
-            local dmatches = new Vector(matches.length());
+            local dmatches = new Vector(npMatches.length());
 
             /* add the object(s) selected by each noun phrase in the reply */
             foreach (local dnp in disambig)
@@ -2494,7 +2494,7 @@ class NounPhrase: object
                  *   selections to the master list 
                  */
                 dmatches.appendAll(
-                    dnp.applyDisambig(cmd, matches, disambigNameList));
+                    dnp.applyDisambig(cmd, npMatches, disambigNameList));
             }
 
             /* 
@@ -2504,7 +2504,7 @@ class NounPhrase: object
              *   the reply can say something like "the red one and the blue
              *   one" to pick more than one of the offered objects.  
              */
-            matches = dmatches;
+            npMatches = dmatches;
             return;
         }
 
@@ -2514,7 +2514,7 @@ class NounPhrase: object
          *   book?"  Generate the list of names.  
          */
         local nameList = Distinguisher.getNames(
-            matches.mapAll({ x: x.obj }), true , true);
+            npMatches.mapAll({ x: x.obj }), true , true);
 
         /* 
          *   Sort by disambigGroup and disambigOrder.  Note that it's
@@ -2558,7 +2558,7 @@ class NounPhrase: object
          *   and remove items that don't match the additional vocabulary
          *   and/or qualifiers in the reply.  
          */
-        matches = ambigMatches;
+        npMatches = ambigMatches;
 
         /* if there's an ordinal, pick out the selected item */
         if (ordinal != nil)
@@ -2577,7 +2577,7 @@ class NounPhrase: object
              *   object list with this object 
              */
             n = n[2][1];
-            matches = matches.subset({ m: m.obj == n });
+            npMatches = npMatches.subset({ m: m.obj == n });
         }
 
         /* if there's a locational qualifier, apply it */
@@ -2588,7 +2588,7 @@ class NounPhrase: object
             locQual.applyLocational();
 
             /* if that empties our list, flag it */
-            if (matches.length() == 0)
+            if (npMatches.length() == 0)
                 throw new NoneInLocationError(cmd, parent, locQual);
         }
                 
@@ -2600,7 +2600,7 @@ class NounPhrase: object
             possQual.applyPossessive();
 
             /* if that empties our list, flag it */
-            if (matches.length() == 0)
+            if (npMatches.length() == 0)
                 throw new NoneInOwnerError(cmd, parent, possQual);
         }
 
@@ -2612,7 +2612,7 @@ class NounPhrase: object
             contQual.applyContQual();
 
             /* if that empties our list, flag it */
-            if (matches.length() == 0)
+            if (npMatches.length() == 0)
                 throw new NoneWithContentsError(cmd, parent, contQual);
         }
 
@@ -2638,10 +2638,10 @@ class NounPhrase: object
              *   itself.  If we don't find any matches, try the other
              *   possibilities: containers, owners, and nominal contents.  
              */
-            if (tokens.length() > 0 && matches.length() > 0)
+            if (tokens.length() > 0 && npMatches.length() > 0)
             {
                 /* first try applying the words to the object itself */
-                local m = matches.subset(
+                local m = npMatches.subset(
                     { o: o.obj.matchNameDisambig(tokens) != 0 });
                 
                 /* if that didn't match anything, try containers */
@@ -2652,7 +2652,7 @@ class NounPhrase: object
                         { o: o.matchNameDisambig(tokens) != 0 });
 
                     /* get the subset of 'matches' that are in 'locs' */
-                    m = matches.subset(
+                    m = npMatches.subset(
                         { o: locs.indexWhich(
                             { l: o.obj.isChild(l, nil) }) != nil });
                 }
@@ -2662,7 +2662,7 @@ class NounPhrase: object
                 {
                     /* get the list of scope objects plus potential owners */
                     local owners = new Vector(50, World.scope.toList());
-                    foreach (local obj in matches)
+                    foreach (local obj in npMatches)
                     {
                         local owner = obj.obj.owner;
                         if (owner != nil)
@@ -2674,7 +2674,7 @@ class NounPhrase: object
                         { o: o.matchNameDisambig(tokens) != 0 });
 
                     /* get the subset of 'matches' with owners in 'owners' */
-                    m = matches.subset(
+                    m = npMatches.subset(
                         { o: owners.indexWhich(
                             { l: o.obj.ownedBy(l) }) != nil });
                 }
@@ -2687,7 +2687,7 @@ class NounPhrase: object
                         { c: c.matchNameDisambig(tokens) != 0 });
 
                     /* get the subset of 'matches' with contents in 'conts' */
-                    m = matches.subset(
+                    m = npMatches.subset(
                         { o: conts.indexOf(o.obj.nominalContents) != nil });
                 }
                 
@@ -2696,7 +2696,7 @@ class NounPhrase: object
                     throw new UnmatchedNounError(cmd, self);
 
                 /* we're out of things to try, so take what we have */
-                matches = m;
+                npMatches = m;
             }
         }
 
@@ -2704,10 +2704,10 @@ class NounPhrase: object
         local num = (quantifier != nil ? quantifier : 1);
 
         /* if we don't have enough, it's an error */
-        if (matches.length() < num)
+        if (npMatches.length() < num)
             throw new InsufficientNounsError(cmd, self);
         
-        if (determiner == Definite && isAllEquivalent(matches))
+        if (determiner == Definite && isAllEquivalent(npMatches))
             determiner = Indefinite;
         
         /* determine the actual number available */
@@ -2720,17 +2720,17 @@ class NounPhrase: object
              *   ambiguity error to further disambiguate the new list.
              *   Otherwise, we're set.  
              */
-            if (num < matches.length())
+            if (num < npMatches.length())
                 ambigError(cmd);
             break;
             
         case Indefinite:
             /* indefinite - arbitrarily select any 'num' of the items */
-            if (matches.length() > num)
-                matches.removeRange(num + 1, matches.length());
+            if (npMatches.length() > num)
+                npMatches.removeRange(num + 1, npMatches.length());
 
             /* mark them as arbitrary */
-            matches.forEach({ m: m.flags |= SelArbitrary });
+            npMatches.forEach({ m: m.flags |= SelArbitrary });
             break;
             
         case All:
@@ -2739,7 +2739,7 @@ class NounPhrase: object
         }
 
         /* return our final match list */
-        return matches;
+        return npMatches;
     }
 
     /*
@@ -2769,7 +2769,7 @@ class NounPhrase: object
                  *   final ALL list 
                  */
                 local all = cmd.action.getAll(cmd, role);
-                local sub = matches.subset({ m: all.indexOf(m.obj) != nil });
+                local sub = npMatches.subset({ m: all.indexOf(m.obj) != nil });
 
                 /* 
                  *   If we found any objects in the intersection, keep only
@@ -2782,7 +2782,7 @@ class NounPhrase: object
                  *   the description they gave.  
                  */
                 if (sub.length() != 0)
-                    matches = sub;
+                    npMatches = sub;
             }
         }
     }
@@ -2795,17 +2795,17 @@ class NounPhrase: object
     resolveReflexives(cmd)
     {
         /* if we have a reflexive pronoun object in the list, resolve it */
-        if (matches.length() == 1 && matches[1].obj.ofKind(Pronoun))
+        if (npMatches.length() == 1 && npMatches[1].obj.ofKind(Pronoun))
         {
             /* 
              *   We have a reflexive pronoun pending.  Ask the command for
              *   the current meaning of the reflexive.  
              */
-            matches = cmd.resolveReflexive(matches[1].obj).mapAll(
+            npMatches = cmd.resolveReflexive(npMatches[1].obj).mapAll(
                 { x: new NPMatch(self, x, 0) });
 
             /* it's an error if that didn't yield anything */
-            if (matches.length() == 0)
+            if (npMatches.length() == 0)
                 throw new NoAntecedentError(self, pronoun);
         }
         else
@@ -2820,17 +2820,17 @@ class NounPhrase: object
              *   we want: a reflexive pronoun binds to the nearest
              *   preceding noun that matches in gender, number, etc.  
              */
-            matches.forEach({ match: cmd.saveReflexiveAnte(match.obj) });
+            npMatches.forEach({ match: cmd.saveReflexiveAnte(match.obj) });
 
             /* also save the entire list, for THEMSELVES */
-            cmd.saveReflexiveAnte(matches.mapAll({ x: x.obj }));
+            cmd.saveReflexiveAnte(npMatches.mapAll({ x: x.obj }));
         }
     }
 
     /* Build the 'objs' list from the match list */
     buildObjList()
     {
-        objs = matches.mapAll({x: x.obj});
+        objs = npMatches.mapAll({x: x.obj});
     }
 
     /* 
@@ -2838,7 +2838,7 @@ class NounPhrase: object
      *   phase with the list of possible vocabulary matches, and then
      *   reduced during disambiguation to the final set.  
      */
-    matches = []
+    npMatches = []
 
     /* 
      *   List of resolved objects.  This is populated after disambiguation
@@ -2918,7 +2918,7 @@ class NounPhrase: object
     {
         return determiner == All
             || (quantifier != nil && quantifier > 1)
-            || matches.indexWhich({ m: m.match & MatchPlural }) != nil;
+            || npMatches.indexWhich({ m: m.match & MatchPlural }) != nil;
     }
 
     /* 
@@ -3062,7 +3062,7 @@ class TopicPhrase: NounPhrase
 
             addMatches(v, lst, 1);
             
-            matches = v;  
+            npMatches = v;  
             
             cmd.madeTopic = true;
             
@@ -3070,7 +3070,7 @@ class TopicPhrase: NounPhrase
         }
         
         /* save the match list so far */
-        matches = v;
+        npMatches = v;
         
         
         
@@ -3078,7 +3078,7 @@ class TopicPhrase: NounPhrase
          *   if we have a possessive qualifier, apply it, but only if it is to be applied to a Thing
          *   (rather than a Topic)
          */
-        if (possQual != nil && matches.indexWhich({x: x.obj.ofKind(Thing)}))
+        if (possQual != nil && npMatches.indexWhich({x: x.obj.ofKind(Thing)}))
         {
             /* match vocabulary for the possessive phrase */
             possQual.matchVocabPoss(cmd);
@@ -3090,7 +3090,7 @@ class TopicPhrase: NounPhrase
             possQual.applyPossessive();
             
             /* if that empties our list, flag it */
-            if (matches.length() == 0)
+            if (npMatches.length() == 0)
                 throw new NoneInOwnerError(cmd, self, possQual);
             
             /* expand the error text to include the possessive qualifier */
@@ -3105,11 +3105,11 @@ class TopicPhrase: NounPhrase
         }
         
         
-        local res = new ResolvedTopic(matches.mapAll({o: o.obj}).toList, tokens);
+        local res = new ResolvedTopic(npMatches.mapAll({o: o.obj}).toList, tokens);
         
         res = new NPMatch(v[1].np, res, v[1].match);
         
-        matches = new Vector([res]);
+        npMatches = new Vector([res]);
         
         
     }
@@ -3208,7 +3208,7 @@ class LiteralPhrase: NounPhrase
         local lst = [obj];
         addMatches(v, lst, MatchNoApprox);
         
-        matches = v;   
+        npMatches = v;   
     }
     
     selectObjects(cmd)
@@ -3250,7 +3250,7 @@ class NumberPhrase: NounPhrase
         local lst = [obj];
         addMatches(v, lst, MatchNoApprox);
         
-        matches = v;   
+        npMatches = v;   
     }
     
     selectObjects(cmd)
@@ -5529,7 +5529,7 @@ class NoneInOwnerError: ActorResolutionError
          *   object was intended; otherwise show the name of the actual
          *   owner we matched 
          */
-        if (possQual.matches.length() != 1)
+        if (possQual.npMatches.length() != 1)
         {
             /*
              *   The player used a possessive to qualify a noun phrase, and
@@ -5553,7 +5553,7 @@ class NoneInOwnerError: ActorResolutionError
              *   entered BOB'S WALLET, and Bob is indeed in scope, but Bob
              *   doesn't own a wallet (not one that's in scope, anyway).  
              */
-            local obj = possQual.matches[1].obj;
+            local obj = possQual.npMatches[1].obj;
             messageParams(obj);
             
             showMsg(none in owner, '{The subj obj} {doesn\'t appear[ed]} to have
@@ -5586,7 +5586,7 @@ class NoneInLocationError: ActorResolutionError
          *   matched object was intended; otherwise show the name of the
          *   actual location we matched 
          */
-        if (locQual.matches.length() !=  1)
+        if (locQual.npMatches.length() !=  1)
         {
             /*
              *   We have a locational qualifier, and we have multiple
@@ -5612,7 +5612,7 @@ class NoneInLocationError: ActorResolutionError
              */
             showMsg(none in location,
                  '{I} {see} no {2} {3} {the 4}.',
-                 cmd, txt, locQual.locType.prep, locQual.matches[1].obj);
+                 cmd, txt, locQual.locType.prep, locQual.npMatches[1].obj);
         }
     }
 ;
@@ -5639,7 +5639,7 @@ class NoneWithContentsError: ActorResolutionError
          *   which matched object was intended; otherwise show the name of
          *   the object we matched 
          */
-        if (contQual.matches.length() != 1)
+        if (contQual.npMatches.length() != 1)
         {
             /*
              *   We have a contents qualifier, and we have multiple objects
@@ -5667,7 +5667,7 @@ class NoneWithContentsError: ActorResolutionError
              */
             showMsg(none with contents,
                  '{I} {see} no {2} of {3}.',
-                 cmd, txt, contQual.matches[1].obj);
+                 cmd, txt, contQual.npMatches[1].obj);
         }
     }
 ;
@@ -5934,7 +5934,7 @@ class SpecialVerb: object
     checkSV(lst, svPhrase)
     {
         /* The direct object of the command, which is the second element of lst. */
-        obj = lst.element(2);
+        obj = lst.elementAt(2);
         
         /* 
          *   If the direct object of the command does not not match any of the objects/classes
@@ -6012,7 +6012,7 @@ class SpecialVerb: object
     }
     
     /* Check whether this SpecialVerb matches its conditions. */
-    matches(scope_, toks)
+    npMatches(scope_, toks)
     {       
         /* 
          *   Start calculating our score for this match by making it our priority plus the result of
@@ -6181,10 +6181,10 @@ class SpecialVerb: object
     {
         /* 
          *   Call objChecks with the second, third, and fourth elements of lst as arguments; these
-         *   correspond to the dobj, iobj and aobj of the command. Note that the element(i) method
+         *   correspond to the dobj, iobj and aobj of the command. Note that the elementAt(i) method
          *   simply returns nil if i is greater than the length of lst.
          */
-        return objChecks(lst.element(2), lst.element(3), lst.element(4));
+        return objChecks(lst.elementAt(2), lst.elementAt(3), lst.elementAt(4));
     }
         
     /* Our adjusted priority after attempting a match. */
@@ -6291,7 +6291,7 @@ specialVerbMgr: PreinitObject
         
         /* Calculate each SpecialVerb's match score, based partly on what's in scope. */
         foreach(local s in specs)
-            s.matches(scope_, tokWords);
+            s.npMatches(scope_, tokWords);
         
         /* Sort the list in descending order of score. */
         local svmatches = specs.sort(true, {a, b: a.score  - b.score });

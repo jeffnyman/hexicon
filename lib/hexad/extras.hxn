@@ -485,8 +485,8 @@ class Unthing: Decoration
      */
     filterResolveList(np, cmd, mode)
     {
-        if(np.matches.length > 1)
-            np.matches = np.matches.subset({m: m.obj != self});
+        if(np.npMatches.length > 1)
+            np.npMatches = np.npMatches.subset({m: m.obj != self});
     }
     
     
@@ -587,14 +587,14 @@ class CollectiveGroup: Fixture
     filterResolveList(np, cmd, mode)
     {
         /* If there are fewer than two matches, don't do any filtering */
-        if(np.matches.length < 2)
+        if(np.npMatches.length < 2)
             return;
         
         if(isCollectiveAction(cmd.action))
-           np.matches = np.matches.subset(
+           np.npMatches = np.npMatches.subset(
                {m: valToList(m.obj.collectiveGroups).indexOf(self) == nil});
         else
-            np.matches = np.matches.subset({m: m.obj != self });           
+            np.npMatches = np.npMatches.subset({m: m.obj != self });           
            
     }    
     
@@ -1137,8 +1137,8 @@ class ProxyDest: object
          *   If we're the potential target of a GO TO command and there are
          *   other possible matches, remove ourselves from the list of matches.
          */
-        if(cmd.action == GoTo && np.matches.length > 1)
-            np.matches = np.matches.subset({m: m.obj != self});
+        if(cmd.action == GoTo && np.npMatches.length > 1)
+            np.npMatches = np.npMatches.subset({m: m.obj != self});
     }   
 ;
 

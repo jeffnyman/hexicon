@@ -17,7 +17,7 @@ class Pathfinder: object
      *   The number of steps we have tried so far. We start with 1, being the
      *   null step to our starting point.
      */
-    steps = 1
+    pathSteps = 1
     
     /* 
      *   A Vector containing all the nodes we have visited so far in our attempt
@@ -44,7 +44,7 @@ class Pathfinder: object
         newPath.append([nil, start]);
         pathsFound.append(newPath);
         nodesVisited.append(start);
-        steps = 1;
+        pathSteps = 1;
         if(start == target)
             return newPath;
         
@@ -68,10 +68,10 @@ class Pathfinder: object
             
             /* cull all paths that are shorter than steps long */
             
-            pathsFound = pathsFound.subset({x: x.length == steps});
+            pathsFound = pathsFound.subset({x: x.length == pathSteps});
             
             /* see if any of the paths we've found lead to our target */
-            local pathFound = pathsFound.valWhich({x: x[steps][2] == target} );
+            local pathFound = pathsFound.valWhich({x: x[pathSteps][2] == target} );
             if(pathFound != nil)
             {
                 cachedRoute = pathFound;
@@ -79,13 +79,13 @@ class Pathfinder: object
             }
             
             /* remove all paths that end in nodes we've already visited */
-            pathsFound = pathsFound.subset({x: nodesVisited.indexOf(x[steps][2])
+            pathsFound = pathsFound.subset({x: nodesVisited.indexOf(x[pathSteps][2])
                                            == nil});
                 
                 /* note which nodes have now been visited */
                 
             foreach(local cur in pathsFound)
-                nodesVisited.append(cur[steps][2]);
+                nodesVisited.append(cur[pathSteps][2]);
             
             
          }
@@ -96,7 +96,7 @@ class Pathfinder: object
     takeOneStep()
     {
         /* Note that we've taken another step out from our starting point */
-        steps ++;
+        pathSteps ++;
         
         /* 
          *   Copy the existing paths into a temporary Vector, since we're about
@@ -138,7 +138,7 @@ routeFinder: Pathfinder
     findDestinations(cur)
     {
         /* Note the location our current path leads to */
-        local loc = cur[steps - 1][2];
+        local loc = cur[pathSteps - 1][2];
                 
         
         /* See what leads in every available direction from this location */
@@ -224,7 +224,7 @@ pcRouteFinder: Pathfinder
     findDestinations(cur)
     {
         /* Note the location our current path leads to */
-        local loc = cur[steps - 1][2];
+        local loc = cur[pathSteps - 1][2];
                
         /* See what leads in every available direction from this location */
         for(local dir = firstObj(Direction); dir != nil ; dir = nextObj(dir,

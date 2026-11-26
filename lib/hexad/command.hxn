@@ -278,11 +278,11 @@ class Command: object
                     
                     
                     /* get the NPMatch list for this role */
-                    local matches = self.(role.objListProp);
+                    local npMatches = self.(role.objListProp);
                     
                     /* get the list of names for this role's list of objects */
                     local names = Distinguisher.getNames(
-                        matches.mapAll({ m: m.obj }), nil);
+                        npMatches.mapAll({ m: m.obj }), nil);
                     
                     /* 
                      *   Assign each NPMatch object its name from the name list.
@@ -291,7 +291,7 @@ class Command: object
                      *   n[2] (the object list) contains the object in question,
                      *   then retrieve the name string from n[1].
                      */
-                    matches.forEach(
+                    npMatches.forEach(
                         { m: m.name = names.valWhich(
                             { n: n[2].indexOf(m.obj) != nil })[1] });
                 }
@@ -850,13 +850,13 @@ class Command: object
              *   object.  Disambiguate in the context of TALK TO.  
              */
             local anp = actorNPs[1];
-            if (anp.matches.length() > 1)
+            if (anp.npMatches.length() > 1)
                 anp.disambiguate(self, 1, TalkTo);
-            if (anp.matches.length() == 0)
+            if (anp.npMatches.length() == 0)
                 throw new UnmatchedActorError(anp);
 
             /* pull out the match as the actor object */
-            actor = anp.matches[1].obj;
+            actor = anp.npMatches[1].obj;
         }
 
         /* 
@@ -977,7 +977,7 @@ class Command: object
                 np.buildObjList();
 
                 /* append it to the master match list for this slot */
-                self.(role.objListProp).appendAll(np.matches);
+                self.(role.objListProp).appendAll(np.npMatches);
             }
         }
     }

@@ -123,9 +123,9 @@ class RemapCmd: object
      */
     doInstead(action,[args]) {
         /* get the optional items */
-        local dobj = args.element(1);
-        local iobj = args.element(2);    
-        local aobj = args.element(3);
+        local dobj = args.elementAt(1);
+        local iobj = args.elementAt(2);    
+        local aobj = args.elementAt(3);
         
         local deftext = '';
         local len = args.length();

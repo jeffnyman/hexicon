@@ -1126,8 +1126,8 @@ modify Thing
          */
         if(valToList(self.(prop)).indexOf(objVisible)             
            && !now.actor.canSee(self)
-           && np.matches.indexWhich({m: now.actor.canSee(m.obj)}))
-           np.matches = np.matches.subset({m: m.obj != self});   
+           && np.npMatches.indexWhich({m: now.actor.canSee(m.obj)}))
+           np.npMatches = np.npMatches.subset({m: m.obj != self});   
         
         
         /* 
@@ -1137,8 +1137,8 @@ modify Thing
          *   matches, remove us from the list of matches.
          */
         if(valToList(self.(prop)).indexOf(touchObj)
-           && np.matches.indexWhich({m: m.obj.isIn(loc)}))
-           np.matches = np.matches.subset({m: m.obj != self}); 
+           && np.npMatches.indexWhich({m: m.obj.isIn(loc)}))
+           np.npMatches = np.npMatches.subset({m: m.obj != self}); 
         
     }
     

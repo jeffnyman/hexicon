@@ -87,7 +87,7 @@ class Collective: Thing
             collectiveIobjMatch = collectiveMatch;
         
         /* Go through each of the NPMatch objects in our list. */
-        foreach(local cur in np.matches)
+        foreach(local cur in np.npMatches)
         {
             /* 
              *   Only worry about it if the NPMatch object's associated object
@@ -102,13 +102,13 @@ class Collective: Thing
                  *   the list of possible matches.
                  */
                 if(collectiveMatch || collectiveAction(np, cmd))
-                    np.matches -= cur;
+                    np.npMatches -= cur;
                 
                 /*  Otherwise prefer the individual item. */
                 else
                 {                    
                     /* So remove our NPMatch object from the list of matches. */
-                    np.matches = np.matches.subset({m: m.obj != self});
+                    np.npMatches = np.npMatches.subset({m: m.obj != self});
                     
                     /* 
                      *   Then stop looping through the match list, since there's

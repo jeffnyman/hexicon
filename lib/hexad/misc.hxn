@@ -2524,7 +2524,7 @@ modify List
     }
         
     /*  Returns the ith member of the list if there is one, or nil otherwise */
-    element(i)
+    elementAt(i)
     {
         return length >= i ? self[i] : nil;
     }

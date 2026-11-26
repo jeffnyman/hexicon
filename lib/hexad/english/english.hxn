@@ -4260,12 +4260,12 @@ npListPronoun(pro, nplst, prep)
     local np = nplst[1];
 
     /* if it explicitly refers to multiple objects, use 'them' */
-    if (np.matches.length() > 1 && np.isMultiple())
+    if (np.npMatches.length() > 1 && np.isMultiple())
         return '<<prep>> them';
 
     /* run through the matches and check for genders */
     local him = true, her = true, them = true;
-    foreach (local m in np.matches)
+    foreach (local m in np.npMatches)
     {
         if (!m.obj.isHim)
             him = nil;

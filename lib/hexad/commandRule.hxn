@@ -45,9 +45,9 @@ class Redirector: object
     {
         
         /* Extract our dobj and our iobj from the args parameter. */
-        local dobj = args.element(1);
-        local iobj = args.element(2);    
-        local aobj = args.element(3);
+        local dobj = args.elementAt(1);
+        local iobj = args.elementAt(2);    
+        local aobj = args.elementAt(3);
         
         /* 
          *   If the action involves a Literal argument and one of the arguments

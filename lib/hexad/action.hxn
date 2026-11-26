@@ -3062,8 +3062,8 @@ execNestedAction(isReplacement, actor, action, [objs])
      *   Change the current Command object's action to the new action with its
      *   new objects.
      */
-    now.command.changeAction(action, objs.element(1), objs.element(2),
-                          objs.element(3));
+    now.command.changeAction(action, objs.elementAt(1), objs.elementAt(2),
+                          objs.elementAt(3));
     
     /* If our objects aren't in scope we can't proceed with the action. */ 
     if (objs.length > 0 && !action.resolvedObjectsInScope())

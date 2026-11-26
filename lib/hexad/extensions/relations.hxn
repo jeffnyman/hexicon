@@ -785,7 +785,7 @@ relationPathfinder: Pathfinder
     findDestinations(cur)
     {
         /* Note the object our current path leads to */
-        local obj = cur[steps - 1][2];
+        local obj = cur[pathSteps - 1][2];
         
         /* Find everything related to this object via relation. */
         local lst = [];

@@ -42,7 +42,7 @@ modify Think
              */             
             local ret = null;
             
-            if(ruleBook && (ret = ruleBook.follow()) != null)
+            if(thinkRuleBook && (ret = thinkRuleBook.follow()) != null)
             {
                 if(suggestAlways)
                     "<.p>";
@@ -240,7 +240,7 @@ enumTboughtSuggestionsPreparser: StringPreParser
              *   If we have a number and that number is in the range of the number of topic
              *   suggestions listed then replace str with the corresponding conversational command.
              */
-            if(num && num <= suggestionEnumerator.count && num > 0)
+            if(num && num <= suggestionEnumerator.suggestionCount && num > 0)
             {
                 /* 
                  *   Change str to the corresponding item in suggestionEnumerator's suggestion list.
