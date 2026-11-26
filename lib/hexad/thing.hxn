@@ -7974,7 +7974,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            showMsg(okay turn to, 'Okay, {I} turn{s/ed} {1} to {2}', now.actionListStr, 
+            showMsg(okay turn to, 'Okay, {i} turn{s/ed} {1} to {2}. ', now.actionListStr, 
                  now.literal);
         }
     }
@@ -9028,7 +9028,10 @@ class Thing:  ReplaceRedirector, Mentionable
 
     cannotBuyMsg = msgText(cannot buy, '{The subj dobj} {is}n\'t for sale. ')
 
-    /* CONSULT on its own asks what about. */
+    /*
+     *   CONSULT on its own asks what about, always: there is no topic it
+     *   could guess.
+     */
     dobj Consult
     {
         preCond = [touchObj]
@@ -9037,7 +9040,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isConsultable)
                 illogical(cannotConsultMsg);
         }
-        action() { askForIobj(ConsultAbout); }
+        action() { askForIobjX(ConsultAbout); }
     }
 
     dobj PourOnto

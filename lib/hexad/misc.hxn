@@ -1072,8 +1072,12 @@ now: object
     /* the list of objects involved in the action just completed */
     actionList = (nilToList(libGlobal.curCommand.action.actionList))
 
-    /* a string to display for the list */
-    actionListStr = (makeListStr(libGlobal.curCommand.action.reportList, &theName))
+    /* 
+     *   a string to display for the list, without the state of each thing
+     *   that a listing adds ("You light the lamp", not "the lamp (providing
+     *   light)")
+     */
+    actionListStr = (makeListStr(libGlobal.curCommand.action.reportList, &theName, 'and', true))
 
     /*
      *   An object that is singular or plural according to whether

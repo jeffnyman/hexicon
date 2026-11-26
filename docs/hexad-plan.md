@@ -310,6 +310,47 @@ Open question, for the next time Hexad gains a class: Square Circle did not buil
 
 **Settled, 2026-11-26: a name taken already is an error that says where.** Not the action rule for classes, since Hexad builds on its own classes (its subclasses, its objects of them, its `ofKind` tests), and a game's class taking their place unseen could change what they do; an error at build time is what a game upgraded onto a newer Hexad should get. But the error was the old one's, with no line: `the name "Vaporous" (type: object) redefined in source file "compat.hxn"`. Now a game's source is told what the sources before it define, and a class, object, or function defined again is reported at its own line, saying whose it was: `"Vaporous" is already a class of the built-in library's`, with the note `rename yours, or write "replace class Vaporous" to use it in place of the library's`, or, for one of the game's own sources, `"o" is already an object, in "a.hxn"`. What only putting the sources together finds, such as a `modify` that comes before the definition, says `"later" is already taken when "b.hxn" defines an object of that name`. Compiler tests check each, and that the `replace` the note suggests is accepted; four program cases record the new words; Getting Started shows the error.
 
+### Hollin Cutting (2026-11-26)
+
+The second original game, written from the guide as the Tide Mill left it, and meant to use what the first did not: a character who walks in with news and talks, a clock, a book to look things up in, a code tapped out on a bell, keys on a keyring, a lamp set to red, hints, two ways to win and one to lose. A relief signalman learns from the platelayer that the side of the cutting has come down across the line, with the express due at twenty to twelve: tap the bell code for an obstruction to Ashby, the box in rear, which holds the train; or, failing that, fetch the detonators from the hut, clip them to the rail in the cutting, and show a red lamp. Six rooms, one character, six points, about 600 lines, in the playground's `game-tests/hollin`, with four scripts: the Ashby route, the detonator route, doing nothing (the express runs into the slip), and about fifty commands in a player's words.
+
+**Fixed in Hexad:**
+
+- **TURN ... TO said "Okay, You turn the hand lamp to red"**, with a capital after the comma and no full stop.
+- **CONSULT, with one thing to consult in reach, guessed a topic** ("(in the rule book)") and said the book had nothing to say, instead of asking what to look up. It now always asks.
+- **Every action's report could carry a listing's state**: "You light the hand lamp (providing light)", and in the exercises "Pushing the general store (providing light) has no effect", "Turning your bedsit (providing light) achieves nothing", when the room is lit. The list in a report (`actionListStr`) now leaves the state out.
+
+`hexad-fixes` checks each.
+
+**What the guide does not say**, which the game needed:
+
+| Needed | What Hexad has |
+|---|---|
+| A character who comes in and speaks first, so that what the player asks next is not met with a greeting | `initiateConversation(state, text)` |
+| A character who does something on a given turn | `AgendaItem`, with `initiallyActive`, `isReady`, `invokeItem()`, and `isDone`; the guide names it only |
+| A lamp whose glass turns to red, white, or green | `canTurnMeTo`, `canSetMeTo`, `checkSetting()`, `makeSetting()`, `curSetting` |
+| TAP 6: a command with words of the player's own | `LiteralAction` with `literalDobj`, and `cmd.dobj.name` for the words |
+| TURN ON for a lamp that is lit, not switched | `dobj SwitchOn as Light` |
+| Hints | `TopHintMenu`, and `Goal ->achievement 'title' [hints]` with `openWhenTrue` and the other `openWhen...` |
+| A room whose name is proper, for the ways out ("up to the hollin cutting box") | `vocab`, or `proper`: a room's name is its title in lower case otherwise |
+| Strings: replacing by a pattern, and a number in words | `regexReplace` (adv3's `rexReplace`), `spellNumber`; the language page has almost nothing of the system's functions |
+| When a daemon made at the start first runs | the turn after: the game's clock ran a turn behind what it meant |
+
+**What the compiler and Hexad do that cost time:**
+
+- **A description written after a property, in a class** (`isPulled = nil` and then `"Lever..."`), is nine errors about the string's pieces, none saying that a template's values come before the properties.
+- **Hexad has properties named `ruleBook` and `register`**, ordinary words a game wants for its objects. The message says so clearly; but a library that takes such names costs every author who meets them.
+- **`dobj Push as Ring`, with no action Ring** (Hexad has none: the guide's Belfry makes its own), gives four warnings about `preCondDobjRing` and the rest, where one, that there is no action Ring, would do.
+
+**What players type that Hexad does not understand:** RING THE BELL (no RING), WAVE or SWING THE LAMP (no WAVE), LAY THE DETONATORS (no LAY), WAIT FOR THE TRAIN (no WAIT FOR), and TIME.
+
+**And:**
+
+- **After the game ends, S restarts it.** R is RESTORE and S RESTART, as in adv3, and the prompt in plain text shows neither; a player typing a direction after the end starts again.
+- **A thing with a plural name is taken in the long form**, "You take the detonators.", since a plural is read as "all of them"; right for a heap of apples, odd for one string of detonators.
+
+Recommended (2026-11-26): the guide's gaps in one pass, as after the Tide Mill (characters who act and speak first, settings, literal commands, hints, room names, and a page or a section on the system's functions); then the compiler's two messages; then the verbs (RING, WAVE, LAY, WAIT FOR); and a decision on the ending's S, and on Hexad's own names that are ordinary words.
+
 ### Return to Ditch Day (surveyed 2026-11-26)
 
 Michael Roberts's 2004 game, written to show adv3 at its fullest: 36,160 lines in 21 files, twice Square Circle. Before deciding on a port, a survey of what it uses (the playground's `tools/adv3-classes.py` and `tools/adv3-calls.py`, which compare a game's adv3 classes and calls with Hexad's). **Its licence, like Square Circle's, forbids distributing a changed version**, so a port would live in the private playground.
