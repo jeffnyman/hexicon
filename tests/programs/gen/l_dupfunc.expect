@@ -1,4 +1,8 @@
 image: none
 --- messages
-error: the name "f" (type: function) redefined in source file "b.hxn"
+error: "f" is already a function, in "a.hxn"
+  --> b.hxn:2
+  |
+2 | f(x) { return 2; }
+  |
 --- output

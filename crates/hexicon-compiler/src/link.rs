@@ -240,20 +240,18 @@ impl Linker {
         self.errors.push(message);
     }
 
-    fn conflict(&mut self, name: &[u8], old: &Global, new: &Global, object_file: &str) {
-        let (old, new) = (kind_name(old), kind_name(new));
-        self.error(if old == new {
-            format!(
-                "the name \"{}\" (type: {old}) redefined in source file \"{object_file}\"",
-                show_name(name)
-            )
+    fn conflict(&mut self, name: &[u8], _old: &Global, new: &Global, object_file: &str) {
+        let new = kind_name(new);
+        let article = if new.starts_with(['a', 'e', 'i', 'o', 'u']) {
+            "an"
         } else {
-            format!(
-                "the name \"{}\" (type: {old}) redefined (type: {new}) in source file \
-                 \"{object_file}\"",
-                show_name(name)
-            )
-        });
+            "a"
+        };
+        self.error(format!(
+            "\"{}\" is already taken when \"{object_file}\" defines {article} {new} of \
+             that name",
+            show_name(name)
+        ));
     }
 
     fn new_obj_id(&mut self) -> u32 {

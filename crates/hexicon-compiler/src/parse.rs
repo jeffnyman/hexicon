@@ -1300,10 +1300,12 @@ pub(crate) struct Parser<'p, 'a> {
     src_order_idx: i32,
     /// The module being compiled: its name and its place in the build.
     module: Option<(String, usize)>,
-    /// The names the built-in libraries define, for a game's source: an
-    /// action or a verb rule of the game's own with one of them takes
-    /// the place of the library's.
-    library_names: HashSet<Vec<u8>>,
+    /// For a game's source, the names the sources before it define, each
+    /// with the source of the game's that does, or none for a built-in
+    /// library: an action or a verb rule of the game's own with a
+    /// library's name takes its place, and anything else defined again is
+    /// reported here.
+    defined_before: HashMap<Vec<u8>, Option<String>>,
     /// Objects say which source file they are in: the object that
     /// stands for the file, once it has been made.
     src_group_mode: bool,
@@ -1518,7 +1520,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             self_valid: false,
             src_order_idx: 1,
             module: None,
-            library_names: HashSet::new(),
+            defined_before: HashMap::new(),
             src_group_mode: false,
             src_group_obj: None,
             has_local_ctx: false,
@@ -1549,10 +1551,19 @@ impl<'p, 'a> Parser<'p, 'a> {
 
     /// Say which module this is: its name and its place in the build,
     /// from 1; and whether its objects say so from the start.
-    /// The names the built-in libraries define, when this is a source
-    /// of the game's own.
-    pub(crate) fn set_library_names(&mut self, names: HashSet<Vec<u8>>) {
-        self.library_names = names;
+    /// What the sources before this one define, when it is a source of
+    /// the game's own.
+    pub(crate) fn set_defined_before(&mut self, names: HashMap<Vec<u8>, Option<String>>) {
+        self.defined_before = names;
+    }
+
+    /// Where a name defined again here was defined before: a built-in
+    /// library ("of the built-in library's") or a source of the game's.
+    fn defined_where(&self, name: &[u8]) -> Option<String> {
+        match self.defined_before.get(name)? {
+            None => Some(" of the built-in library's".to_owned()),
+            Some(source) => Some(format!(", in \"{source}\"")),
+        }
     }
 
     /// Whether an action or verb rule of this name is the game's own
@@ -1565,7 +1576,7 @@ impl<'p, 'a> Parser<'p, 'a> {
         global: &[u8],
         what: &str,
     ) -> bool {
-        if !self.library_names.contains(global) {
+        if self.defined_before.get(global) != Some(&None) {
             return false;
         }
         self.tok.log_at(
@@ -3197,6 +3208,20 @@ impl<'p, 'a> Parser<'p, 'a> {
                 let message = self.taken(&name, "function");
                 self.tok
                     .log_at(sym_file, sym_line, Severity::Error, message);
+                return Ok(());
+            }
+            Some(Global::Func(id))
+                if redef == Redef::No
+                    && self.prog.funcs[id].is_extern
+                    && self.defined_before.contains_key(&name) =>
+            {
+                let place = self.defined_where(&name).unwrap_or_default();
+                self.tok.log_at(
+                    sym_file,
+                    sym_line,
+                    Severity::Error,
+                    format!("\"{}\" is already a function{place}", Self::name(&name)),
+                );
                 return Ok(());
             }
             Some(Global::Func(id)) => {
@@ -6949,6 +6974,25 @@ impl Parser<'_, '_> {
                 }
                 modify = Some((base_id, prev));
                 Some(obj)
+            }
+            // One of the built-in libraries' own, defined again by the
+            // game without `replace`.
+            Some(Global::Obj(obj))
+                if redef == Redef::No
+                    && self.prog.objs[obj].is_extern
+                    && self.defined_before.contains_key(&name) =>
+            {
+                let what = if self.prog.objs[obj].is_class {
+                    "a class"
+                } else {
+                    "an object"
+                };
+                let place = self.defined_where(&name).unwrap_or_default();
+                self.error(format!(
+                    "\"{}\" is already {what}{place}",
+                    Self::name(&name)
+                ));
+                None
             }
             Some(Global::Obj(obj)) if self.prog.objs[obj].is_extern => {
                 let sym = &mut self.prog.objs[obj];

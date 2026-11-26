@@ -1,5 +1,14 @@
 image: none
 --- messages
-error: the name "C" (type: object) redefined in source file "b.hxn"
-error: the name "o" (type: object) redefined in source file "b.hxn"
+error: "o" is already an object, in "a.hxn"
+  --> b.hxn:2
+  |
+2 | o: object x = 2;
+  |
+
+error: "C" is already a class, in "a.hxn"
+  --> b.hxn:3
+  |
+3 | class C: object;
+  |
 --- output

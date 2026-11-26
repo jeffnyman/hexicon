@@ -354,13 +354,19 @@ pub fn compile_program(
         }
         exports.push(prog.exports());
     }
-    // What the built-in libraries define, which a game's own action or
-    // verb rule may take the place of.
-    let library_names: std::collections::HashSet<Vec<u8>> = exports
+    // What each source defines: for a game's source, a name a source
+    // before it defines is reported where it is defined again, and an
+    // action or verb rule of the built-in libraries' may be replaced.
+    let defined: Vec<Vec<Vec<u8>>> = exports
         .iter()
-        .enumerate()
-        .filter(|(index, _)| options.from_library.get(*index) == Some(&true))
-        .flat_map(|(_, exported)| exported.objs.iter().map(|obj| obj.name.clone()))
+        .map(|exported| {
+            exported
+                .objs
+                .iter()
+                .map(|obj| obj.name.clone())
+                .chain(exported.funcs.iter().map(|func| func.name.clone()))
+                .collect()
+        })
         .collect();
     let known = merge_exports(exports);
 
@@ -390,7 +396,14 @@ pub fn compile_program(
         let mut parser = Parser::new(&mut pp, false, known.clone());
         parser.set_module(module, options.source_text_group);
         if !from_library(index) {
-            parser.set_library_names(library_names.clone());
+            let mut before = std::collections::HashMap::new();
+            for (earlier, names) in defined.iter().enumerate().take(index) {
+                let by = (!from_library(earlier)).then(|| sources[earlier].to_owned());
+                for name in names {
+                    before.entry(name.clone()).or_insert_with(|| by.clone());
+                }
+            }
+            parser.set_defined_before(before);
         }
         let mut prog = parser.parse_top();
         let mut found = pp.take_diagnostics();

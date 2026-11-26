@@ -15,6 +15,26 @@ fn between<'t>(text: &'t str, before: &str, after: &str) -> Option<&'t str> {
 
 /// A message and a note, in Hexicon's words.
 fn hexicon_words(message: &str) -> Option<(String, Option<String>)> {
+    // A game's definition of a name a built-in library defines.
+    for (what, replace) in [
+        ("a class", "replace class "),
+        ("an object", "replace "),
+        ("a function", "replace "),
+    ] {
+        let ending = format!("\" is already {what} of the built-in library's");
+        if let Some(name) = message
+            .strip_prefix('"')
+            .and_then(|rest| rest.strip_suffix(ending.as_str()))
+        {
+            return Some((
+                message.to_owned(),
+                Some(format!(
+                    "rename yours, or write \"{replace}{name}\" to use it in place of the \
+                     library's"
+                )),
+            ));
+        }
+    }
     if let Some(name) = between(
         message,
         "undefined name \"",

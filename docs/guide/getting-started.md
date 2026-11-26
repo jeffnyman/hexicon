@@ -357,6 +357,19 @@ error: "Kye" is not defined anywhere
    = did you mean "Key"?
 ```
 
+A name can be taken already, by something of Hexad's. A game that defines its own class, object, or function of the same name, perhaps one written before Hexad had it, is told where, and what to do:
+
+```
+error: "Vaporous" is already a class of the built-in library's
+  --> start.hxn:7
+  |
+7 | class Vaporous: Decoration
+  |
+  = rename yours, or write "replace class Vaporous" to use it in place of the library's
+```
+
+An action or a rule of the grammar is different: one of the game's own with the name of one of Hexad's takes its place, with a warning (see [Actions and Their Handlers](actions.md#new-actions)).
+
 Some mistakes show only when the game runs: a property asked of `nil`, or a method given the wrong number of arguments. The game then says what went wrong and where: the line in your source, then the lines of yours that led there, and how many lines inside Hexad it left out. Play goes on with the next command, and UNDO takes back what the failed one had done:
 
 ```

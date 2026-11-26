@@ -2804,8 +2804,8 @@ fn what_two_files_both_define_is_found_when_they_are_put_together() {
     assert_eq!(
         messages_of(compile_files(&[("one.hxn", one), ("two.hxn", two)])),
         [
-            "(0): the name \"f\" (type: function) redefined in source file \"two.hxn\"",
-            "(0): the name \"o\" (type: object) redefined in source file \"two.hxn\"",
+            "two.hxn(1): \"f\" is already a function, in \"one.hxn\"",
+            "two.hxn(2): \"o\" is already an object, in \"one.hxn\"",
         ]
     );
 }
@@ -2941,7 +2941,7 @@ fn a_second_definition_has_to_come_after_the_first() {
             "two.hxn(1): \"y\" is given a value here, but nothing reads it",
             "(0): modified or replaced object \"later\" found in source file \"one.hxn\" \
              before original object definition was loaded",
-            "(0): the name \"later\" (type: object) redefined in source file \"two.hxn\"",
+            "(0): \"later\" is already taken when \"two.hxn\" defines an object of that name",
         ]
     );
     // The other way about, it is the object the first file defined
@@ -3845,6 +3845,59 @@ mod checked_names {
                 "game.hxn(3): the handler \"dobj Takee\" is never called",
                 "game.hxn(6): \"isTakable\" is given a value here, but nothing reads it",
             ]
+        );
+    }
+
+    #[test]
+    fn a_librarys_name_defined_again_by_the_game_is_reported_where_it_is() {
+        let library = "class Vapor: object;\n\
+                       sortAll(lst) { return lst; }\n\
+                       _main(args) { return sortAll([]); }\n";
+        let game = "class Vapor: object;\nsortAll(lst) { return lst; }\n";
+        let mut files = Files::default()
+            .with("lib.hxn", library)
+            .with("game.hxn", game);
+        let options = CompileOptions {
+            from_library: vec![true, false],
+            ..CompileOptions::default()
+        };
+        let found: Vec<(u32, String, Option<String>)> =
+            crate::compile_program(&mut files, &["lib.hxn", "game.hxn"], &options)
+                .diagnostics
+                .into_iter()
+                .map(|d| (d.line, d.message, d.note))
+                .collect();
+        assert_eq!(
+            found,
+            [
+                (
+                    1,
+                    "\"Vapor\" is already a class of the built-in library's".to_owned(),
+                    Some(
+                        "rename yours, or write \"replace class Vapor\" to use it in place \
+                         of the library's"
+                            .to_owned()
+                    )
+                ),
+                (
+                    2,
+                    "\"sortAll\" is already a function of the built-in library's".to_owned(),
+                    Some(
+                        "rename yours, or write \"replace sortAll\" to use it in place of \
+                         the library's"
+                            .to_owned()
+                    )
+                ),
+            ]
+        );
+        // Written as the note says, it takes the library's place.
+        assert_eq!(
+            messages_with(
+                library,
+                "game.hxn",
+                "replace class Vapor: object;\nreplace sortAll(lst) { return lst; }\n"
+            ),
+            Vec::<String>::new()
         );
     }
 

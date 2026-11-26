@@ -8,5 +8,5 @@ warning: "y" is given a value here, but nothing reads it
   = did you mean "x"?
 
 error: modified or replaced object "gone" found in source file "a.hxn" before original object definition was loaded
-error: the name "gone" (type: object) redefined in source file "b.hxn"
+error: "gone" is already taken when "b.hxn" defines an object of that name
 --- output
