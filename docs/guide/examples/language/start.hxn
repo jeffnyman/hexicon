@@ -53,6 +53,10 @@ strings()
     "\n";
     "<<name.toUpper()>> <<name.substr(2)>> <<name.find('d')>>\n";
     "<<'a,b,c'.split(',').length()>> <<toString(12) + '!'>> <<toInteger('7') + 1>>\n";
+    // Patterns: a match, a search, and a replacement.
+    local code = 'tap 6 times';
+    "<<regexMatch(R'tap', code)>> <<regexSearch(R'<digit>+', code)[3]>> \
+    <<regexReplace(R'<digit>+', code, 'six', ReplaceAll)>>\n";
 }
 
 // ---------------------------------------------------------------------

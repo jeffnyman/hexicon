@@ -159,6 +159,33 @@ The rust comes away on the rag.
 
 PUSH has `isPushable`, LOCK `lockability`, EAT `isEdible`, and so on: Hexad's own handlers, in `thing.hxn` in its sources, say which each uses. Some of these only decide whether the action makes sense, and leave what happens to the game. POUR is one: a thing that can be poured has `isPourable` (and `fluidName`, for an oilcan that pours oil: `'the oil'`), and a thing that may have something poured onto it has `allowPourOntoMe`; but pouring itself changes nothing, so the thing poured onto has an `iobj PourOnto` with an `action()` that says what happens. ATTACH is another; see [Containers, Surfaces, Doors, and Keys](containers-and-doors.md#things-attached-to-things).
 
+TURN ... TO and SET ... TO are for a thing with settings, such as a dial: `canTurnMeTo` and `canSetMeTo` let it be turned or set, `curSetting` is where it is, `checkSetting(val)` refuses a setting by saying why, and `makeSetting(val)`, which sets `curSetting`, is where the thing can do more:
+
+```hexicon
+// A dial with settings: TURN DIAL TO 2, or SET it.
++ dial: Fixture 'chime dial; brass; dial'
+    "A brass dial for the chimes, set to <<curSetting>>. "
+    curSetting = '1'
+    canTurnMeTo = true
+    canSetMeTo = true
+    checkSetting(val)
+    {
+        if (val not in ('1', '2', '3'))
+            "The dial goes from 1 to 3. ";
+    }
+;
+```
+
+```transcript
+>turn dial to 2
+Okay, you turn the chime dial to 2.
+
+>set dial to 5
+The dial goes from 1 to 3.
+```
+
+What the player says comes as text, `'2'`, not the number 2.
+
 ## Things that happen later
 
 Something that is to happen some turns from now is a **fuse**: `new Fuse(obj, &method, turns)` calls the object's method after that many turns. Ringing the bell starts it humming, and two turns later it stops. Rung again, it starts over: `removeEvent()` puts out the fuse that was burning.
@@ -190,6 +217,8 @@ Your voice echoes round the stone walls.
 
 The bell’s hum dies away.
 ```
+
+A fuse or a daemon starts counting at the end of the turn after the one it is made in: the bell's fuse, made on the turn it is rung, goes off at the end of the second turn after that one. Made in `showIntro()`, before the first command, it counts as made on the first turn, so a daemon that runs every turn runs first at the end of the second, and one that counts the turns is a turn behind.
 
 A **daemon** is the same, every so many turns rather than once: `new Daemon(obj, &method, 1)` calls the method every turn, until its `removeEvent()`. Either runs whether or not the player is there to see, so a method that prints should first ask whether they are (`me.isIn(belfry)`).
 
@@ -257,6 +286,25 @@ action Sing: IAction
 verb Sing 'sing':
     verbPhrase = 'sing/singing'
 ;
+```
+
+### An action with the player's own words
+
+A `LiteralAction` takes whatever the player types after its word, as text: SHOUT HELLO, or TAP 3-1. `literalDobj` in its grammar is where the words go, and `cmd.dobj.name` is what they were:
+
+```hexicon
+// A new action, SHOUT, which takes the player's own words.
+action Shout: LiteralAction
+    execAction(cmd)
+    {
+        "<q><<cmd.dobj.name.toUpper()>>!</q> you shout, and the bell hums. ";
+    }
+;
+```
+
+```transcript
+>shout hello
+“HELLO!” you shout, and the bell hums.
 ```
 
 ### More words for an action

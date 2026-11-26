@@ -137,14 +137,21 @@ A string has methods of its own:
 ```hexicon
     "<<name.toUpper()>> <<name.substr(2)>> <<name.find('d')>>\n";
     "<<'a,b,c'.split(',').length()>> <<toString(12) + '!'>> <<toInteger('7') + 1>>\n";
+    // Patterns: a match, a search, and a replacement.
+    local code = 'tap 6 times';
+    "<<regexMatch(R'tap', code)>> <<regexSearch(R'<digit>+', code)[3]>> \
+    <<regexReplace(R'<digit>+', code, 'six', ReplaceAll)>>\n";
 ```
 
 ```transcript
 ADA da 2
 3 12! 8
+3 6 tap six times
 ```
 
 Positions in a string, like those in a list, count from 1.
+
+A string written `R'...'` is a **pattern**, a regular expression, in which `<digit>`, `<alpha>`, `<space>`, and the like stand for a kind of character, `+` for one or more, and `*` for any number. `regexMatch(pattern, str)` says how much of the start of the string matches, or `nil`; `regexSearch(pattern, str)` finds the first match anywhere, as a list of where it starts, how long it is, and what it is; and `regexReplace(pattern, str, with, ReplaceAll)` replaces every match (`ReplaceOnce`, only the first). The methods of strings, and the system's other functions, are in its headers (`general.h` among them), and Hexad adds some of its own for games, such as `spellNumber(5)`, which is `'five'`.
 
 ## Lists
 

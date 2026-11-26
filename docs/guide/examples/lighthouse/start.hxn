@@ -127,3 +127,14 @@ modify lighthouseDoor
             openedDoor.awardPointsOnce();
     }
 ;
+
+// Hints: a menu of goals, each with its hints, shown one at a time.
+TopHintMenu 'Hints';
+
++ Goal ->openedDoor 'How do I get into the lighthouse?'
+    [
+        'The door is locked. Is there a key nearby?',
+        'Look in the tin box on the shore.'
+    ]
+    openWhenSeen = lighthouseDoor
+;

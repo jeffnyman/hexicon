@@ -65,6 +65,34 @@ The ferryman spits into the river.
 - in an `AgendaItem`, which he carries out whether the player can see him or not, though, like the list, not on a turn he is talked to;
 - or in a `Daemon` or a `Fuse`, which runs every turn, or after so many, whatever else is going on.
 
+### Doing something when its time comes
+
+An `AgendaItem` inside a character is something he will do. Each turn he does the first of his that is ready (`isReady`), by its `invokeItem()` method, until it says it is done (`isDone = true`); `initiallyActive = true` puts it on his agenda from the start. Here, once he is paid, the ferryman calls the player aboard. He speaks first, with `initiateConversation(state, text)`, which starts a conversation, so that what the player says next is not met with a greeting; the state, if not `nil`, is the one he goes into.
+
+```hexicon
+// Something he does himself, when its time comes: once he is paid, he
+// calls the player aboard, and that starts a conversation.
+++ callAboard: AgendaItem
+    initiallyActive = true
+    isReady = (ferryman.curState == paidState)
+    invokeItem()
+    {
+        ferryman.initiateConversation(nil, '<q>In you get, then,</q> the
+            ferryman says, and holds the boat steady. ');
+        isDone = true;
+    }
+;
+```
+
+```transcript
+>x ferryman
+A lean old man in a patched coat.  He has been paid.
+
+“In you get, then,” the ferryman says, and holds the boat steady.
+```
+
+A character can also be given an item later, with `addToAgenda(item)`. Moving him is `moveInto(room)`, as for any thing, or `travelVia(connector)` to have him seen to leave and arrive.
+
 ## What characters say
 
 What a character says is in **topic entries** inside him. Each answers one kind of command, about one thing:

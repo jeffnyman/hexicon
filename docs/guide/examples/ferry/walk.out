@@ -54,13 +54,15 @@ He bites the penny, and nods.
 >x ferryman
 A lean old man in a patched coat.  He has been paid.
 
-The ferryman shifts his pole from one hand to the other.
+“In you get, then,” the ferryman says, and holds the boat steady.
 
 >look
 River Bank
 Reeds and mud, and a wide grey river.
 
 The ferryman stands in his boat, ready to push off.
+
+The ferryman shifts his pole from one hand to the other.
 
 >ask him about island
 “Sit down, and we’ll be off,” he says.
@@ -74,10 +76,10 @@ Time passes.
 >wait
 Time passes.
 
-The ferryman spits into the river.
-
 >wait
 Time passes.
+
+The ferryman spits into the river.
 
 >talk to ferryman
 “You again,” he says.

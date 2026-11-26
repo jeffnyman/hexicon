@@ -43,6 +43,19 @@ verb Sing 'sing':
     verbPhrase = 'sing/singing'
 ;
 
+// A new action, SHOUT, which takes the player's own words.
+action Shout: LiteralAction
+    execAction(cmd)
+    {
+        "<q><<cmd.dobj.name.toUpper()>>!</q> you shout, and the bell hums. ";
+    }
+;
+
+verb Shout 'shout' literalDobj:
+    verbPhrase = 'shout/shouting (what)'
+    missingQ = 'what do you want to shout'
+;
+
 // Another rule for RING.
 verb Toll for Ring 'toll' singleDobj:
     verbPhrase = 'toll/tolling (what)'
@@ -111,6 +124,19 @@ belfry: Room 'Belfry'
         action() { replaceAction(Ring, bell); }
     }
     dobj Ring as Pull
+;
+
+// A dial with settings: TURN DIAL TO 2, or SET it.
++ dial: Fixture 'chime dial; brass; dial'
+    "A brass dial for the chimes, set to <<curSetting>>. "
+    curSetting = '1'
+    canTurnMeTo = true
+    canSetMeTo = true
+    checkSetting(val)
+    {
+        if (val not in ('1', '2', '3'))
+            "The dial goes from 1 to 3. ";
+    }
 ;
 
 // A niche for the rag, and nothing else: now.dobj is the thing being put

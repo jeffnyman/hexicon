@@ -67,4 +67,16 @@ The niche is for the rag.
 >put rag in niche
 You put the oily rag in the niche.
 
+>turn dial to 2
+Okay, you turn the chime dial to 2.
+
+>set dial to 5
+The dial goes from 1 to 3.
+
+>x dial
+A brass dial for the chimes, set to 2.
+
+>shout hello
+“HELLO!” you shout, and the bell hums.
+
 >

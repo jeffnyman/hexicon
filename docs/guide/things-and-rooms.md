@@ -232,6 +232,8 @@ landing: Room 'Landing'
     the stairs lead down. "
 ```
 
+A room is also a thing the game can name, in the ways out of another room ("up to the landing"). Its name is its title, in lower case, with "the": right for "Landing", not for a name of its own. A room whose name is its own says so with its vocabulary, `vocab = 'Hollin Cutting box; signal; box'`, whose capitals Hexad keeps ("up to Hollin Cutting box").
+
 ### Exits
 
 An exit is a property named for its direction: `north`, `south`, `east`, `west`, `northeast`, `northwest`, `southeast`, `southwest`, `up`, `down`, `in`, and `out`, and on board ship `port`, `starboard`, `fore`, and `aft`. Its value says what happens when the player goes that way:
@@ -350,6 +352,8 @@ Done.
 Attic
 Dust lies thick on the boards, and the roof slopes low.  A ladder leads down.
 ```
+
+A lightable thing answers LIGHT and PUT OUT; TURN ON and TURN OFF are for things that switch (`isSwitchable`). A lamp the player will want to turn on can take it as lighting with `dobj SwitchOn as Light` and `dobj SwitchOff as Extinguish`.
 
 A thing with `visibleInDark = true` can be seen in the dark without lighting anything else, like the stars.
 

@@ -256,6 +256,25 @@ me: Player 'you'
 
 `location` says where an object starts, which is what `+` says for the objects after a room.
 
+### Hints
+
+HINT shows a menu of the game's **goals**, each with hints the player reads one at a time, the last usually the answer. A goal appears in the menu once its `openWhen...` condition holds, and leaves it once the achievement given after `->` is scored:
+
+```hexicon
+// Hints: a menu of goals, each with its hints, shown one at a time.
+TopHintMenu 'Hints';
+
++ Goal ->openedDoor 'How do I get into the lighthouse?'
+    [
+        'The door is locked. Is there a key nearby?',
+        'Look in the tin box on the shore.'
+    ]
+    openWhenSeen = lighthouseDoor
+;
+```
+
+A goal can open when a thing is seen (`openWhenSeen`), examined (`openWhenExamined`), or moved (`openWhenMoved`), when an achievement is scored (`openWhenAchieved`), when a key is revealed (`openWhenRevealed = 'island'`), or when anything at all holds (`openWhenTrue = (...)`); each has a `closeWhen...` too. A game without a `TopHintMenu` has no hints, and HELP does not offer them.
+
 ### Playing it
 
 Build the game in its folder and play it:

@@ -17,3 +17,7 @@
 <line>take feather
 <line>put feather in niche
 <line>put rag in niche
+<line>turn dial to 2
+<line>set dial to 5
+<line>x dial
+<line>shout hello

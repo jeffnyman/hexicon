@@ -55,6 +55,19 @@ riverbank: Room 'River Bank'
     "<q>Sit down, and we'll be off,</q> he says. "
 ;
 
+// Something he does himself, when its time comes: once he is paid, he
+// calls the player aboard, and that starts a conversation.
+++ callAboard: AgendaItem
+    initiallyActive = true
+    isReady = (ferryman.curState == paidState)
+    invokeItem()
+    {
+        ferryman.initiateConversation(nil, '<q>In you get, then,</q> the
+            ferryman says, and holds the boat steady. ');
+        isDone = true;
+    }
+;
+
 // Greetings, and goodbyes. Every conversation starts with a greeting, so
 // the first is said once, and the next one after.
 ++ HelloTopic, StopEventList
