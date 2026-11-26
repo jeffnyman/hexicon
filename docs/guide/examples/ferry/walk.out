@@ -17,11 +17,18 @@ A lean old man in a patched coat.  He is waiting for a fare.
 
 He only grunts.
 
+>ask ferryman about chapel
+He only grunts.
+
 >talk to ferryman
 You are already talking to the ferryman.
 
 >ask ferryman about island
-“Nobody lives there now,” he says.  “It’s a penny to cross.”
+“Nobody lives there now,” he says, “but for the old chapel.  It’s a penny to
+cross.”
+
+>ask ferryman about chapel
+“Roof’s gone,” he says.  “Bell’s still there.”
 
 >ask him about river
 “Deep and cold,” he says.
@@ -47,6 +54,8 @@ He bites the penny, and nods.
 >x ferryman
 A lean old man in a patched coat.  He has been paid.
 
+The ferryman shifts his pole from one hand to the other.
+
 >look
 River Bank
 Reeds and mud, and a wide grey river.
@@ -58,5 +67,19 @@ The ferryman stands in his boat, ready to push off.
 
 >bye
 “Mind the mud,” he says.
+
+>wait
+Time passes.
+
+>wait
+Time passes.
+
+The ferryman spits into the river.
+
+>wait
+Time passes.
+
+>talk to ferryman
+“You again,” he says.
 
 >

@@ -415,6 +415,7 @@ pub fn compile_program(
         );
         source_files.extend(pp.file_names());
         for diagnostic in std::mem::take(&mut generated.diagnostics) {
+            let meant = diagnostic.meant.clone();
             // A problem that is nowhere in particular has no file. Nor
             // has one found before any statement was come to.
             let file = if diagnostic.file == usize::MAX || diagnostic.line == 0 {
@@ -431,6 +432,12 @@ pub fn compile_program(
             };
             crate::wording::for_hexicon(&mut diagnostic);
             crate::wording::suggest_name(&mut diagnostic, &prog.globals);
+            if let Some(meant) = &meant {
+                diagnostic.note = Some(format!(
+                    "did you mean \"{}\"?",
+                    String::from_utf8_lossy(meant)
+                ));
+            }
             compiled.diagnostics.push(diagnostic);
         }
         if has_errors(&compiled.diagnostics) {

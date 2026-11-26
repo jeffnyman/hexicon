@@ -39,9 +39,15 @@ riverbank: Room 'River Bank'
     stateDesc = "He is waiting for a fare. "
 ;
 
-++ paidState: ActorState
+++ paidState: ActorState, ShuffledEventList
     specialDesc = "The ferryman stands in his boat, ready to push off. "
     stateDesc = "He has been paid. "
+    eventList = [
+        'The ferryman spits into the river. ',
+        'The ferryman looks at the sky. ',
+        'The ferryman shifts his pole from one hand to the other. '
+    ]
+    eventPercent = 50
 ;
 
 // A topic in a state is used before those in the actor, while he is in it.
@@ -49,9 +55,13 @@ riverbank: Room 'River Bank'
     "<q>Sit down, and we'll be off,</q> he says. "
 ;
 
-// Greetings, and goodbyes.
-++ HelloTopic
-    "<q>Crossing to the island?</q> he asks.<.reveal island> "
+// Greetings, and goodbyes. Every conversation starts with a greeting, so
+// the first is said once, and the next one after.
+++ HelloTopic, StopEventList
+    [
+        '<q>Crossing to the island?</q> he asks.<.reveal island> ',
+        '<q>You again,</q> he says. '
+    ]
 ;
 
 ++ ByeTopic
@@ -69,8 +79,14 @@ riverbank: Room 'River Bank'
 
 // Only once the island has been mentioned.
 ++ AskTellTopic @tIsland
-    "<q>Nobody lives there now,</q> he says. <q>It's a penny to cross.</q> "
+    "<q>Nobody lives there now,</q> he says, <q>but for the old chapel.
+    It's a penny to cross.</q><.known chapel> "
     isActive = now.revealed('island')
+;
+
+// Something he mentions, which the player has not seen.
+++ AskTopic @chapel
+    "<q>Roof's gone,</q> he says. <q>Bell's still there.</q> "
 ;
 
 // Things given and shown.
@@ -94,3 +110,8 @@ riverbank: Room 'River Bank'
 
 tRiver: Topic 'river';
 tIsland: Topic 'island';
+
+// On the island, and not in the game: there is only talk of it.
+chapel: Thing 'chapel; old'
+    "An old chapel. "
+;

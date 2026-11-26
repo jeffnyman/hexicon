@@ -27,17 +27,18 @@ Every thing has handlers for every action, from its class. A thing changes what 
 ```hexicon
 // The bell handles RING itself.
 + bell: Fixture 'bell; great bronze'
-    "A great bronze bell<<if timesRung > 0>>, still humming<<end>>. "
-    timesRung = 0
+    "A great bronze bell<<if humming>>, still humming<<end>>. "
+    humming = nil
 
     dobj Ring
     {
         verify() { }
-        action() { timesRung++; }
+        action() { startHumming(); }
         report() { "BONG. The note rolls out over the town. "; }
     }
-;
 ```
+
+(What `startHumming()` does is below, in [Things that happen later](#things-that-happen-later).)
 
 The stages it gives replace those of its class; those it leaves out are its class's. An empty `verify()` says RING makes sense for the bell, whatever the class says.
 
@@ -101,6 +102,35 @@ In a two-object action, each object has a handler for its role. CLEAN LEVER WITH
     }
 ```
 
+Both objects must accept: had the rag no handler of its own, CLEAN LEVER WITH RAG would be refused by the rag, whatever the lever said.
+
+In any stage of a handler, the command's objects are `now.dobj` and `now.iobj`. So a thing's handler for one role can ask what is in the other. The niche takes only the rag:
+
+```hexicon
+// A niche for the rag, and nothing else: now.dobj is the thing being put
+// in it.
++ niche: Container, Fixture 'niche; stone'
+    "A niche in the stone wall. "
+
+    iobj PutIn
+    {
+        check()
+        {
+            if (now.dobj != rag)
+                "The niche is for the rag. ";
+        }
+    }
+;
+```
+
+```transcript
+>put feather in niche
+The niche is for the rag.
+
+>put rag in niche
+You put the oily rag in the niche.
+```
+
 ### Using what Hexad already does
 
 Many actions come with properties that set up their usual cases, so that a handler is not needed at all. CLEAN uses `needsCleaning`, `mustBeCleanedWith`, and `isClean`, and calls `makeCleaned()` to do the cleaning:
@@ -127,7 +157,41 @@ With `mustBeCleanedWith` set, the player need not say what to clean it with:
 The rust comes away on the rag.
 ```
 
-PUSH has `isPushable`, LOCK `lockability`, EAT `isEdible`, and so on: Hexad's own handlers, in `thing.hxn` in its sources, say which each uses.
+PUSH has `isPushable`, LOCK `lockability`, EAT `isEdible`, and so on: Hexad's own handlers, in `thing.hxn` in its sources, say which each uses. Some of these only decide whether the action makes sense, and leave what happens to the game. POUR is one: a thing that can be poured has `isPourable` (and `fluidName`, for an oilcan that pours oil: `'the oil'`), and a thing that may have something poured onto it has `allowPourOntoMe`; but pouring itself changes nothing, so the thing poured onto has an `iobj PourOnto` with an `action()` that says what happens. ATTACH is another; see [Containers, Surfaces, Doors, and Keys](containers-and-doors.md#things-attached-to-things).
+
+## Things that happen later
+
+Something that is to happen some turns from now is a **fuse**: `new Fuse(obj, &method, turns)` calls the object's method after that many turns. Ringing the bell starts it humming, and two turns later it stops. Rung again, it starts over: `removeEvent()` puts out the fuse that was burning.
+
+```hexicon
+    // Ringing it starts it humming, and two turns later it stops: a Fuse.
+    hum = nil
+
+    startHumming()
+    {
+        humming = true;
+        if (hum != nil)
+            hum.removeEvent();
+        hum = new Fuse(self, &stopHumming, 2);
+    }
+
+    stopHumming()
+    {
+        humming = nil;
+        hum = nil;
+        "The bell's hum dies away. ";
+    }
+;
+```
+
+```transcript
+>sing
+Your voice echoes round the stone walls.
+
+The bell’s hum dies away.
+```
+
+A **daemon** is the same, every so many turns rather than once: `new Daemon(obj, &method, 1)` calls the method every turn, until its `removeEvent()`. Either runs whether or not the player is there to see, so a method that prints should first ask whether they are (`me.isIn(belfry)`).
 
 ## New actions
 

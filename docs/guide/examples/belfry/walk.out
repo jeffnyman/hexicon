@@ -1,9 +1,15 @@
 Belfry
-A bare stone room under the bell.  A rope hangs from it, beside a rusty lever.
+A bare stone room under the bell.  A rope hangs from it, beside a rusty lever,
+and there is a niche in the wall.
+
+You can see a feather here.
 
 >look
 Belfry
-A bare stone room under the bell.  A rope hangs from it, beside a rusty lever.
+A bare stone room under the bell.  A rope hangs from it, beside a rusty lever,
+and there is a niche in the wall.
+
+You can see a feather here.
 
 >ring bell
 BONG.  The note rolls out over the town.
@@ -26,6 +32,8 @@ What do you want to ring?
 >sing
 Your voice echoes round the stone walls.
 
+The bell’s hum dies away.
+
 >toll bell
 BONG.  The note rolls out over the town.
 
@@ -34,6 +42,8 @@ You jump on the spot, fruitlessly.
 
 >pull lever
 The lever is rusted solid.
+
+The bell’s hum dies away.
 
 >clean lever
 (with the oily rag)
@@ -47,5 +57,14 @@ An iron lever, bright and clean.
 
 >pull lever
 A trapdoor opens in the floor, and the game is done.
+
+>take feather
+Taken.
+
+>put feather in niche
+The niche is for the rag.
+
+>put rag in niche
+You put the oily rag in the niche.
 
 >

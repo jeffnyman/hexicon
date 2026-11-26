@@ -2,8 +2,10 @@
 <line>look
 <line>x ferryman
 <line>ask ferryman about island
+<line>ask ferryman about chapel
 <line>talk to ferryman
 <line>ask ferryman about island
+<line>ask ferryman about chapel
 <line>ask him about river
 <line>ask him about river
 <line>ask him about river
@@ -15,3 +17,7 @@
 <line>look
 <line>ask him about island
 <line>bye
+<line>wait
+<line>wait
+<line>wait
+<line>talk to ferryman

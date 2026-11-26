@@ -6,6 +6,7 @@
 <line>open desk
 <line>look in desk
 <line>take pen
+<line>close drawer
 <line>put pen on desk
 <line>x cabinet
 <line>open cabinet
@@ -23,3 +24,9 @@
 <line>get out
 <line>north
 <line>south
+<line>north
+<line>take picture
+<line>attach picture to hook
+<line>x hook
+<line>attach picture to hook
+<line>detach picture

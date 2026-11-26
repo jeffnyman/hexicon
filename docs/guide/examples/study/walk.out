@@ -41,6 +41,9 @@ In the writing desk you see a pen.
 >take pen
 Taken.
 
+>close drawer
+Done.
+
 >put pen on desk
 You put the pen on the writing desk.
 
@@ -91,7 +94,9 @@ Okay, you get out of the wardrobe.
 (first opening the door)
 
 Hall
-A cold hall.  The study is to the south.
+A cold hall, with a brass hook on the wall.  The study is to the south.
+
+You can see a small picture here.
 
 >south
 Study
@@ -103,5 +108,26 @@ You can see a wicker basket and a puzzle box here.
 In the wicker basket you see a vase.
 
 On the writing desk you see an inkwell and a pen.
+
+>north
+Hall
+A cold hall, with a brass hook on the wall.  The study is to the south.
+
+You can see a small picture here.
+
+>take picture
+Taken.
+
+>attach picture to hook
+You attach the small picture to the brass hook.
+
+>x hook
+A brass hook.  You see a small picture attached to the brass hook.
+
+>attach picture to hook
+The small picture is already attached to the brass hook.
+
+>detach picture
+You detach the small picture.
 
 >

@@ -54,7 +54,7 @@ modify verb Jump ('jump' | 'leap'): ;
 
 belfry: Room 'Belfry'
     "A bare stone room under the bell. A rope hangs from it, beside a rusty
-    lever. "
+    lever, and there is a niche in the wall. "
 ;
 
 + me: Player 'you'
@@ -72,14 +72,32 @@ belfry: Room 'Belfry'
 
 // The bell handles RING itself.
 + bell: Fixture 'bell; great bronze'
-    "A great bronze bell<<if timesRung > 0>>, still humming<<end>>. "
-    timesRung = 0
+    "A great bronze bell<<if humming>>, still humming<<end>>. "
+    humming = nil
 
     dobj Ring
     {
         verify() { }
-        action() { timesRung++; }
+        action() { startHumming(); }
         report() { "BONG. The note rolls out over the town. "; }
+    }
+
+    // Ringing it starts it humming, and two turns later it stops: a Fuse.
+    hum = nil
+
+    startHumming()
+    {
+        humming = true;
+        if (hum != nil)
+            hum.removeEvent();
+        hum = new Fuse(self, &stopHumming, 2);
+    }
+
+    stopHumming()
+    {
+        humming = nil;
+        hum = nil;
+        "The bell's hum dies away. ";
     }
 ;
 
@@ -93,6 +111,25 @@ belfry: Room 'Belfry'
         action() { replaceAction(Ring, bell); }
     }
     dobj Ring as Pull
+;
+
+// A niche for the rag, and nothing else: now.dobj is the thing being put
+// in it.
++ niche: Container, Fixture 'niche; stone'
+    "A niche in the stone wall. "
+
+    iobj PutIn
+    {
+        check()
+        {
+            if (now.dobj != rag)
+                "The niche is for the rag. ";
+        }
+    }
+;
+
++ feather: Thing 'feather; grey pigeon'
+    "A grey pigeon feather. "
 ;
 
 // A lever that works only once it is clean.

@@ -39,7 +39,8 @@ study: Room 'Study'
 ;
 
 // One thing with a top and a drawer: two parts, each a SubComponent.
-+ desk: Fixture 'writing desk'
+// The player may call it the drawer, so that is one of its nouns.
++ desk: Fixture 'writing desk; ; drawer'
     "An old writing desk, with a drawer. "
 
     remapOn: SubComponent { }
@@ -90,9 +91,20 @@ study: Room 'Study'
 ;
 
 hall: Room 'Hall'
-    "A cold hall. The study is to the south. "
+    "A cold hall, with a brass hook on the wall. The study is to the
+    south. "
 
     south = hallDoor
+;
+
+// Something to attach things to, and something to attach.
++ hook: SimpleAttachable, Fixture 'brass hook'
+    "A brass hook. "
+    allowableAttachments = [picture]
+;
+
++ picture: SimpleAttachable 'small picture; framed'
+    "A small framed picture of the sea. "
 ;
 
 + hallDoor: Door 'door'

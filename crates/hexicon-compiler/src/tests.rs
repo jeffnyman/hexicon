@@ -4253,6 +4253,29 @@ mod hexicon_messages {
             "{shown:?}"
         );
     }
+
+    #[test]
+    fn a_slip_for_a_parameter_is_said_to_be_one() {
+        // `stats` is nearer `stat`, the method's own parameter, than
+        // `State`, a name of the whole program.
+        let text = "State: object;
+                    lamp: object makeOn(stat) { if (stats) return 1; return 0; }
+;
+                    _main(args) { }
+";
+        let found = diagnostics("game.hxn", text);
+        let shown: Vec<(String, Option<String>)> = found
+            .iter()
+            .map(|d| (d.message.clone(), d.note.clone()))
+            .collect();
+        assert_eq!(
+            shown,
+            [(
+                "\"stats\" is not defined anywhere".to_owned(),
+                Some("did you mean \"stat\"?".to_owned())
+            )]
+        );
+    }
 }
 
 mod image_names {

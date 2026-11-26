@@ -23,7 +23,7 @@ landing: Room 'Landing'
     and a small window in the other. A ladder leads up into the attic, and
     the stairs lead down. "
 
-    up = attic
+    up = landingLadder
     down = "You have not finished up here yet. "
     cannotGoThatWayMsg = 'The walls of the landing close in on every side. '
 
@@ -97,6 +97,13 @@ landing: Room 'Landing'
     "A long woollen scarf. "
 ;
 
+// A ladder, which leads up, and can be climbed: UP and CLIMB LADDER
+// both go to the attic.
++ landingLadder: StairwayUp 'ladder; wooden'
+    "A wooden ladder, up through a hatch in the ceiling. "
+    destination = attic
+;
+
 // Something to light the attic with.
 + candle: Thing 'candle'
     "A stub of candle. "
@@ -108,8 +115,13 @@ attic: Room 'Attic'
     "Dust lies thick on the boards, and the roof slopes low. A ladder leads
     down. "
 
-    down = landing
+    down = atticLadder
     isLit = nil
+;
+
++ atticLadder: StairwayDown 'ladder; wooden'
+    "The ladder, down through the hatch. "
+    destination = landing
 ;
 
 + trunk: Heavy 'trunk; old'

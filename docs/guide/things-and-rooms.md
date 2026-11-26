@@ -183,11 +183,11 @@ landing: Room 'Landing'
 An exit is a property named for its direction: `north`, `south`, `east`, `west`, `northeast`, `northwest`, `southeast`, `southwest`, `up`, `down`, `in`, and `out`, and on board ship `port`, `starboard`, `fore`, and `aft`. Its value says what happens when the player goes that way:
 
 - **a room**, to go there;
-- **a door** or another connector, to go through it to wherever it leads;
+- **a door**, a ladder or a stair, or another connector, to go through it or up it to wherever it leads;
 - **a string in double quotes**, to show it and go nowhere.
 
 ```hexicon
-    up = attic
+    up = landingLadder
     down = "You have not finished up here yet. "
     cannotGoThatWayMsg = 'The walls of the landing close in on every side. '
 ```
@@ -204,6 +204,33 @@ You have not finished up here yet.
 ```
 
 Exits go one way. The landing's `up` reaches the attic, and the attic has a `down` of its own to come back.
+
+### Stairs and ladders
+
+The landing's way up is a ladder, which the player can also climb. A `StairwayUp` is a thing and an exit at once: going up it, or CLIMB LADDER, goes to its `destination`. A `StairwayDown` is the same, going down:
+
+```hexicon
+// A ladder, which leads up, and can be climbed: UP and CLIMB LADDER
+// both go to the attic.
++ landingLadder: StairwayUp 'ladder; wooden'
+    "A wooden ladder, up through a hatch in the ceiling. "
+    destination = attic
+;
+```
+
+```hexicon
++ atticLadder: StairwayDown 'ladder; wooden'
+    "The ladder, down through the hatch. "
+    destination = landing
+;
+```
+
+```transcript
+>climb down ladder
+Landing
+```
+
+A thing that is not an exit itself can still send the player one way, from a handler: `goInstead(north)` goes north instead of doing the action, so that ENTER MILL, say, is going in by the mill's door.
 
 An exit can tell a story instead: a connector that is also an event list (a `StopEventList` here, which shows each message in turn and then keeps to the last) shows the next of its messages each time the player goes that way. One that leads nowhere has no `destination`, and Hexad takes a connector with no destination as no exit at all, so it says otherwise with `nilBlocksTravel = nil`. Without it, EAST would only say that the player cannot go that way. `isConnectorListed = nil` keeps it out of the ways the player can go.
 
@@ -239,7 +266,7 @@ attic: Room 'Attic'
     "Dust lies thick on the boards, and the roof slopes low. A ladder leads
     down. "
 
-    down = landing
+    down = atticLadder
     isLit = nil
 ;
 ```
@@ -265,7 +292,7 @@ Any thing with `isLit = true` is a light. A thing with `isLightable = true` can 
 >light candle
 Done.
 
->up
+>climb ladder
 Attic
 Dust lies thick on the boards, and the roof slopes low.  A ladder leads down.
 ```

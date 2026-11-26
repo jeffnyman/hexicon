@@ -128,11 +128,21 @@ Taken.
 >light candle
 Done.
 
->up
+>climb ladder
 Attic
 Dust lies thick on the boards, and the roof slopes low.  A ladder leads down.
 
 >take trunk
 The trunk is too heavy to move.
+
+>climb down ladder
+Landing
+A narrow landing at the top of the house, with a portrait on one wall and a
+small window in the other.  A ladder leads up into the attic, and the stairs
+lead down.
+
+A grandfather clock ticks in the corner.
+
+You can see a sprig of lavender here.
 
 >

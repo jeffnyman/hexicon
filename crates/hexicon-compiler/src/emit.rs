@@ -137,6 +137,9 @@ pub(crate) struct GenDiagnostic {
     pub line: u32,
     pub severity: Severity,
     pub message: String,
+    /// For a name nothing defines, a local or parameter in scope that
+    /// it is likely a slip for.
+    pub meant: Option<Vec<u8>>,
 }
 
 /// What the generator produces.
@@ -899,6 +902,7 @@ impl Gen<'_> {
             line: self.cur_line,
             severity,
             message: message.into(),
+            meant: None,
         });
         if severity == Severity::Error {
             self.errors += 1;
@@ -908,6 +912,7 @@ impl Gen<'_> {
                     line: self.cur_line,
                     severity: Severity::Fatal,
                     message: TOO_MANY_ERRORS.to_owned(),
+                    meant: None,
                 });
                 self.gave_up = Some(self.out.diagnostics.len());
             }
@@ -958,6 +963,7 @@ impl Gen<'_> {
                 line: local.line,
                 severity: Severity::Warning,
                 message,
+                meant: None,
             });
         }
     }
@@ -2202,6 +2208,7 @@ impl Gen<'_> {
                 line: 0,
                 severity: Severity::Internal,
                 message: format!("{unresolved} unresolved branches"),
+                meant: None,
             });
         }
 
@@ -2227,6 +2234,7 @@ impl Gen<'_> {
                     line: label.line,
                     severity: Severity::Warning,
                     message: format!("label \"{}\" is not referenced", show_name(&label.name)),
+                    meant: None,
                 });
             }
         }
@@ -3352,6 +3360,7 @@ impl Gen<'_> {
                     "exception class \"{}\" in \"catch\" clause is not an object",
                     show_name(&catch.class)
                 ),
+                meant: None,
             });
             self.errors += 1;
         } else {
@@ -4755,6 +4764,35 @@ impl Gen<'_> {
                 show_name(name)
             ),
         );
+        // A slip for a local or a parameter in scope is likelier than
+        // one for a name of the whole program, so it is the one named.
+        let meant = self.local_slip(name);
+        if let Some(diagnostic) = self.out.diagnostics.last_mut()
+            && meant.is_some()
+        {
+            diagnostic.meant = meant;
+        }
+    }
+
+    /// A local or parameter in the scopes around the code being
+    /// generated whose name the given one is a slip for: the nearest.
+    fn local_slip(&self, name: &[u8]) -> Option<Vec<u8>> {
+        let mut tab = self.cur_frame;
+        while let Some(id) = tab {
+            let scope = &self.prog.tabs[id];
+            let mut found: Vec<&[u8]> = scope
+                .entries
+                .iter()
+                .map(|local| self.prog.locals[*local].name.as_slice())
+                .filter(|have| crate::names::is_slip(name, have))
+                .collect();
+            found.sort_unstable();
+            if let Some(meant) = found.first() {
+                return Some(meant.to_vec());
+            }
+            tab = scope.parent;
+        }
+        None
     }
 
     fn need_self(&mut self) {

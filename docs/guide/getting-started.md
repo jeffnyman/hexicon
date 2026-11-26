@@ -322,6 +322,17 @@ warning: the handler "dobj Opne" is never called
     = did you mean "dobj Open"?
 ```
 
+A name on its own in a method's code, that nothing defines, is a warning as well, not an error: Hexicon takes it to be a property of the object the method is in, which has no value until something gives it one. A misspelled parameter, `stats` for the lamp's `stat`, is always `nil`, and the lamp would never light:
+
+```
+warning: "stats" is not defined anywhere
+  --> start.hxn:103
+    |
+103 |         if (stats)
+    |
+    = did you mean "stat"?
+```
+
 Other problems are **errors**, and stop the build. The commonest is a missing semicolon at the end of an object. Hexicon sees that the next object starts before this one has ended, and shows both:
 
 ```

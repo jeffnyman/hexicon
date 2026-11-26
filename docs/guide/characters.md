@@ -13,7 +13,7 @@ A character is an `Actor`: a thing, with a vocabulary and a description, that ca
 ;
 ```
 
-The fourth part of the vocabulary gives the pronouns he is called by: here `him`, so that ASK HIM ABOUT works.
+The fourth part of the vocabulary gives the pronouns he is called by: here `him`, so that ASK HIM ABOUT works. A character with a name of his own is given it with a capital, `'Ada; old; woman her'`: a name whose every word starts with a capital is a **proper name**, which Hexad uses without "the" ("Ada won't let you pick her up").
 
 ### States
 
@@ -26,10 +26,9 @@ A character is often in one of several **states**: waiting, asleep, following th
     stateDesc = "He is waiting for a fare. "
 ;
 
-++ paidState: ActorState
+++ paidState: ActorState, ShuffledEventList
     specialDesc = "The ferryman stands in his boat, ready to push off. "
     stateDesc = "He has been paid. "
-;
 ```
 
 The state says how he looks. Its `specialDesc` is his paragraph in the room's description, and its `stateDesc` is added to his own description when he is examined:
@@ -43,7 +42,26 @@ A lean old man in a patched coat.  He is waiting for a fare.
 
 ### What a character does on his own
 
-A state can also be an event list (`ActorState, ShuffledEventList`, with an `eventList`): each turn it shows the next of its messages, the small things he does while he waits. Hexad runs it only on a turn the player is not talking to him, and only while the player can see him, so that he does not fidget through a conversation, or out of sight. So a state's list is for what he is seen doing. What must happen whether or not anyone is watching, such as finishing a meal or walking off after a while, belongs elsewhere:
+A state can also be an event list (`ActorState, ShuffledEventList`, with an `eventList`): it shows the next of its messages, the small things he does while he waits. It would every turn; `eventPercent` makes it the given part of the turns:
+
+```hexicon
+    eventList = [
+        'The ferryman spits into the river. ',
+        'The ferryman looks at the sky. ',
+        'The ferryman shifts his pole from one hand to the other. '
+    ]
+    eventPercent = 50
+;
+```
+
+```transcript
+>wait
+Time passes.
+
+The ferryman spits into the river.
+```
+
+ Hexad runs it only on a turn the player is not talking to him, and only while the player can see him, so that he does not fidget through a conversation, or out of sight. So a state's list is for what he is seen doing. What must happen whether or not anyone is watching, such as finishing a meal or walking off after a while, belongs elsewhere:
 - in an `AgendaItem`, which he carries out whether the player can see him or not, though, like the list, not on a turn he is talked to;
 - or in a `Daemon` or a `Fuse`, which runs every turn, or after so many, whatever else is going on.
 
@@ -52,9 +70,13 @@ A state can also be an event list (`ActorState, ShuffledEventList`, with an `eve
 What a character says is in **topic entries** inside him. Each answers one kind of command, about one thing:
 
 ```hexicon
-// Greetings, and goodbyes.
-++ HelloTopic
-    "<q>Crossing to the island?</q> he asks.<.reveal island> "
+// Greetings, and goodbyes. Every conversation starts with a greeting, so
+// the first is said once, and the next one after.
+++ HelloTopic, StopEventList
+    [
+        '<q>Crossing to the island?</q> he asks.<.reveal island> ',
+        '<q>You again,</q> he says. '
+    ]
 ;
 
 ++ ByeTopic
@@ -92,11 +114,28 @@ tIsland: Topic 'island';
 ;
 ```
 
-The player can only talk about what they know of: a thing they have seen, or a topic that is `familiar`. A `Topic` is, unless it says `familiar = nil`, and a thing can be made so before it is seen, as the lamp is in [Getting Started](getting-started.md).
+The player can only talk about what they know of: a thing they have seen, or a topic that is `familiar`. A `Topic` is, unless it says `familiar = nil`, and a thing can be made so before it is seen, as the lamp is in [Getting Started](getting-started.md). A thing a character mentions is not known just because he mentions it: what he says can make it so with `<.known name>`, `name` being the thing's name in the source. The ferryman's chapel is on the island, and is not in the game at all, but once he has spoken of it the player can ask about it:
+
+```hexicon
+    "<q>Nobody lives there now,</q> he says, <q>but for the old chapel.
+    It's a penny to cross.</q><.known chapel> "
+    isActive = now.revealed('island')
+;
+
+// Something he mentions, which the player has not seen.
+++ AskTopic @chapel
+    "<q>Roof's gone,</q> he says. <q>Bell's still there.</q> "
+;
+```
+
+```transcript
+>ask ferryman about chapel
+“Roof’s gone,” he says.  “Bell’s still there.”
+```
 
 ### Starting a conversation
 
-A conversation starts with a greeting. If the player asks or tells something before saying hello, the character's `HelloTopic` comes first, and then the answer:
+A conversation starts with a greeting, every time: after BYE, or walking away, the next question starts another. That is why the ferryman's `HelloTopic` is a `StopEventList` (see [Several responses](#several-responses)): his first words would be wrong the second time. If the player asks or tells something before saying hello, the character's `HelloTopic` comes first, and then the answer:
 
 ```transcript
 >ask ferryman about island
@@ -112,16 +151,14 @@ Here the answer is the `DefaultAnyTopic`'s, because the entry about the island i
 ```hexicon
 // Only once the island has been mentioned.
 ++ AskTellTopic @tIsland
-    "<q>Nobody lives there now,</q> he says. <q>It's a penny to cross.</q> "
-    isActive = now.revealed('island')
-;
 ```
 
 An entry is only used while its `isActive` is true. `<.reveal island>` in what the ferryman says on being greeted makes `now.revealed('island')` true, from then on, so the question works the second time it is asked:
 
 ```transcript
 >ask ferryman about island
-“Nobody lives there now,” he says.  “It’s a penny to cross.”
+“Nobody lives there now,” he says, “but for the old chapel.  It’s a penny to
+cross.”
 ```
 
 `<.reveal key>` can be in anything the game prints, and `now.reveal('key')` does the same from code.

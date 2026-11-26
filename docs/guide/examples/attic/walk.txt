@@ -29,5 +29,6 @@
 <line>down
 <line>take candle
 <line>light candle
-<line>up
+<line>climb ladder
 <line>take trunk
+<line>climb down ladder

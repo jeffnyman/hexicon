@@ -14,3 +14,6 @@
 <line>clean lever with rag
 <line>x lever
 <line>pull lever
+<line>take feather
+<line>put feather in niche
+<line>put rag in niche

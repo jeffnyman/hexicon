@@ -73,7 +73,8 @@ A writing desk has a top and a drawer: things go on it and in it. One object can
 
 ```hexicon
 // One thing with a top and a drawer: two parts, each a SubComponent.
-+ desk: Fixture 'writing desk'
+// The player may call it the drawer, so that is one of its nouns.
++ desk: Fixture 'writing desk; ; drawer'
     "An old writing desk, with a drawer. "
 
     remapOn: SubComponent { }
@@ -81,7 +82,12 @@ A writing desk has a top and a drawer: things go on it and in it. One object can
 ;
 ```
 
-`remapOn` is the part that PUT ON and the like go to, and `remapIn` the part that PUT IN, OPEN, CLOSE, LOOK IN, and LOCK go to. There are `remapUnder` and `remapBehind` too. Each is an object written in place, between braces: a `SubComponent`, which works out from the property it is in how it holds things. The drawer opens, so OPEN DESK opens it. The player never refers to the parts; they say `desk`.
+`remapOn` is the part that PUT ON and the like go to, and `remapIn` the part that PUT IN, OPEN, CLOSE, LOOK IN, and LOCK go to. There are `remapUnder` and `remapBehind` too. Each is an object written in place, between braces: a `SubComponent`, which works out from the property it is in how it holds things. The drawer opens, so OPEN DESK opens it. The parts have no vocabulary of their own: the player says `desk`, and what a player may call a part, `drawer` here, goes among the desk's nouns, so that OPEN DRAWER and CLOSE DRAWER work too:
+
+```transcript
+>close drawer
+Done.
+```
 
 A thing starts in a part when its `subLocation` names it:
 
@@ -188,5 +194,31 @@ A door is opened and closed, and locked with a `keyList` or a `lockability` of i
 (first opening the door)
 
 Hall
-A cold hall.  The study is to the south.
+A cold hall, with a brass hook on the wall.  The study is to the south.
+```
+
+## Things attached to things
+
+ATTACH and DETACH need things that can be attached, and things they can be attached to. A `SimpleAttachable` is either; its `allowableAttachments` lists what can be attached to it:
+
+```hexicon
+// Something to attach things to, and something to attach.
++ hook: SimpleAttachable, Fixture 'brass hook'
+    "A brass hook. "
+    allowableAttachments = [picture]
+;
+
++ picture: SimpleAttachable 'small picture; framed'
+    "A small framed picture of the sea. "
+;
+```
+
+A thing attached is in the thing it is attached to, and its `attachedTo` says which. Examining that thing says so:
+
+```transcript
+>attach picture to hook
+You attach the small picture to the brass hook.
+
+>x hook
+A brass hook.  You see a small picture attached to the brass hook.
 ```
