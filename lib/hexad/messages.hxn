@@ -1208,8 +1208,13 @@ class MessageParams: object
                 ctx.noteSourceProp(objProp);
             }
 
-            /* check for reflexivity */
-            if (srcObj != nil && role == vObject && !ctx.prescan)
+            /* 
+             *   check for reflexivity: in an object's role, or in one that is
+             *   not marked but comes after a subject, as {the 1} does in '{I}
+             *   {see} nothing special about {the 1}'
+             */
+            if (srcObj != nil && !ctx.prescan
+                && (role == vObject || (role == vAmbig && ctx.subj != nil)))
             {
                 local r = cmdInfoReflexive(ctx, srcObj, objProp);
                 if (r != nil)

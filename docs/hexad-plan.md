@@ -258,6 +258,14 @@ Recommended (2026-11-26): put the guide's gaps right first, since each cost a se
 
 `hexad-fixes` checks each in a new shed. The Tide Mill now uses Hexad's KNOCK, RAISE, FIT, WIND, and EMPTY instead of its own, and plays the same; its LOOK OUT OF THE WINDOW now works. Seen on the way: LIFT for a thing that can be taken is refused as RAISE is, where a player may mean TAKE or LOOK UNDER; and the error for a name defined twice is still the old one's words, with no file or line.
 
+**Done, 2026-11-26: the three small things.**
+
+- **EXAMINE ME says "You see nothing special about yourself."** Hexad had the reflexive (the actor named as an object in a sentence it is the subject of), but checked for it only where a message marks a noun as an object, and `{the 1}` and its kind are not marked; it now counts too when the sentence already has its subject. Every change in the games' transcripts is of that kind: "about you" and "behind you" and "under you" became "yourself". (Hexad's note of having passed the sentence's verb, which the reflexive could have used, is never made: `noteVerb` is never called.)
+- **HELP offers HINT and EXTRA ON only in a game that has them**: hints when the game has a hint menu, extra hints when it has any. It asked only whether the systems that show them were there, which they always are.
+- **A command's first word is corrected only to a word with the same first letter.** WIND and HOOK are words the Tide Mill did not know as verbs, and were taken for FIND and LOOK; a word in a verb's place that the game does not know is more often a verb it lacks than a misspelling, and the first letter is the one least often mistyped. TKAE is still TAKE, and EXMAINE EXAMINE. The exercises' transcripts show what else it changes, all for the better: READ SORT is no longer "(head port)", SHOW FLIES TO SINCE no longer "(how lips to mine)", and OOPS with nothing to correct no longer "(tops)", examining a work surface.
+
+`hexad-fixes` checks each.
+
 ### Return to Ditch Day (surveyed 2026-11-26)
 
 Michael Roberts's 2004 game, written to show adv3 at its fullest: 36,160 lines in 21 files, twice Square Circle. Before deciding on a port, a survey of what it uses (the playground's `tools/adv3-classes.py` and `tools/adv3-calls.py`, which compare a game's adv3 classes and calls with Hexad's). **Its licence, like Square Circle's, forbids distributing a changed version**, so a port would live in the private playground.

@@ -32,11 +32,13 @@ helpMessage: object
         introduction to playing this type of game type <<aHref('INTRO', 'INTRO',
             'Show a brief introduction')>>, or <<aHref('SAMPLE', 'SAMPLE', 'Show
                 a short sample transcript')>> to show a short sample transcript.
-        <<if libGlobal.hintManagerObj != nil>>If you\'re having trouble moving forward and
+        <<if libGlobal.hintManagerObj != nil
+              && libGlobal.hintManagerObj.topHintMenuObj != nil>>If you\'re having trouble moving forward and
         need help solving a puzzle, type <<aHref('HINT', 'HINT', 'Show
             hints')>>.<<end>> ";
         
-        if(defined(extraHintManager))
+        /* Extra hints are offered only in a game that has some. */
+        if(defined(extraHintManager) && extraHintManager.extraHintsExist())
            extraHintManager.explainExtraHints();
         
         if(versionInfo.hasProp(&showAbout, PropDefDirectly))

@@ -91,12 +91,26 @@ spellingCorrector: object
         /* get a list of candidates for the corrected word */
         local wlst = getCandidates(aw), wlen = wlst.length();
 
+        /* is the word the first of a command? */
+        local firstOfCommand = (idx == 1 || getTokType(toks[idx - 1]) == tokPunct);
+
         /* build a list of candidate token lists */
         local clst = new Vector(wlen + 1);
         foreach (local w in wlst)
         {
             /* skip one-character candidates */
             if (w[1].length() < 2)
+                continue;
+
+            /* 
+             *   A command's first word is its verb. A word there that the
+             *   game does not know is more often a verb it lacks than one
+             *   misspelled, and the first letter is the one least often
+             *   mistyped, so a correction there keeps it: WIND does not
+             *   become FIND, nor HOOK LOOK.
+             */
+            if (firstOfCommand
+                && w[1].substr(1, 1).toLower() != aw.substr(1, 1).toLower())
                 continue;
 
             /*
