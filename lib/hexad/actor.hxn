@@ -8161,9 +8161,13 @@ suggestedTopicLister: object
                say(cur.name);
             
             
-            /* Output a comma or 'or', depending where we are in the list */
+            /* 
+             *   Output a comma or 'or', depending where we are in the list:
+             *   "sign or refuse", but "sign, refuse, or ask why", with a
+             *   comma before the 'or' as the other lists have before 'and'.
+             */
             if(i == lst.length - 1)
-                showMsg(or, ' or ');
+                showMsg(or, (lst.length > 2 ? ', or ' : ' or '));
             if(i < lst.length - 1)
                 ", ";
             

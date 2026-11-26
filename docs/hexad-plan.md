@@ -468,13 +468,13 @@ The first port from adv3: the sample game of the Inform Designer's Manual, from 
 
 | adv3 | Hexad, in this port |
 |---|---|
-| Levels of brightness: a lamp that dims, a warthog that sees in the dark, a lamp that can be found in the dark when off | `isLit` and `visibleInDark`, which were enough |
-| `canPushTravelVia`: whether an object can be pushed through a given connector | refused in `beforeMovePushable`, with `exit` |
-| `ObjectPreCondition`: the camera taken first, as an implicit action | `check()` refuses until the camera is held |
-| `dobjFor(Default)`: one handler for any action | `Decoration` with `decorationActions` |
-| Weak words (`'(glyph)'`): "glyph" alone matches no glyph | none: LOOK UP GLYPH finds the first glyph |
+| Levels of brightness: a lamp that dims, a warthog that sees in the dark, a lamp that can be found in the dark when off | `isLit` and `visibleInDark`, which were enough; Hexad's `brightness` extension has the levels |
+| `canPushTravelVia`: whether an object can be pushed through a given connector | refused in `beforeMovePushable`, which nothing called, so the refusals never happened; now Hexad's own `canPushTravelVia` (2026-11-26) |
+| `ObjectPreCondition`: the camera taken first, as an implicit action | `check()` refused until the camera was held; Hexad has `ObjectPreCondition`, which the port now uses |
+| `dobjFor(Default)`: one handler for any action | `Decoration` with `decorationActions`; Hexad's `dobj Default` is a decoration's, and only refuses |
+| Weak words (`'(glyph)'`): "glyph" alone matches no glyph | LOOK UP GLYPH found the first glyph; Hexad has weak words, which the port now uses |
 | Postures: the body left lying in the cage | Hexad's `postures` extension was not used; left out |
-| Changing the messages of NPCs and the player (`npcMessages`, `playerMessages`): the priest's "You talk in riddles" for unknown words | left out |
+| Changing the messages of NPCs and the player (`npcMessages`, `playerMessages`): the priest's "You talk in riddles" for unknown words | left out; now a `CustomMessages` with `now.addressee` (2026-11-26) |
 
 **What an author meets:**
 
@@ -492,6 +492,14 @@ The first port from adv3: the sample game of the Inform Designer's Manual, from 
 - **A connector's destination has to be a room.** One leading into the cage, a `Booth`, did nothing at all, silently.
 - **The actor of the command cannot be taken out of play during it.** Moving the warthog to nil while it acts stopped the game; it is hidden instead.
 - SMELL in the square chamber does not find the tortilla odour of the mist, which is a `MultiLoc` there.
+
+**Done, 2026-11-26: what adv3 does differently.** Square Circle's proposals were all settled already (1 to 7 taken, 8 to 11 kept). Of the rest:
+
+- **A comma before the last "or"** among three or more suggestions, as Hexad's lists have before "and": "(You could sign, refuse, or ask why.)". Two have none: "refuse or ask why". Square Circle's four transcripts changed in these lines only.
+- **The Ruins table was out of date.** Hexad has `ObjectPreCondition`, weak words, the `brightness` extension, and a decoration's `dobj Default`. The port now takes the camera first with `ObjectPreCondition`, and its glyphs' "glyph" is weak, so LOOK UP GLYPH gets the book's hint and not Q1.
+- **The priest talks in riddles** to a command he cannot follow (PRIEST, XYZZY). While Hexad answers a command it could not understand, `now.addressee` is the character it began with, if those words name one in scope, and a `CustomMessages` can be active only for that character. Hexad's parser loop is copied in `remapcmd.hxn`, which is the copy that runs, so both note it.
+- **`canPushTravelVia(connector, dest)`**, with `cannotPushTravelViaMsg`: a thing pushed can refuse a way. It is asked wherever push travel is checked. It replaces `beforeMovePushable` and `sayPushTravel`, which nothing in Hexad called: Ruins's lamp, which must not go down into the underworld, its ball, which only rolls along the canyon, and Square Circle's four push barriers (its desk too wide for the doorway, its trough on the road) had never refused anything. All are on the new hook now, and refuse as their originals did. The ball also says it is hard to stop, or that the player strains to push it uphill, which it never had.
+- **The guide has them**, each in its page's example: `ObjectPreCondition` and what `dobj Default` is, in Actions (the Belfry's hammer); weak words and pushing, in Things and Rooms (the Attic's window seat and tea chest); and `CustomMessages` with `now.addressee`, in Telling (the cat).
 
 **Done, 2026-11-26: the small defects.** The four above, and four found since, each with a check in `hexad-fixes` or a test:
 

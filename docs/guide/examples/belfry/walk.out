@@ -2,14 +2,14 @@ Belfry
 A bare stone room under the bell.  A rope hangs from it, beside a rusty lever,
 and there is a niche in the wall.
 
-You can see a feather here.
+You can see a hammer and a feather here.
 
 >look
 Belfry
 A bare stone room under the bell.  A rope hangs from it, beside a rusty lever,
 and there is a niche in the wall.
 
-You can see a feather here.
+You can see a hammer and a feather here.
 
 >toll bell
 BONG.  The note rolls out over the town.
@@ -87,5 +87,9 @@ A brass dial for the chimes, set to 2.
 
 >shout hello
 “HELLO!” you shout, and the bell hums.
+
+>hit bell
+(first taking the hammer)
+CLANG.  Not the note the bell was cast for.
 
 >

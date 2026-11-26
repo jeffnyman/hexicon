@@ -12,9 +12,11 @@
 <line>x me
 <line>touch cat
 <line>take cord
+<line>cat, xyzzy
 <line>first person
 <line>pull cord
 <line>x cat
 <line>present tense
 <line>second person
 <line>look
+<line>cat, xyzzy

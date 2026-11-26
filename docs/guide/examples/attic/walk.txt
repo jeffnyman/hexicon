@@ -12,6 +12,8 @@
 <line>smell
 <line>smell lavender
 <line>touch window
+<line>x window
+<line>x window seat
 <line>x spire
 <line>touch spire
 <line>x ghost
@@ -33,6 +35,7 @@
 <line>take trunk
 <line>x box
 <line>take box
+<line>push tea chest down
 <line>x boxes
 <line>x boards
 <line>take boards

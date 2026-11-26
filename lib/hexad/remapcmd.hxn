@@ -991,8 +991,15 @@ modify Parser
             /* log any spelling changes we kept */
             history.noteSpelling(toks);
 
-            /* display the error we finally decided upon */
-            err.display();
+            /* 
+             *   Display the error we finally decided upon, noting first whom
+             *   the command was addressed to, as Parser.parse does.
+             */
+            libGlobal.parseAddressee = addresseeOf(toks);
+            try
+                err.display();
+            finally
+                libGlobal.parseAddressee = nil;
         }
         catch (CommandSignal sig)
         {

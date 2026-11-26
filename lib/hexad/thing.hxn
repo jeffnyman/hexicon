@@ -9389,6 +9389,20 @@ class Thing:  ReplaceRedirector, Mentionable
      *   versa, we can set these to different values.
      */
     canPullTravel = canPushTravel
+
+    /*
+     *   Can this be pushed (or pulled) through connector, a door or an exit
+     *   leading to dest, which may be nil? By default it can go wherever it
+     *   can be pushed at all: a game says where it cannot, and why, in
+     *   cannotPushTravelViaMsg.
+     */
+    canPushTravelVia(connector, dest) { return true; }
+
+    cannotPushTravelViaMsg(connector, dest)
+    {
+        return msgText(cannot push travel via, '{I} {can\'t} {1} {the dobj}
+            that way. ', now.verbWord);
+    }
     
     /* 
      *   PushTravelDir handles pushing an object in a particular direction, e.g.
@@ -9446,15 +9460,6 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    /* Display a message saying we pushed the direct object in a particular direction. */
-    sayPushTravel(dir)
-    {
-        showMsg(before push travel dir, '{I} <<now.dobj.matchPullOnly ? 'pull(s/ed}' : 'push{es/ed}'>>
-              {the dobj} {1}. ',  dir.departureName);   
-        "<.p>";
-    }    
-    
-     
     pushTravelRevealItems()
     {
         /* 
@@ -9492,6 +9497,17 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Check the travel barriers on the indirect object of the action */
     checkPushTravel()
     {
+        /*
+         *   The thing pushed may refuse this way, wherever else it may go:
+         *   too wide for the door, or bound to roll back down the slope.
+         */
+        local dest = getDestination(now.actor.getOutermostRoom);
+        if(!now.dobj.canPushTravelVia(self, dest))
+        {
+            say(now.dobj.cannotPushTravelViaMsg(self, dest));
+            return;
+        }
+
         /* 
          *   First check the travel barriers for the actor doing the pushing.
          *   Only go on to check those for the item being pushed if the actor
@@ -9571,69 +9587,6 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    
-    beforeMovePushable(connector, dir)
-    {
-        /* make a note of our connector */
-        local conn = connector;
-         
-        /* 
-         *   If our connector is an UnlistedProxyConnector we need some special handling to identify
-         *   the real connector we're going to use.
-         */
-        if(connector.ofKind(UnlistedProxyConnector))
-        {
-            /* Note the room we're in. */
-            local loc = getOutermostRoom;
-            
-                    
-            /* Get the direction prop our UnlistedProxyConnector is a proxy for. */
-            local prop = connector.direction.dirProp;
-            
-            if(loc.propType(prop) == TypeObject)  
-            {
-                
-                /* Get the connector that direction property points to. */
-                conn = loc.(prop);                
-                
-                /* Make that connector the iobj of this action. */
-                now.action.curIobj = conn; 
-            }
-            else
-            {
-                /*  Otherwise note the direction we're actually going to try to go in. */
-                dir = connector.direction;
-                
-                /* If the connector isn't an object, we don't want to deal with it here. */
-                conn = nil;
-            }
-        }
-            
-        /* 
-         *   Next check that there's nothing that wants to disallow this travel.. If the
-         *   travelPermitted preCond is present for this action on this object this should already
-         *   have been done, but if game code has overridden that we need to carry out the
-         *   beforeTravelNotifications now.
-         */         
-        if(conn && typeOf(conn) == TypeObject)
-            conn.beforeTravelNotifications(self);        
-        
-       /*  If we have an indirect object, describe our PushTravel via it */
-        if(now.iobj)
-            describePushTravel(now.action.viaMode);    
-        
-        /*  
-         *   Otherwise we have a travel connector to travel through, report which direction we're
-         *   pushing to.
-         */
-        else if(objOfKind(conn, TravelConnector))
-            sayPushTravel(dir);
-        
-        /*  
-         *   Otherwise do nothing, because our 'connector' must be a string or method that explains
-         *   why travel that way isn't possible.
-         */
-    }
     
     describeMovePushable (connector, dest)
     {

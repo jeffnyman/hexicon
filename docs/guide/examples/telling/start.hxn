@@ -56,6 +56,15 @@ sittingRoom: Room 'Sitting Room'
     }
 ;
 
+// What the cat makes of a command no one could follow: CAT, XYZZY.
+catMessages: CustomMessages
+    active = (now.addressee == cat)
+    messages = [
+        Msg(not understood, 'The cat {gives} {me} a long look. '),
+        Msg(unknown word, 'The cat {gives} {me} a long look. ')
+    ]
+;
+
 // How the story is told, which takes no turn.
 tellingIn: object
     setPerson(n)

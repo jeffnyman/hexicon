@@ -24,3 +24,4 @@
 <line>set dial to 5
 <line>x dial
 <line>shout hello
+<line>hit bell

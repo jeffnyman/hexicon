@@ -198,6 +198,30 @@ class Parser: object
     showUnknownWords = nil
 
     /*
+     *   The character a command was addressed to, from the words before its
+     *   first comma, or nil: the one character in the player's scope whom
+     *   those words name, leaving out addresseeSkipWords (the language's
+     *   articles).
+     */
+    addresseeOf(toks)
+    {
+        local comma = toks.indexWhich({ t: getTokVal(t) == ',' });
+        if (comma == nil || comma == 1 || now.player == nil)
+            return nil;
+
+        local words = toks.sublist(1, comma - 1).mapAll({ t: getTokVal(t) })
+            .subset({ w: addresseeSkipWords.indexOf(w) == nil });
+        if (words.length() == 0)
+            return nil;
+
+        local found = Q.scopeList(now.player).toList().subset(
+            { o: o.ofKind(Actor) && o != now.player && o.matchName(words) });
+        return found.length() == 1 ? found[1] : nil;
+    }
+
+    addresseeSkipWords = []
+
+    /*
      *   Parse and execute a command line.  This is the main parsing
      *   routine.  We take the text of a command line, parse it against the
      *   grammar defined in the language module, resolve the noun phrases
@@ -716,8 +740,17 @@ class Parser: object
             /* log any spelling changes we kept */
             history.noteSpelling(toks);
 
-            /* display the error we finally decided upon */
-            err.display();
+            /*
+             *   Display the error we finally decided upon, noting first whom
+             *   the command was addressed to, if it began with someone's name
+             *   and a comma (PRIEST, XYZZY): a game's messages can then
+             *   answer in that character's voice (now.addressee).
+             */
+            libGlobal.parseAddressee = addresseeOf(toks);
+            try
+                err.display();
+            finally
+                libGlobal.parseAddressee = nil;
         }
         catch (CommandSignal sig)
         {

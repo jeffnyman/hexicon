@@ -96,6 +96,19 @@ belfry: Room 'Belfry'
     }
     dobj Ring as Toll
 
+    // HIT BELL needs the hammer in hand: a condition on another object
+    // than the bell, which takes the hammer first if it can.
+    dobj Attack
+    {
+        preCond = [touchObj, new ObjectPreCondition(hammer, objHeld)]
+        verify() { }
+        action()
+        {
+            startHumming();
+            "CLANG. Not the note the bell was cast for. ";
+        }
+    }
+
     // Ringing it starts it humming, and two turns later it stops: a Fuse.
     hum = nil
 
@@ -154,6 +167,10 @@ belfry: Room 'Belfry'
                 "The niche is for the rag. ";
         }
     }
+;
+
++ hammer: Thing 'hammer; small'
+    "A small hammer. "
 ;
 
 + feather: Thing 'feather; grey pigeon'

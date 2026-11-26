@@ -55,6 +55,9 @@ Ada stroked the cat, and he opened one eye at Ada.
 >take cord
 The bell cord was fixed in place.
 
+>cat, xyzzy
+The cat gave Ada a long look.
+
 >first person
 (Now in the first person.)
 
@@ -76,5 +79,8 @@ A low room, with a fire in the grate.  The window is to the east, and the
 curtains are drawn.  A bell cord hangs by the fireplace.
 
 A grey cat is asleep by the fire.
+
+>cat, xyzzy
+The cat gives you a long look.
 
 >

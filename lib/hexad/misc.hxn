@@ -602,6 +602,9 @@ class Script: object
  *   Library global variables 
  */
 libGlobal: object
+    /* The character a command that is not understood was addressed to. */
+    parseAddressee = nil
+
    
     /*
      *   The current library messages object.  This is the source object
@@ -1000,6 +1003,12 @@ libGlobal: object
 now: object
     /* the actor performing the current command */
     actor = (libGlobal.curActor)
+
+    /*
+     *   While a command that could not be understood is answered, the
+     *   character it was addressed to (PRIEST, XYZZY), or nil.
+     */
+    addressee = (libGlobal.parseAddressee)
 
     /* the Action object of the command being executed, and the command */
     action = (libGlobal.curAction)

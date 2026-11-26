@@ -158,6 +158,26 @@ A round hatbox.
 Taken.
 ```
 
+A word can also be **weak**: written in parentheses, it is one of the thing's words, but does not name the thing on its own. WINDOW SEAT is the seat; WINDOW is still the window:
+
+```hexicon
+// WINDOW SEAT is the seat, but WINDOW is still the window: a word in
+// parentheses is weak, and does not name the seat on its own.
++ windowSeat: Fixture 'window seat; (window); bench'
+    "A narrow window seat. "
+;
+```
+
+```transcript
+>x window
+Rain runs down the small window.
+
+>x window seat
+A narrow window seat.
+```
+
+A weak word in the name, `'Q1 (glyph)'`, is shown without its parentheses.
+
 Neither gives way when the player asks for all of them, by ALL or a plural, and a thing gives way only to things its words fit as well: when the player's word is part of one thing's name and only another word for the other, Hexad has chosen already. `vocabLikelihood`, a number added to a thing's score whenever the player's words fit it (0 by default), makes a thing likelier or less likely to be chosen without ruling it out.
 
 ### One thing in several places
@@ -312,6 +332,31 @@ down.  You close it again.
 >east
 Still roofs, and still a long way down.
 ```
+
+### Pushing things from room to room
+
+A thing with `canPushTravel = true` can be pushed from room to room, PUSH CHEST NORTH or PUSH CHEST THROUGH THE DOOR, and the player goes with it. `canPushTravelVia(connector, dest)` says which ways it can go (`dest` is the room the way leads to, and may be nil), and `cannotPushTravelViaMsg` why not:
+
+```hexicon
+// Pushed about the attic, but it will not go down the ladder.
++ teaChest: Thing 'tea chest; wooden'
+    "A wooden tea chest. "
+    isTakeable = nil
+    canPushTravel = true
+    canPushTravelVia(connector, dest) { return connector != atticLadder; }
+    cannotPushTravelViaMsg(connector, dest)
+    {
+        return 'The tea chest would never go down the ladder. ';
+    }
+;
+```
+
+```transcript
+>push tea chest down
+The tea chest would never go down the ladder.
+```
+
+`describePushTravel(via)` is what is said as it goes, and `describeMovePushable(connector, dest)` what is said when it gets there.
 
 ### Light and dark
 

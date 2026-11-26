@@ -105,6 +105,12 @@ landing: Room 'Landing'
 ;
 
 // Something to light the attic with.
+// WINDOW SEAT is the seat, but WINDOW is still the window: a word in
+// parentheses is weak, and does not name the seat on its own.
++ windowSeat: Fixture 'window seat; (window); bench'
+    "A narrow window seat. "
+;
+
 + candle: Thing 'candle'
     "A stub of candle. "
     isLightable = true
@@ -145,4 +151,16 @@ attic: Room 'Attic'
 
 + hatbox: Thing 'hatbox; round; box'
     "A round hatbox. "
+;
+
+// Pushed about the attic, but it will not go down the ladder.
++ teaChest: Thing 'tea chest; wooden'
+    "A wooden tea chest. "
+    isTakeable = nil
+    canPushTravel = true
+    canPushTravelVia(connector, dest) { return connector != atticLadder; }
+    cannotPushTravelViaMsg(connector, dest)
+    {
+        return 'The tea chest would never go down the ladder. ';
+    }
 ;

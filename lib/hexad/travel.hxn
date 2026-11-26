@@ -2028,6 +2028,17 @@ class TravelConnector: object
     /* Check the travel barriers on the indirect object of the action */
     checkPushTravel()
     {
+        /*
+         *   The thing pushed may refuse this way, wherever else it may go:
+         *   too wide for the door, or bound to roll back down the slope.
+         */
+        local dest = getDestination(now.actor.getOutermostRoom);
+        if(!now.dobj.canPushTravelVia(self, dest))
+        {
+            say(now.dobj.cannotPushTravelViaMsg(self, dest));
+            return;
+        }
+
         /* 
          *   First check the travel barriers for the actor doing the pushing.
          *   Only go on to check those for the item being pushed if the actor

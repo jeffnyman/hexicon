@@ -133,6 +133,33 @@ The niche is for the rag.
 You put the oily rag in the niche.
 ```
 
+### A condition on something else
+
+The conditions in `preCond` are about the handler's own object. One about another object is an `ObjectPreCondition`, made with that object and the condition: here the bell needs the hammer held, and like `objHeld` on its own, the condition takes the hammer first if it can.
+
+```hexicon
+    // HIT BELL needs the hammer in hand: a condition on another object
+    // than the bell, which takes the hammer first if it can.
+    dobj Attack
+    {
+        preCond = [touchObj, new ObjectPreCondition(hammer, objHeld)]
+        verify() { }
+        action()
+        {
+            startHumming();
+            "CLANG. Not the note the bell was cast for. ";
+        }
+    }
+```
+
+```transcript
+>hit bell
+(first taking the hammer)
+CLANG.  Not the note the bell was cast for.
+```
+
+A `check()` that refuses until the hammer is held would make the player pick it up by hand; the condition does it for them, and says so.
+
 ### Using what Hexad already does
 
 Many actions come with properties that set up their usual cases, so that a handler is not needed at all. CLEAN uses `needsCleaning`, `mustBeCleanedWith`, and `isClean`, and calls `makeCleaned()` to do the cleaning:
@@ -158,6 +185,8 @@ With `mustBeCleanedWith` set, the player need not say what to clean it with:
 (with the oily rag)
 The rust comes away on the rag.
 ```
+
+A `Decoration` answers every action but its `decorationActions` with its `notImportantMsg`, through a handler of its own, `dobj Default` (and `iobj Default`). That handler only refuses, in its `verify()`; to say something else, give the decoration a `notImportantMsg`, and to let it take part in an action, add the action to `decorationActions` and give it a handler.
 
 PUSH has `isPushable`, LOCK `lockability`, EAT `isEdible`, and so on: Hexad's own handlers, in `thing.hxn` in its sources, say which each uses. Some of these only decide whether the action makes sense, and leave what happens to the game. POUR is one: a thing that can be poured has `isPourable` (and `fluidName`, for an oilcan that pours oil: `'the oil'`), and a thing that may have something poured onto it has `allowPourOntoMe`; but pouring itself changes nothing, so the thing poured onto has an `iobj PourOnto` with an `action()` that says what happens. ATTACH is another; see [Containers, Surfaces, Doors, and Keys](containers-and-doors.md#things-attached-to-things).
 

@@ -6561,6 +6561,11 @@ disambigPreParser: StringPreParser
     ];
 ;
 
+/* The words left out of a command's addressee: THE PRIEST, XYZZY. */
+modify Parser
+    addresseeSkipWords = ['the', 'a', 'an']
+;
+
 modify SpecialVerb
     /* 
      *   A list of prepositions we want SpecialVerb to check for when detecting the possible end of

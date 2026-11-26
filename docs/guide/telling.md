@@ -88,6 +88,28 @@ Ada stroked the cat, and he opened one eye at Ada.
 
 `bmsg()` is the same, but gives the text back, as a string, instead of showing it.
 
+## The library's own messages
+
+Each of Hexad's messages has a name: in its sources, the words before the text in `showMsg(not understood, 'I don\'t understand that command.')`. A `CustomMessages` object gives some of them new text, with `Msg(name, 'text')`, while its `active` is true. `now.addressee` is the character a command was addressed to, while Hexad answers one it could not understand, so a character can answer in its own way:
+
+```hexicon
+// What the cat makes of a command no one could follow: CAT, XYZZY.
+catMessages: CustomMessages
+    active = (now.addressee == cat)
+    messages = [
+        Msg(not understood, 'The cat {gives} {me} a long look. '),
+        Msg(unknown word, 'The cat {gives} {me} a long look. ')
+    ]
+;
+```
+
+```transcript
+>cat, xyzzy
+The cat gave Ada a long look.
+```
+
+The text has the same parameters as the game's own, and follows the tense and the person as they do. With `active = true`, the messages are the game's for everyone.
+
 ## When something comes out in braces
 
 A parameter Hexad does not know, such as `{yours 1}` written for `{his 1}`, is shown as it is written, braces and all, so that it can be found and put right. A word on its own in braces is taken for a verb, so a misspelled one (`{teh}`) is taken for one too; a transcript of each tense and person, read through once, shows both.

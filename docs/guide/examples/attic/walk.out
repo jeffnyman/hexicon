@@ -64,6 +64,12 @@ It smells of summer.
 >touch window
 The window is not important.
 
+>x window
+Rain runs down the small window.
+
+>x window seat
+A narrow window seat.
+
 >x spire
 Through the window, a church spire rises over the roofs.
 
@@ -132,7 +138,7 @@ Done.
 Attic
 Dust lies thick on the boards, and the roof slopes low.  A ladder leads down.
 
-You can see a hatbox here.
+You can see a hatbox and a tea chest here.
 
 >take trunk
 The trunk is too heavy to move.
@@ -142,6 +148,9 @@ A round hatbox.
 
 >take box
 Taken.
+
+>push tea chest down
+The tea chest would never go down the ladder.
 
 >x boxes
 hatbox: A round hatbox.
