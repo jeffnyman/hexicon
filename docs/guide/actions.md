@@ -202,7 +202,7 @@ A game can add actions of its own. An action is declared with the objects it tak
 action Ring(dobj): TAction;
 ```
 
-`TAction` is an action with a direct object, `TIAction` one with both, `IAction` one with none.
+`TAction` is an action with a direct object, `TIAction` one with both, `IAction` one with none. A game's action, or a rule of its grammar, with the name of one of Hexad's takes the place of Hexad's, and the build says so with a warning; so a game written before Hexad had an action keeps its own.
 
 Then its **grammar**, the words that mean it:
 

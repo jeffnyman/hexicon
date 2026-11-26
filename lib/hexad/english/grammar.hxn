@@ -2640,6 +2640,141 @@ verb Drink ('drink' | 'quaff' | 'imbibe') multiDobj:
     missingQ = 'what do you want to drink'
 ;
 
+verb KnockOn ('knock' | 'rap' | 'tap') ('on' | 'at' | ) singleDobj:
+    verbPhrase = 'knock/knocking (on what)'
+    missingQ = 'what do you want to knock on'
+    dobjReply = onSingleNoun
+;
+
+verb KnockOnWhat for KnockOn ('knock' | 'rap'):
+    verbPhrase = 'knock/knocking (on what)'
+    missingQ = 'what do you want to knock on'
+    dobjReply = onSingleNoun
+    missingRole = DirectObject
+;
+
+verb Raise ('raise' | 'lift') ('up' | ) multiDobj | ('raise' | 'lift') multiDobj 'up':
+    verbPhrase = 'raise/raising (what)'
+    missingQ = 'what do you want to raise'
+;
+
+verb Lower 'lower' multiDobj:
+    verbPhrase = 'lower/lowering (what)'
+    missingQ = 'what do you want to lower'
+;
+
+verb Fill 'fill' ('up' | ) multiDobj:
+    verbPhrase = 'fill/filling (what)'
+    missingQ = 'what do you want to fill'
+;
+
+verb FillWith 'fill' ('up' | ) multiDobj ('with' | 'from') singleIobj:
+    verbPhrase = 'fill/filling (what) (with what)'
+    missingQ = 'what do you want to fill;what do you want to fill it with'
+    iobjReply = withSingleNoun
+;
+
+verb Empty 'empty' ('out' | ) multiDobj | 'empty' multiDobj 'out':
+    verbPhrase = 'empty/emptying (what)'
+    missingQ = 'what do you want to empty'
+;
+
+verb EmptyInto 'empty' ('out' | ) multiDobj ('in' | 'into' | 'in' 'to') singleIobj:
+    verbPhrase = 'empty/emptying (what) (into what)'
+    missingQ = 'what do you want to empty;what do you want to empty it into'
+    iobjReply = inSingleNoun
+;
+
+verb EmptyOnto for PourOnto 'empty' ('out' | ) multiDobj ('on' | 'onto' | 'on' 'to') singleIobj:
+    verbPhrase = 'empty/emptying (what) (onto what)'
+    missingQ = 'what do you want to empty;what do you want to empty it onto'
+    iobjReply = onSingleNoun
+;
+
+verb Repair ('repair' | 'fix' | 'mend') singleDobj:
+    verbPhrase = 'repair/repairing (what)'
+    missingQ = 'what do you want to repair'
+;
+
+verb Play 'play' ('with' | 'on' | ) singleDobj:
+    verbPhrase = 'play/playing (what)'
+    missingQ = 'what do you want to play'
+;
+
+verb Buy ('buy' | 'purchase') singleDobj:
+    verbPhrase = 'buy/buying (what)'
+    missingQ = 'what do you want to buy'
+;
+
+verb Consult 'consult' singleDobj:
+    verbPhrase = 'consult/consulting (what)'
+    missingQ = 'what do you want to consult'
+;
+
+// More words for actions that have rules of their own.
+verb Fit for AttachTo ('fit' | 'fix') multiDobj ('to' | 'on' | 'onto') singleIobj:
+    iobjReply = toSingleNoun
+    verbPhrase = 'fit/fitting (what) (to what)'
+    missingQ = 'what do you want to fit (to it);what do you want to fit it to'
+;
+
+verb Wind for Turn 'wind' ('up' | ) multiDobj | 'wind' multiDobj 'up':
+    verbPhrase = 'wind/winding (what)'
+    missingQ = 'what do you want to wind'
+;
+
+verb Grab for Take ('grab' | 'snatch') multiDobj:
+    verbPhrase = 'take/taking (what)'
+    missingQ = 'what do you want to take'
+;
+
+verb Slide for Push ('slide' | 'roll') multiDobj:
+    verbPhrase = 'push/pushing (what)'
+    missingQ = 'what do you want to push'
+;
+
+verb SlideTravelDir for PushTravelDir ('slide' | 'roll') singleDobj singleDir:
+    dobjReply = singleNoun
+    iobjReply = directionName
+;
+
+verb PowerOn for SwitchOn
+    'power' ('on' | 'up') multiDobj | 'power' multiDobj ('on' | 'up'):
+    verbPhrase = 'turn/turning on (what)'
+    missingQ = 'what do you want to turn on'
+    priority = 60
+;
+
+verb PowerOff for SwitchOff
+    'power' ('off' | 'down') multiDobj | 'power' multiDobj ('off' | 'down'):
+    verbPhrase = 'turn/turning off (what)'
+    missingQ = 'what do you want to turn off'
+    priority = 60
+;
+
+verb Accompany for Follow ('accompany' | 'go' 'with') singleDobj:
+    verbPhrase = 'follow/following (whom)'
+    missingQ = 'whom do you want to follow'
+    dobjReply = singleNoun
+;
+
+verb Swat for Attack 'swat' singleDobj:
+    verbPhrase = 'attack/attacking (whom)'
+    missingQ = 'whom do you want to attack'
+    dobjReply = singleNoun
+;
+
+verb Cross for GoThrough 'cross' ('over' | ) singleDobj:
+    verbPhrase = 'cross/crossing (what)'
+    missingQ = 'what do you want to cross'
+    dobjReply = singleNoun
+;
+
+verb LookOutOf for LookThrough ('look' | 'l' | 'peer') 'out' ('of' | ) multiDobj:
+    verbPhrase = 'look/looking (out of what)'
+    missingQ = 'what do you want to look out of'
+;
+
 verb Pour 'pour' multiDobj:
     verbPhrase = 'pour/pouring (what)'
     missingQ = 'what do you want to pour'

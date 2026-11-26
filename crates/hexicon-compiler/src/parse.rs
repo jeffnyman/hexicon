@@ -1300,6 +1300,10 @@ pub(crate) struct Parser<'p, 'a> {
     src_order_idx: i32,
     /// The module being compiled: its name and its place in the build.
     module: Option<(String, usize)>,
+    /// The names the built-in libraries define, for a game's source: an
+    /// action or a verb rule of the game's own with one of them takes
+    /// the place of the library's.
+    library_names: HashSet<Vec<u8>>,
     /// Objects say which source file they are in: the object that
     /// stands for the file, once it has been made.
     src_group_mode: bool,
@@ -1514,6 +1518,7 @@ impl<'p, 'a> Parser<'p, 'a> {
             self_valid: false,
             src_order_idx: 1,
             module: None,
+            library_names: HashSet::new(),
             src_group_mode: false,
             src_group_obj: None,
             has_local_ctx: false,
@@ -1544,6 +1549,37 @@ impl<'p, 'a> Parser<'p, 'a> {
 
     /// Say which module this is: its name and its place in the build,
     /// from 1; and whether its objects say so from the start.
+    /// The names the built-in libraries define, when this is a source
+    /// of the game's own.
+    pub(crate) fn set_library_names(&mut self, names: HashSet<Vec<u8>>) {
+        self.library_names = names;
+    }
+
+    /// Whether an action or verb rule of this name is the game's own
+    /// version of a built-in library's, which it then replaces: said
+    /// with a warning, since it is not written `replace`.
+    fn replaces_library(
+        &mut self,
+        place: &SrcToken,
+        name: &[u8],
+        global: &[u8],
+        what: &str,
+    ) -> bool {
+        if !self.library_names.contains(global) {
+            return false;
+        }
+        self.tok.log_at(
+            place.file,
+            place.line,
+            Severity::Warning,
+            format!(
+                "the {what} \"{}\" takes the place of the built-in library's",
+                show_name(name)
+            ),
+        );
+        true
+    }
+
     pub(crate) fn set_module(&mut self, module: (String, usize), source_text_group: bool) {
         self.module = Some(module);
         if source_text_group {
@@ -8403,14 +8439,25 @@ impl Parser<'_, '_> {
             token.lowered = true;
             token
         };
-        let mut tokens = vec![
+        let mut tokens = Vec::new();
+        if redef == Redef::No
+            && self.replaces_library(
+                &place,
+                &name,
+                &[b"predicate(", name.as_slice(), b")"].concat(),
+                "verb rule",
+            )
+        {
+            tokens.push(made(Tok::Replace, b"replace"));
+        }
+        tokens.extend([
             made(Tok::Grammar, b"grammar"),
             made(Tok::Sym, b"predicate"),
             made(Tok::LPar, b"("),
             made(Tok::Sym, &name),
             made(Tok::RPar, b")"),
             made(Tok::Colon, b":"),
-        ];
+        ]);
         tokens.extend(words);
         tokens.push(made(Tok::Colon, b":"));
         if redef != Redef::Modify {
@@ -8481,8 +8528,12 @@ impl Parser<'_, '_> {
             );
             return;
         }
-        let mut tokens: Vec<(Tok, Vec<u8>)> =
-            vec![(Tok::Sym, name.clone()), (Tok::Colon, b":".to_vec())];
+        let mut tokens: Vec<(Tok, Vec<u8>)> = Vec::new();
+        if self.replaces_library(&place, &name, &name, "action") {
+            tokens.push((Tok::Replace, b"replace".to_vec()));
+        }
+        tokens.push((Tok::Sym, name.clone()));
+        tokens.push((Tok::Colon, b":".to_vec()));
         loop {
             if self.next() != Tok::Sym {
                 self.error_curtok("expected the action's class, but found \"%\"");

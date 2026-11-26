@@ -354,6 +354,14 @@ pub fn compile_program(
         }
         exports.push(prog.exports());
     }
+    // What the built-in libraries define, which a game's own action or
+    // verb rule may take the place of.
+    let library_names: std::collections::HashSet<Vec<u8>> = exports
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| options.from_library.get(*index) == Some(&true))
+        .flat_map(|(_, exported)| exported.objs.iter().map(|obj| obj.name.clone()))
+        .collect();
     let known = merge_exports(exports);
 
     let mut modules = Vec::new();
@@ -381,6 +389,9 @@ pub fn compile_program(
         };
         let mut parser = Parser::new(&mut pp, false, known.clone());
         parser.set_module(module, options.source_text_group);
+        if !from_library(index) {
+            parser.set_library_names(library_names.clone());
+        }
         let mut prog = parser.parse_top();
         let mut found = pp.take_diagnostics();
         for diagnostic in &mut found {

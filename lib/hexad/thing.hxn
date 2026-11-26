@@ -8757,8 +8757,256 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isPourable)
                illogical(cannotPourMsg); 
         }
+
+        /*
+         *   Pouring changes nothing unless the game says what it does; this
+         *   says it was done.
+         */
+        report() { say(okayPourMsg); }
     }
+
+    okayPourMsg = msgText(okay pour, '{I} pour{s/ed} out {1}, and it soaks
+        away. ', fluidName)
     
+    /*
+     *   KNOCK ON makes sense for anything, though a door (in travel.hxn) is
+     *   likelier to be meant; it does nothing by itself.
+     */
+    dobj KnockOn
+    {
+        preCond = [touchObj]
+        verify() { logicalRank(80); }
+        report() { say(knockOnMsg); }
+    }
+
+    knockOnMsg = msgText(knock on, '{I} knock{s/ed} on {the dobj}, but nothing
+        happens. ')
+
+    /*
+     *   RAISE, LIFT, and LOWER: nothing can be, unless a game says so with a
+     *   handler of its own.
+     */
+    dobj Raise
+    {
+        preCond = [touchObj]
+        verify() { illogical(cannotRaiseMsg); }
+    }
+
+    cannotRaiseMsg = msgText(cannot raise, '{I} {can\'t} raise {the dobj}. ')
+
+    dobj Lower
+    {
+        preCond = [touchObj]
+        verify() { illogical(cannotLowerMsg); }
+    }
+
+    cannotLowerMsg = msgText(cannot lower, '{I} {can\'t} lower {the dobj}. ')
+
+    /*
+     *   FILL and FILL ... WITH. A thing that can be filled has isFillable,
+     *   and something to fill things with has canFillWithMe; what filling
+     *   does is the game's, in the handlers of the things concerned. FILL
+     *   on its own asks what with.
+     */
+    isFillable = nil
+    canFillWithMe = nil
+
+    dobj Fill
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            if(!isFillable)
+                illogical(cannotFillMsg);
+        }
+        action() { askForIobj(FillWith); }
+    }
+
+    dobj FillWith
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            if(!isFillable)
+                illogical(cannotFillMsg);
+        }
+    }
+
+    iobj FillWith
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            if(!canFillWithMe)
+                illogical(cannotFillWithMsg);
+            if(now.verifyDobj == self)
+                illogicalSelf(cannotFillWithSelfMsg);
+        }
+    }
+
+    cannotFillMsg = msgText(cannot fill, '{I} {can\'t} fill {the dobj}. ')
+    cannotFillWithMsg = msgText(cannot fill with, '{I} {can\'t} fill anything
+        with {the iobj}. ')
+    cannotFillWithSelfMsg = msgText(cannot fill with self, '{I} {can\'t} fill
+        {the iobj} with {itself iobj}. ')
+
+    /*
+     *   EMPTY. A thing that can be poured is poured out; a container has
+     *   what can be taken out of it tipped out where the actor is, and with
+     *   INTO, put in the other thing.
+     */
+    emptiedContents()
+    {
+        local holder = (remapIn != nil ? remapIn : self);
+        if(holder.contType != In)
+            return nil;
+        return sortInOrder(holder.contents.subset({o: !o.isFixed}),
+                           {a, b: a.listOrder - b.listOrder});
+    }
+
+    dobj Empty
+    {
+        preCond = [touchObj, containerInteriorAccessible]
+        verify()
+        {
+            if(isPourable)
+                return;
+            local inside = emptiedContents();
+            if(inside == nil)
+                illogical(cannotEmptyMsg);
+            else if(inside.length == 0)
+                illogicalNow(alreadyEmptyMsg);
+        }
+        action()
+        {
+            if(isPourable)
+            {
+                replaceAction(Pour, self);
+                return;
+            }
+            local inside = emptiedContents();
+            local dest = now.actor.location;
+            foreach(local o in inside)
+                o.actionMoveInto(dest);
+            emptiedList = inside;
+            say(okayEmptyMsg);
+        }
+    }
+
+    /* What EMPTY last tipped out. */
+    emptiedList = []
+
+    okayEmptyMsg = msgText(okay empty, '{I} empt{ies/ied} {1} out of {the
+        dobj}. ', makeListStr(emptiedList, &aName))
+
+    dobj EmptyInto
+    {
+        preCond = [touchObj, containerInteriorAccessible]
+        verify()
+        {
+            if(isPourable)
+                return;
+            local inside = emptiedContents();
+            if(inside == nil)
+                illogical(cannotEmptyMsg);
+            else if(inside.length == 0)
+                illogicalNow(alreadyEmptyMsg);
+            else if(now.verifyIobj == self)
+                illogicalSelf(cannotEmptyIntoSelfMsg);
+        }
+        check()
+        {
+            if(isPourable)
+                return;
+            local dest = now.iobj.remapIn ?? now.iobj;
+            if(dest.isIn(self))
+                say(cannotEmptyIntoInsideMsg);
+            else
+            {
+                local total = 0;
+                foreach(local o in emptiedContents())
+                    total += o.bulk;
+                if(total > dest.bulkCapacity - dest.getBulkWithin())
+                    say(noRoomToEmptyMsg);
+            }
+        }
+        action()
+        {
+            if(isPourable)
+            {
+                replaceAction(PourInto, self, now.iobj);
+                return;
+            }
+            local dest = now.iobj.remapIn ?? now.iobj;
+            foreach(local o in emptiedContents())
+                o.actionMoveInto(dest);
+        }
+        report() { say(okayEmptyIntoMsg); }
+    }
+
+    iobj EmptyInto
+    {
+        preCond = [containerInteriorAccessible, touchObj]
+        verify()
+        {
+            if(emptiedContents() == nil)
+                illogical(cannotEmptyIntoMsg);
+        }
+    }
+
+    okayEmptyIntoMsg = msgText(okay empty into, '{I} empt{ies/ied} {the dobj}
+        into {the iobj}. ')
+    cannotEmptyIntoInsideMsg = msgText(cannot empty into inside, '{I} {can\'t}
+        empty {the dobj} into something inside {him dobj}. ')
+    noRoomToEmptyMsg = msgText(no room to empty, 'There {dummy}{isn\'t} room
+        for all that in {the iobj}. ')
+
+    cannotEmptyMsg = msgText(cannot empty, '{I} {can\'t} empty {the dobj}. ')
+    alreadyEmptyMsg = msgText(already empty, '{The subj dobj} {is} already
+        empty. ')
+    cannotEmptyIntoMsg = msgText(cannot empty into, '{I} {can\'t} empty anything
+        into {the iobj}. ')
+    cannotEmptyIntoSelfMsg = msgText(cannot empty into self, '{I} {can\'t} empty
+        {the dobj} into {itself dobj}. ')
+
+    /* REPAIR, FIX, and MEND: a game says what can be mended. */
+    dobj Repair
+    {
+        preCond = [touchObj]
+        verify() { illogical(cannotRepairMsg); }
+    }
+
+    cannotRepairMsg = msgText(cannot repair, '{I} {can\'t} repair {the dobj}. ')
+
+    /* PLAY: an instrument, a game, a record, if the game says so. */
+    dobj Play
+    {
+        preCond = [touchObj]
+        verify() { illogical(cannotPlayMsg); }
+    }
+
+    cannotPlayMsg = msgText(cannot play, '{I} {can\'t} play {the dobj}. ')
+
+    /* BUY and PURCHASE: nothing is for sale, unless the game says so. */
+    dobj Buy
+    {
+        verify() { illogical(cannotBuyMsg); }
+    }
+
+    cannotBuyMsg = msgText(cannot buy, '{The subj dobj} {is}n\'t for sale. ')
+
+    /* CONSULT on its own asks what about. */
+    dobj Consult
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            if(!isConsultable)
+                illogical(cannotConsultMsg);
+        }
+        action() { askForIobj(ConsultAbout); }
+    }
+
     dobj PourOnto
     {
         preCond = [touchObj]

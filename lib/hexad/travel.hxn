@@ -833,6 +833,15 @@ class Room: TravelConnector, Thing
  *   side via its otherSide property. */
 
 class Door: TravelConnector, Thing
+
+    /* Knocking on a door is likelier than knocking on anything else. */
+    dobj KnockOn
+    {
+        verify() { }
+    }
+
+    knockOnMsg = msgText(knock on door, '{I} knock{s/ed} on {the dobj}. Nobody
+        answers. ')
     
     /* A door is generally openable */
     isOpenable = true

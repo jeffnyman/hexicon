@@ -2150,6 +2150,40 @@ action BurnWith(dobj, iobj): TIAction
     resolveIobjFirst = nil
 ;
 
+action KnockOn(dobj): TAction
+;
+
+action Raise(dobj): TAction
+;
+
+action Lower(dobj): TAction
+;
+
+action Fill(dobj): TAction
+;
+
+action FillWith(dobj, iobj): TIAction
+;
+
+action Empty(dobj): TAction
+;
+
+action EmptyInto(dobj, iobj): TIAction
+    resolveIobjFirst = nil
+;
+
+action Repair(dobj): TAction
+;
+
+action Play(dobj): TAction
+;
+
+action Buy(dobj): TAction
+;
+
+action Consult(dobj): TAction
+;
+
 action Pour(dobj): TAction
     againRepeatsParse = nil
 ;

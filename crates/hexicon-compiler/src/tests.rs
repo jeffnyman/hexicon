@@ -3821,6 +3821,26 @@ mod checked_names {
     }
 
     #[test]
+    fn a_games_own_action_takes_the_place_of_the_librarys() {
+        let library = "class IAction: object;
+                       action Jump: IAction n = 1;
+                       rock: object;
+                       _main(args) { return Jump.n; }
+";
+        assert_eq!(
+            messages_with(library, "game.hxn", "action Jump: IAction n = 2;
+"),
+            ["game.hxn(1): the action \"Jump\" takes the place of the built-in library's"]
+        );
+        // Anything else of the same name is still an error.
+        assert_eq!(
+            messages_with(library, "game.hxn", "rock: object;
+").len(),
+            1
+        );
+    }
+
+    #[test]
     fn the_name_meant_is_in_the_note() {
         let mut files = Files::default()
             .with("lib.hxn", LIBRARY)
