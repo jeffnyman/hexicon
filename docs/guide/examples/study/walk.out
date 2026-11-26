@@ -96,7 +96,7 @@ Okay, you get out of the wardrobe.
 Hall
 A cold hall, with a brass hook on the wall.  The study is to the south.
 
-You can see a small picture here.
+You can see a small picture and a keyring here.
 
 >south
 Study
@@ -113,7 +113,7 @@ On the writing desk you see an inkwell and a pen.
 Hall
 A cold hall, with a brass hook on the wall.  The study is to the south.
 
-You can see a small picture here.
+You can see a small picture and a keyring here.
 
 >take picture
 Taken.
@@ -129,5 +129,32 @@ The small picture is already attached to the brass hook.
 
 >detach picture
 You detach the small picture.
+
+>take keyring
+Taken.
+
+>put key on keyring
+You put the small key on the keyring.
+
+>i
+You are carrying a keyring (on which is a small key).
+
+>south
+Study
+Books line the walls, above a writing desk and a glass cabinet.  A rug covers
+the floor, and a wardrobe stands by the door to the north.
+
+You can see a wicker basket and a puzzle box here.
+
+In the wicker basket you see a vase.
+
+On the writing desk you see an inkwell and a pen.
+
+>close cabinet
+Done.
+
+>lock cabinet
+(with the small key)
+Locked.
 
 >

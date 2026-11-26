@@ -30,3 +30,9 @@
 <line>x hook
 <line>attach picture to hook
 <line>detach picture
+<line>take keyring
+<line>put key on keyring
+<line>i
+<line>south
+<line>close cabinet
+<line>lock cabinet

@@ -166,7 +166,30 @@ The puzzle box is locked.
 Unlocked.
 ```
 
-A `Key` needs nothing more: the things that list it in their `keyList` are the things it locks. A key can also list what it fits itself, in `actualLockList`; the things it looks as if it might fit, in `plausibleLockList`; and those the player knows it fits, in `knownLockList`, which fills as they use it. When the player says UNLOCK without saying with what, Hexad uses a key they are holding: one known to fit, if they have one, or else one that might. A thing's `keyList` puts it among its keys' plausible locks.
+A `Key` needs nothing more: the things that list it in their `keyList` are the things it locks. Keys can go on a `Keyring`, and only keys can. A key on a keyring the player holds is at hand to lock and unlock with, without being taken off, and a key the player picks up while holding one goes onto it, unless the ring says `collectsKeys = nil`:
+
+```hexicon
+// Keys go on it, and a key on it is at hand to lock and unlock with.
++ keyring: Keyring 'keyring; steel; ring'
+    "A steel keyring. "
+;
+```
+
+```transcript
+>put key on keyring
+You put the small key on the keyring.
+
+>i
+You are carrying a keyring (on which is a small key).
+```
+
+```transcript
+>lock cabinet
+(with the small key)
+Locked.
+```
+
+ A key can also list what it fits itself, in `actualLockList`; the things it looks as if it might fit, in `plausibleLockList`; and those the player knows it fits, in `knownLockList`, which fills as they use it. When the player says UNLOCK without saying with what, Hexad uses a key they are holding: one known to fit, if they have one, or else one that might. A thing's `keyList` puts it among its keys' plausible locks.
 
 ## Doors
 
@@ -213,7 +236,7 @@ ATTACH and DETACH need things that can be attached, and things they can be attac
 ;
 ```
 
-A thing attached is in the thing it is attached to, and its `attachedTo` says which. Examining that thing says so:
+A thing attached is in the thing it is attached to, and its `attachedTo` says which. A part attached for good, such as a label on a box, is an `AttachableComponent`: it starts attached to its location, moves with it, and cannot be detached or taken. Examining a thing says what is attached to it:
 
 ```transcript
 >attach picture to hook

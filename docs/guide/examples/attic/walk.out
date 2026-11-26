@@ -132,8 +132,20 @@ Done.
 Attic
 Dust lies thick on the boards, and the roof slopes low.  A ladder leads down.
 
+You can see a hatbox here.
+
 >take trunk
 The trunk is too heavy to move.
+
+>x box
+A round hatbox.
+
+>take box
+Taken.
+
+>x boxes
+hatbox: A round hatbox.
+boxes: Old cardboard boxes, stacked under the eaves.
 
 >x boards
 Bare boards, under the dust.

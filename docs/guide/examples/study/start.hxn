@@ -107,6 +107,11 @@ hall: Room 'Hall'
     "A small framed picture of the sea. "
 ;
 
+// Keys go on it, and a key on it is at hand to lock and unlock with.
++ keyring: Keyring 'keyring; steel; ring'
+    "A steel keyring. "
+;
+
 + hallDoor: Door 'door'
     "A plain door. "
     otherSide = studyDoor

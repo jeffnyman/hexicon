@@ -38,6 +38,60 @@ class SensoryEmanation: Decoration
  *   response to EXAMINE or SMELL; any other action is responded to with the
  *   notImportantMsg.
  */
+/*
+ *   A keyring: keys go on it, and only keys. A key on a keyring the actor
+ *   holds can be used without taking it off, and a key the actor takes while
+ *   holding the ring goes on it, unless collectsKeys is nil.
+ */
+class Keyring: Surface
+    collectsKeys = true
+
+    iobj PutOn
+    {
+        check()
+        {
+            if(!now.dobj.ofKind(Key))
+                say(onlyKeysMsg);
+            else
+                inherited();
+        }
+    }
+
+    /* ATTACH a key TO the ring is putting it on. */
+    canAttachToMe = true
+    iobj AttachTo
+    {
+        verify() { }
+        action() { replaceAction(PutOn, now.dobj, self); }
+    }
+
+    onlyKeysMsg = msgText(only keys on keyring, 'Only keys go on {the iobj}. ')
+;
+
+/*
+ *   Something that can be seen, and perhaps smelled or heard, but not touched:
+ *   smoke, mist, steam. Every action but those in decorationActions is told
+ *   it is too insubstantial for that.
+ */
+class Vaporous: Decoration
+    decorationActions = [Examine, SmellSomething, ListenTo, LookThrough,
+        LookIn, Search]
+
+    notImportantMsg = msgText(vaporous, '{The subj cobj} {is} too insubstantial
+        for that. ')
+
+    /* What looking through it, or in it, shows; by default, nothing more. */
+    dobj LookThrough
+    {
+        verify() { }
+        action() { say(lookInVaporMsg); }
+    }
+    dobj LookIn as LookThrough
+    dobj Search as LookThrough
+
+    lookInVaporMsg = msgText(look in vapor, '{I} {see} nothing in {the dobj}. ')
+;
+
 class Odor: SensoryEmanation
         
     /*  An Odor responds to EXAMINE SOMETHING or SMELL SOMETHING */

@@ -136,3 +136,13 @@ attic: Room 'Attic'
 + trunk: Heavy 'trunk; old'
     "An old trunk, far too heavy to move. "
 ;
+
+// Boxes, only one of which is implemented: BOX means the hatbox.
++ boxes: Fixture 'boxes; old cardboard; box; them'
+    "Old cardboard boxes, stacked under the eaves. "
+    yieldsToOthers = true
+;
+
++ hatbox: Thing 'hatbox; round; box'
+    "A round hatbox. "
+;

@@ -670,9 +670,36 @@ class Mentionable: LMentionable
      *
      *   mode is the match mode.
      *
-     *   By default we do nothing here.
+     *   By default a thing gives way to the others the words match if it
+     *   yieldsToOthers, or if one of them is in its yieldsTo list (an object,
+     *   or a class), unless the player asked for all of them.
      */
-    filterResolveList(np, cmd, mode) { }
+    filterResolveList(np, cmd, mode)
+    {
+        if(np.matches.length < 2 || mode == All)
+            return;
+
+        local yields = valToList(yieldsTo);
+        if((yieldsToOthers
+            && np.matches.indexWhich({m: m.obj != self && !m.obj.yieldsToOthers}))
+           || np.matches.indexWhich(
+               {m: m.obj != self
+                   && yields.indexWhich({y: m.obj == y || m.obj.ofKind(y)})}))
+            np.matches = np.matches.subset({m: m.obj != self});
+    }
+
+    /*
+     *   Does this thing give way to any other the player's words match? Such
+     *   as a generic object that stands for many: the books on the shelves,
+     *   which give way to the one book that is implemented.
+     */
+    yieldsToOthers = nil
+
+    /*
+     *   The objects, or classes of objects, this thing gives way to when the
+     *   player's words match both.
+     */
+    yieldsTo = []
     
     /* 
      *   Our original vocab string, if we've defined an altVocab that might replace our
@@ -6560,14 +6587,20 @@ class Thing:  ReplaceRedirector, Mentionable
     findPlausibleKey(silent = nil)
     {
       
-        useKey_ = nil;   
+        useKey_ = nil;
         local lockObj = self;
+
+        /* The keys at hand: those held, and those on a keyring held. */
+        local keys = now.actor.contents;
+        foreach(local ring in now.actor.contents)
+            if(ring.ofKind(Keyring))
+                keys += ring.contents;
         
         /* 
          *   First see if the actor is holding a key that is known to work on
          *   this object. If so, use it.
          */
-        foreach(local obj in now.actor.contents)
+        foreach(local obj in keys)
         {
             if(obj.ofKind(Key) 
                && obj.knownLockList.indexOf(self) !=  nil)
@@ -6582,7 +6615,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   Then see if the actor is holding a key that might plausibly work on
          *   this object; if so, try that.
          */
-        foreach(local obj in now.actor.contents)
+        foreach(local obj in keys)
         {
             if(obj.ofKind(Key) 
                && obj.plausibleLockList.indexOf(self) !=  nil)
@@ -10140,6 +10173,41 @@ class Player: Actor
  *   Key class rather than on the items to be locked and/or unlocked.
  */
 class Key: Thing
+
+    /*
+     *   Taken while the actor holds a keyring that collects keys, a key goes
+     *   on the ring.
+     */
+    dobj Take
+    {
+        action()
+        {
+            /* A key taken off a ring stays off it. */
+            local from = location;
+            inherited();
+            local ring = now.actor.contents.valWhich(
+                {o: o.ofKind(Keyring) && o.collectsKeys && o != from});
+            if(ring != nil)
+            {
+                actionMoveInto(ring);
+                keyringAddedTo = ring;
+            }
+            else
+                keyringAddedTo = nil;
+        }
+        report()
+        {
+            inherited();
+            if(keyringAddedTo != nil)
+                say(addedToKeyringMsg);
+        }
+    }
+
+    /* The keyring the last TAKE put us on, if any. */
+    keyringAddedTo = nil
+
+    addedToKeyringMsg = msgText(added to keyring, '{I} {put} {him dobj} on {1}. ',
+                                keyringAddedTo.theName)
     
     /* The list of things this key can actually be used to lock and unlock. */
     actualLockList = []
@@ -10193,7 +10261,7 @@ class Key: Thing
     
     iobj UnlockWith
     {
-        preCond = [objHeld]
+        preCond = [keyAtHand]
         
                
         verify()
@@ -10258,7 +10326,7 @@ class Key: Thing
     
     iobj LockWith
     {
-        preCond = [objHeld]
+        preCond = [keyAtHand]
         
         verify()
         {

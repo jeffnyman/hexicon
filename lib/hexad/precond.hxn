@@ -421,6 +421,22 @@ objUnlocked: PreCondition
 
     
 /* A PreCondition to check whether an object is currently held by the actor. */
+/*
+ *   A key held, or on a keyring held: either is at hand to lock and unlock
+ *   with. Otherwise, as objHeld.
+ */
+keyAtHand: PreCondition
+    verifyPreCondition(obj) { objHeld.verifyPreCondition(obj); }
+
+    checkPreCondition(obj, allowImplicit)
+    {
+        if(obj != nil && obj.location != nil && obj.location.ofKind(Keyring)
+           && obj.location.isDirectlyIn(now.actor))
+            return true;
+        return objHeld.checkPreCondition(obj, allowImplicit);
+    }
+;
+
 objHeld: PreCondition
     
     verifyPreCondition(obj)

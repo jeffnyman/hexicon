@@ -135,6 +135,35 @@ The boards are not important.
 The rafters are close enough to touch, and the candle’s smoke curls along them.
 ```
 
+### When one word fits several things
+
+The player's words can fit more than one thing. Hexad decides between them as the [Actions](actions.md) page says, by what makes sense for the action in each one's `verify()`, and asks if that does not settle it. Two properties settle it ahead of that, for things that should step aside:
+
+- **`yieldsToOthers = true`**: the thing gives way to any other the words fit. It suits a thing that stands for many, of which only one or two are implemented: the boxes in the attic, of which only the hatbox can be picked up.
+- **`yieldsTo`**: a list of things, or classes of things, it gives way to, and no others.
+
+```hexicon
+// Boxes, only one of which is implemented: BOX means the hatbox.
++ boxes: Fixture 'boxes; old cardboard; box; them'
+    "Old cardboard boxes, stacked under the eaves. "
+    yieldsToOthers = true
+;
+```
+
+```transcript
+>x box
+A round hatbox.
+
+>take box
+Taken.
+```
+
+Neither gives way when the player asks for all of them, by ALL or a plural, and a thing gives way only to things its words fit as well: when the player's word is part of one thing's name and only another word for the other, Hexad has chosen already. `vocabLikelihood`, a number added to a thing's score whenever the player's words fit it (0 by default), makes a thing likelier or less likely to be chosen without ruling it out.
+
+### One thing in several places
+
+Some things are in more than one room at once: the sky, a river along its bank. A `MultiLoc` is, with its rooms in `locationList`: `sky: MultiLoc, Distant 'sky' "..." locationList = [lane, yard];`. And some are one thing seen as separate objects, as a door is from each of its sides: each lists the others in `getFacets`, so that IT, HIM, or HER after one can mean another (a door's two sides are facets of each other already).
+
 ### Food and clothing
 
 A `Food` can be eaten, and a `Wearable` worn:
@@ -323,3 +352,5 @@ Dust lies thick on the boards, and the roof slopes low.  A ladder leads down.
 ```
 
 A thing with `visibleInDark = true` can be seen in the dark without lighting anything else, like the stars.
+
+Smoke, mist, and steam can be seen, and smelled, but not touched: a `Vaporous` is a decoration that answers EXAMINE, SMELL, LISTEN TO, LOOK THROUGH, LOOK IN, and SEARCH, and tells any other action that it is too insubstantial for that. An `Odor` and a `Noise` are a smell and a sound as things, which answer EXAMINE and SMELL, or EXAMINE and LISTEN TO.

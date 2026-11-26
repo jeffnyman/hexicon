@@ -31,6 +31,9 @@
 <line>light candle
 <line>climb ladder
 <line>take trunk
+<line>x box
+<line>take box
+<line>x boxes
 <line>x boards
 <line>take boards
 <line>x roof
