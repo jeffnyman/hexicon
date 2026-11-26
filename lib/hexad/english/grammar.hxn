@@ -2521,8 +2521,8 @@ verb LookUp for ConsultAbout
     | ('look' | 'l') topicIobj 'up' ('in' | 'on') singleDobj:
     verbPhrase = 'look/looking up (what) (in what)'
     missingQ = 'what do you want to look that up in;what do you want to look up'
-    dobjReply = topicPhrase
-    iobjReply = inSingleNoun
+    dobjReply = inSingleNoun
+    iobjReply = topicPhrase
     
     /* 
      *   This VerbRule effectively reverses the grammtical roles of its action's direct and indirect

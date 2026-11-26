@@ -212,6 +212,42 @@ Cloak's `message` led to a survey: a game on Hexad defining an object for each o
 
 The other 267 are free. And the message now says what has the name, with a note on why: `"room" is already the name of a property, so it cannot also name an object`, where before it said "something else". Only a change to the language, in which an object's name and a property's do not share one namespace, would free the rest (vocabulary.md, section 3).
 
+### The Tide Mill (2026-11-26)
+
+The first game written for Hexad rather than ported to it, from the guide alone, to find what writing one is like: what the guide leaves out, what players type that Hexad does not understand, and what Hexad does that it should not. Ada, who keeps a tide mill, has broken her leg, and the bakery needs its flour by morning: find the key to her cottage, the crank handle, and the oil; free the wheel, fill the hopper, open the sluice, set the stones going, and bring her the flour. Eight rooms, one character, seven points, 700 lines. It is ours, so it could go anywhere, but for now it is in the playground's `game-tests/tidemill`, with two scripts: the walkthrough (49 commands, to the full score) and `walk-phrasings`, about 70 commands in the words a player might use instead.
+
+Written first from the guide, it won, and then a player's commands found most of what follows. Where a thing was the game's own slip (a topic left out, a noun in a description with no object), it was put right in the game and is not listed.
+
+**Fixed in Hexad: an answer to "What do you want to look that up in?" vanished.** LOOK UP LANTERN asks what to look it up in, and whatever the player typed next, a book or a new command such as JUMP, did nothing and said nothing. The rule for LOOK UP ... IN had its two answer forms the wrong way round, so the answer was read as a topic, which anything is. Both are now right; `hexad-fixes` checks a book given as the answer and a new command given instead.
+
+**What the guide does not say**, and the game needed (each found by reading Hexad's sources):
+
+| Needed | What Hexad has |
+|---|---|
+| A handler naming the other object: is the thing being fitted the crank handle? | `now.dobj`, `now.iobj` |
+| A timed event: the flour comes three turns after the stones start | `new Fuse(obj, &method, turns)`; the guide names `Fuse` and `Daemon` but not how to make one |
+| A ladder to climb, as well as UP | `StairwayUp` and `StairwayDown`, with a `destination`; `goInstead(dir)` for a thing that sends the player a way |
+| A handle fitted to a windlass | `SimpleAttachable`, `allowableAttachments`, `attachedTo` |
+| Oil poured on the windlass | `isPourable`, `fluidName`, `allowPourOntoMe`, and the handler's `action()`, since Hexad's own pouring does nothing |
+| A character mentions the wheel; ASK ABOUT WHEEL gets the default, since the player has not seen it | `familiar = true`, or `<.known obj>` in what she says |
+| A greeting that is not the first one | `HelloTopic` with a `StopEventList`: every conversation starts with a greeting, so the first one's words came back |
+| Fidgets one turn in three, not every turn | `eventPercent` |
+| OPEN DRAWER, for a desk's part | the guide says players never name a part; they do, so the part's noun goes in the thing's vocabulary |
+| A name such as Ada | a capitalized name is proper ("Ada won't let you pick her up"), which works, and is not said |
+
+And one surprise: a misspelled name in an expression (`gDobj`, adv3's name) is a warning, and the game builds, though the guide shows an undefined name as an error. Here the undefined name became a property of the object, nil at run time.
+
+**What players type that Hexad does not understand.** The game added two actions and five rules for Hexad's own: KNOCK ON, RAISE or LIFT, FIT ... TO, WIND, EMPTY ... INTO, OIL ... WITH, and PULL or HOOK ... WITH. Still not understood: LOOK OUT OF THE WINDOW (read as examining "out window"), CONSULT LEDGER without a topic, FILL, and HOOK DRIFTWOOD on its own. Most are on Ditch Day's list too (below). USE is refused with a reason, which is the right answer.
+
+**What Hexad does that it should not:**
+
+- **It corrects a verb into another verb.** WIND WINDLASS became "(find windlass)" and asked what to look it up in; HOOK DRIFTWOOD became "(look driftwood)" and examined it. A misspelled noun is worth correcting; a word the game does not know as a verb is more often a verb it lacks, and turning it into another action misleads the player.
+- **EXAMINE ME says "You see nothing special about you."**, where it means yourself.
+- **HELP offers what the game does not have**: HINT and EXTRA ON in a game with neither, which then say so.
+- **Scenery is one object for each noun.** The game has ten decorations, each four lines, for the hedges, the range, the quilts and the rest. A room's scenery as one list of names and descriptions would save most of that.
+
+Recommended (2026-11-26): put the guide's gaps right first, since each cost a search of the library; then the verbs, with Ditch Day's list; then the spelling of verbs, EXAMINE ME, and HELP; and scenery as a list as a design of its own.
+
 ### Return to Ditch Day (surveyed 2026-11-26)
 
 Michael Roberts's 2004 game, written to show adv3 at its fullest: 36,160 lines in 21 files, twice Square Circle. Before deciding on a port, a survey of what it uses (the playground's `tools/adv3-classes.py` and `tools/adv3-calls.py`, which compare a game's adv3 classes and calls with Hexad's). **Its licence, like Square Circle's, forbids distributing a changed version**, so a port would live in the private playground.
