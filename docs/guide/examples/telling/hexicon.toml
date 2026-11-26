@@ -1,0 +1,8 @@
+[game]
+name = "The Sitting Room"
+libraries = ["system", "hexad"]
+sources = ["start"]
+image = "telling.hxg"
+
+[defines]
+LANGUAGE = "english"

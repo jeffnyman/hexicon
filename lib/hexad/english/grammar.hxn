@@ -2653,6 +2653,16 @@ verb KnockOnWhat for KnockOn ('knock' | 'rap'):
     missingRole = DirectObject
 ;
 
+verb HideIn for Enter 'hide' ('in' | 'inside' | 'into') singleDobj:
+    verbPhrase = 'hide/hiding (in what)'
+    missingQ = 'what do you want to hide in'
+    dobjReply = inSingleNoun
+;
+
+verb Hide 'hide' ('myself' | 'yourself' | 'herself' | 'himself' | ):
+    verbPhrase = 'hide/hiding'
+;
+
 verb Ring 'ring' singleDobj:
     verbPhrase = 'ring/ringing (what)'
     missingQ = 'what do you want to ring'

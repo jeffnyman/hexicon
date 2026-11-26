@@ -125,7 +125,7 @@ A room's description names things the player may want to look at, and that are t
 ;
 ```
 
-Each line is a `Decoration` where the `scenery` is, here in the attic, and its description is like any other: the roof's says more while the candle is lit. One that needs anything else, a smell, a message of its own for what cannot be done to it, or a handler, is written as a `Decoration` in full.
+Each line is a `Decoration` where the `scenery` is, here in the attic, and its description is like any other: the roof's says more while the candle is lit. A line can also say what the piece reads, for a sign or a label, after its description: `'plate; brass': "A brass plate. " read "NO ENTRY. "` answers READ PLATE with its words, and EXAMINE with its description. One that needs anything else, a smell, a message of its own for what cannot be done to it, or a handler, is written as a `Decoration` in full.
 
 ```transcript
 >take boards

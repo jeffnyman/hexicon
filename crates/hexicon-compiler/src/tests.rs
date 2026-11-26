@@ -4393,6 +4393,27 @@ mod hexicon_messages {
     }
 
     #[test]
+    fn a_verb_rule_for_an_action_nothing_defines_is_an_error() {
+        let text = "class VerbProduction: object;\n\
+                    verb Pastward 'pastward': ;\n\
+                    _main(args) { }\n";
+        let found: Vec<(u32, String)> = diagnostics("game.hxn", text)
+            .into_iter()
+            .filter(|d| d.severity == crate::pp::Severity::Error)
+            .map(|d| (d.line, d.message))
+            .collect();
+        assert_eq!(
+            found,
+            [(
+                2,
+                "the verb rule \"Pastward\" is for an action, \"Pastward\", that is not defined \
+                 anywhere"
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
     fn an_object_named_with_a_macro_is_told_so() {
         let text = "#define stop return 1;\n\
                     + property location;\n\

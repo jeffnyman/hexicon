@@ -531,7 +531,8 @@ class Action: ReplaceRedirector
          *   prop, unless we're an action that bypasses it.
          */        
         if(obj.isDecoration 
-           && obj.decorationActions.indexWhich({x: self.ofKind(x)}) == nil)
+           && obj.decorationActions.indexWhich({x: self.ofKind(x)}) == nil
+           && !(ofKind(Read) && obj.propType(&readDesc) != TypeNil))
         {
             switch(role)
             {

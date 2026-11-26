@@ -33,6 +33,8 @@ How a thing holds others depends on its class:
 | `Booth` | in it, the player too | GET IN | no |
 | `Platform` | on it, the player too | GET ON | no |
 
+A `Booth` or `Platform` that is somewhere to hide, a wardrobe or a locker, says `isHidingPlace = true`: HIDE on its own then gets in it, as HIDE IN THE WARDROBE does anywhere.
+
 Each of these can be taken, like any `Thing`. One that cannot is given `Fixture` as well, as its second class:
 
 ```hexicon

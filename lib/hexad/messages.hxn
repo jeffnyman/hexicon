@@ -1094,9 +1094,20 @@ class MessageParams: object
                 txt = txt.firstChar().toUpper() + txt.delFirst();
         }
 
-        /* 
+        /*
+         *   A parameter not in the table may still be one the language can
+         *   make sense of, such as a regular verb named as a verb.
+         */
+        if (t == nil)
+        {
+            if(ctx.subj == nil)
+                ctx.subj = dummy_;
+            txt = expandUnknown(ctx, params);
+        }
+
+        /*
          *   if we failed to find an expansion, and this isn't just a
-         *   pre-scan, return the source text as an error indication 
+         *   pre-scan, return the source text as an error indication
          */
         if (txt == nil && !ctx.prescan)
             txt = '{' + params.join(' ') + '}';
@@ -1106,7 +1117,13 @@ class MessageParams: object
     }
     
     
-    /* 
+    /*
+     *   Expand a parameter that is not in the table, or return nil, so that
+     *   it is shown as written. A language module can make sense of some.
+     */
+    expandUnknown(ctx, params) { return nil; }
+
+    /*
      *   Parameter mapping list.  This is a list of lists: [name, func],
      *   where 'name' is the parameter name (as a string), and 'func' is
      *   the expansion handler function.

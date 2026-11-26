@@ -10,6 +10,7 @@ Hexad, the library games are built on:
 - [Containers, Surfaces, Doors, and Keys](containers-and-doors.md): what holds what, a thing with several parts, things hidden under and behind, locks, keys, and doors.
 - [Characters and Conversation](characters.md): characters and their states, topic entries and what they answer, topics, revealing, and responses that change.
 - [Actions and Their Handlers](actions.md): how a command is carried out, a thing's own handlers, and new actions and their grammar.
+- [Telling the Story](telling.md): the first, second, or third person, the present or the past, and writing a game's own text to follow them.
 
 The language:
 

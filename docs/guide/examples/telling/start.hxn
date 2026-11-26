@@ -1,0 +1,85 @@
+// The Sitting Room: the example of telling the story in any person and
+// tense.
+
+import hexad;
+
+versionInfo: GameID
+    IFID = '53EAD783-C052-46A3-AC3C-20AEB10268F6'
+    name = 'The Sitting Room'
+    byline = 'by the Hexicon guide'
+    version = '1'
+;
+
+gameMain: GameMainDef
+    initialPlayerChar = me
+;
+
+// Text of the game's own, written so that it follows the person and the
+// tense: every verb in braces.
+sittingRoom: Room 'Sitting Room'
+    "A low room, with a fire in the grate. The window {dummy}{is} to the
+    east, and the curtains {plural}{are} drawn. A bell cord {dummy}{hangs}
+    by the fireplace. "
+;
+
+// The player, who has a name of her own for the third person.
++ me: Player 'Ada; ; woman; her'
+    "{I} {am} in a borrowed dressing gown. "
+    isHer = true
+;
+
++ cord: Fixture 'bell cord; old; cord bell'
+    "An old bell cord. "
+
+    dobj Pull
+    {
+        verify() { }
+        report()
+        {
+            dmsg('{I} {pull} the cord, and somewhere below a bell
+                {dummy}{rings}. ');
+        }
+    }
+;
+
+// Another character, named in a message with dmsg and the object given.
++ cat: Actor 'cat; grey; tom; him'
+    "A grey cat, asleep. "
+    specialDesc = "A grey cat {dummy}{is} asleep by the fire. "
+
+    dobj Feel
+    {
+        verify() { }
+        action()
+        {
+            dmsg('{I} stroke{s/d} {the 1}, and {he 1} {opens} one eye at
+                {me}. ', cat);
+        }
+    }
+;
+
+// How the story is told, which takes no turn.
+tellingIn: object
+    setPerson(n)
+    {
+        me.person = n;
+        me.name = (n == 1 ? 'I' : n == 2 ? 'you' : 'Ada');
+        "(Now in the <<['first', 'second', 'third'][n]>> person.) ";
+    }
+;
+
+action FirstPerson: SystemAction execAction(cmd) { tellingIn.setPerson(1); };
+action SecondPerson: SystemAction execAction(cmd) { tellingIn.setPerson(2); };
+action ThirdPerson: SystemAction execAction(cmd) { tellingIn.setPerson(3); };
+action PastTense: SystemAction
+    execAction(cmd) { gameMain.usePastTense = true; "(Now in the past.) "; }
+;
+action PresentTense: SystemAction
+    execAction(cmd) { gameMain.usePastTense = nil; "(Now in the present.) "; }
+;
+
+verb FirstPerson 'first' 'person': verbPhrase = 'tell/telling in the first person';
+verb SecondPerson 'second' 'person': verbPhrase = 'tell/telling in the second person';
+verb ThirdPerson 'third' 'person': verbPhrase = 'tell/telling in the third person';
+verb PastTense 'past' 'tense': verbPhrase = 'tell/telling in the past';
+verb PresentTense 'present' 'tense': verbPhrase = 'tell/telling in the present';

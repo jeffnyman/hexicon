@@ -29,6 +29,7 @@ say(val) { print(val); }
 class Decoration: object
     vocab = ''
     desc = ""
+    readDesc = nil
     location = nil
 ;
 
@@ -43,7 +44,7 @@ kitchen: object
     'plates; blue; plate; them': "Plates<<if location.lit>>, shining<<end>>. "
 ;
 
-+ scenery 'cupboard': "A tall cupboard. ";
++ scenery 'cupboard': "A tall cupboard. " read "STORES. ";
 
 _main(args)
 {
@@ -54,6 +55,15 @@ _main(args)
               + '): ');
         o.desc;
         "\n";
+    }
+    for (local o = firstObj(Decoration) ; o != nil ; o = nextObj(o, Decoration))
+    {
+        if (o.vocab == 'cupboard')
+        {
+            print(o.vocab + ' reads: ');
+            o.readDesc;
+            "\n";
+        }
     }
     kitchen.lit = true;
     for (local o = firstObj(Decoration) ; o != nil ; o = nextObj(o, Decoration))

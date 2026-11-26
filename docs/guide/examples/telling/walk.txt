@@ -1,0 +1,20 @@
+<eventscript>
+<line>look
+<line>x me
+<line>pull cord
+<line>touch cat
+<line>third person
+<line>look
+<line>pull cord
+<line>touch cat
+<line>past tense
+<line>look
+<line>x me
+<line>touch cat
+<line>take cord
+<line>first person
+<line>pull cord
+<line>x cat
+<line>present tense
+<line>second person
+<line>look

@@ -2156,6 +2156,25 @@ action KnockOn(dobj): TAction
 action Ring(dobj): TAction
 ;
 
+/*
+ *   HIDE on its own gets into the hiding place here, if there is one: a
+ *   thing with isHidingPlace.
+ */
+action Hide: IAction
+    execAction(cmd)
+    {
+        local places = Q.scopeList(now.actor).subset(
+            {o: o.ofKind(Thing) && o.isHidingPlace && !now.actor.isIn(o)});
+        if(places.length() == 1)
+            replaceAction(Enter, places[1]);
+        else if(places.length() == 0)
+            showMsg(nowhere to hide, 'There{dummy}{\'s} nowhere obvious to hide
+                here. ');
+        else
+            askForDobj(Enter);
+    }
+;
+
 action Wave(dobj): TAction
 ;
 

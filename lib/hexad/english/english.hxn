@@ -4829,6 +4829,10 @@ englishMessageParams: MessageParams
         [ 'him',
          { ctx, params: cmdInfo(ctx, params[2], &himName, vObject) } ],
 
+        /* {it obj} - the same, as a game is apt to write it of a thing */
+        [ 'it',
+         { ctx, params: cmdInfo(ctx, params[2], &himName, vObject) } ],
+
      /* {them obj} - pronoun, objective case */
         [ 'them',
          { ctx, params: cmdInfo(ctx, params[2], &himName, vObject) } ],
@@ -5033,7 +5037,67 @@ englishMessageParams: MessageParams
     
 ;
 
-/* 
+/*
+ *   A regular verb named as a verb, {pull} or {pulls}, which the table of
+ *   verbs does not have, since it lists only the irregular: its forms are
+ *   made by rule, kept in the table, and conjugated as any other's.
+ */
+modify englishMessageParams
+    expandUnknown(ctx, params)
+    {
+        if (params.length() != 1)
+            return nil;
+        local w = params[1];
+        if (regexMatch(R'<lower>+$', w) == nil)
+            return nil;
+        if (verbTab[w] == nil)
+        {
+            local forms = regularVerbForms(w);
+            verbTab[forms[1]] = forms;
+            verbTab[forms[2]] = forms;
+        }
+        return conjugate(ctx, params);
+    }
+
+    /*
+     *   The forms of a regular verb, [infinitive, third person, past,
+     *   participle], from its infinitive or its third person: pull, pulls,
+     *   pulled; reach, reaches, reached; carry, carries, carried; stop,
+     *   stops, stopped.
+     */
+    regularVerbForms(w)
+    {
+        local inf = w;
+        if (w.endsWith('ies') && w.length() > 4)
+            inf = w.left(-3) + 'y';
+        else if (regexMatch(R'.*(ch|sh|ss|x|z|o)es$', w) != nil)
+            inf = w.left(-2);
+        else if (w.endsWith('s') && !w.endsWith('ss') && !w.endsWith('us')
+                 && !w.endsWith('is'))
+            inf = w.left(-1);
+
+        local third, past;
+        if (regexMatch(R'.*(ch|sh|ss|x|z|o)$', inf) != nil)
+            third = inf + 'es';
+        else if (regexMatch(R'.*[^aeiou]y$', inf) != nil)
+            third = inf.left(-1) + 'ies';
+        else
+            third = inf + 's';
+
+        if (inf.endsWith('e'))
+            past = inf + 'd';
+        else if (regexMatch(R'.*[^aeiou]y$', inf) != nil)
+            past = inf.left(-1) + 'ied';
+        /* One syllable, ending in one vowel and a consonant: stopped. */
+        else if (regexMatch(R'[^aeiou]*[aeiou][^aeiouwxy]$', inf) != nil)
+            past = inf + inf.right(1) + 'ed';
+        else
+            past = inf + 'ed';
+        return [inf, third, past, past];
+    }
+;
+
+/*
  *   Regular verb conjugator.  This takes the list of CustomVocab
  *   verbParmas tokens built during preinit, and returns the
  *   appropriate conjugation for the subject and tense.  

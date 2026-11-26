@@ -8815,6 +8815,9 @@ class Thing:  ReplaceRedirector, Mentionable
     knockOnMsg = msgText(knock on, '{I} knock{s/ed} on {the dobj}, but nothing
         happens. ')
 
+    /* A place to hide in, which HIDE on its own gets into. */
+    isHidingPlace = nil
+
     /* RING: nothing rings, unless a game says so with a handler. */
     dobj Ring
     {

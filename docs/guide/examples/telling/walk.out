@@ -1,0 +1,80 @@
+Sitting Room
+A low room, with a fire in the grate.  The window is to the east, and the
+curtains are drawn.  A bell cord hangs by the fireplace.
+
+A grey cat is asleep by the fire.
+
+>look
+Sitting Room
+A low room, with a fire in the grate.  The window is to the east, and the
+curtains are drawn.  A bell cord hangs by the fireplace.
+
+A grey cat is asleep by the fire.
+
+>x me
+You are in a borrowed dressing gown.
+
+>pull cord
+You pull the cord, and somewhere below a bell rings.
+
+>touch cat
+You stroke the cat, and he opens one eye at you.
+
+>third person
+(Now in the third person.)
+
+>look
+Sitting Room
+A low room, with a fire in the grate.  The window is to the east, and the
+curtains are drawn.  A bell cord hangs by the fireplace.
+
+A grey cat is asleep by the fire.
+
+>pull cord
+Ada pulls the cord, and somewhere below a bell rings.
+
+>touch cat
+Ada strokes the cat, and he opens one eye at Ada.
+
+>past tense
+(Now in the past.)
+
+>look
+Sitting Room
+A low room, with a fire in the grate.  The window was to the east, and the
+curtains were drawn.  A bell cord hung by the fireplace.
+
+A grey cat was asleep by the fire.
+
+>x me
+Ada was in a borrowed dressing gown.
+
+>touch cat
+Ada stroked the cat, and he opened one eye at Ada.
+
+>take cord
+The bell cord was fixed in place.
+
+>first person
+(Now in the first person.)
+
+>pull cord
+I pulled the cord, and somewhere below a bell rang.
+
+>x cat
+A grey cat, asleep.
+
+>present tense
+(Now in the present.)
+
+>second person
+(Now in the second person.)
+
+>look
+Sitting Room
+A low room, with a fire in the grate.  The window is to the east, and the
+curtains are drawn.  A bell cord hangs by the fireplace.
+
+A grey cat is asleep by the fire.
+
+>

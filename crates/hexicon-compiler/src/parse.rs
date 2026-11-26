@@ -8441,41 +8441,17 @@ impl Parser<'_, '_> {
                         return;
                     }
                     self.next();
-                    let mut desc = Vec::new();
-                    match self.cur() {
-                        Tok::DStr => {
-                            desc.push(self.tok.cur_token().clone());
-                            self.next();
-                        }
-                        Tok::DStrStart => {
-                            let mut depth = 0usize;
-                            loop {
-                                match self.cur() {
-                                    Tok::DStrStart => depth += 1,
-                                    Tok::DStrEnd => depth -= 1,
-                                    Tok::Eof => {
-                                        self.error_curtok(
-                                            "a piece of scenery's description does not end",
-                                        );
-                                        return;
-                                    }
-                                    _ => {}
-                                }
-                                desc.push(self.tok.cur_token().clone());
-                                self.next();
-                                if depth == 0 {
-                                    break;
-                                }
-                            }
-                        }
-                        _ => {
-                            self.error_curtok(
-                                "expected a piece of scenery's description, in double quotes, \
-                                 but found \"%\"",
-                            );
-                            self.skip_scenery();
+                    let Some(desc) = self.scenery_text("description") else {
+                        return;
+                    };
+                    // What it says, if it can be read: `read "..."`.
+                    let mut read = None;
+                    if self.cur_is_sym(b"read") {
+                        self.next();
+                        let Some(text) = self.scenery_text("words to read") else {
                             return;
-                        }
+                        };
+                        read = Some(text);
                     }
                     for _ in 0..plus_cnt {
                         out.push(made(Tok::Plus, b"+"));
@@ -8483,6 +8459,11 @@ impl Parser<'_, '_> {
                     out.push(made(Tok::Sym, b"Decoration"));
                     out.push(vocab);
                     out.extend(desc);
+                    if let Some(read) = read {
+                        out.push(made(Tok::Sym, b"readDesc"));
+                        out.push(made(Tok::Eq, b"="));
+                        out.extend(read);
+                    }
                     out.push(made(Tok::Sem, b";"));
                 }
                 Tok::Eof => {
@@ -8508,6 +8489,46 @@ impl Parser<'_, '_> {
             self.tok.push_token(token);
         }
         self.next();
+    }
+
+    /// A piece of scenery's description, or what it reads: a string in
+    /// double quotes, with what it embeds, as tokens. On an error, which is
+    /// reported, the rest of the scenery is passed over.
+    fn scenery_text(&mut self, what: &str) -> Option<Vec<SrcToken>> {
+        let mut text = Vec::new();
+        match self.cur() {
+            Tok::DStr => {
+                text.push(self.tok.cur_token().clone());
+                self.next();
+            }
+            Tok::DStrStart => {
+                let mut depth = 0usize;
+                loop {
+                    match self.cur() {
+                        Tok::DStrStart => depth += 1,
+                        Tok::DStrEnd => depth -= 1,
+                        Tok::Eof => {
+                            self.error_curtok(&format!("a piece of scenery's {what} does not end"));
+                            return None;
+                        }
+                        _ => {}
+                    }
+                    text.push(self.tok.cur_token().clone());
+                    self.next();
+                    if depth == 0 {
+                        break;
+                    }
+                }
+            }
+            _ => {
+                self.error_curtok(&format!(
+                    "expected a piece of scenery's {what}, in double quotes, but found \"%\""
+                ));
+                self.skip_scenery();
+                return None;
+            }
+        }
+        Some(text)
     }
 
     /// Skip to the next ';', and past it: after an error in scenery.
@@ -8692,9 +8713,25 @@ impl Parser<'_, '_> {
             tokens.push(made(Tok::Sym, b"VerbProduction"));
         }
         if redef != Redef::Modify || action.is_some() {
+            let action_name = action.clone().unwrap_or_else(|| name.clone());
+            // A rule for an action nothing defines would fail only when the
+            // game starts, deep in the grammar: it is said here.
+            if !self.syntax_only && self.prog.globals.get(&action_name).is_none() {
+                let shown = show_name(&action_name);
+                self.tok.log_noted(
+                    place.line,
+                    format!("the verb rule \"{}\" is for an action, \"{shown}\", that is not defined anywhere", show_name(&name)),
+                    format!(
+                        "declare it (action {shown}: TAction;), or name another with 'for' \
+                         (verb {} for Take ...)",
+                        show_name(&name)
+                    ),
+                    (place.line, place.line),
+                );
+            }
             tokens.push(made(Tok::Sym, b"action"));
             tokens.push(made(Tok::Eq, b"="));
-            tokens.push(made(Tok::Sym, action.as_deref().unwrap_or(&name)));
+            tokens.push(made(Tok::Sym, &action_name));
         }
         let current = self.tok.cur_token().clone();
         self.tok.push_token(current);
