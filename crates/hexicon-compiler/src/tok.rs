@@ -504,6 +504,19 @@ impl Preprocessor<'_> {
         });
     }
 
+    /// Report a warning at a line of the current file, with a note.
+    pub(crate) fn log_warning_noted(&mut self, line: u32, message: String, note: String) {
+        let file = self.file_name(self.last_desc.unwrap_or(0)).to_owned();
+        self.push_diagnostic(super::Diagnostic {
+            file,
+            line,
+            severity: Severity::Warning,
+            message,
+            note: Some(note),
+            ..Default::default()
+        });
+    }
+
     /// Report a problem at a given position.
     pub(crate) fn log_at(&mut self, file: usize, line: u32, severity: Severity, message: String) {
         let file = self.file_name(file).to_owned();

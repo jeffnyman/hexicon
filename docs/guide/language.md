@@ -429,7 +429,7 @@ Before a file is compiled, lines that start with `#` are worked out. `#define` m
 The pages on Hexad describe the forms that are Hexicon's own:
 
 - `import hexad;`, which brings a library into a file: [Getting Started](getting-started.md);
-- `action Ring(dobj): TAction;`, which declares an action, and `dobj Ring { ... }` and `dobj Ring as Pull`, which handle one, and `verb Ring 'ring' singleDobj: ...;`, the words for it: [Actions and Their Handlers](actions.md);
+- `action Toll(dobj): TAction;`, which declares an action, and `dobj Toll { ... }` and `dobj Toll as Pull`, which handle one, and `verb Toll 'toll' singleDobj: ...;`, the words for it: [Actions and Their Handlers](actions.md);
 - `+ scenery 'dust; thick': "..." ... ;`, a decoration for each line: [Things and Rooms](things-and-rooms.md#scenery).
 
 The built-in functions (`print()`, `rand()`, `toString()`, and the rest) are declared in the system library's headers: `general.h`, `vm.h`, and `io.h`, which `hexicon.h` brings in.

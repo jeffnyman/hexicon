@@ -8815,6 +8815,35 @@ class Thing:  ReplaceRedirector, Mentionable
     knockOnMsg = msgText(knock on, '{I} knock{s/ed} on {the dobj}, but nothing
         happens. ')
 
+    /* RING: nothing rings, unless a game says so with a handler. */
+    dobj Ring
+    {
+        preCond = [touchObj]
+        verify() { illogical(cannotRingMsg); }
+    }
+
+    cannotRingMsg = msgText(cannot ring, '{The subj dobj} {is}n\'t something
+        {i} {can} ring. ')
+
+    /*
+     *   WAVE, SWING, or BRANDISH: anything that can be held can be waved,
+     *   to no effect, unless a game gives it one.
+     */
+    dobj Wave
+    {
+        preCond = [objHeld]
+        verify()
+        {
+            if(!isTakeable)
+                illogical(cannotWaveMsg);
+        }
+        report() { say(okayWaveMsg); }
+    }
+
+    cannotWaveMsg = msgText(cannot wave, '{I} {can\'t} wave {the dobj}. ')
+    okayWaveMsg = msgText(okay wave, '{I} wave{s/d} {1}, but nothing happens. ',
+                          now.actionListStr)
+
     /*
      *   RAISE, LIFT, and LOWER: nothing can be, unless a game says so with a
      *   handler of its own.

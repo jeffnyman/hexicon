@@ -2153,6 +2153,17 @@ action BurnWith(dobj, iobj): TIAction
 action KnockOn(dobj): TAction
 ;
 
+action Ring(dobj): TAction
+;
+
+action Wave(dobj): TAction
+;
+
+/* WAIT FOR, or WAIT UNTIL, anything: a turn's wait, as WAIT is. */
+action WaitFor: LiteralAction
+    execAction(cmd) { Wait.execAction(cmd); }
+;
+
 action Raise(dobj): TAction
 ;
 

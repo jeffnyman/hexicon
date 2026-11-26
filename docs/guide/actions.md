@@ -16,7 +16,7 @@ For each object, the action asks the object's **handler** for it, in stages:
 | `action()` | what happens | (it is done) |
 | `report()` | what the player is told | |
 
-`verify()` also helps Hexad work out which object the player meant. Of two things called `bell`, the one whose handler says RING makes sense is the one rung. So `verify()` is the place for what is true of the object; `check()` is for what is true of the moment.
+`verify()` also helps Hexad work out which object the player meant. Of two things called `bell`, the one whose handler says TOLL makes sense is the one tolled. So `verify()` is the place for what is true of the object; `check()` is for what is true of the moment.
 
 `report()` is kept apart from `action()` because one command can act on several objects (TAKE ALL), and Hexad then gathers the reports.
 
@@ -25,22 +25,23 @@ For each object, the action asks the object's **handler** for it, in stages:
 Every thing has handlers for every action, from its class. A thing changes what an action does to it by having a handler of its own, written with the role (`dobj` or `iobj`) and the action:
 
 ```hexicon
-// The bell handles RING itself.
+// The bell handles TOLL itself, and Hexad's RING as TOLL.
 + bell: Fixture 'bell; great bronze'
     "A great bronze bell<<if humming>>, still humming<<end>>. "
     humming = nil
 
-    dobj Ring
+    dobj Toll
     {
         verify() { }
         action() { startHumming(); }
         report() { "BONG. The note rolls out over the town. "; }
     }
+    dobj Ring as Toll
 ```
 
 (What `startHumming()` does is below, in [Things that happen later](#things-that-happen-later).)
 
-The stages it gives replace those of its class; those it leaves out are its class's. An empty `verify()` says RING makes sense for the bell, whatever the class says.
+The stages it gives replace those of its class; those it leaves out are its class's. An empty `verify()` says TOLL makes sense for the bell, whatever the class says. TOLL is an action of the game's own, made [below](#new-actions); RING is one of Hexad's, which refuses by default ("The oily rag isn't something you can ring."), and `dobj Ring as Toll` (see [One action as another](#one-action-as-another)) has the bell ring as it tolls.
 
 ### Checking first
 
@@ -66,24 +67,25 @@ The lever is rusted solid.
 
 ### One action as another
 
-A thing can handle one action as it handles another, with `as`: RING ROPE does what PULL ROPE does. And an action can be replaced by another altogether, with `replaceAction()`: pulling the rope rings the bell.
+A thing can handle one action as it handles another, with `as`: TOLL ROPE and RING ROPE do what PULL ROPE does. And an action can be replaced by another altogether, with `replaceAction()`: pulling the rope tolls the bell.
 
 ```hexicon
-// Pulling the rope rings the bell.
+// Pulling the rope tolls the bell.
 + rope: Fixture 'rope; bell'
     "A thick bell rope. "
 
     dobj Pull
     {
         verify() { }
-        action() { replaceAction(Ring, bell); }
+        action() { replaceAction(Toll, bell); }
     }
+    dobj Toll as Pull
     dobj Ring as Pull
 ;
 ```
 
 ```transcript
->ring rope
+>toll rope
 BONG.  The note rolls out over the town.
 
 >pull rope
@@ -227,8 +229,8 @@ A **daemon** is the same, every so many turns rather than once: `new Daemon(obj,
 A game can add actions of its own. An action is declared with the objects it takes, and the class it is:
 
 ```hexicon
-// A new action, RING, which takes one object.
-action Ring(dobj): TAction;
+// A new action, TOLL, which takes one object.
+action Toll(dobj): TAction;
 ```
 
 `TAction` is an action with a direct object, `TIAction` one with both, `IAction` one with none. A game's action, or a rule of its grammar, with the name of one of Hexad's takes the place of Hexad's, and the build says so with a warning; so a game written before Hexad had an action keeps its own.
@@ -237,37 +239,37 @@ Then its **grammar**, the words that mean it:
 
 ```hexicon
 // The words that mean it.
-verb Ring 'ring' singleDobj:
-    verbPhrase = 'ring/ringing (what)'
-    missingQ = 'what do you want to ring'
+verb Toll 'toll' singleDobj:
+    verbPhrase = 'toll/tolling (what)'
+    missingQ = 'what do you want to toll'
 ;
 ```
 
 A `verb` declaration names the action, then says what the player types, up to a colon: words in quotes, alternatives between `|` in parentheses (`('push' | 'press')`), and where the objects go: `singleDobj` for one direct object, `multiDobj` for one or several, `singleIobj` for the indirect object. After the colon come the rule's properties. `verbPhrase` is how Hexad speaks of the action, and `missingQ` what it asks when the object is left out:
 
 ```transcript
->ring
-What do you want to ring?
+>toll
+What do you want to toll?
 ```
 
 Last, what it does to things that have no handler of their own, which is to every thing in the game until it says otherwise. `modify Thing` gives Thing a handler for it:
 
 ```hexicon
-// What RING does to anything that has no handler of its own.
+// What TOLL does to anything that has no handler of its own.
 modify Thing
-    dobj Ring
+    dobj Toll
     {
-        verify() { illogical(cannotRingMsg); }
+        verify() { illogical(cannotTollMsg); }
     }
-    cannotRingMsg = '{The subj dobj} {is} not something you can ring. '
+    cannotTollMsg = '{The subj dobj} {is} not something you can toll. '
 ;
 ```
 
 `{The subj dobj}` and `{is}` are **message parameters**: Hexad puts the direct object's name, and the verb in the right form for it.
 
 ```transcript
->ring rag
-The oily rag is not something you can ring.
+>toll rag
+The oily rag is not something you can toll.
 ```
 
 ### An action with no object
@@ -312,15 +314,15 @@ action Shout: LiteralAction
 An action can have more than one rule. Each rule has a name of its own, and `for` says which action it is for when the name is not the action's:
 
 ```hexicon
-// Another rule for RING.
-verb Toll for Ring 'toll' singleDobj:
-    verbPhrase = 'toll/tolling (what)'
-    missingQ = 'what do you want to toll'
+// Another rule for TOLL.
+verb Peal for Toll 'peal' singleDobj:
+    verbPhrase = 'peal/pealing (what)'
+    missingQ = 'what do you want to peal'
 ;
 ```
 
 ```transcript
->toll bell
+>peal bell
 BONG.  The note rolls out over the town.
 ```
 

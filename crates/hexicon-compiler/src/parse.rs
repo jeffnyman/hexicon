@@ -8332,6 +8332,31 @@ impl Parser<'_, '_> {
                     self.next();
                     return Ok(());
                 }
+                // A template's value, written after the properties, on a
+                // line of its own: one error, and the whole string, with
+                // what it embeds, is passed over. (One on the line of a
+                // property is a slip in that property's value.)
+                Tok::DStr | Tok::DStrStart | Tok::SStr | Tok::SStrStart
+                    if self.tok.cur_token().line > self.prev_line =>
+                {
+                    let line = self.tok.cur_token().line;
+                    let (message, note) = if matches!(self.cur(), Tok::DStr | Tok::DStrStart) {
+                        (
+                            "a description in double quotes after the properties",
+                            "the values a template gives, such as the description, come before \
+                             the properties: move it up, or write it as desc = \"...\"",
+                        )
+                    } else {
+                        (
+                            "a string in single quotes after the properties",
+                            "the values a template gives, such as the vocabulary, come before \
+                             the properties: move it up, or give it a property's name",
+                        )
+                    };
+                    self.tok
+                        .log_noted(line, message.to_owned(), note.to_owned(), (line, line));
+                    self.skip_string();
+                }
                 _ => {
                     let found = Self::name(&self.cur_text());
                     self.error(format!(
@@ -8342,6 +8367,24 @@ impl Parser<'_, '_> {
                         return Err(Stop);
                     }
                 }
+            }
+        }
+    }
+
+    /// Pass over a string, and if it embeds code, all of it, up to the
+    /// end of the string.
+    fn skip_string(&mut self) {
+        let mut depth = 0usize;
+        loop {
+            match self.cur() {
+                Tok::DStrStart | Tok::SStrStart => depth += 1,
+                Tok::DStrEnd | Tok::SStrEnd => depth = depth.saturating_sub(1),
+                Tok::Eof => return,
+                _ => {}
+            }
+            self.next();
+            if depth == 0 {
+                return;
             }
         }
     }
@@ -8522,6 +8565,20 @@ impl Parser<'_, '_> {
             }
             let other = self.cur_text();
             self.next();
+            // An action nothing defines: said once, and nothing is made,
+            // rather than six methods that call what is not there.
+            if !self.syntax_only && self.prog.globals.get(&other).is_none() {
+                self.tok.log_warning_noted(
+                    place.line,
+                    format!("\"{}\" is not defined anywhere", show_name(&other)),
+                    format!(
+                        "after 'as' comes the action whose handling this handler takes; \
+                         there is no action \"{}\", so this handler does nothing",
+                        show_name(&other)
+                    ),
+                );
+                return;
+            }
             let name = |stage: &[u8]| [stage, role, &other].concat();
             let call = |tokens: &mut Vec<(Tok, Vec<u8>)>, stage: &[u8], parens: bool, ret: bool| {
                 tokens.push((Tok::Sym, stage.to_vec()));

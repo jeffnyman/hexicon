@@ -2653,6 +2653,37 @@ verb KnockOnWhat for KnockOn ('knock' | 'rap'):
     missingRole = DirectObject
 ;
 
+verb Ring 'ring' singleDobj:
+    verbPhrase = 'ring/ringing (what)'
+    missingQ = 'what do you want to ring'
+;
+
+verb Wave ('wave' | 'swing' | 'brandish') ('about' | 'around' | ) singleDobj:
+    verbPhrase = 'wave/waving (what)'
+    missingQ = 'what do you want to wave'
+;
+
+verb WaitFor 'wait' ('for' | 'until' | 'till') literalDobj:
+    verbPhrase = 'wait/waiting (for what)'
+;
+
+verb LayOn for PutOn 'lay' multiDobj ('on' | 'onto' | 'upon' | 'across') singleIobj:
+    verbPhrase = 'put/putting (what) (on what)'
+    missingQ = 'what do you want to put (on it);what do you want to put it on'
+    iobjReply = onSingleNoun
+;
+
+verb LayIn for PutIn 'lay' multiDobj ('in' | 'into') singleIobj:
+    verbPhrase = 'put/putting (what) (in what)'
+    missingQ = 'what do you want to put (in it);what do you want to put it in'
+    iobjReply = inSingleNoun
+;
+
+verb LayDown for Drop 'lay' ('down' | ) multiDobj | 'lay' multiDobj 'down':
+    verbPhrase = 'drop/dropping (what)'
+    missingQ = 'what do you want to drop'
+;
+
 verb Raise ('raise' | 'lift') ('up' | ) multiDobj | ('raise' | 'lift') multiDobj 'up':
     verbPhrase = 'raise/raising (what)'
     missingQ = 'what do you want to raise'

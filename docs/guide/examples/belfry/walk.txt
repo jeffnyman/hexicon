@@ -1,13 +1,16 @@
 <eventscript>
 <line>look
-<line>ring bell
-<line>x bell
-<line>ring rope
-<line>pull rope
-<line>ring rag
-<line>ring
-<line>sing
 <line>toll bell
+<line>x bell
+<line>toll rope
+<line>pull rope
+<line>toll rag
+<line>toll
+<line>sing
+<line>peal bell
+<line>ring bell
+<line>ring rope
+<line>ring rag
 <line>leap
 <line>pull lever
 <line>clean lever

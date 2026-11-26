@@ -4353,6 +4353,46 @@ mod hexicon_messages {
     }
 
     #[test]
+    fn a_description_after_the_properties_is_one_error() {
+        let text = "class Lever: object;\n\
+                    lever: Lever\n\
+                    \x20   n = 1\n\
+                    \x20   \"Lever <<n>>, <<if n>>pulled<<else>>back<<end>>. \"\n\
+                    \x20   m = 2\n\
+                    ;\n\
+                    _main(args) { return lever.m; }\n";
+        let found: Vec<(u32, String, Option<String>)> = diagnostics("game.hxn", text)
+            .into_iter()
+            .map(|d| (d.line, d.message, d.note))
+            .collect();
+        assert_eq!(
+            found,
+            [(
+                4,
+                "a description in double quotes after the properties".to_owned(),
+                Some(
+                    "the values a template gives, such as the description, come before the \
+                     properties: move it up, or write it as desc = \"...\""
+                        .to_owned()
+                )
+            )]
+        );
+    }
+
+    #[test]
+    fn a_handler_as_an_action_nothing_defines_is_one_warning() {
+        let text = "bell: object\n\
+                    \x20   dobj Push as Ring\n\
+                    ;\n\
+                    _main(args) { }\n";
+        let found: Vec<(u32, String)> = diagnostics("game.hxn", text)
+            .into_iter()
+            .map(|d| (d.line, d.message))
+            .collect();
+        assert_eq!(found, [(2, "\"Ring\" is not defined anywhere".to_owned())]);
+    }
+
+    #[test]
     fn an_object_named_with_a_macro_is_told_so() {
         let text = "#define stop return 1;\n\
                     + property location;\n\

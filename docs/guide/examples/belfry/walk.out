@@ -11,39 +11,48 @@ and there is a niche in the wall.
 
 You can see a feather here.
 
->ring bell
+>toll bell
 BONG.  The note rolls out over the town.
 
 >x bell
 A great bronze bell, still humming.
 
->ring rope
+>toll rope
 BONG.  The note rolls out over the town.
 
 >pull rope
 BONG.  The note rolls out over the town.
 
->ring rag
-The oily rag is not something you can ring.
+>toll rag
+The oily rag is not something you can toll.
 
->ring
-What do you want to ring?
+>toll
+What do you want to toll?
 
 >sing
 Your voice echoes round the stone walls.
 
 The bell’s hum dies away.
 
->toll bell
+>peal bell
 BONG.  The note rolls out over the town.
+
+>ring bell
+BONG.  The note rolls out over the town.
+
+>ring rope
+BONG.  The note rolls out over the town.
+
+>ring rag
+The oily rag isn’t something you can ring.
 
 >leap
 You jump on the spot, fruitlessly.
 
+The bell’s hum dies away.
+
 >pull lever
 The lever is rusted solid.
-
-The bell’s hum dies away.
 
 >clean lever
 (with the oily rag)
