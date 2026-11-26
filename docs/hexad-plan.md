@@ -378,6 +378,14 @@ Recommended (2026-11-26): rename the internal ones a game is likeliest to want (
 - **A handler `as` an action nothing defines** (`dobj Push as Ring`, before Hexad had RING) is one warning at its line, `"Ring" is not defined anywhere`, with "did you mean" for a slip (`as Pussh`) or else a note that the handler does nothing; and nothing is made for it, so the four warnings about `preCondDobjRing` and the rest are gone. A compiler test checks each.
 - **RING** (refused unless a thing says otherwise: "The cash register isn't something you can ring."), **WAVE**, SWING, or BRANDISH (anything that can be held, to no effect: "You wave the red file, but nothing happens."), **LAY** for PUT ON, PUT IN, and DROP, and **WAIT FOR** or UNTIL, which waits a turn whatever follows. `hexad-fixes` checks each. Since Hexad now has RING, the guide's Belfry, whose new action was RING, makes TOLL instead (and PEAL for its second rule), and answers Hexad's RING with `dobj Ring as Toll`: the page now shows a game's own action and one of Hexad's side by side. Hollin Cutting's bell answers RING, and WAVE THE LAMP works there.
 
+**Done, 2026-11-26: the three small things left.**
+
+- **LIFT** is now an action of its own: TAKE for a thing that can be taken ("lift lantern", "Taken."), and RAISE for anything else, or for a thing that can be taken but has a RAISE of its own (a flag), so that the Tide Mill's sluice gate still raises as it did. Its `verify()` is the one of the action it will be. Finding whether a thing has its own RAISE found that `Thing` is the name of the last `modify` of the class, not of the class that defines its handlers, so a thing's handler is compared with `Thing.hasProp(..., PropDefGetClass)`, not with `Thing`.
+- **A plural that matches one thing is answered as if the thing were named**: "Taken." for TAKE DETONATORS, one string of them, and for Square Circle's acorns and Exercise 19's case, where the long form had been used ("You take the acorns."). A plural that matches several (TAKE COINS) still says which.
+- **The comment on `Daemon`** now says what its code does, the first run `interval` turns on, as a fuse's (at the end of the next turn, for an interval of 1), and the line its earlier timing was left in is gone.
+
+`hexad-fixes` checks LIFT, both plurals, and a flag with a RAISE of its own.
+
 ### Return to Ditch Day (surveyed 2026-11-26)
 
 Michael Roberts's 2004 game, written to show adv3 at its fullest: 36,160 lines in 21 files, twice Square Circle. Before deciding on a port, a survey of what it uses (the playground's `tools/adv3-classes.py` and `tools/adv3-calls.py`, which compare a game's adv3 classes and calls with Hexad's). **Its licence, like Square Circle's, forbids distributing a changed version**, so a port would live in the private playground.

@@ -8856,6 +8856,34 @@ class Thing:  ReplaceRedirector, Mentionable
 
     cannotRaiseMsg = msgText(cannot raise, '{I} {can\'t} raise {the dobj}. ')
 
+    /*
+     *   LIFT: a player who lifts a thing that can be taken most often means
+     *   to pick it up, so it is TAKE; anything else is RAISE, as is a thing
+     *   that can be taken but has a RAISE of its own (a flag, a lid).
+     */
+    liftIsTake = (isTakeable
+                  && hasProp(&verifyDobjRaise, PropDefGetClass)
+                     == Thing.hasProp(&verifyDobjRaise, PropDefGetClass))
+
+    dobj Lift
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            if(liftIsTake)
+                verifyDobjTake();
+            else
+                verifyDobjRaise();
+        }
+        action()
+        {
+            if(liftIsTake)
+                replaceAction(Take, self);
+            else
+                replaceAction(Raise, self);
+        }
+    }
+
     dobj Lower
     {
         preCond = [touchObj]

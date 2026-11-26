@@ -2167,6 +2167,10 @@ action WaitFor: LiteralAction
 action Raise(dobj): TAction
 ;
 
+/* LIFT: TAKE for a thing that can be taken, and RAISE for anything else. */
+action Lift(dobj): TAction
+;
+
 action Lower(dobj): TAction
 ;
 

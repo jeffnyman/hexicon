@@ -2684,9 +2684,14 @@ verb LayDown for Drop 'lay' ('down' | ) multiDobj | 'lay' multiDobj 'down':
     missingQ = 'what do you want to drop'
 ;
 
-verb Raise ('raise' | 'lift') ('up' | ) multiDobj | ('raise' | 'lift') multiDobj 'up':
+verb Raise 'raise' ('up' | ) multiDobj | 'raise' multiDobj 'up':
     verbPhrase = 'raise/raising (what)'
     missingQ = 'what do you want to raise'
+;
+
+verb Lift 'lift' ('up' | ) multiDobj | 'lift' multiDobj 'up':
+    verbPhrase = 'lift/lifting (what)'
+    missingQ = 'what do you want to lift'
 ;
 
 verb Lower 'lower' multiDobj:

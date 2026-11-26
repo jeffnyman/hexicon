@@ -394,10 +394,11 @@ class Daemon: Event
      /*
      *   Creation.  'interval' is the number of turns between invocations
      *   of the daemon; this should be at least 1, which causes the daemon
-     *   to be invoked on each turn.  The first execution will be
-     *   (interval-1) turns in the future - so if interval is 1, the
-     *   daemon will first be executed on the current turn, and if
-     *   interval is 2, the daemon will be executed on the next turn.  
+     *   to be invoked on each turn.  The first execution will be interval
+     *   turns in the future, as a fuse's is: so if interval is 1, the daemon
+     *   will first be executed at the end of the next turn, and if interval
+     *   is 2, at the end of the turn after that. An interval of 0 executes
+     *   it first on the current turn.
      */
     construct(obj, prop, interval)
     {
@@ -421,7 +422,6 @@ class Daemon: Event
         /* 
          *   set my initial execution time, in game clock time 
          */
-//        nextRunTime = libGlobal.totalTurns + interval - 1;
         nextRunTime = libGlobal.totalTurns + interval;
         
         

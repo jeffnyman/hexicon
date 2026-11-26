@@ -2369,7 +2369,13 @@ class NounPhrase: object
              *   set we've already built.  Flag the selections as plural.  
              */
             npMatches.forEach({ m: m.flags |= SelPlural });
-            cmd.matchedMulti = true;
+
+            /* 
+             *   A plural that matched one thing is as if that thing were
+             *   named: TAKE DETONATORS, for one string of them, is "Taken."
+             */
+            if (npMatches.length() > 1)
+                cmd.matchedMulti = true;
             break;
         }
     }
