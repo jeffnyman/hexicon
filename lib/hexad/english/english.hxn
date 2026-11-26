@@ -3949,71 +3949,59 @@ stripArticle(txt)
  *   option objects here, because these are inherently language-specific.
  *   
  *   Note that we provide hyperlinks for our descriptions when possible.
- *   When we're in plain text mode, we can't show links, so we'll instead
- *   show an alternate form with the single-letter response highlighted in
- *   the text.  We don't highlight the single-letter response in the
- *   hyperlinked version because (a) if the user wants a shortcut, they can
- *   simply click the hyperlink, and (b) most UI's that show hyperlinks
- *   show a distinctive appearance for the hyperlink itself, so adding even
- *   more highlighting within the hyperlink starts to look awfully busy.  
+ *   Each option is answered by its whole word, never by a single letter:
+ *   after the end, a player who types S to go south should not find the
+ *   story restarted. A game can give an option a responseChar of its own.
  */
 modify finishOptionQuit
-    desc = '<<aHrefAlt('quit', 'QUIT', '<b>Q</b>UIT', 'Leave the story')>>'
+    desc = '<<aHrefAlt('quit', 'QUIT', 'QUIT', 'Leave the story')>>'
     responseKeyword = 'quit'
-    responseChar = 'q'
 ;
 
 modify finishOptionRestore
-    desc = '''<<aHrefAlt('restore', 'RESTORE', '<b>R</b>ESTORE',
+    desc = '''<<aHrefAlt('restore', 'RESTORE', 'RESTORE',
             'Restore a saved position')>> a saved position'''
     responseKeyword = 'restore'
-    responseChar = 'r'
 ;
 
 modify finishOptionRestart
-    desc = '''<<aHrefAlt('restart', 'RESTART', 'RE<b>S</b>TART',
+    desc = '''<<aHrefAlt('restart', 'RESTART', 'RESTART',
             'Start the story over from the beginning')>> the story'''
     responseKeyword = 'restart'
-    responseChar = 's'
 ;
 
 modify finishOptionUndo
-    desc = '''<<aHrefAlt('undo', 'UNDO', '<b>U</b>NDO',
+    desc = '''<<aHrefAlt('undo', 'UNDO', 'UNDO',
             'Undo the last move')>> the last move'''
     responseKeyword = 'undo'
-    responseChar = 'u'
 ;
 
 modify finishOptionCredits
-    desc = '''see the <<aHrefAlt('credits', 'CREDITS', '<b>C</b>REDITS',
+    desc = '''see the <<aHrefAlt('credits', 'CREDITS', 'CREDITS',
             'Show credits')>>'''
     responseKeyword = 'credits'
-    responseChar = 'c'
 ;
 
 modify finishOptionFullScore
     desc = '''see your <<aHrefAlt('full score', 'FULL SCORE',
-            '<b>F</b>ULL SCORE', 'Show full score')>>'''
+            'FULL SCORE', 'Show full score')>>'''
     responseKeyword = 'full score'
-    responseChar = 'f'
 ;
 
 modify finishOptionAmusing
-    desc = '''see some <<aHrefAlt('amusing', 'AMUSING', '<b>A</b>MUSING',
+    desc = '''see some <<aHrefAlt('amusing', 'AMUSING', 'AMUSING',
             'Show some amusing things to try')>> things to try'''
     responseKeyword = 'amusing'
-    responseChar = 'a'
 ;
 
 modify restoreOptionStartOver
-    desc = '''<<aHrefAlt('start', 'START', '<b>S</b>TART',
+    desc = '''<<aHrefAlt('start', 'START', 'START',
             'Start from the beginning')>> the game from the beginning'''
     responseKeyword = 'start'
-    responseChar = 's'
 ;
 
 modify restoreOptionRestoreAnother
-    desc = '''<<aHrefAlt('restore', 'RESTORE', '<b>R</b>ESTORE',
+    desc = '''<<aHrefAlt('restore', 'RESTORE', 'RESTORE',
             'Restore a saved position')>> a different saved position'''
 ;
 
