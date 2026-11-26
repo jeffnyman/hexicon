@@ -4614,7 +4614,11 @@ englishMessageParams: MessageParams
         
 
         /* {I} is the addressee's name in subjective case */
-        [ 'i',  { ctx, params: cmdInfo(ctx, &actor, &theName, vSubject) } ],
+        [ 'i',  function(ctx, params) {
+            local r = cmdInfo(ctx, &actor, &theName, vSubject);
+            ctx.subjIsI = true;
+            return r;
+        } ],
 
         /* {me} is the addressee's name in objective case */
         [ 'me', { ctx, params: cmdInfo(ctx, &actor, &theObjName, vObject) } ],
@@ -5057,6 +5061,57 @@ modify englishMessageParams
             verbTab[forms[2]] = forms;
         }
         return conjugate(ctx, params);
+    }
+
+    /*
+     *   A verb's subject from its form. "The curtains {are} drawn" is a
+     *   plural's, "the window {is} open" a singular's, where nothing before
+     *   the verb in the sentence says; and "{I} {see} a door, which {is}
+     *   shut" has the door for the second verb's subject, since {is} is no
+     *   form for "you" or "I".
+     */
+    verbFormSubject(ctx, verb, regular)
+    {
+        local num = verbFormNumber(verb, regular);
+        if (num == nil)
+            return nil;
+        /* No subject of the sentence's own: the form says which. */
+        if (ctx.subj == nil || ctx.subjDefaulted)
+            return num == 1 ? dummy_ : pluralDummy_;
+
+        /*
+         *   After {I}, in the first or second person, a thing's form is a
+         *   thing's: Hexad's own messages give {I} its own forms ({am},
+         *   {can}), and name any other subject.
+         */
+        if (num == 1 && ctx.subjIsI && ctx.subj.person != 3)
+            return dummy_;
+        return nil;
+    }
+
+    /*
+     *   Whether a verb is written as a singular's (1: is, hangs), as a
+     *   plural's (2: are, hang), or in a form that does not tell (nil:
+     *   can, put).
+     */
+    verbFormNumber(verb, regular)
+    {
+        if (verb is in ('is', 'was', 'has', 'does', 'isn\'t', 'wasn\'t',
+                        'hasn\'t', 'doesn\'t'))
+            return 1;
+        if (verb is in ('are', 'were', 'have', 'do', 'aren\'t', 'weren\'t',
+                        'haven\'t', 'don\'t'))
+            return 2;
+        local toks = verbTab[verb];
+        if (toks == nil && regular && regexMatch(R'<lower>+$', verb) != nil)
+            toks = regularVerbForms(verb);
+        if (toks == nil || toks[1] == toks[2])
+            return nil;
+        if (verb == toks[2])
+            return 1;
+        if (verb == toks[1])
+            return 2;
+        return nil;
     }
 
     /*

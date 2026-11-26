@@ -9,7 +9,7 @@ The player's `person` is 1, 2, or 3: "I pull the cord", "you pull the cord", or,
 ```hexicon
 // The player, who has a name of her own for the third person.
 + me: Player 'Ada; ; woman; her'
-    "{I} {am} in a borrowed dressing gown. "
+    "{I} {am} in a dressing gown, which {is} too big. "
     isHer = true
 ;
 ```
@@ -37,20 +37,20 @@ Text written plainly stays as it is written. For text to follow the story, the w
 | Parameter | Stands for |
 |---|---|
 | `{I}`, `{me}`, `{my}`, `{mine}`, `{myself}` | the player: I, you, Ada; me, you, Ada; my, your, Ada's; and so on. Capitalized, `{I}` begins a sentence |
-| a verb by name: `{am}`, `{is}`, `{can}`, `{have}`, `{pull}`, `{rings}`, `{hangs}` | the verb, agreeing with the subject before it and in the story's tense: "I am", "Ada is", "you were"; "Ada pulls", "I pulled" |
+| a verb by name: `{am}`, `{is}`, `{are}`, `{can}`, `{have}`, `{pull}`, `{rings}`, `{hangs}` | the verb, in the story's tense, agreeing with its subject: "I am", "Ada is", "you were"; "Ada pulls", "I pulled" |
 | a verb with its endings: `stroke{s/d}`, `pull{s/ed}`, `reach{es/ed}`, `carr{ies/ied}` | the same, for a regular verb, written out |
-| `{dummy}` before a verb | a subject that is no character: "the window `{dummy}{is}` to the east", "was" in the past |
-| `{plural}` before a verb | the same, plural: "the curtains `{plural}{are}` drawn" |
+| `{dummy}`, `{plural}` before a verb | a subject that is no character, singular or plural, for a verb whose form does not say which: "the bells `{plural}{can}` be heard" |
 
 A verb can be named whether it is regular (`{pull}`, `{opens}`) or irregular (`{hangs}`, `{rings}`, `{comes}`); Hexad knows the irregular ones, and makes a regular one's forms by rule. Written with its endings instead, an irregular verb comes out wrong: `hang{s/ed}` gives "hanged".
+
+**Whose verb it is.** A verb takes for its subject the character before it in the sentence, `{I}` or another (below). Where there is none, the verb's own form says: `{is}`, `{was}`, `{hangs}` are a thing's ("the window `{is}` to the east"), and `{are}`, `{were}`, `{hang}` are things' ("the curtains `{are}` drawn"). After `{I}`, in the first or second person, a verb written as a thing's is a thing's too: "`{I}` `{am}` in a dressing gown, which `{is}` too big" is "which was too big" in the past, not "which were". Only a verb whose form says neither, such as `{can}`, needs `{dummy}` or `{plural}` before it.
 
 ```hexicon
 // Text of the game's own, written so that it follows the person and the
 // tense: every verb in braces.
 sittingRoom: Room 'Sitting Room'
-    "A low room, with a fire in the grate. The window {dummy}{is} to the
-    east, and the curtains {plural}{are} drawn. A bell cord {dummy}{hangs}
-    by the fireplace. "
+    "A low room, with a fire in the grate. The window {is} to the east, and
+    the curtains {are} drawn. A bell cord {hangs} by the fireplace. "
 ;
 ```
 

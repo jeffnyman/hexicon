@@ -17,14 +17,13 @@ gameMain: GameMainDef
 // Text of the game's own, written so that it follows the person and the
 // tense: every verb in braces.
 sittingRoom: Room 'Sitting Room'
-    "A low room, with a fire in the grate. The window {dummy}{is} to the
-    east, and the curtains {plural}{are} drawn. A bell cord {dummy}{hangs}
-    by the fireplace. "
+    "A low room, with a fire in the grate. The window {is} to the east, and
+    the curtains {are} drawn. A bell cord {hangs} by the fireplace. "
 ;
 
 // The player, who has a name of her own for the third person.
 + me: Player 'Ada; ; woman; her'
-    "{I} {am} in a borrowed dressing gown. "
+    "{I} {am} in a dressing gown, which {is} too big. "
     isHer = true
 ;
 
@@ -36,8 +35,7 @@ sittingRoom: Room 'Sitting Room'
         verify() { }
         report()
         {
-            dmsg('{I} {pull} the cord, and somewhere below a bell
-                {dummy}{rings}. ');
+            dmsg('{I} {pull} the cord, and somewhere below a bell {rings}. ');
         }
     }
 ;
@@ -45,7 +43,7 @@ sittingRoom: Room 'Sitting Room'
 // Another character, named in a message with dmsg and the object given.
 + cat: Actor 'cat; grey; tom; him'
     "A grey cat, asleep. "
-    specialDesc = "A grey cat {dummy}{is} asleep by the fire. "
+    specialDesc = "A grey cat {is} asleep by the fire. "
 
     dobj Feel
     {

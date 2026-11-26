@@ -530,6 +530,8 @@ class MessageCtx: object
     {
         /* forget any subject/object information */
         subj = nil;
+        subjDefaulted = nil;
+        subjIsI = nil;
         vobj = nil;
         gotVerb = nil;
         reflexiveAnte.clear();
@@ -705,7 +707,11 @@ class MessageCtx: object
 
         /* if it's the subject, remember it as such */
         if (role == vSubject)
+        {
             subj = obj;
+            subjDefaulted = nil;
+            subjIsI = nil;
+        }
         else if (role == vObject)
             vobj = obj;
 
@@ -832,6 +838,12 @@ class MessageCtx: object
 
     /* have we seen a verb parameter in this sentence yet? */
     gotVerb = nil
+
+    /* The subject is the one Hexad gave a verb that had none. */
+    subjDefaulted = nil
+
+    /* The subject came from {I}, the player as the player. */
+    subjIsI = nil
     
     /* the message argument list */
     args = nil
@@ -1043,9 +1055,12 @@ class MessageParams: object
              *   person singular noun as a default subject for the verb.
              */
             if(ctx.subj == nil)
+            {
                 ctx.subj = dummy_;
-            
-            /* 
+                ctx.subjDefaulted = true;
+            }
+
+            /*
              *   If we're forcing present tense .Note the current game tense so we can restore it
              *   once we've expanded this parameter. Since this could be defined either on gameMain
              *   or on Narrator we meed to check both places. If Narrator.tense is a method (rather
@@ -1068,8 +1083,18 @@ class MessageParams: object
                     gameMain.usePastTense = nil;               
             }
             
-            /* we found the parameter - get the translation */
+            /*
+             *   we found the parameter - get the translation, for a verb
+             *   with the subject its written form calls for, if the
+             *   sentence gives it none of its own
+             */
+            local oldSubj = ctx.subj;
+            local formSubj = verbFormSubject(ctx, pname.toLower(), nil);
+            if (formSubj != nil)
+                ctx.subj = formSubj;
             txt = t[2](ctx, params);
+            if (formSubj != nil)
+                ctx.subj = oldSubj;
             
             /* 
              *   If we've been forcing present tense, now restore the previous tensse. If oldTense
@@ -1101,8 +1126,17 @@ class MessageParams: object
         if (t == nil)
         {
             if(ctx.subj == nil)
+            {
                 ctx.subj = dummy_;
+                ctx.subjDefaulted = true;
+            }
+            local oldSubj = ctx.subj;
+            local formSubj = verbFormSubject(ctx, pname, true);
+            if (formSubj != nil)
+                ctx.subj = formSubj;
             txt = expandUnknown(ctx, params);
+            if (formSubj != nil)
+                ctx.subj = oldSubj;
         }
 
         /*
@@ -1122,6 +1156,16 @@ class MessageParams: object
      *   it is shown as written. A language module can make sense of some.
      */
     expandUnknown(ctx, params) { return nil; }
+
+    /*
+     *   The subject a verb should be conjugated for, from the form it is
+     *   written in, where the sentence has given it none (or given it only
+     *   the player, in the first or second person, and the verb is written
+     *   as a thing's); or nil, to use the sentence's. 'regular' says
+     *   whether the verb may be a regular one the table does not have. A
+     *   language module says what forms mean.
+     */
+    verbFormSubject(ctx, verb, regular) { return nil; }
 
     /*
      *   Parameter mapping list.  This is a list of lists: [name, func],
