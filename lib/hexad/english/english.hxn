@@ -5117,16 +5117,20 @@ langAdjust(txt)
         
         local str = rf[3];
     
-        local rootStart = idx;
-        while(rootStart > 1)
-        {
-            if(txt.substr(--rootStart, 1) is in (' ', '}'))
-                break;
-        }
-            
+        /*
+         *   The verb is the word just before the ending: back to a space, a
+         *   closing brace, or the start of the text. There may be none, when
+         *   the ending begins this piece of a string and its verb was in
+         *   the piece before ("{I} <<verb>>{s/d}"): it then conjugates an
+         *   empty root, which gives just the ending.
+         */
+        local rootStart = idx - 1;
+        while(rootStart >= 1 && txt.substr(rootStart, 1) not in (' ', '}'))
+            --rootStart;
+
         local verbRoot = txt.substr(rootStart + 1, idx - rootStart - 1);
-        txt = txt.findReplace(verbRoot+str, '{conj ' + verbRoot + ' '
-                              + str.substr(2));
+        txt = txt.substr(1, rootStart) + '{conj ' + verbRoot + ' '
+            + str.substr(2) + txt.substr(idx + str.length());
     }
     
     return txt;

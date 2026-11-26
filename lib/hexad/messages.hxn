@@ -269,6 +269,7 @@ buildMessage(id, txt, [args])
 
     /* get the message object */
     local mo = MessageParams.langObj;
+    local carried = messageSubject.carriedInto(txt);
 
     /* apply substitutions */
     for (local i = 1 ; i <= txt.length() ; )
@@ -287,6 +288,14 @@ buildMessage(id, txt, [args])
          *   scanned the entire sentence before we expand the verb.
          */
         ctx.startSentence();
+
+        /* 
+         *   A piece of a longer string that goes on with the sentence of the
+         *   piece before it takes its subject from there (see
+         *   messageSubject).
+         */
+        if(i == 1 && carried != nil)
+            ctx.subj = carried;
         local plst = new Vector(10);
         for (local j = i ; ; )
         {
@@ -373,10 +382,59 @@ buildMessage(id, txt, [args])
         /* move to the end of the sentence */
         i = eos + delta + 1;
     }
-
-
+    messageSubject.leaveFor(txt, ctx.subj);
     return txt;
 }
+
+/*
+ *   The subject a piece of text leaves for the next. A double-quoted string
+ *   with embedded expressions reaches buildMessage in pieces, each with a
+ *   context of its own, so in "{I} <<stat ? '' : 'un'>>screw{s/d} the bolts"
+ *   the ending has no subject of its own piece. We remember the last subject
+ *   a piece named, until a sentence ends (in the same command), and give it
+ *   to a piece that starts in the middle of a word: one whose first
+ *   parameter follows the piece's first letters with no space ("screw{s/d}"),
+ *   or is a verb ending at its very start ("{s/d}" after "<<gVerbName>>").
+ *   Anything else starts with no subject, as before.
+ */
+messageSubject: object
+    lastSubj = nil
+    sentenceGoesOn = nil
+    turnNoted = nil
+    commandNoted = nil
+
+    /* The subject to give the piece txt, or nil. */
+    carriedInto(txt)
+    {
+        if(lastSubj == nil || !sentenceGoesOn || turnNoted != libGlobal.totalTurns
+           || commandNoted != now.command)
+            return nil;
+        local lb = txt.find('{');
+        if(lb == nil)
+            return nil;
+        local before = txt.substr(1, lb - 1);
+        if(before.length() > 0)
+            return regexMatch(R'<alpha>+$', before) == before.length() ? lastSubj : nil;
+        local rb = txt.find('}', lb);
+        return rb != nil && txt.substr(lb, rb - lb).find('/') != nil ? lastSubj : nil;
+    }
+
+    /* Note what the piece txt, whose last subject was s, leaves. */
+    leaveFor(txt, s)
+    {
+        if(turnNoted != libGlobal.totalTurns || commandNoted != now.command)
+        {
+            lastSubj = nil;
+            turnNoted = libGlobal.totalTurns;
+            commandNoted = now.command;
+        }
+        if(s != nil && s != dummy_)
+            lastSubj = s;
+        if(txt.length() > 0)
+            sentenceGoesOn = (regexSearch(R'<.|!|?|newline>[^a-z0-9]*$', txt) == nil
+                    && txt.find('<.p>') == nil);
+    }
+;
 
 /*
  *   Message debugging.  This shows the message before processing: the ID,

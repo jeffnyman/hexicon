@@ -462,7 +462,7 @@ objHeld: PreCondition
              *   Try taking obj implicitly and note if we were allowed to make
              *   the attempt.
              */
-            local tried = tryImplicitAction(Take, obj);
+            local tried = takeImplicitly(obj);
             
             /*  
              *   If obj is now held by the actor return true to signal that this
@@ -492,6 +492,21 @@ objHeld: PreCondition
         
         /* Then return nil to indicate that the precondition hasn't been met. */
         return nil;        
+    }
+
+    /*
+     *   Take obj implicitly. If the actor already carries it, inside
+     *   something it holds, it's taken from that ("first taking the letter
+     *   from the envelope"), since that's what it's really being taken out
+     *   of; otherwise it's simply taken.
+     */
+    takeImplicitly(obj)
+    {
+        if(obj.isIn(now.actor) && obj.location != nil
+           && obj.location != now.actor)
+            return tryImplicitAction(TakeFrom, obj, obj.location);
+
+        return tryImplicitAction(Take, obj);
     }
 ;
 
