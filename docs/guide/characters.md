@@ -41,6 +41,12 @@ A lean old man in a patched coat.  He is waiting for a fare.
 
 `setState()` moves him from one state to another; below, paying him does.
 
+### What a character does on his own
+
+A state can also be an event list (`ActorState, ShuffledEventList`, with an `eventList`): each turn it shows the next of its messages, the small things he does while he waits. Hexad runs it only on a turn the player is not talking to him, and only while the player can see him, so that he does not fidget through a conversation, or out of sight. So a state's list is for what he is seen doing. What must happen whether or not anyone is watching, such as finishing a meal or walking off after a while, belongs elsewhere:
+- in an `AgendaItem`, which he carries out whether the player can see him or not, though, like the list, not on a turn he is talked to;
+- or in a `Daemon` or a `Fuse`, which runs every turn, or after so many, whatever else is going on.
+
 ## What characters say
 
 What a character says is in **topic entries** inside him. Each answers one kind of command, about one thing:

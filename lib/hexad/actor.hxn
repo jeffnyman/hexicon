@@ -7888,14 +7888,13 @@ suggestedTopicLister: object
     showListSuffix(lst, pl, explicit)  
     { 
         /* 
-         *   Finish the list. If it was explicitly requested we finish it with a
-         *   full stop and a newline, otherwise we finish it with a closing
-         *   parenthesis and a newline.
+         *   Finish the list with a full stop, and, if it wasn't explicitly
+         *   requested, the closing parenthesis, then a newline.
          */
         if(explicit)
             ".\n";
         else
-            ")\n";
+            ".)\n";
         
         /* If we have't explained the enumerating and hyperlinking options yet, explain them now. */
         if(!optionsExplained)

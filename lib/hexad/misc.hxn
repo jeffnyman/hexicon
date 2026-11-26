@@ -418,10 +418,10 @@ class GameMainDef: object
  *   Sort lst (a List or a Vector) by cmp, smallest first, and return the
  *   result (a Vector is sorted in place). Among the items cmp finds equal,
  *   things defined in the source come in the order they're defined there
- *   (their sourceTextOrder, which counts within each file), and anything
- *   else keeps the order it has in lst. The listers use it so that things
- *   with the same listOrder are listed as the author wrote them: List.sort
- *   keeps no order among equals.
+ *   (by their file's place in the build, then their sourceTextOrder within
+ *   it), and anything else keeps the order it has in lst. The listers use
+ *   it so that things with the same listOrder are listed as the author
+ *   wrote them: List.sort keeps no order among equals.
  */
 sortInOrder(lst, cmp)
 {
@@ -439,6 +439,10 @@ compareInOrder(a, b, cmp, orig)
        && a.hasProp(&sourceTextOrder, PropDefDirectly)
        && b.hasProp(&sourceTextOrder, PropDefDirectly))
     {
+        /* first by file, in the order of the build, then within it */
+        local ga = a.sourceTextGroup, gb = b.sourceTextGroup;
+        if(ga != nil && gb != nil && ga != gb)
+            return ga.sourceTextGroupOrder - gb.sourceTextGroupOrder;
         c = a.sourceTextOrder - b.sourceTextOrder;
         if(c != 0)
             return c;
