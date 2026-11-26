@@ -1,0 +1,64 @@
+// Scenery: each piece of a `scenery` form is a Decoration of its own,
+// where the form is, with its words and its description, which may embed
+// code as any other does.
+builtin 'hexicon-vm/010006'
+{
+    collectGarbage();
+    setSay(val);
+}
+builtin 'hexicon-gen/030008'
+{
+    typeOf(val);
+    arg(idx);
+    firstObj(cls?, flags?);
+    nextObj(obj, cls?, flags?);
+    randomize(...);
+    rand(x, ...);
+    toString(val, radix?, isSigned?);
+}
+builtin 'hexicon-io/030007'
+{
+    print(val, ...);
+}
+
+say(val) { print(val); }
+
+// What a `+` sets.
++ property location;
+
+class Decoration: object
+    vocab = ''
+    desc = ""
+    location = nil
+;
+
+Decoration template 'vocab' "desc";
+
+kitchen: object
+    lit = nil
+;
+
++ scenery
+    'range; cold black; stove': "A black iron range. "
+    'plates; blue; plate; them': "Plates<<if location.lit>>, shining<<end>>. "
+;
+
++ scenery 'cupboard': "A tall cupboard. ";
+
+_main(args)
+{
+    setSay(say);
+    for (local o = firstObj(Decoration) ; o != nil ; o = nextObj(o, Decoration))
+    {
+        print(o.vocab + ' (in the kitchen: ' + (o.location == kitchen ? 'yes' : 'no')
+              + '): ');
+        o.desc;
+        "\n";
+    }
+    kitchen.lit = true;
+    for (local o = firstObj(Decoration) ; o != nil ; o = nextObj(o, Decoration))
+    {
+        o.desc;
+        "\n";
+    }
+}

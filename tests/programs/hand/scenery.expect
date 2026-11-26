@@ -1,0 +1,9 @@
+image: 8929a9987a23485e466a39eb8bd6540ca7139c211dca3908709abe09f733e6b9
+--- messages
+--- output
+range; cold black; stove (in the kitchen: yes): A black iron range.
+plates; blue; plate; them (in the kitchen: yes): Plates.
+cupboard (in the kitchen: yes): A tall cupboard.
+A black iron range.
+Plates, shining.
+A tall cupboard.

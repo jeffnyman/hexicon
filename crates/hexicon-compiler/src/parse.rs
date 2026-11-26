@@ -7761,6 +7761,14 @@ impl Parser<'_, '_> {
             }
             return self.parse_req_sem();
         }
+        if self.cur_is_sym(b"scenery") {
+            let after = self.next();
+            self.tok.unget_token();
+            if after == Tok::SStr {
+                self.lower_scenery(cnt);
+                return Ok(());
+            }
+        }
         let mut is_class = false;
         if self.cur() == Tok::Class {
             self.next();
@@ -8304,6 +8312,125 @@ impl Parser<'_, '_> {
         let after = self.next();
         self.tok.unget_token();
         after == Tok::Sym
+    }
+
+    /// Scenery, in Hexicon: `+ scenery` and then, for each piece of it, its
+    /// vocabulary, a colon, and its description, up to a semicolon:
+    ///
+    /// ```text
+    /// + scenery
+    ///     'range; cold black; stove': "A black iron range, gone cold. "
+    ///     'plates; blue willow; plate; them': "Blue willow-pattern plates. "
+    /// ;
+    /// ```
+    ///
+    /// Each piece becomes a `Decoration` of its own, where the form is,
+    /// as if written `+ Decoration 'range; cold black; stove' "...";`.
+    /// The description is any string in double quotes, with what it
+    /// embeds.
+    fn lower_scenery(&mut self, plus_cnt: usize) {
+        let place = self.tok.cur_token().clone();
+        let made = |typ: Tok, text: &[u8]| {
+            let mut token = place.clone();
+            token.typ = typ;
+            token.text = text.to_vec();
+            token.int_val = 0;
+            token.lowered = true;
+            token
+        };
+        let mut out: Vec<SrcToken> = Vec::new();
+        self.next();
+        loop {
+            match self.cur() {
+                Tok::Sem => break,
+                Tok::SStr => {
+                    let vocab = self.tok.cur_token().clone();
+                    if self.next() != Tok::Colon {
+                        self.error_curtok(
+                            "expected ':' and a description after a piece of scenery's words, \
+                             but found \"%\"",
+                        );
+                        self.skip_scenery();
+                        return;
+                    }
+                    self.next();
+                    let mut desc = Vec::new();
+                    match self.cur() {
+                        Tok::DStr => {
+                            desc.push(self.tok.cur_token().clone());
+                            self.next();
+                        }
+                        Tok::DStrStart => {
+                            let mut depth = 0usize;
+                            loop {
+                                match self.cur() {
+                                    Tok::DStrStart => depth += 1,
+                                    Tok::DStrEnd => depth -= 1,
+                                    Tok::Eof => {
+                                        self.error_curtok(
+                                            "a piece of scenery's description does not end",
+                                        );
+                                        return;
+                                    }
+                                    _ => {}
+                                }
+                                desc.push(self.tok.cur_token().clone());
+                                self.next();
+                                if depth == 0 {
+                                    break;
+                                }
+                            }
+                        }
+                        _ => {
+                            self.error_curtok(
+                                "expected a piece of scenery's description, in double quotes, \
+                                 but found \"%\"",
+                            );
+                            self.skip_scenery();
+                            return;
+                        }
+                    }
+                    for _ in 0..plus_cnt {
+                        out.push(made(Tok::Plus, b"+"));
+                    }
+                    out.push(made(Tok::Sym, b"Decoration"));
+                    out.push(vocab);
+                    out.extend(desc);
+                    out.push(made(Tok::Sem, b";"));
+                }
+                Tok::Eof => {
+                    self.error_curtok("expected ';' at the end of the scenery, but found \"%\"");
+                    return;
+                }
+                _ => {
+                    self.error_curtok(
+                        "expected a piece of scenery's words, in single quotes, or ';' at the \
+                         end, but found \"%\"",
+                    );
+                    self.skip_scenery();
+                    return;
+                }
+            }
+        }
+        // Past the scenery's ';', with the decorations in front of what
+        // comes after it.
+        self.next();
+        let current = self.tok.cur_token().clone();
+        self.tok.push_token(current);
+        for token in out.into_iter().rev() {
+            self.tok.push_token(token);
+        }
+        self.next();
+    }
+
+    /// Skip to the next ';', and past it: after an error in scenery.
+    fn skip_scenery(&mut self) {
+        while !matches!(self.cur(), Tok::Sem | Tok::Eof) {
+            self.next();
+        }
+        if self.cur() == Tok::Sem {
+            self.next();
+        }
     }
 
     /// Put tokens made for a Hexicon form in front of the current one,

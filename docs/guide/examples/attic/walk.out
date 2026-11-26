@@ -135,6 +135,15 @@ Dust lies thick on the boards, and the roof slopes low.  A ladder leads down.
 >take trunk
 The trunk is too heavy to move.
 
+>x boards
+Bare boards, under the dust.
+
+>take boards
+The boards are not important.
+
+>x roof
+The rafters are close enough to touch, and the candle’s smoke curls along them.
+
 >climb down ladder
 Landing
 A narrow landing at the top of the house, with a portrait on one wall and a

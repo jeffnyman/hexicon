@@ -124,6 +124,15 @@ attic: Room 'Attic'
     destination = landing
 ;
 
+// What the attic's description mentions, only to be looked at: a
+// decoration for each line.
++ scenery
+    'dust; thick': "Thick grey dust, undisturbed for years. "
+    'boards; bare; floor floorboards; them': "Bare boards, under the dust. "
+    'roof; low; rafters beams': "The rafters are close enough to touch<<if
+        candle.isLit>>, and the candle's smoke curls along them<<end>>. "
+;
+
 + trunk: Heavy 'trunk; old'
     "An old trunk, far too heavy to move. "
 ;

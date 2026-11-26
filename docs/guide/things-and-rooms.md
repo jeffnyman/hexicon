@@ -14,7 +14,7 @@ A thing is an object of the class `Thing`, or of a class built on it:
 ;
 ```
 
-Its **vocabulary** comes first, in single quotes: its name, then after a semicolon its adjectives, then its other nouns, then the pronouns it is called by (see [Getting Started](getting-started.md)). Its **description** comes next, in double quotes: what EXAMINE shows. Both are given by the class's template, so they need no names.
+Its **vocabulary** comes first, in single quotes: its name, then after a semicolon its adjectives, then its other nouns, then the pronouns it is called by (see [Getting Started](getting-started.md)). A thing whose name is plural says so with `them` among its pronouns, `'boards; bare; floorboards; them'`, or Hexad speaks of it as one ("The boards is not important"). Its **description** comes next, in double quotes: what EXAMINE shows. Both are given by the class's template, so they need no names.
 
 ### Can it be taken?
 
@@ -108,6 +108,31 @@ A thing without one gets Hexad's own reply: `There is nothing to read on the app
 ```transcript
 >listen
 Tick.  Tock.
+```
+
+### Scenery
+
+A room's description names things the player may want to look at, and that are there for nothing else: the dust, the boards, the roof. Each could be a `Decoration` of its own, but `scenery` writes them together, one to a line, each its vocabulary, a colon, and its description:
+
+```hexicon
+// What the attic's description mentions, only to be looked at: a
+// decoration for each line.
++ scenery
+    'dust; thick': "Thick grey dust, undisturbed for years. "
+    'boards; bare; floor floorboards; them': "Bare boards, under the dust. "
+    'roof; low; rafters beams': "The rafters are close enough to touch<<if
+        candle.isLit>>, and the candle's smoke curls along them<<end>>. "
+;
+```
+
+Each line is a `Decoration` where the `scenery` is, here in the attic, and its description is like any other: the roof's says more while the candle is lit. One that needs anything else, a smell, a message of its own for what cannot be done to it, or a handler, is written as a `Decoration` in full.
+
+```transcript
+>take boards
+The boards are not important.
+
+>x roof
+The rafters are close enough to touch, and the candle’s smoke curls along them.
 ```
 
 ### Food and clothing

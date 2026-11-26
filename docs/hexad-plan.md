@@ -266,6 +266,37 @@ Recommended (2026-11-26): put the guide's gaps right first, since each cost a se
 
 `hexad-fixes` checks each.
 
+**Proposal, 2026-11-26: scenery as a list.** The Tide Mill has ten decorations, each its own object of three or four lines, for the nouns its descriptions mention. Hexad already has a way to write them together, adv3Lite's `Scenery` (in `scenery.hxn`), which the guide never mentions:
+
+```
++ Scenery
+    scenList = [
+        ['range; cold black; stove fire', 'A black iron range, gone cold. '],
+        ['plates; blue willow; plate; them', 'Blue willow-pattern plates. '],
+        ['gears; wooden; cogs', {: "Wooden cogs<<if mill.running>>, turning<<end>>. " }]
+    ]
+;
+```
+
+Put into a copy of the Tide Mill, it plays both scripts word for word as before. But it is a list of lists of strings: a description that changes must be wrapped as a function (`{: "..." }`), a third element gives each item its own "not important" message by one of four kinds of value, and the items are made while the game starts, as objects of a class of their own (`ScenItem`), so nothing else about them can be said. Two ways on:
+
+1. **Put `Scenery` in the guide as it is**, on the page of things and rooms. Nothing new to build.
+2. **A form of Hexicon's own**, as `action` and `verb` are, that the compiler turns into one `Decoration` for each line:
+
+   ```
+   + scenery
+       'range; cold black; stove fire': "A black iron range, gone cold. "
+       'plates; blue willow; plate; them': "Blue willow-pattern plates. "
+       'gears; wooden; cogs': "Wooden cogs<<if mill.running>>, turning<<end>>. "
+   ;
+   ```
+
+   Each is an ordinary decoration, where it would have been, with its description written as any other is, changing or not; one that needs more (its own `notImportantMsg`, a smell) is written as a `Decoration` in full instead. Nothing is made at run time. The cost is the compiler's: reading the form, with its errors, and a test.
+
+Recommended: 2, with the guide showing it; `Scenery` stays for games that have it. And found on the way, for the guide whichever is chosen: a plural noun needs `them` among its pronouns, or Hexad says "The plates is not important."; the guide's vocabulary paragraph does not say so.
+
+**Done, 2026-11-26: `scenery` (2, as recommended).** The compiler reads `+ scenery`, with as many `+` signs as any object, and then pairs of vocabulary and description up to a `;`, and turns each pair into `+ Decoration 'vocabulary' "description";` where the form is; a description is any string in double quotes, embedded code and all. It says what is wrong with a pair that has no colon, a description not in double quotes, or something that is neither a pair nor the end (a compiler test each), and a program case (`tests/programs/hand/scenery`) builds one on a `Decoration` of its own and shows each piece in its place, its description changing with the room. The guide has it on the page of things and rooms, in the Attic (its dust, boards, and roof), with the note on plurals there, and among Hexicon's own forms on the language page. The Tide Mill's nine plain decorations are now `scenery`, and it plays both its scripts as before; its rooms have one or two pieces each, so it is no shorter, and the saving is in a room with many, and in not naming each. Its plural nouns now have `them`.
+
 ### Return to Ditch Day (surveyed 2026-11-26)
 
 Michael Roberts's 2004 game, written to show adv3 at its fullest: 36,160 lines in 21 files, twice Square Circle. Before deciding on a port, a survey of what it uses (the playground's `tools/adv3-classes.py` and `tools/adv3-calls.py`, which compare a game's adv3 classes and calls with Hexad's). **Its licence, like Square Circle's, forbids distributing a changed version**, so a port would live in the private playground.

@@ -1119,6 +1119,34 @@ fn a_name_nothing_defines_is_taken_for_a_property_where_one_makes_sense() {
 }
 
 #[test]
+fn scenery_that_is_wrong_says_what_is_missing() {
+    let start = "+ property location;\nclass Decoration: object;\n\
+                 Decoration template 'vocab' \"desc\";\nroom: object;\n";
+    let wrong = |scenery: &str| compile_messages(&format!("{start}{scenery}\n_main(args) {{ }}\n"));
+    assert_eq!(
+        wrong("+ scenery 'range' \"A range. \";"),
+        [
+            "5: error: expected ':' and a description after a piece of scenery's words, but \
+          found \"\"A range. \"\""
+        ]
+    );
+    assert_eq!(
+        wrong("+ scenery 'range': 'A range. ';"),
+        [
+            "5: error: expected a piece of scenery's description, in double quotes, but found \
+          \"'A range. '\""
+        ]
+    );
+    assert_eq!(
+        wrong("+ scenery 'range': \"A range. \" stove: \"A stove. \";"),
+        [
+            "5: error: expected a piece of scenery's words, in single quotes, or ';' at the end, \
+          but found \"stove\""
+        ]
+    );
+}
+
+#[test]
 fn object_definitions_that_are_wrong() {
     assert_eq!(
         compile_messages(
@@ -3822,20 +3850,17 @@ mod checked_names {
 
     #[test]
     fn a_games_own_action_takes_the_place_of_the_librarys() {
-        let library = "class IAction: object;
-                       action Jump: IAction n = 1;
-                       rock: object;
-                       _main(args) { return Jump.n; }
-";
+        let library = "class IAction: object;\n\
+                       action Jump: IAction n = 1;\n\
+                       rock: object;\n\
+                       _main(args) { return Jump.n; }\n";
         assert_eq!(
-            messages_with(library, "game.hxn", "action Jump: IAction n = 2;
-"),
+            messages_with(library, "game.hxn", "action Jump: IAction n = 2;\n"),
             ["game.hxn(1): the action \"Jump\" takes the place of the built-in library's"]
         );
         // Anything else of the same name is still an error.
         assert_eq!(
-            messages_with(library, "game.hxn", "rock: object;
-").len(),
+            messages_with(library, "game.hxn", "rock: object;\n").len(),
             1
         );
     }
@@ -4278,11 +4303,9 @@ mod hexicon_messages {
     fn a_slip_for_a_parameter_is_said_to_be_one() {
         // `stats` is nearer `stat`, the method's own parameter, than
         // `State`, a name of the whole program.
-        let text = "State: object;
-                    lamp: object makeOn(stat) { if (stats) return 1; return 0; }
-;
-                    _main(args) { }
-";
+        let text = "State: object;\n\
+                    lamp: object makeOn(stat) { if (stats) return 1; return 0; }\n;\n\
+                    _main(args) { }\n";
         let found = diagnostics("game.hxn", text);
         let shown: Vec<(String, Option<String>)> = found
             .iter()
