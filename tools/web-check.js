@@ -59,7 +59,9 @@ const browser = player
       stdio: "ignore",
       env: {
         ...process.env,
-        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`,
+        // Sound may play before the player has done anything, so that a
+        // check can see it playing.
+        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --autoplay-policy=no-user-gesture-required`,
       },
     })
   : spawn(
@@ -71,6 +73,7 @@ const browser = player
     `--window-size=${(process.env.HEXICON_CHECK_SIZE ?? "1200x900").replace("x", ",")}`,
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`,
+    "--autoplay-policy=no-user-gesture-required",
     "about:blank",
   ],
   { stdio: "ignore" },
@@ -215,6 +218,14 @@ async function main() {
   if (process.env.HEXICON_CHECK_PICTURE) {
     const picture = await send("Page.captureScreenshot", { format: "png" });
     fs.writeFileSync(process.env.HEXICON_CHECK_PICTURE, Buffer.from(picture.result.data, "base64"));
+  }
+  // What is playing, if the page says.
+  const playing = await evaluate(
+    `JSON.stringify(window.hexiconSoundsPlaying ? window.hexiconSoundsPlaying() : [])`,
+  );
+  if (playing !== "[]") {
+    process.stderr.write(`sounds: ${playing}
+`);
   }
   const files = await evaluate(
     `Object.keys(localStorage).filter((key) => key.startsWith("hexicon:")).join(", ")`,

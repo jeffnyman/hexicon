@@ -362,48 +362,64 @@ function applyStyles() {
 // fadeout fades out whenever it stops, cancelled or interrupted as well
 // as at its end; a cancel with a fadeout of its own fades out everything
 // it stops.
+//
+// They play through the Web Audio API, the same way on every system: each
+// of the game's sounds is decoded once, when the game starts, and the page
+// says when its samples play. So a sound starts at once, loops without a
+// break, and fades on the audio's own clock, where a media element for
+// each, which the system's own player plays, started late on Linux and
+// left a gap where it looped. The browser lets a page play sound once the
+// player has done something on it; until then the audio waits, and what
+// was started plays then.
 const sounds = {
+  // The page's audio, made when it is first needed.
+  context: null,
+  // Each sound decoded, by its name: a promise of its audio, or of null
+  // for one that cannot be.
+  buffers: new Map(),
+  // The sounds playing in each layer.
   layers: new Map(),
-  // An element for each of the game's sounds, loaded and ready to play,
-  // by its address. A sound starts at once from one, where a new element
-  // has to load first: on Linux, whose web view starts a pipeline for
-  // each, the start of a short sound was lost. Each is used once, and
-  // another made ready in its place.
-  ready: new Map(),
+  // Which game the sounds are for: a sound decoded for one game is not
+  // played in the next.
+  generation: 0,
 
-  // Have a sound ready to play.
-  prepare(url) {
-    if (!this.ready.has(url)) {
-      const audio = new Audio(url);
-      audio.preload = "auto";
-      audio.load();
-      this.ready.set(url, audio);
+  audio() {
+    if (!this.context) {
+      const Context = window.AudioContext ?? window.webkitAudioContext;
+      if (!Context) {
+        return null;
+      }
+      this.context = new Context();
     }
+    return this.context;
   },
 
-  // An element for a sound: the one ready, if there is one, with another
-  // made ready for next time.
-  take(url) {
-    const audio = this.ready.get(url) ?? new Audio(url);
-    this.ready.delete(url);
-    this.prepare(url);
-    return audio;
+  // A sound, decoded, once.
+  buffer(name) {
+    if (!this.buffers.has(name)) {
+      const context = this.audio();
+      const bytes = game?.resource(name);
+      this.buffers.set(
+        name,
+        !context || bytes === undefined
+          ? Promise.resolve(null)
+          : context.decodeAudioData(bytes.buffer).catch(() => null),
+      );
+    }
+    return this.buffers.get(name);
   },
 
-  // Have each of the game's sounds ready, when it starts.
-  prepareAll(names) {
-    this.ready.clear();
+  // A new game: no sounds playing, and its own decoded.
+  reset(names) {
+    this.stop(null);
+    this.buffers.clear();
+    this.generation += 1;
     for (const name of names) {
       if (/\.(wav|ogg|mp3)$/i.test(name)) {
-        const url = resourceUrl(name);
-        if (url) {
-          this.prepare(url);
-        }
+        this.buffer(name);
       }
     }
   },
-  // Sounds the browser would not play before the player did anything.
-  waiting: [],
 
   layer(name) {
     if (!this.layers.has(name)) {
@@ -412,68 +428,92 @@ const sounds = {
     return this.layers.get(name);
   },
 
+  // The player has done something: the audio can play.
+  resume() {
+    if (this.context?.state === "suspended") {
+      this.context.resume().catch(() => {});
+    }
+  },
+
   // Stop the sounds of a layer, or of every layer. With fades, each fades
   // out first, over the time given, or its own fadeout.
   stop(name, fades = false, seconds = NaN) {
     const names = name ? [name] : [...this.layers.keys()];
     for (const layerName of names) {
       for (const entry of this.layer(layerName)) {
+        entry.stopped = true;
         clearInterval(entry.timer);
         const fade = Number.isNaN(seconds) ? entry.fadeOut : seconds;
-        if (fades && fade > 0 && !entry.audio.paused) {
-          this.fade(entry, 0, fade, () => entry.audio.pause());
-        } else {
-          clearInterval(entry.fading);
-          entry.audio.pause();
+        const source = entry.source;
+        if (!source) {
+          entry.gain.disconnect();
+          continue;
+        }
+        const now = this.context.currentTime;
+        try {
+          if (fades && fade > 0) {
+            const gain = entry.gain.gain;
+            gain.cancelScheduledValues(now);
+            gain.setValueAtTime(gain.value, now);
+            gain.linearRampToValueAtTime(0, now + fade);
+            source.stop(now + fade);
+          } else {
+            source.stop();
+          }
+        } catch {
+          // It had stopped already.
         }
       }
       this.layer(layerName).clear();
     }
-    this.waiting = this.waiting.filter((entry) => !names.includes(entry.layer));
   },
 
-  // Bring a sound's volume to a level over some seconds.
-  fade(entry, to, seconds, done) {
-    clearInterval(entry.fading);
-    const from = entry.audio.volume;
-    const began = performance.now();
-    const step = () => {
-      const part = Math.min(1, (performance.now() - began) / (seconds * 1000));
-      entry.audio.volume = from + (to - from) * part;
-      if (part >= 1) {
-        clearInterval(entry.fading);
-        done?.();
+  // Play a sound some number of times (Infinity for over and over) as one
+  // run: looped in the audio, so there is no break between the times.
+  play(entry, buffer, times) {
+    const context = this.context;
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.loop = times > 1;
+    source.connect(entry.gain);
+    entry.source = source;
+    const now = context.currentTime;
+    const gain = entry.gain.gain;
+    gain.cancelScheduledValues(now);
+    // It fades in the first time it plays, not each time it repeats.
+    let full = now;
+    if (entry.fadeIn > 0 && !entry.played) {
+      gain.setValueAtTime(0, now);
+      gain.linearRampToValueAtTime(entry.volume, now + entry.fadeIn);
+      full = now + entry.fadeIn;
+    } else {
+      gain.setValueAtTime(entry.volume, now);
+    }
+    entry.played = true;
+    if (Number.isFinite(times)) {
+      const end = now + times * buffer.duration;
+      if (times > 1) {
+        source.stop(end);
+      }
+      // The last time it plays, it fades out before its end.
+      if (entry.fadeOut > 0 && entry.left <= times) {
+        gain.setValueAtTime(entry.volume, Math.max(full, end - entry.fadeOut));
+        gain.linearRampToValueAtTime(0, end);
+      }
+    }
+    source.onended = () => {
+      if (entry.source === source) {
+        entry.source = null;
+      }
+      // One that plays now and then waits for its next time.
+      if (entry.chance === null || entry.stopped || entry.left <= 0) {
+        this.layer(entry.layer).delete(entry);
+        if (!entry.source) {
+          entry.gain.disconnect();
+        }
       }
     };
-    entry.fading = setInterval(step, 30);
-    step();
-  },
-
-  start(entry) {
-    // It fades in the first time it plays, not each time it repeats.
-    if (entry.fadeIn > 0 && !entry.played) {
-      entry.audio.volume = 0;
-      this.fade(entry, entry.volume, entry.fadeIn);
-    } else {
-      entry.audio.volume = entry.volume;
-    }
-    entry.audio.play().catch(() => {
-      if (!this.waiting.includes(entry)) {
-        this.waiting.push(entry);
-      }
-    });
-  },
-
-  // The browser lets a page play sounds once the player has done
-  // something on it; those waiting for that start now.
-  resume() {
-    const waiting = this.waiting;
-    this.waiting = [];
-    for (const entry of waiting) {
-      if (this.layer(entry.layer).has(entry)) {
-        this.start(entry);
-      }
-    }
+    source.start(now);
   },
 
   // A <sound> tag.
@@ -492,66 +532,69 @@ const sounds = {
     if (!settings.sounds || (music && !settings.music) || !attrs.src) {
       return;
     }
-    const url = resourceUrl(attrs.src);
-    if (!url) {
+    const context = this.audio();
+    if (!context) {
       return;
     }
     if ("interrupt" in attrs) {
       this.stop(layer, true);
     }
-    const audio = this.take(url);
     const volume = parseFloat(attrs.volume);
+    const repeat = (attrs.repeat ?? "1").toLowerCase();
+    const chance = attrs.random !== undefined ? parseFloat(attrs.random) : NaN;
     const entry = {
-      audio,
+      name: attrs.src,
       layer,
+      gain: context.createGain(),
+      source: null,
       timer: null,
-      fading: null,
+      stopped: false,
+      played: false,
       volume: Number.isFinite(volume) ? Math.min(Math.max(volume, 0), 100) / 100 : 1,
       fadeIn: seconds(attrs.fadein),
       fadeOut: seconds(attrs.fadeout),
-    };
-    this.layer(layer).add(entry);
-    const repeat = (attrs.repeat ?? "1").toLowerCase();
-    let left = repeat === "loop" ? Infinity : Math.max(1, parseInt(repeat, 10) || 1);
-    const chance = attrs.random !== undefined ? parseFloat(attrs.random) : NaN;
-    if (!Number.isNaN(chance)) {
+      left: repeat === "loop" ? Infinity : Math.max(1, parseInt(repeat, 10) || 1),
       // Now and then: each second, this chance in a hundred that it
       // plays, if it is not playing already.
+      chance: Number.isNaN(chance) ? null : chance,
+    };
+    entry.gain.connect(context.destination);
+    this.layer(layer).add(entry);
+    const generation = this.generation;
+    this.buffer(attrs.src).then((buffer) => {
+      if (!buffer || generation !== this.generation || entry.stopped) {
+        this.layer(layer).delete(entry);
+        entry.gain.disconnect();
+        return;
+      }
+      if (entry.chance === null) {
+        this.play(entry, buffer, entry.left);
+        entry.left = 0;
+        return;
+      }
       entry.timer = setInterval(() => {
-        if (audio.paused && left > 0 && Math.random() * 100 < chance) {
-          left -= 1;
-          this.start(entry);
+        if (!entry.source && entry.left > 0 && Math.random() * 100 < entry.chance) {
+          this.play(entry, buffer, 1);
+          entry.left -= 1;
         }
       }, 1000);
-      return;
-    }
-    // A sound that loops for good loops in the element itself, without a
-    // break: started again at its end, as one played a number of times
-    // is, it had a gap on Linux, whose web view takes a moment to start
-    // a sound.
-    audio.loop = left === Infinity;
-    audio.addEventListener("playing", () => {
-      entry.played = true;
     });
-    // The last time it plays, it fades out before its end.
-    audio.addEventListener("timeupdate", () => {
-      const remaining = audio.duration - audio.currentTime;
-      if (entry.fadeOut > 0 && left === 1 && remaining <= entry.fadeOut && !entry.fadingOut) {
-        entry.fadingOut = true;
-        this.fade(entry, 0, Math.max(remaining, 0.05));
-      }
-    });
-    audio.addEventListener("ended", () => {
-      left -= 1;
-      if (left > 0) {
-        this.start(entry);
-      } else {
-        this.layer(layer).delete(entry);
-      }
-    });
-    this.start(entry);
   },
 };
+
+// What is playing, for checks: each sound's layer, name, and whether it
+// is sounding now, waiting for its next time, or for the audio to start.
+window.hexiconSoundsPlaying = () =>
+  [...sounds.layers.entries()].flatMap(([layer, entries]) =>
+    [...entries].map((entry) => ({
+      layer,
+      name: entry.name,
+      sounding: entry.source !== null && sounds.context?.state === "running",
+      looping: entry.source?.loop ?? false,
+      volume: Math.round(entry.gain.gain.value * 100) / 100,
+      audio: sounds.context?.state ?? "none",
+    })),
+  );
 
 // ---- the rich display: the document the game makes ----
 
@@ -1534,10 +1577,8 @@ async function play(bytes, name) {
     game.setRichDisplay(settings.pictures, settings.sounds, settings.music, settings.links);
   }
   applyStyles();
-  sounds.ready.clear();
-  if (rich && settings.sounds) {
-    sounds.prepareAll(game.resourceNames());
-  }
+  // The game's sounds, decoded, ready to play.
+  sounds.reset(rich && settings.sounds ? game.resourceNames() : []);
   element("saved-games").hidden = !inPlayer;
   await restoreFiles();
   unseen = null;
