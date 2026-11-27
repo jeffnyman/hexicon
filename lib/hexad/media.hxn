@@ -91,6 +91,19 @@ class Picture: object
     /* Whether show() shows it only the first time. */
     showsOnce = nil
 
+    /*
+     *   A command, for a picture that is a button: clicking it is typing
+     *   the command. Nil for a picture that is only a picture.
+     */
+    pictureCommand = nil
+
+    /*
+     *   The pictures shown instead while the pointer is over it, and while
+     *   it is pressed, among the game's resources; nil for none.
+     */
+    pictureHover = nil
+    picturePressed = nil
+
     /* Whether it has been shown. */
     pictureShown = nil
 
@@ -112,11 +125,18 @@ class Picture: object
          *   on a line of its own by default.
          */
         local alt = pictureAlt == nil ? '' : ' alt="' + pictureAlt + '"';
+        local also = (pictureHover == nil ? '' : ' hsrc="' + pictureHover + '"')
+            + (picturePressed == nil ? '' : ' asrc="' + picturePressed + '"')
+            + alt;
+        local open = pictureCommand == nil
+            ? '' : '<a plain href="' + pictureCommand + '">';
+        local close = pictureCommand == nil ? '' : '</a>';
         if (pictureAlign == nil)
-            "<.p><div class=\"picture\"><img src=\"<<pictureFile>>\"<<alt>>></div><.p>";
+            "<.p><div class=\"picture\"><<open>><img src=\"<<pictureFile>>\"<<
+            also>>><<close>></div><.p>";
         else
-            "<img class=\"picture\" src=\"<<pictureFile>>\"
-            align=<<pictureAlign>> hspace=30<<alt>>>";
+            "<<open>><img class=\"picture\" src=\"<<pictureFile>>\"
+            align=<<pictureAlign>> hspace=30<<also>>><<close>>";
     }
 ;
 
@@ -149,6 +169,18 @@ class Sound: object
     /* Whether it stops what is playing in its layer, to play at once. */
     interrupts = nil
 
+    /* How loud it is, from 0 to 100, or nil for as loud as it was made. */
+    soundVolume = nil
+
+    /*
+     *   The seconds it takes to fade in when it starts, and to fade out at
+     *   its end, or nil for none. A sound with a fade out fades out
+     *   whenever it stops: at its end, or when its layer is stopped or
+     *   another sound interrupts it.
+     */
+    soundFadeIn = nil
+    soundFadeOut = nil
+
     play()
     {
         if (!displayCanUse(soundFile))
@@ -156,15 +188,22 @@ class Sound: object
         "<sound src=\"<<soundFile>>\" layer=<<soundLayer>><<
           soundRepeat != 1 ? ' repeat=' + soundRepeat : ''>><<
           soundChance != nil ? ' random=' + soundChance : ''>><<
+          soundVolume != nil ? ' volume=' + soundVolume : ''>><<
+          soundFadeIn != nil ? ' fadein=' + soundFadeIn : ''>><<
+          soundFadeOut != nil ? ' fadeout=' + soundFadeOut : ''>><<
           interrupts ? ' interrupt' : ''>>>";
     }
 ;
 
-/* Stop the sounds playing in a layer: 'ambient', say. */
-stopSoundLayer(layer)
+/*
+ *   Stop the sounds playing in a layer: 'ambient', say. With a number of
+ *   seconds, they fade out over that time.
+ */
+stopSoundLayer(layer, fadeOut?)
 {
     if (systemInfoSays(SysInfoWav) || systemInfoSays(SysInfoOgg))
-        "<sound cancel=<<layer>>>";
+        "<sound cancel=<<layer>><<
+          fadeOut != nil ? ' fadeout=' + fadeOut : ''>>>";
 }
 
 /*

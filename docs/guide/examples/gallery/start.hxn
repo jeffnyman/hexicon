@@ -19,10 +19,21 @@ harbourPicture: Picture 'harbour.svg'
     'A small harbour at evening, under a setting sun.'
 ;
 
+// A picture that is a button: clicking it rings the bell, and it lights
+// up while the pointer is over it.
+bellPicture: Picture 'bell.svg'
+    'It gleams, ready to be rung.'
+    pictureHover = 'bell-lit.svg'
+    pictureCommand = 'ring the bell'
+    pictureAlign = 'right'
+;
+
 // A sound something makes, and a place's sound, which loops while the
-// player is there.
+// player is there, fading in as they arrive and out as they leave.
 chimeSound: Sound 'chime.wav' interrupts = true;
-fountainSound: Sound 'fountain.wav' soundLayer = 'ambient' soundRepeat = 'loop';
+fountainSound: Sound 'fountain.wav' soundLayer = 'ambient' soundRepeat = 'loop'
+    soundFadeIn = 2 soundFadeOut = 2
+;
 
 gallery: Room 'Gallery'
     "A quiet room with one painting on its wall, a brass plaque beside it,
@@ -49,7 +60,7 @@ gallery: Room 'Gallery'
 ;
 
 + bell: Fixture 'bell; small brass; stand'
-    "A small brass bell on a stand. "
+    "A small brass bell on a stand. <<bellPicture.show()>>"
 
     dobj Ring
     {

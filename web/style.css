@@ -427,6 +427,69 @@ body:not(.rich) #transcript .typed {
     border: 0;
   }
 
+  /* The panes' layout: each pane takes its side of what is left, and the
+     main window, or a pane's own text, has the rest. */
+  .hx-split,
+  .hx-rest {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .hx-split.hx-across {
+    flex-direction: row;
+  }
+
+  .hx-pane {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* A pane at the top or bottom is as tall as what is in it, but leaves
+     the main window room. */
+  .hx-pane-top,
+  .hx-pane-bottom {
+    max-height: 50%;
+  }
+
+  /* A pane at a side is the full height, and as wide as the game says,
+     or as what is in it, up to half of what is left. */
+  .hx-pane-left,
+  .hx-pane-right {
+    max-width: 50%;
+  }
+
+  .hx-pane > .rich-pane,
+  .hx-pane > .grid-pane {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+
+  /* A pane at a side is in the game's own colors, set off by a rule. */
+  .hx-pane-left > .rich-pane,
+  .hx-pane-right > .rich-pane {
+    background: transparent;
+    color: inherit;
+  }
+
+  .hx-pane-left {
+    border-right: 1px solid var(--rule);
+  }
+
+  .hx-pane-right {
+    border-left: 1px solid var(--rule);
+  }
+
+  .tag-banner.border {
+    border-bottom: 1px solid var(--rule);
+  }
+
   .grid-pane {
     white-space: pre;
     padding: 0 1rem;

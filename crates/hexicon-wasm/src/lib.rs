@@ -562,13 +562,26 @@ impl Game {
                 out.push(',');
             }
             let status = screen.screen_color(id) == Some(pane::color::STATUS_BG);
+            // How the program asked for it to be placed, for a rich
+            // display, which lays the panes out in its own measures.
+            let placed = screen.layout(id).map_or_else(String::new, |layout| {
+                format!(
+                    "\"parent\":{},\"grid\":{},\"align\":{},\"size\":{},\"units\":{},\"fitted\":{},",
+                    layout.parent.map_or_else(|| "null".to_owned(), |p| p.to_string()),
+                    layout.kind == pane::kind::GRID,
+                    layout.align,
+                    layout.size,
+                    layout.units,
+                    layout.fitted
+                )
+            });
             let lines: Vec<String> = screen
                 .view(id)
                 .iter()
                 .map(|line| json_string(line))
                 .collect();
             out.push_str(&format!(
-                "{{\"id\":{id},\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"status\":{},\"lines\":[{}]}}",
+                "{{\"id\":{id},{placed}\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"status\":{},\"lines\":[{}]}}",
                 rect.x,
                 rect.y,
                 rect.width,
@@ -643,7 +656,11 @@ impl Game {
         play_music: bool,
         links: bool,
     ) {
-        self.shared.borrow_mut().rich = Some(RichDisplay {
+        let mut shared = self.shared.borrow_mut();
+        // The page can keep the main window to part of its width, so a
+        // pane can be at its left or right.
+        shared.screen.set_side_panes(true);
+        shared.rich = Some(RichDisplay {
             pictures: true,
             sounds: true,
             show_pictures,

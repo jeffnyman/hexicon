@@ -340,7 +340,8 @@ impl RichConsole {
     fn new() -> Self {
         RichConsole {
             document: hexicon_host::rich::Document::new(),
-            screen: pane::Screen::new(24, 81, false),
+            // A rich display can have panes at the main window's sides.
+            screen: pane::Screen::new(24, 81, true),
         }
     }
 

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <!-- The gallery's bell, lit, as if about to ring: the picture shown
+       while the pointer is over it. -->
+  <circle cx="48" cy="44" r="40" fill="#f3d98a" opacity="0.45"/>
+  <rect x="44" y="70" width="8" height="14" fill="#5a4630"/>
+  <rect x="28" y="84" width="40" height="6" rx="2" fill="#5a4630"/>
+  <circle cx="48" cy="16" r="5" fill="#a8822e"/>
+  <path d="M48 20 C30 20 28 40 26 58 L22 66 L74 66 L70 58 C68 40 66 20 48 20 Z" fill="#dcae4a" stroke="#8a6a24" stroke-width="2"/>
+  <path d="M36 28 C34 38 33 48 32 58" stroke="#fff1c2" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <circle cx="48" cy="70" r="4" fill="#8a6a24"/>
+  <path d="M14 34 Q8 44 14 54 M82 34 Q88 44 82 54" stroke="#a8822e" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

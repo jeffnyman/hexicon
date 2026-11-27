@@ -329,6 +329,12 @@ function applyStyles() {
 // Sounds play in layers, as in HTML TADS: a place's background and
 // ambient sounds, music in the background, and the foreground's sounds
 // that things make. A sound in one layer does not stop one in another.
+//
+// A sound can have a volume (0 to 100), and fade in when it starts and
+// out when it ends (fadein and fadeout, in seconds). A sound with a
+// fadeout fades out whenever it stops, cancelled or interrupted as well
+// as at its end; a cancel with a fadeout of its own fades out everything
+// it stops.
 const sounds = {
   layers: new Map(),
   // Sounds the browser would not play before the player did anything.
@@ -341,19 +347,51 @@ const sounds = {
     return this.layers.get(name);
   },
 
-  stop(name) {
+  // Stop the sounds of a layer, or of every layer. With fades, each fades
+  // out first, over the time given, or its own fadeout.
+  stop(name, fades = false, seconds = NaN) {
     const names = name ? [name] : [...this.layers.keys()];
     for (const layerName of names) {
       for (const entry of this.layer(layerName)) {
-        entry.audio.pause();
         clearInterval(entry.timer);
+        const fade = Number.isNaN(seconds) ? entry.fadeOut : seconds;
+        if (fades && fade > 0 && !entry.audio.paused) {
+          this.fade(entry, 0, fade, () => entry.audio.pause());
+        } else {
+          clearInterval(entry.fading);
+          entry.audio.pause();
+        }
       }
       this.layer(layerName).clear();
     }
     this.waiting = this.waiting.filter((entry) => !names.includes(entry.layer));
   },
 
+  // Bring a sound's volume to a level over some seconds.
+  fade(entry, to, seconds, done) {
+    clearInterval(entry.fading);
+    const from = entry.audio.volume;
+    const began = performance.now();
+    const step = () => {
+      const part = Math.min(1, (performance.now() - began) / (seconds * 1000));
+      entry.audio.volume = from + (to - from) * part;
+      if (part >= 1) {
+        clearInterval(entry.fading);
+        done?.();
+      }
+    };
+    entry.fading = setInterval(step, 30);
+    step();
+  },
+
   start(entry) {
+    // It fades in the first time it plays, not each time it repeats.
+    if (entry.fadeIn > 0 && !entry.played) {
+      entry.audio.volume = 0;
+      this.fade(entry, entry.volume, entry.fadeIn);
+    } else {
+      entry.audio.volume = entry.volume;
+    }
     entry.audio.play().catch(() => {
       if (!this.waiting.includes(entry)) {
         this.waiting.push(entry);
@@ -375,8 +413,13 @@ const sounds = {
 
   // A <sound> tag.
   handle(attrs) {
+    const seconds = (value) => {
+      const number = parseFloat(value);
+      return Number.isFinite(number) && number > 0 ? Math.min(number, 60) : 0;
+    };
     if ("cancel" in attrs) {
-      this.stop(attrs.cancel ? attrs.cancel.toLowerCase() : null);
+      const fade = attrs.fadeout === undefined ? NaN : seconds(attrs.fadeout);
+      this.stop(attrs.cancel ? attrs.cancel.toLowerCase() : null, true, fade);
       return;
     }
     const layer = (attrs.layer ?? "foreground").toLowerCase();
@@ -389,10 +432,19 @@ const sounds = {
       return;
     }
     if ("interrupt" in attrs) {
-      this.stop(layer);
+      this.stop(layer, true);
     }
     const audio = new Audio(url);
-    const entry = { audio, layer, timer: null };
+    const volume = parseFloat(attrs.volume);
+    const entry = {
+      audio,
+      layer,
+      timer: null,
+      fading: null,
+      volume: Number.isFinite(volume) ? Math.min(Math.max(volume, 0), 100) / 100 : 1,
+      fadeIn: seconds(attrs.fadein),
+      fadeOut: seconds(attrs.fadeout),
+    };
     this.layer(layer).add(entry);
     const repeat = (attrs.repeat ?? "1").toLowerCase();
     let left = repeat === "loop" ? Infinity : Math.max(1, parseInt(repeat, 10) || 1);
@@ -408,6 +460,17 @@ const sounds = {
       }, 1000);
       return;
     }
+    audio.addEventListener("playing", () => {
+      entry.played = true;
+    });
+    // The last time it plays, it fades out before its end.
+    audio.addEventListener("timeupdate", () => {
+      const remaining = audio.duration - audio.currentTime;
+      if (entry.fadeOut > 0 && left === 1 && remaining <= entry.fadeOut && !entry.fadingOut) {
+        entry.fadingOut = true;
+        this.fade(entry, 0, Math.max(remaining, 0.05));
+      }
+    });
     audio.addEventListener("ended", () => {
       left -= 1;
       if (left > 0) {
@@ -445,7 +508,14 @@ class Builder {
 
   append(node) {
     this.top.append(node);
-    unseen ??= node;
+    if (!this.inBanner()) {
+      unseen ??= node;
+    }
+  }
+
+  // Whether what is added goes to a <banner>, and not the window.
+  inBanner() {
+    return this.stack.some((entry) => entry.banner);
   }
 
   text(text) {
@@ -456,6 +526,11 @@ class Builder {
     if (name === "aboutbox") {
       const box = document.createElement("div");
       this.stack.push({ name, node: box, about: true });
+      return;
+    }
+    if (name === "banner") {
+      // What is in it replaces what the banner of that id had.
+      this.stack.push({ name, node: tagBanners.open(attrs), banner: true });
       return;
     }
     const node = makeElement(name, attrs);
@@ -503,6 +578,9 @@ class Builder {
         return;
       case "basefont":
         return;
+      case "banner":
+        tagBanners.remove(attrs);
+        return;
       case "br":
         this.endRight();
         break;
@@ -527,8 +605,8 @@ class Builder {
   // <body>: the window's colors, and its picture; in the about box, the
   // about box's.
   body(attrs) {
-    const about = this.stack.find((entry) => entry.about);
-    const target = about ? about.node : this.root === transcript ? screen : this.root;
+    const holder = this.stack.findLast((entry) => entry.about || entry.banner);
+    const target = holder ? holder.node : this.root === transcript ? screen : this.root;
     if (attrs.bgcolor) {
       target.style.backgroundColor = colorOf(attrs.bgcolor);
     }
@@ -613,8 +691,16 @@ function makeElement(name, attrs) {
           }
         }
         break;
-      case "asrc":
+      // The picture shown while the pointer is over it, and while it is
+      // pressed.
       case "hsrc":
+      case "asrc":
+        if (name === "img") {
+          const url = resourceUrl(value);
+          if (url) {
+            node.dataset[attr === "hsrc" ? "hover" : "pressed"] = url;
+          }
+        }
         break;
       case "background": {
         const url = resourceUrl(value);
@@ -659,6 +745,9 @@ function makeElement(name, attrs) {
         break;
     }
   }
+  if (name === "img" && node.dataset.missing === undefined) {
+    showsOnHover(node);
+  }
   if (name === "img" && node.dataset.missing !== undefined) {
     // A picture the game does not have: its words, if any.
     const words = document.createElement("span");
@@ -666,6 +755,34 @@ function makeElement(name, attrs) {
     return words;
   }
   return node;
+}
+
+// A picture with others for when the pointer is over it (hsrc) and when
+// it is pressed (asrc), as on a button: a link's, mostly. Focus from the
+// keyboard shows the hover picture too.
+function showsOnHover(img) {
+  const { hover, pressed } = img.dataset;
+  if (!hover && !pressed) {
+    return;
+  }
+  const normal = img.src;
+  const over = hover ?? normal;
+  const down = pressed ?? over;
+  const show = (url) => () => {
+    img.src = url;
+  };
+  img.addEventListener("pointerenter", show(over));
+  img.addEventListener("pointerleave", show(normal));
+  img.addEventListener("pointerdown", show(down));
+  img.addEventListener("pointerup", show(over));
+  // It is put in its link once it is made.
+  queueMicrotask(() => {
+    const link = img.closest("a");
+    if (link) {
+      link.addEventListener("focus", show(over));
+      link.addEventListener("blur", show(normal));
+    }
+  });
 }
 
 const mainBuilder = new Builder(transcript);
@@ -769,41 +886,176 @@ function fitToWindow() {
 const panesTop = element("panes-top");
 const panesBottom = element("panes-bottom");
 
-// Show the game's panes: those above its main window in a strip above
-// the text, and those below in a strip below it.
+// Show the game's panes. On a display of plain text, those above its main
+// window go in a strip above the text, and those below in a strip below
+// it, laid out in lines and characters. A rich display lays them all out
+// in its own measures.
 function showPanes() {
   const layout = JSON.parse(game.panes());
+  if (rich) {
+    layOutPanes(layout.panes);
+    return;
+  }
   const mainTop = layout.main.y;
   const mainBottom = mainTop + layout.main.height;
   const above = layout.panes.filter((pane) => pane.y < mainTop);
   const below = layout.panes.filter((pane) => pane.y >= mainBottom);
-  if (rich) {
-    fillRichStrip(panesTop, above);
-    fillRichStrip(panesBottom, below);
-    return;
-  }
   fillStrip(panesTop, above, 0, mainTop);
   fillStrip(panesBottom, below, mainBottom, rows - mainBottom);
 }
 
-// On a rich display, a text pane shows its document at the size of what
-// is in it; a text grid, its lines.
-function fillRichStrip(strip, panes) {
-  const shown = panes
-    .filter((pane) => pane.width > 0 && pane.height > 0)
-    .map((pane) => {
-      const builder = richPanes.get(pane.id);
-      if (builder) {
-        return builder.root;
-      }
+// ---- panes on a rich display ----
+//
+// Each pane takes its side of what its parent has left, in the order the
+// game made them, as in a terminal: a pane at the top or bottom the full
+// width of what is left, and one at the left or right its full height.
+// The main window, or a pane's own text, has what is left after its panes.
+// A pane at the top or bottom is as tall as what is in it; one at a side
+// is as wide as the game asks, in characters or as a percentage, or as
+// wide as what is in it.
+//
+// A <banner> in the game's text is a pane too, after the others: what is
+// in it replaces what the banner of that id had.
+
+const ALIGN = ["top", "bottom", "left", "right"];
+const PERCENT = 1;
+
+// The panes made by <banner>, by id, in the order they were made.
+const tagBanners = {
+  banners: new Map(),
+
+  open(attrs) {
+    const id = attrs.id ?? "";
+    let banner = this.banners.get(id);
+    if (!banner) {
       const box = document.createElement("div");
+      box.className = "rich-pane tag-banner";
+      banner = { box, align: "top", size: "" };
+      this.banners.set(id, banner);
+    }
+    banner.box.replaceChildren();
+    banner.box.removeAttribute("style");
+    const align = (attrs.align ?? "top").toLowerCase();
+    banner.align = ALIGN.includes(align) ? align : "top";
+    const across = banner.align === "left" || banner.align === "right";
+    const size = ((across ? attrs.width : attrs.height) ?? "").trim().toLowerCase();
+    if (size !== "previous") {
+      banner.size = /^\d+(\.\d+)?%$/.test(size) ? size : /^\d+$/.test(size) ? `${size}px` : "";
+    }
+    banner.box.className = `rich-pane tag-banner ${attrs.class ?? ""}`.trim();
+    banner.box.classList.toggle("border", "border" in attrs);
+    if (attrs.style) {
+      banner.box.setAttribute("style", withResourceUrls(attrs.style));
+    }
+    return banner.box;
+  },
+
+  remove(attrs) {
+    if ("removeall" in attrs) {
+      this.banners.clear();
+    } else if ("remove" in attrs) {
+      this.banners.delete(attrs.id ?? "");
+    }
+  },
+
+  clear() {
+    this.banners.clear();
+  },
+};
+
+// Each text grid's box, by the pane's id, kept from one turn to the next.
+const gridBoxes = new Map();
+// What the layout was when it was last built.
+let laidOut = "";
+
+function layOutPanes(panes) {
+  // What each pane is, and where it goes.
+  const placed = [];
+  for (const pane of panes) {
+    let box = richPanes.get(pane.id)?.root;
+    if (!box) {
+      box = gridBoxes.get(pane.id);
+      if (!box) {
+        box = document.createElement("div");
+        gridBoxes.set(pane.id, box);
+      }
       box.className = pane.status ? "grid-pane status" : "grid-pane";
       box.textContent = pane.lines.join("\n");
-      return box;
-    });
-  strip.hidden = shown.length === 0;
-  strip.style.height = "";
-  strip.replaceChildren(...shown);
+    }
+    const across = pane.align === 2 || pane.align === 3;
+    let size = "";
+    if (across && !pane.fitted) {
+      size = pane.units === PERCENT ? `${pane.size}%` : `${pane.size}ch`;
+    }
+    // A pane with no room, or sized to nothing, is not shown.
+    const shows = pane.fitted ? box.hasChildNodes() : pane.width > 0 && pane.height > 0;
+    if (shows) {
+      placed.push({
+        key: `pane ${pane.id}`,
+        parent: pane.parent === null ? null : `pane ${pane.parent}`,
+        align: ALIGN[pane.align] ?? "top",
+        size,
+        box,
+      });
+    }
+  }
+  for (const [id, banner] of tagBanners.banners) {
+    if (banner.box.hasChildNodes()) {
+      placed.push({ key: `banner ${id}`, parent: null, ...banner });
+    }
+  }
+
+  const shape = JSON.stringify(placed.map(({ box, ...rest }) => rest));
+  if (shape === laidOut && placed.every((pane) => pane.box.isConnected)) {
+    return;
+  }
+  laidOut = shape;
+
+  const children = (key) => placed.filter((pane) => pane.parent === key);
+  // Lay out a window's panes in a container, the window's own box in what
+  // is left.
+  const build = (container, panes, inner) => {
+    let rest = container;
+    for (const pane of panes) {
+      const split = document.createElement("div");
+      const across = pane.align === "left" || pane.align === "right";
+      split.className = across ? "hx-split hx-across" : "hx-split";
+      const next = document.createElement("div");
+      next.className = "hx-rest";
+      // The pane's place, and in it the pane, after its own panes.
+      const holder = document.createElement("div");
+      holder.className = `hx-pane hx-pane-${pane.align}`;
+      holder.style.flexBasis = pane.size || "auto";
+      build(holder, children(pane.key), pane.box);
+      if (pane.align === "top" || pane.align === "left") {
+        split.append(holder, next);
+      } else {
+        split.append(next, holder);
+      }
+      rest.append(split);
+      rest = next;
+    }
+    rest.append(inner);
+  };
+
+  // Moving the main window's text keeps where it was scrolled to, and
+  // the command line its focus.
+  const scrolled = screen.scrollTop;
+  const focused = document.activeElement === command;
+  gameArea.replaceChildren();
+  build(gameArea, children(null), screen);
+  screen.scrollTop = scrolled;
+  if (focused) {
+    command.focus({ preventScroll: true });
+  }
+}
+
+// Put the main window back as a display of plain text has it.
+function resetPaneLayout() {
+  laidOut = "";
+  gridBoxes.clear();
+  tagBanners.clear();
+  gameArea.replaceChildren(panesTop, screen, panesBottom);
 }
 
 function fillStrip(strip, panes, firstRow, height) {
@@ -1140,6 +1392,7 @@ async function play(bytes, name) {
   mainBuilder.reset();
   richPanes.clear();
   mapNames.clear();
+  resetPaneLayout();
   panesTop.replaceChildren();
   panesBottom.replaceChildren();
   screen.removeAttribute("style");

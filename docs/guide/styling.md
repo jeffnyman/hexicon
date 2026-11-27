@@ -19,7 +19,7 @@ A picture is one of the game's resources: a file named in the manifest, which `h
 
 ```toml
 # The picture and the sounds the game shows and plays.
-resources = ["harbour.svg", "chime.wav", "fountain.wav"]
+resources = ["harbour.svg", "bell.svg", "bell-lit.svg", "chime.wav", "fountain.wav"]
 ```
 
 The game names it as a `Picture`, with the file, and the words a display of text shows instead:
@@ -58,15 +58,38 @@ On a rich display, the picture, with the words for anyone who cannot see it:
 
 A picture is centered on a line of its own, unless its `pictureAlign` is `'right'` or `'left'`, which puts it at that side with the text beside it. With `showsOnce = true` it is shown only the first time. A player who has turned pictures off sees the words instead, as on a display of text.
 
+A picture can be a button. With a `pictureCommand`, clicking it types the command; with a `pictureHover`, another picture shows while the pointer is over it (or the button has the keyboard's focus), and with a `picturePressed`, while it is pressed:
+
+```hexicon
+// A picture that is a button: clicking it rings the bell, and it lights
+// up while the pointer is over it.
+bellPicture: Picture 'bell.svg'
+    'It gleams, ready to be rung.'
+    pictureHover = 'bell-lit.svg'
+    pictureCommand = 'ring the bell'
+    pictureAlign = 'right'
+;
+```
+
+```document
+A small brass bell on a stand. <a plain href="ring the bell"><img class="picture" src="bell.svg" align="right" hspace="30" hsrc="bell-lit.svg" alt="It gleams, ready to be rung."></a><br>
+```
+
+Its words should read well on a display of text, where they are all there is of it: there, the bell is "A small brass bell on a stand." and then "It gleams, ready to be rung."
+
 ## Sounds
 
 A sound is a resource too, as a `Sound`: WAV, Ogg, and MP3. Its `play()` plays it. Sounds play in layers, and one in a layer does not stop one in another: `'foreground'` (the default) for a sound something makes, `'ambient'` for a place's sounds, `'bgambient'` for a place's sound behind those, and `'background'` for music. `soundRepeat` is how many times (or `'loop'`), `soundChance` makes it come now and then (a chance, as a percentage, each second), and `interrupts` stops what is playing in its layer so that it plays at once.
 
+A sound can be quieter than it was made, with a `soundVolume` from 0 to 100, and can fade in as it starts and out as it ends, over a `soundFadeIn` and a `soundFadeOut` in seconds. A sound with a fade out fades out whenever it stops: at its end, when its layer is stopped, or when another sound interrupts it. `stopSoundLayer('ambient', 3)` stops a layer's sounds with a fade of its own, three seconds.
+
 ```hexicon
 // A sound something makes, and a place's sound, which loops while the
-// player is there.
+// player is there, fading in as they arrive and out as they leave.
 chimeSound: Sound 'chime.wav' interrupts = true;
-fountainSound: Sound 'fountain.wav' soundLayer = 'ambient' soundRepeat = 'loop';
+fountainSound: Sound 'fountain.wav' soundLayer = 'ambient' soundRepeat = 'loop'
+    soundFadeIn = 2 soundFadeOut = 2
+;
 ```
 
 The bell plays its sound when it is rung:
@@ -218,7 +241,7 @@ A style sheet can say what changes with the size of the window, or with the play
 
 Hexicon holds a game's markup and style to a list, so that a game shows the same wherever it is played, and can do nothing in the window but show itself:
 
-- **Elements**: those of HTML 3.2 (paragraphs, line breaks, headings, lists, tables, `<b>`, `<i>`, `<font>`, `<center>`, `<blockquote>`, `<img>`, image maps, links), and `<span>`, `<div>`, `<figure>`, and `<figcaption>`; with `class`, `style`, and `title` on any of them. TADS's own are understood too: `<sound>`, `<bq>`, `<nobr>`, `<tab>`, `<title>` (the window's title), `<aboutbox>` (what "About this game" shows), and `<body>` (a window's colors and picture).
+- **Elements**: those of HTML 3.2 (paragraphs, line breaks, headings, lists, tables, `<b>`, `<i>`, `<font>`, `<center>`, `<blockquote>`, `<img>`, image maps, links), and `<span>`, `<div>`, `<figure>`, and `<figcaption>`; with `class`, `style`, and `title` on any of them. TADS's own are understood too: `<sound>`, `<bq>`, `<nobr>`, `<tab>`, `<title>` (the window's title), `<aboutbox>` (what "About this game" shows), `<body>` (a window's colors and picture), and `<banner>` (a pane at a side of the window: `<banner id=notes align=right width=20%>...</banner>` puts what is in it there, in place of what that banner had, and `<banner remove id=notes>` takes it away). An `<img>` can have an `hsrc` and an `asrc`, the pictures for the pointer over it and for it pressed.
 - **CSS**: colors and backgrounds; fonts; text alignment, decoration, indent, transform, and spacing; margins, padding, borders, and rounded corners; widths and heights; `display` (block, inline, inline-block, none, and flex); floats; list styles; the borders and spacing of tables; `@media` for the window's width, light and dark, contrast, and reduced motion; and `@font-face`, for a font among the game's resources.
 - **Left out**: scripts, `onclick` and the like, forms, frames, and anything that names a file or an address outside the game's own resources. A link is always a command. What the list does not have is dropped before the display sees it, and a game's `!important` is taken out, since only the player may put their own choices first.
 

@@ -2,6 +2,7 @@
 <line>look
 <line>x painting
 <line>read plaque
+<line>x bell
 <line>ring bell
 <line>s
 <line>x fountain

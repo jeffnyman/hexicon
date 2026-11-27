@@ -134,6 +134,26 @@ pub struct Rect {
     pub height: usize,
 }
 
+/// How a pane is placed, as the program asked: for a display that lays
+/// the panes out in its own measures, as a rich one does, and not in
+/// character cells.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PaneLayout {
+    /// The pane it is part of, or `None` for the main window.
+    pub parent: Option<u32>,
+    /// A [`kind`] value.
+    pub kind: i32,
+    /// An [`align`] value.
+    pub align: i32,
+    /// The size, in `units`.
+    pub size: i32,
+    /// A [`units`] value.
+    pub units: i32,
+    /// Whether the program last asked for it to be sized to what it
+    /// holds, rather than given a size.
+    pub fitted: bool,
+}
+
 /// The most lines of text a pane keeps. A pane shows no more than a
 /// screenful, so more would only be kept to be thrown away.
 const MAX_LINES: usize = 500;
@@ -164,6 +184,8 @@ struct Window {
     rect: Rect,
     /// The background color asked for.
     screen_color: Option<u32>,
+    /// Whether it was last sized to its contents.
+    fitted: bool,
 }
 
 impl Window {
@@ -327,6 +349,7 @@ impl Screen {
                 ymax: 0,
                 rect,
                 screen_color: None,
+                fitted: false,
             },
         );
         let list = self.children_mut(parent);
@@ -407,7 +430,11 @@ impl Screen {
         let Some(window) = self.windows.get_mut(&id) else {
             return;
         };
-        if (window.size, window.units) == (size, units) || advisory {
+        if advisory {
+            return;
+        }
+        window.fitted = false;
+        if (window.size, window.units) == (size, units) {
             return;
         }
         window.size = size;
@@ -418,9 +445,11 @@ impl Screen {
     /// Make a pane just big enough for what it holds, in the dimension
     /// it can be sized in.
     pub fn size_to_contents(&mut self, id: u32) {
-        let Some(window) = self.windows.get(&id) else {
+        let Some(window) = self.windows.get_mut(&id) else {
             return;
         };
+        window.fitted = true;
+        let window = &self.windows[&id];
         let (size, current) = if window.horizontal() {
             (self.content_height(id), window.rect.height)
         } else {
@@ -499,6 +528,26 @@ impl Screen {
             rows: window.rect.height,
             columns: window.rect.width,
         })
+    }
+
+    /// How a pane is placed, as the program asked.
+    pub fn layout(&self, id: u32) -> Option<PaneLayout> {
+        let window = self.windows.get(&id)?;
+        Some(PaneLayout {
+            parent: window.parent,
+            kind: window.kind,
+            align: window.align,
+            size: window.size,
+            units: window.units,
+            fitted: window.fitted,
+        })
+    }
+
+    /// Whether a pane can be at the left or right of the main window: a
+    /// display that can keep the main window's text to part of its width
+    /// says yes.
+    pub fn set_side_panes(&mut self, side_panes: bool) {
+        self.side_panes = side_panes;
     }
 
     /// Show the old-style status line, the program's location at the left
@@ -784,6 +833,34 @@ mod tests {
         screen.delete(outer);
         assert_eq!(screen.panes(), []);
         assert_eq!(screen.main().height, 24);
+    }
+
+    #[test]
+    fn a_panes_layout_is_as_the_program_asked() {
+        let mut screen = Screen::new(24, 80, false);
+        screen.set_side_panes(true);
+        let side = screen
+            .create(None, Placement::Last, spec(align::LEFT, 30, units::PERCENT))
+            .unwrap();
+        let layout = screen.layout(side).unwrap();
+        assert_eq!(
+            (
+                layout.parent,
+                layout.align,
+                layout.size,
+                layout.units,
+                layout.fitted
+            ),
+            (None, align::LEFT, 30, units::PERCENT, false)
+        );
+        screen.size_to_contents(side);
+        assert!(screen.layout(side).unwrap().fitted);
+        // An advisory size leaves it fitted; a size it is given does not.
+        screen.set_size(side, 10, units::CELLS, true);
+        assert!(screen.layout(side).unwrap().fitted);
+        screen.set_size(side, 10, units::CELLS, false);
+        assert!(!screen.layout(side).unwrap().fitted);
+        assert_eq!(screen.layout(side + 1), None);
     }
 
     #[test]

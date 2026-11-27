@@ -1036,6 +1036,10 @@ impl Checker {
         if let Some(style) = extra_style {
             attrs.push(("style".into(), Some(style.to_owned())));
         }
+        // A banner that is removed has nothing in it, and no end tag.
+        let is_void = is_void
+            || (page_name == "banner"
+                && attrs.iter().any(|(n, _)| n == "remove" || n == "removeall"));
 
         // A picture that is not one of the game's resources goes; its
         // words, if it has any, stay.
@@ -1455,6 +1459,14 @@ mod tests {
         assert_eq!(
             check("<bq>Quoted.</bq><nobr>12:30</nobr>"),
             "<blockquote>Quoted.</blockquote>\n<span style=\"white-space: nowrap\">12:30</span>"
+        );
+    }
+
+    #[test]
+    fn a_banner_removed_holds_nothing() {
+        assert_eq!(
+            check("<banner id=map align=left width=20%>Map</banner><banner remove id=map>After."),
+            "<banner id=\"map\" align=\"left\" width=\"20%\">Map</banner>\n<banner remove id=\"map\">After."
         );
     }
 
