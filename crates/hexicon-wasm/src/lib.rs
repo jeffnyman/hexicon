@@ -798,6 +798,15 @@ impl Game {
         self.image.get(range.clone()).map(<[u8]>::to_vec)
     }
 
+    /// The names of the game's resources, in order.
+    #[wasm_bindgen(js_name = resourceNames)]
+    pub fn resource_names(&self) -> Vec<String> {
+        self.resources
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect()
+    }
+
     /// The game's style sheets, checked against the profile and put under
     /// `scope` (the page's element for the game), one after another: every
     /// resource whose name ends in ".css", in order.

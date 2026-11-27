@@ -364,6 +364,44 @@ function applyStyles() {
 // it stops.
 const sounds = {
   layers: new Map(),
+  // An element for each of the game's sounds, loaded and ready to play,
+  // by its address. A sound starts at once from one, where a new element
+  // has to load first: on Linux, whose web view starts a pipeline for
+  // each, the start of a short sound was lost. Each is used once, and
+  // another made ready in its place.
+  ready: new Map(),
+
+  // Have a sound ready to play.
+  prepare(url) {
+    if (!this.ready.has(url)) {
+      const audio = new Audio(url);
+      audio.preload = "auto";
+      audio.load();
+      this.ready.set(url, audio);
+    }
+  },
+
+  // An element for a sound: the one ready, if there is one, with another
+  // made ready for next time.
+  take(url) {
+    const audio = this.ready.get(url) ?? new Audio(url);
+    this.ready.delete(url);
+    this.prepare(url);
+    return audio;
+  },
+
+  // Have each of the game's sounds ready, when it starts.
+  prepareAll(names) {
+    this.ready.clear();
+    for (const name of names) {
+      if (/\.(wav|ogg|mp3)$/i.test(name)) {
+        const url = resourceUrl(name);
+        if (url) {
+          this.prepare(url);
+        }
+      }
+    }
+  },
   // Sounds the browser would not play before the player did anything.
   waiting: [],
 
@@ -461,7 +499,7 @@ const sounds = {
     if ("interrupt" in attrs) {
       this.stop(layer, true);
     }
-    const audio = new Audio(url);
+    const audio = this.take(url);
     const volume = parseFloat(attrs.volume);
     const entry = {
       audio,
@@ -1447,6 +1485,10 @@ async function play(bytes, name) {
     game.setRichDisplay(settings.pictures, settings.sounds, settings.music, settings.links);
   }
   applyStyles();
+  sounds.ready.clear();
+  if (rich && settings.sounds) {
+    sounds.prepareAll(game.resourceNames());
+  }
   element("saved-games").hidden = !inPlayer;
   await restoreFiles();
   unseen = null;
