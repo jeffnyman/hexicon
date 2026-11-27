@@ -1,0 +1,21 @@
+[package]
+name = "hexicon-app"
+description = "Hexicon's player: a window that plays games, with the web page's display"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "hexicon-player"
+path = "src/main.rs"
+
+[dependencies]
+# The window, and the system's web view in it: WebView2 on Windows, WebKit
+# on macOS and Linux.
+tao = "0.38"
+wry = "0.58"
+
+[lints]
+workspace = true

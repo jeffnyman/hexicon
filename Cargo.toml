@@ -10,6 +10,20 @@ members = [
     "crates/hexicon-cli",
     "crates/hexicon-wasm",
     "crates/hexicon-fuzz",
+    "crates/hexicon-app",
+]
+# The player is built on its own (tools/build-app.sh), after the web page it
+# shows: it needs the page's WebAssembly build, and the system's web view.
+default-members = [
+    "crates/hexicon-image",
+    "crates/hexicon-bytecode",
+    "crates/hexicon-decimal",
+    "crates/hexicon-host",
+    "crates/hexicon-vm",
+    "crates/hexicon-compiler",
+    "crates/hexicon-cli",
+    "crates/hexicon-wasm",
+    "crates/hexicon-fuzz",
 ]
 
 [workspace.package]

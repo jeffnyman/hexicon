@@ -4,7 +4,7 @@ Hexicon is a system for writing interactive fiction: games the player reads, and
 
 - **the language** a game is written in, in `.hxn` files;
 - **Hexad**, the library every game is built on: rooms, things, doors, characters, the parser, and the messages a game prints;
-- **the `hexicon` program**, which builds a game into a single `.hxg` file and plays it, in a terminal or, through WebAssembly, in a browser.
+- **the `hexicon` program**, which builds a game into a single `.hxg` file and plays it in a terminal; and **the player**, which plays it in a window of its own, with its pictures, sounds, and styled text, as a web browser does.
 
 ## Getting started
 
@@ -23,6 +23,17 @@ hexicon build
 hexicon run my-game.hxg
 ```
 
+## Playing in a window, or in a browser
+
+The player, `hexicon-player`, shows a game in the system's web view (WebView2 on Windows, WebKit on macOS and Linux), and `web/` is the same page for a browser. Both need the WebAssembly build (see the top of `tools/build-web.sh` for what that takes):
+
+```
+tools/build-app.sh
+target/release/hexicon-player my-game.hxg
+```
+
+`tools/build-web.sh` builds the browser's page alone, into `web/`; `node tools/web-serve.js` serves it at `http://127.0.0.1:8765/web/index.html`.
+
 ## Documentation
 
 [The Hexicon Guide](docs/guide/README.md) takes you from nothing to a small finished game, and covers Hexad and the language. The plans behind Hexicon are in [docs](docs).
@@ -30,10 +41,12 @@ hexicon run my-game.hxg
 ## Testing
 
 ```
-cargo test --workspace
+cargo test
 python tools/program-check.py
 python tools/doc-check.py
 ```
+
+`cargo test` leaves out the player, which needs the page built first; with it built, `cargo test --workspace` includes it.
 
 [tests/README.md](tests/README.md) says what each checks.
 

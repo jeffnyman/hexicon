@@ -8,10 +8,16 @@
 // over HTTP with: node tools/web-serve.js
 //
 // usage: node tools/web-check.js <browser.exe> <page address> <commands.txt>
+//        node tools/web-check.js --player <hexicon-player> <game.hxg> <commands.txt>
 //
 // The page address names the game to load:
 //   http://127.0.0.1:8765/web/index.html?game=/build/web-test/sample.hxg
 // The commands file has one command to a line.
+//
+// With --player, the page checked is the one in Hexicon's player (built by
+// tools/build-app.sh), playing the game named, in the system's web view.
+// This is for Windows, where the web view is WebView2, whose debugging
+// port is turned on from outside. The player's window shows while it runs.
 //
 // Two environment variables change what is checked:
 //   HEXICON_CHECK_SIZE=390x800   the size of the window, for trying a
@@ -25,10 +31,16 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const [browserPath, address, commandsPath] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const player = args[0] === "--player";
+if (player) {
+  args.shift();
+}
+const [browserPath, address, commandsPath] = args;
 if (!browserPath || !address || !commandsPath) {
   console.error(
-    "usage: node tools/web-check.js <browser.exe> <page address> <commands.txt>",
+    "usage: node tools/web-check.js <browser.exe> <page address> <commands.txt>\n" +
+      "       node tools/web-check.js --player <hexicon-player> <game.hxg> <commands.txt>",
   );
   process.exit(2);
 }
@@ -42,7 +54,15 @@ if (commands[commands.length - 1] === "") {
 
 const port = 9333;
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "hexicon-web-check-"));
-const browser = spawn(
+const browser = player
+  ? spawn(browserPath, [address], {
+      stdio: "ignore",
+      env: {
+        ...process.env,
+        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`,
+      },
+    })
+  : spawn(
   browserPath,
   [
     "--headless=new",
@@ -140,7 +160,9 @@ async function main() {
   await send("Page.enable");
   await send("Runtime.enable");
   await send("Log.enable");
-  await send("Page.navigate", { url: address });
+  if (!player) {
+    await send("Page.navigate", { url: address });
+  }
   const ready = `!document.getElementById("entry").hidden || !document.getElementById("notice").hidden`;
   await until(ready, "the game to start");
 

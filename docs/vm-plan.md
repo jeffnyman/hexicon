@@ -81,14 +81,16 @@ hexicon/
     hexicon-host/         the host interface trait and shared host types
     hexicon-cli/          native terminal runner: `hexicon run`, `hexicon dump`, `hexicon disasm`; uses `crossterm` for the terminal
     hexicon-wasm/         the VM as a WebAssembly module that a page's JavaScript runs
+    hexicon-app/          the player: a window showing the web page in the system's web view (`wry`, `tao`)
   tools/
     program-check.py      checks Hexicon against tests/programs (see tests/README.md)
     game-check.py         builds and plays whole games on Hexad, kept outside the repository
     build-web.sh          builds the WebAssembly module and its JavaScript into web/pkg
     build-web.ps1         the same, for PowerShell
+    build-app.sh          builds the web page and then the player
     web-serve.js          serves the repository on this machine, for opening the page
     web-play.js           plays a game through the WebAssembly module under Node
-    web-check.js          plays a game on the page in a browser with no window
+    web-check.js          plays a game on the page in a browser with no window, or in the player
   web/                    a page that plays a game: index.html, main.js, style.css
   docs/
 ```
@@ -406,7 +408,15 @@ What the first document showed, for the steps after:
 - **The player's settings**, in a dialog, kept for every game: colors (the game's, light, dark, or high contrast), font, size, the width of the text, pictures, sounds, music, links, a style sheet of the player's own, and whether their colors and font come first. CSS cascade layers order them: the page's defaults, then the player's, then the game's, so the game's look wins; with "mine first", the player's are `!important`, which wins over the game's sheets and its `style` attributes alike. Pictures, sounds, music, and links go to the game as well (`systemInfo`), so Hexad's `Picture` and `Sound` leave out what the player has turned off. A setting makes the page a display of plain text instead, as before.
 - **Checked in Chrome without a window** (`tools/web-check.js`, which now reports the page's errors, and can do something to the page before its picture): The Golden Skull's pictures, its sign's table, its compass as an image map with the ways out lit, the status line, the about box, the settings dialog, and the player's high contrast and monospace coming first over the game's colors and fonts.
 
-What is left for the steps after: the downloadable program (step 4); Hexad's style tags as classes, The Golden Skull restyled, and the guide's page (step 5); a banner at the left or right, which the page puts above for now; hover pictures (`asrc`, `hsrc`); and fading sounds.
+**Done, 2026-11-27: step 4.**
+
+- **The player, `hexicon-player`** (the crate `hexicon-app`), is a window with the system's web view in it: WebView2 on Windows, WebKit on macOS and Linux, through the `wry` and `tao` crates, which are the player's only dependencies outside the workspace. It shows the browser's page: the page's files, its WebAssembly build included, are built into the program and given to the web view by a protocol of its own (`hexicon://`, which WebView2 reaches as `http://hexicon.localhost/`), so nothing is fetched from anywhere. A game named on the command line is opened at the start (`hexicon-player game.hxg`); the page's "Open a game" opens any other. The window takes the page's title, which is the game's.
+- **What the page keeps**, the player's settings and the games' saved files, is kept by the web view in the user's folder for programs' data: `%LOCALAPPDATA%\Hexicon` on Windows, `~/Library/Application Support/Hexicon` on macOS, and `~/.local/share/hexicon` elsewhere.
+- **It is built on its own** (`tools/build-app.sh`, which builds the page first): the workspace's default members leave it out, so `cargo build` and `cargo test` do not need the page built or the web view's crates. A build without the page built says so. The program is 3.5 MB, the WebAssembly build 2.6 MB of it.
+- **Checked on Windows** with `tools/web-check.js --player`, which starts the player with WebView2's debugging port turned on and plays a script in it as it plays one in Chrome: The Golden Skull, its status line, pictures, and compass, as in the browser, and its title on the window.
+- Not yet: macOS and Linux have not been tried; the player's saved games live in the web view's storage, not as files a player can find; and a game cannot be opened by dropping it on the window, or by the system when its file is opened.
+
+What is left for the steps after: Hexad's style tags as classes, The Golden Skull restyled, and the guide's page (step 5); a banner at the left or right, which the page puts above for now; hover pictures (`asrc`, `hsrc`); and fading sounds.
 
 ## Open questions
 
