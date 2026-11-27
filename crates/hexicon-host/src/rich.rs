@@ -357,6 +357,9 @@ const CSS_PROPERTIES: &[&str] = &[
     // A table's: how its cells' borders meet, and the space between them.
     "border-collapse",
     "border-spacing",
+    // A picture's: smoothed when it is drawn bigger, or kept to crisp
+    // pixels (pixelated), as a map of small tiles wants.
+    "image-rendering",
 ];
 
 /// The values `display` may have.

@@ -362,6 +362,14 @@ body:not(.rich) #transcript .typed {
     height: auto;
   }
 
+  /* A picture alone in a table's cell fills the cell, without the room a
+     line of text would leave under it, as HTML TADS and browsers' "almost
+     standards" mode lay it out: a map of tiles has no gaps. */
+  #game td > img:only-child,
+  #game td > a:only-child > img:only-child {
+    display: block;
+  }
+
   /* A picture of Hexad's (Picture), on a line of its own. */
   #game div.picture {
     text-align: center;
@@ -401,6 +409,14 @@ body:not(.rich) #transcript .typed {
     float: right;
   }
 
+  /* What a <tab align=center> starts: in the middle of its line. */
+  #game .hx-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
   body.rich #command {
     width: 24em;
     max-width: 60%;
@@ -418,6 +434,7 @@ body:not(.rich) #transcript .typed {
     font-family: system-ui, sans-serif;
     font-size: 0.95rem;
     display: flow-root;
+    position: relative;
   }
 
   .rich-pane a[data-command] {
@@ -459,6 +476,15 @@ body:not(.rich) #transcript .typed {
     max-height: 50%;
   }
 
+  /* One with panes of its own is as tall as they, or its own text, are:
+     each part of it starts from what is in it, not from nothing. */
+  .hx-pane-top .hx-split,
+  .hx-pane-top .hx-rest,
+  .hx-pane-bottom .hx-split,
+  .hx-pane-bottom .hx-rest {
+    flex-basis: auto;
+  }
+
   /* A pane at a side is the full height, and as wide as the game says,
      or as what is in it, up to half of what is left. */
   .hx-pane-left,
@@ -467,7 +493,9 @@ body:not(.rich) #transcript .typed {
   }
 
   .hx-pane > .rich-pane,
-  .hx-pane > .grid-pane {
+  .hx-pane > .grid-pane,
+  .hx-rest > .rich-pane,
+  .hx-rest > .grid-pane {
     flex: 1 1 auto;
     overflow-y: auto;
   }

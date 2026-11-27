@@ -605,8 +605,8 @@ class Builder {
   constructor(root) {
     this.root = root;
     this.stack = [{ name: "#root", node: root }];
-    // A <tab align=right>: what follows, to the end of the line, goes to
-    // the right.
+    // A <tab align=right> or <tab align=center>: what follows, to the next
+    // tab or the end of the line, goes to the right or the middle.
     this.rightOf = null;
   }
 
@@ -679,16 +679,20 @@ class Builder {
       case "body":
         this.body(attrs);
         return;
-      case "tab":
-        if ((attrs.align ?? "").toLowerCase() === "right") {
+      case "tab": {
+        // What follows, to the next tab or the end of the line, goes to
+        // the right, or in the middle.
+        const align = (attrs.align ?? "").toLowerCase();
+        if (align === "right" || align === "center") {
           this.endRight();
-          const right = document.createElement("span");
-          right.className = "hx-right";
-          this.append(right);
-          this.stack.push({ name: "#right", node: right });
-          this.rightOf = right;
+          const span = document.createElement("span");
+          span.className = `hx-${align}`;
+          this.append(span);
+          this.stack.push({ name: "#right", node: span });
+          this.rightOf = span;
         }
         return;
+      }
       case "basefont":
         return;
       case "banner":
@@ -703,7 +707,8 @@ class Builder {
     this.append(makeElement(name, attrs));
   }
 
-  // The end of the line ends what a <tab align=right> put at the right.
+  // The end of the line, or another tab, ends what a <tab> put at the
+  // right or in the middle.
   endRight() {
     if (!this.rightOf) {
       return;
@@ -716,23 +721,21 @@ class Builder {
   }
 
   // <body>: the window's colors, and its picture; in the about box, the
-  // about box's.
+  // about box's. As in HTML TADS, each <body> says them all: one it
+  // leaves out goes back to the window's own, so a pane's next picture
+  // does not keep the last one's background.
   body(attrs) {
     const holder = this.stack.findLast((entry) => entry.about || entry.banner);
     const target = holder ? holder.node : this.root === transcript ? screen : this.root;
-    if (attrs.bgcolor) {
-      target.style.backgroundColor = colorOf(attrs.bgcolor);
-    }
-    if (attrs.text) {
-      target.style.color = colorOf(attrs.text);
-    }
+    target.style.backgroundColor = attrs.bgcolor ? colorOf(attrs.bgcolor) : "";
+    target.style.color = attrs.text ? colorOf(attrs.text) : "";
     if (attrs.link) {
       target.style.setProperty("--hx-link", colorOf(attrs.link));
+    } else {
+      target.style.removeProperty("--hx-link");
     }
-    if (attrs.background) {
-      const url = resourceUrl(attrs.background);
-      target.style.backgroundImage = url ? `url("${url}")` : "";
-    }
+    const url = attrs.background ? resourceUrl(attrs.background) : "";
+    target.style.backgroundImage = url ? `url("${url}")` : "";
   }
 
   // An item from the game.

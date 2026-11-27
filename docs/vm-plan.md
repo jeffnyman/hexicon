@@ -464,6 +464,15 @@ What the first document showed, for the steps after:
 
 - **A Mac program has a menu bar**, and Command-Q is its Quit, as Command-C, -V, -X, and -A are its Edit menu's: without one, none of them did anything. The player makes the program's menu (Hide, Hide Others, Show All, Quit), Edit, and Window, through `muda`, on macOS only.
 
+**Found by Wasteland-T3, 2026-11-27.** A port of Kenneth Eugene Gay's 2006 test of a role-playing map in HTML TADS's banners (in the playground; see the Hexad plan) has ten panes, most of them inside the map pane, which no game before had. What it showed the page lacked, now put right:
+
+- **A pane at the top with panes of its own had no height.** Its row of panes, and what each left, started from nothing and could shrink to it, so the map pane and the six inside it were drawn 0 pixels tall. Inside a pane at the top or bottom, each part now starts from what is in it; and a pane's own text fills what its panes leave, as the main window's does, where it stopped at its last line.
+- **A picture alone in a table's cell had a line's room under it**, so a map of sixteen-pixel tiles had rows 23 pixels tall and gaps between them. It now fills the cell, as in HTML TADS and browsers' "almost standards" mode.
+- **`<tab align=center>`** did nothing; it now puts what follows, to the next tab or the end of the line, in the middle, as `<tab align=right>` puts it at the right.
+- **A `<body>` kept what an earlier one set and it left out**: a pane given a picture on a black ground kept the last picture's stone background. Each `<body>` now says all of a window's colors and its picture, as in HTML TADS.
+- **The profile's CSS gains `image-rendering`**, so a game can draw small pictures bigger with crisp pixels (recommended; the profile was agreed without it). Wasteland's style sheet draws its map twice the size that way, on a window with room.
+- `web-check.js` takes `HEXICON_CHECK_EVAL`, an expression to print from the page, which is how the panes' sizes were found.
+
 What is left: macOS for the player, as an app bundle; a Linux package, which depends on the GStreamer plugins above; and the system opening a game in the player when its file is opened, which takes an installer on Windows and the app bundle on macOS to say so (the player takes the game's file on its command line, so "Open with" works already).
 
 ## Open questions

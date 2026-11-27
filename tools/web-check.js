@@ -19,10 +19,12 @@
 // This is for Windows, where the web view is WebView2, whose debugging
 // port is turned on from outside. The player's window shows while it runs.
 //
-// Two environment variables change what is checked:
+// These environment variables change what is checked:
 //   HEXICON_CHECK_SIZE=390x800   the size of the window, for trying a
 //                                narrow one
 //   HEXICON_CHECK_PICTURE=a.png  save a picture of the page at the end
+//   HEXICON_CHECK_EVAL=js        print what this gives in the page, such
+//                                as the sizes of its panes
 //   HEXICON_CHECK_BEFORE_PICTURE=js  run this in the page first, such as
 //                                a click that opens a dialog
 
@@ -210,6 +212,11 @@ async function main() {
   process.stderr.write(
     `longest line: ${longest} characters; scrolls sideways: ${sideways ? "yes" : "no"}\n`,
   );
+  if (process.env.HEXICON_CHECK_EVAL) {
+    // Something to ask the page, such as the size of its panes.
+    process.stdout.write(`eval: ${await evaluate(process.env.HEXICON_CHECK_EVAL)}
+`);
+  }
   if (process.env.HEXICON_CHECK_BEFORE_PICTURE) {
     // Something to do to the page first, such as opening a dialog.
     await evaluate(process.env.HEXICON_CHECK_BEFORE_PICTURE);
