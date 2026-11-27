@@ -5,14 +5,24 @@
 //! runs in the page, as the browser's does. The page's files are built into
 //! the program and given to the web view from it; nothing is fetched from
 //! anywhere. A game named on the command line is opened at the start; the
-//! page's "Open a game" opens any other. What the page keeps, the player's
-//! settings and the games' saved files, is kept in the user's own folder for
-//! programs' data.
+//! page's "Open a game", or a game dropped on the window, opens any other.
+//!
+//! The files a game writes, its saved games above all, are files in a
+//! folder of the player's: `Hexicon` in their documents, with a folder for
+//! each game, named after its file. The page asks for them when it opens a
+//! game, and sends each one the game writes or deletes. The player's
+//! settings are kept by the web view, in the user's folder for programs'
+//! data.
 //!
 //! usage: hexicon-player [game.hxg]
+//!
+//! HEXICON_GAMES_FOLDER, if it is set, is the folder for the games' files.
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
@@ -56,6 +66,9 @@ const PROTOCOL: &str = "hexicon";
 /// Where the game named on the command line is, for the page to load.
 const GAME_PATH: &str = "game/";
 
+/// Where a game's files are, for the page to load: `files/<game>`.
+const FILES_PATH: &str = "files/";
+
 fn main() {
     let game = std::env::args_os().nth(1).map(PathBuf::from);
     if let Some(path) = &game {
@@ -93,15 +106,23 @@ fn main() {
         address.push_str(&format!("?game=/{GAME_PATH}{}", encode(&name)));
     }
 
+    let folder = games_folder();
     let mut context = WebContext::new(data_folder());
     let game_file = game.clone();
+    let protocol_folder = folder.clone();
+    let title_proxy = proxy.clone();
     let built = WebViewBuilder::new_with_web_context(&mut context)
         .with_url(&address)
         .with_custom_protocol(PROTOCOL.to_owned(), move |_id, request| {
-            respond(&request, game_file.as_deref())
+            respond(&request, game_file.as_deref(), &protocol_folder)
+        })
+        .with_ipc_handler(move |request| {
+            if let Some(script) = take_message(request.body(), &folder) {
+                let _ = proxy.send_event(PageEvent::Script(script));
+            }
         })
         .with_document_title_changed_handler(move |title| {
-            let _ = proxy.send_event(PageEvent::Title(title));
+            let _ = title_proxy.send_event(PageEvent::Title(title));
         })
         .build(&window);
     let webview = match built {
@@ -117,6 +138,9 @@ fn main() {
         match event {
             // The page's title is the window's: the game's, once it says.
             Event::UserEvent(PageEvent::Title(title)) => window.set_title(&title),
+            Event::UserEvent(PageEvent::Script(script)) => {
+                let _ = webview.evaluate_script(&script);
+            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
@@ -135,11 +159,26 @@ fn main() {
 enum PageEvent {
     /// The page's title changed.
     Title(String),
+    /// Something for the page to run: the answer to what it sent.
+    Script(String),
 }
 
-/// The answer to a request from the page: one of its files, or the game.
-fn respond(request: &Request<Vec<u8>>, game: Option<&Path>) -> Response<Cow<'static, [u8]>> {
+/// The answer to a request from the page: one of its files, the game, or
+/// the game's files.
+fn respond(
+    request: &Request<Vec<u8>>,
+    game: Option<&Path>,
+    folder: &Path,
+) -> Response<Cow<'static, [u8]>> {
     let path = request.uri().path().trim_start_matches('/');
+    if let Some(name) = path.strip_prefix(FILES_PATH) {
+        let listing = game_files(&game_folder(folder, &decode(name)));
+        return answer(
+            StatusCode::OK,
+            "text/plain; charset=utf-8",
+            Cow::Owned(listing.into_bytes()),
+        );
+    }
     if let Some(name) = path.strip_prefix(GAME_PATH) {
         if let Some(game) = game {
             let wanted = decode(name);
@@ -202,6 +241,168 @@ fn data_folder() -> Option<PathBuf> {
     Some(folder)
 }
 
+/// The folder for the games' files, where the player can find them:
+/// `Hexicon` in their documents, or in their home folder if they have no
+/// folder for documents. `HEXICON_GAMES_FOLDER` names another, for a
+/// player kept on a stick, say, or for a check that must not touch the
+/// player's own.
+fn games_folder() -> PathBuf {
+    if let Some(folder) = std::env::var_os("HEXICON_GAMES_FOLDER") {
+        return PathBuf::from(folder);
+    }
+    dirs::document_dir()
+        .or_else(dirs::home_dir)
+        .unwrap_or_default()
+        .join("Hexicon")
+}
+
+/// The folder for one game's files: named after the game's file, without
+/// `.hxg`.
+fn game_folder(folder: &Path, game: &str) -> PathBuf {
+    let name = game
+        .strip_suffix(".hxg")
+        .or_else(|| game.strip_suffix(".HXG"))
+        .unwrap_or(game);
+    folder.join(file_name_for(name))
+}
+
+/// A game's files, for the page: a line for each, its name as it goes in
+/// an address and its contents in base64. A folder that is not there yet
+/// has none.
+fn game_files(folder: &Path) -> String {
+    let mut listing = String::new();
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return listing;
+    };
+    for entry in entries.flatten() {
+        let file = entry.file_name().to_string_lossy().into_owned();
+        // The player's own files, part written, start with a dot.
+        if file.starts_with('.') || !entry.path().is_file() {
+            continue;
+        }
+        if let Ok(contents) = std::fs::read(entry.path()) {
+            let name = name_from_file(&file);
+            listing.push_str(&format!("{} {}\n", encode(&name), BASE64.encode(contents)));
+        }
+    }
+    listing
+}
+
+/// Do what the page asks of a game's files, which it sends as a line of
+/// words: `write <game> <name> <contents>`, `delete <game> <name>`, or
+/// `show <game>`, the names as they go in an address and the contents in
+/// base64. What goes wrong comes back as a script for the page to run.
+fn take_message(message: &str, folder: &Path) -> Option<String> {
+    let mut words = message.split(' ');
+    let verb = words.next()?;
+    let game = game_folder(folder, &decode(words.next()?));
+    let name = words.next().map(decode);
+    let result = match (verb, &name) {
+        ("write", Some(name)) => BASE64
+            .decode(words.next().unwrap_or(""))
+            .map_err(|error| error.to_string())
+            .and_then(|contents| write_file(&game, name, &contents).map_err(|e| e.to_string())),
+        ("delete", Some(name)) => match std::fs::remove_file(game.join(file_name_for(name))) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.to_string()),
+            _ => Ok(()),
+        },
+        ("show", None) => show_folder(&game).map_err(|error| error.to_string()),
+        _ => return None,
+    };
+    let error = result.err()?;
+    Some(format!(
+        "hexiconPlayer.failed({}, {})",
+        js_string(name.as_deref().unwrap_or("")),
+        js_string(&error)
+    ))
+}
+
+/// Write one of a game's files: first beside it, then in its place, so
+/// that a file is never left half written.
+fn write_file(folder: &Path, name: &str, contents: &[u8]) -> std::io::Result<()> {
+    std::fs::create_dir_all(folder)?;
+    let file = file_name_for(name);
+    let part = folder.join(format!(".{file}.part"));
+    std::fs::write(&part, contents)?;
+    std::fs::rename(&part, folder.join(file))
+}
+
+/// Open a game's folder in the system's file manager.
+fn show_folder(folder: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(folder)?;
+    let manager = if cfg!(windows) {
+        "explorer"
+    } else if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    std::process::Command::new(manager).arg(folder).spawn()?;
+    Ok(())
+}
+
+/// The name of the file a game's file is kept in. A game can name a file
+/// anything, and a folder cannot have every name, so what a folder cannot
+/// have is written as `%` and its code: a slash, a colon, a name the
+/// system keeps for itself (`CON`), a dot or a space at the end. Every
+/// other name is the file's own, so a saved game is found by its name.
+fn file_name_for(name: &str) -> String {
+    const KEPT: &[&str] = &["CON", "PRN", "AUX", "NUL"];
+    let mut out = String::new();
+    let count = name.chars().count();
+    let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
+    let kept = KEPT.contains(&stem.as_str())
+        || (stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && stem.as_bytes()[3].is_ascii_digit());
+    for (index, c) in name.chars().enumerate() {
+        let last = index + 1 == count;
+        let escape = c.is_control()
+            || "<>:\"/\\|?*%".contains(c)
+            || (last && (c == '.' || c == ' '))
+            || (index == 0 && (kept || c == '.'));
+        if escape {
+            let mut bytes = [0; 4];
+            for byte in c.encode_utf8(&mut bytes).bytes() {
+                out.push_str(&format!("%{byte:02X}"));
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    if out.is_empty() {
+        out.push_str("%00");
+    }
+    out
+}
+
+/// The name a game knows a file by, from the file's own name: its
+/// escapes undone.
+fn name_from_file(file: &str) -> String {
+    if file == "%00" {
+        String::new()
+    } else {
+        decode(file)
+    }
+}
+
+/// Text as a string in JavaScript.
+fn js_string(text: &str) -> String {
+    let mut out = String::from("\"");
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if (c as u32) < 0x20 || c == '\u{2028}' || c == '\u{2029}' => {
+                out.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
 /// A file name as it goes in an address.
 fn encode(name: &str) -> String {
     let mut out = String::new();
@@ -232,4 +433,62 @@ fn decode(name: &str) -> String {
         i += 1;
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_files_name_is_its_own_where_a_folder_can_have_it() {
+        assert_eq!(file_name_for("my save"), "my save");
+        assert_eq!(file_name_for("start.sav"), "start.sav");
+        assert_eq!(file_name_for("caf\u{e9}"), "caf\u{e9}");
+    }
+
+    #[test]
+    fn what_a_folder_cannot_have_is_escaped_and_comes_back() {
+        for (name, file) in [
+            ("a/b", "a%2Fb"),
+            ("..", "%2E%2E"),
+            (".hidden", "%2Ehidden"),
+            ("end.", "end%2E"),
+            ("end ", "end%20"),
+            ("con", "%63on"),
+            ("COM1.txt", "%43OM1.txt"),
+            ("what?", "what%3F"),
+            ("100%", "100%25"),
+            ("", "%00"),
+        ] {
+            assert_eq!(file_name_for(name), file, "{name}");
+            assert_eq!(name_from_file(file), name, "{file}");
+        }
+    }
+
+    #[test]
+    fn a_games_files_are_written_listed_and_deleted() {
+        let folder = std::env::temp_dir().join(format!("hexicon-app-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        let send = |message: &str| take_message(message, &folder);
+        let one = BASE64.encode(b"one");
+        let two = BASE64.encode(b"two");
+        assert_eq!(send(&format!("write skull.hxg a%2Fb {one}")), None);
+        assert_eq!(send(&format!("write skull.hxg plain {two}")), None);
+        let game = game_folder(&folder, "skull.hxg");
+        assert_eq!(game, folder.join("skull"));
+        assert_eq!(std::fs::read(game.join("a%2Fb")).unwrap(), b"one");
+        let mut listing: Vec<String> = game_files(&game).lines().map(str::to_owned).collect();
+        listing.sort();
+        assert_eq!(listing, [format!("a%2Fb {one}"), format!("plain {two}")]);
+        assert_eq!(send("delete skull.hxg plain"), None);
+        assert_eq!(send("delete skull.hxg plain"), None);
+        assert_eq!(game_files(&game), format!("a%2Fb {one}\n"));
+        let failed = send("write skull.hxg x !!!").unwrap();
+        assert!(
+            failed.starts_with("hexiconPlayer.failed(\"x\", "),
+            "{failed}"
+        );
+        assert_eq!(send("nonsense"), None);
+        let _ = std::fs::remove_dir_all(&folder);
+    }
 }

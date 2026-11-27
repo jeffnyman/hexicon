@@ -18,6 +18,7 @@
       </label>
       <span id="game-name"></span>
       <span class="header-end">
+        <button id="saved-games" type="button" hidden>Saved games</button>
         <button id="about" type="button" hidden>About this game</button>
         <button id="settings-open" type="button">Settings</button>
       </span>
@@ -34,8 +35,8 @@
 
       <main id="screen" aria-live="polite">
         <p id="welcome">
-          Choose a game file (<code>.hxg</code>) to play it here. The game runs in this
-          page; nothing is sent anywhere. Saved games are kept in this browser.
+          Choose a game file (<code>.hxg</code>), or drop one here, to play it. The game
+          runs in this page; nothing is sent anywhere. Saved games are kept in this browser.
         </p>
         <div id="transcript"></div>
         <form id="entry" hidden autocomplete="off">

@@ -16,6 +16,10 @@ path = "src/main.rs"
 # on macOS and Linux.
 tao = "0.38"
 wry = "0.58"
+# The games' files, carried between the page and the folder as text, and
+# the user's folders.
+base64 = "0.23"
+dirs = "7"
 
 [lints]
 workspace = true

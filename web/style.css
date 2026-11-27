@@ -114,6 +114,12 @@ dialog {
   font-family: system-ui, sans-serif;
 }
 
+/* A game file dragged over the page, to be dropped on it. */
+body.dropping #game {
+  outline: 3px dashed var(--accent);
+  outline-offset: -0.75rem;
+}
+
 dialog::backdrop {
   background: rgb(0 0 0 / 0.4);
 }

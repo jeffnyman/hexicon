@@ -62,7 +62,15 @@ function saveSettings() {
   }
 }
 
-// ---- the game's files, kept in the browser's storage ----
+// ---- the game's files ----
+//
+// In a browser they are kept in the browser's storage. In Hexicon's
+// player, which gives the page window.ipc to send it messages, they are
+// files in a folder of the player's own, one folder for each game: the
+// page asks for them when it opens a game, and sends each one the game
+// writes or deletes.
+
+const inPlayer = typeof window.ipc?.postMessage === "function";
 
 const storagePrefix = () => `hexicon:${gameName}:`;
 
@@ -76,21 +84,87 @@ const toBase64 = (bytes) => {
 
 const fromBase64 = (text) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 
-// Give the game the files it wrote when it was last played here.
-function restoreFiles() {
+// The files kept in the browser's storage for this game: their names and
+// their keys.
+function storedFiles() {
   const prefix = storagePrefix();
-  for (let index = 0; index < localStorage.length; index++) {
-    const key = localStorage.key(index);
-    if (key.startsWith(prefix)) {
-      game.putFile(key.slice(prefix.length), fromBase64(localStorage.getItem(key)));
+  const files = [];
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (key.startsWith(prefix)) {
+        files.push([key.slice(prefix.length), key]);
+      }
     }
+  } catch {
+    // A browser that keeps nothing has nothing kept.
+  }
+  return files;
+}
+
+// Give the game the files it wrote when it was last played here.
+async function restoreFiles() {
+  if (!inPlayer) {
+    for (const [name, key] of storedFiles()) {
+      game.putFile(name, fromBase64(localStorage.getItem(key)));
+    }
+    return;
+  }
+  const names = new Set();
+  try {
+    const listing = await (await fetch(`files/${encodeURIComponent(gameName)}`)).text();
+    for (const line of listing.split("\n")) {
+      const [name, contents] = line.split(" ");
+      if (contents !== undefined) {
+        names.add(decodeURIComponent(name));
+        game.putFile(decodeURIComponent(name), fromBase64(contents));
+      }
+    }
+  } catch (error) {
+    say(`The saved games could not be read: ${error.message}`);
+  }
+  // The player kept a game's files in the web view's storage before it
+  // kept them in a folder: they go to the folder, unless it has a file
+  // of that name already.
+  for (const [name, key] of storedFiles()) {
+    if (!names.has(name)) {
+      const contents = fromBase64(localStorage.getItem(key));
+      game.putFile(name, contents);
+      sendFile(name, contents);
+    }
+    localStorage.removeItem(key);
   }
 }
+
+// Tell the player of a file the game has written, or deleted.
+function sendFile(name, contents) {
+  const words = [encodeURIComponent(gameName), encodeURIComponent(name)];
+  if (contents === undefined) {
+    window.ipc.postMessage(`delete ${words.join(" ")}`);
+  } else {
+    window.ipc.postMessage(`write ${words.join(" ")} ${toBase64(contents)}`);
+  }
+}
+
+// What the player says when it could not do what the page asked.
+window.hexiconPlayer = {
+  failed(name, message) {
+    say(
+      name
+        ? `The file "${name}" could not be kept in the folder: ${message}`
+        : `The folder could not be shown: ${message}`,
+    );
+  },
+};
 
 // Store the files the game has written, and forget the ones it deleted.
 function storeFiles() {
   for (const name of game.takeChangedFiles()) {
     const contents = game.getFile(name);
+    if (inPlayer) {
+      sendFile(name, contents);
+      continue;
+    }
     try {
       if (contents === undefined) {
         localStorage.removeItem(storagePrefix() + name);
@@ -1059,7 +1133,7 @@ element("about-close").addEventListener("click", () => aboutDialog.close());
 
 // ---- loading a game ----
 
-function play(bytes, name) {
+async function play(bytes, name) {
   gameName = name;
   sounds.stop(null);
   forgetResources();
@@ -1090,7 +1164,8 @@ function play(bytes, name) {
     game.setRichDisplay(settings.pictures, settings.sounds, settings.music, settings.links);
   }
   applyStyles();
-  restoreFiles();
+  element("saved-games").hidden = !inPlayer;
+  await restoreFiles();
   unseen = null;
   fitToWindow();
   state = game.start();
@@ -1106,6 +1181,45 @@ element("file").addEventListener("change", async (event) => {
   event.target.value = "";
 });
 
+// A game file dropped on the page plays, as one chosen does.
+const draggingFiles = (event) => event.dataTransfer?.types.includes("Files");
+document.addEventListener("dragover", (event) => {
+  if (draggingFiles(event)) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    document.body.classList.add("dropping");
+  }
+});
+document.addEventListener("dragleave", (event) => {
+  // Leaving the window, not one of its parts.
+  if (event.relatedTarget === null) {
+    document.body.classList.remove("dropping");
+  }
+});
+document.addEventListener("drop", async (event) => {
+  if (!draggingFiles(event)) {
+    return;
+  }
+  event.preventDefault();
+  document.body.classList.remove("dropping");
+  const file = event.dataTransfer.files[0];
+  if (file) {
+    play(new Uint8Array(await file.arrayBuffer()), file.name);
+  }
+});
+
+// In the player, the folder of the game's files, in the system's file
+// manager.
+element("saved-games").addEventListener("click", () => {
+  window.ipc.postMessage(`show ${encodeURIComponent(gameName)}`);
+});
+if (inPlayer) {
+  element("welcome").innerHTML =
+    "Choose a game file (<code>.hxg</code>), or drop one on the window, to play it. " +
+    "Saved games are kept in your documents, in the folder Hexicon, with a folder " +
+    "for each game: <b>Saved games</b> opens it.";
+}
+
 applyStyles();
 await init();
 
@@ -1117,7 +1231,7 @@ if (address) {
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`);
     }
-    play(new Uint8Array(await response.arrayBuffer()), address.split("/").pop());
+    await play(new Uint8Array(await response.arrayBuffer()), address.split("/").pop());
   } catch (error) {
     say(`The game at "${address}" could not be loaded: ${error.message}`);
   }
