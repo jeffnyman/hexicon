@@ -24,7 +24,8 @@ use std::rc::Rc;
 use hexicon_host::pane::{self, PaneInfo, PaneSpec, Placement, Screen};
 use hexicon_host::rich::{self, Document, Event, Item, RichDisplay};
 use hexicon_host::{
-    FileChoice, FileDialog, FileError, FileInfo, Host, Input, Sandbox, Time, file_attr, file_type,
+    FileChoice, FileDialog, FileError, FileInfo, FileKind, Host, Input, Sandbox, Time, file_attr,
+    file_type,
 };
 use hexicon_image::Image;
 use hexicon_vm::{RunState, Vm};
@@ -69,9 +70,9 @@ struct Shared {
     document: Document,
     /// Whether the page shows a dialog for a file the game asks for.
     file_dialogs: bool,
-    /// The dialog the game is waiting on: whether it is to save, and the
-    /// game's prompt.
-    file_asked: Option<(bool, String)>,
+    /// The dialog the game is waiting on: whether it is to save, the
+    /// game's prompt, and the kind of file.
+    file_asked: Option<(bool, String, FileKind)>,
     /// What the player chose in it, until the game takes it.
     file_choice: Option<FileChoice>,
 }
@@ -224,7 +225,12 @@ impl Host for WebHost {
         }
     }
 
-    fn choose_file(&mut self, prompt: &str, dialog: FileDialog) -> Option<FileChoice> {
+    fn choose_file(
+        &mut self,
+        prompt: &str,
+        dialog: FileDialog,
+        kind: FileKind,
+    ) -> Option<FileChoice> {
         let mut shared = self.0.borrow_mut();
         if !shared.file_dialogs {
             return None;
@@ -233,7 +239,7 @@ impl Host for WebHost {
             shared.file_asked = None;
             return Some(choice);
         }
-        shared.file_asked = Some((dialog == FileDialog::Save, prompt.to_owned()));
+        shared.file_asked = Some((dialog == FileDialog::Save, prompt.to_owned(), kind));
         shared.waiting = Waiting::File;
         Some(FileChoice::Pending)
     }
@@ -533,12 +539,21 @@ impl Game {
     }
 
     /// The dialog the game is waiting on, as JSON: whether it is to save
-    /// a file, and the game's prompt.
+    /// a file, the game's prompt, and the kind of file (`game` for a saved
+    /// game, `text`, or `file`).
     #[wasm_bindgen(js_name = fileDialog)]
     pub fn file_dialog(&self) -> String {
         match &self.shared.borrow().file_asked {
-            Some((save, prompt)) => {
-                format!("{{\"save\":{save},\"prompt\":{}}}", json_string(prompt))
+            Some((save, prompt, kind)) => {
+                let kind = match kind {
+                    FileKind::SavedGame => "game",
+                    FileKind::Text => "text",
+                    FileKind::Other => "file",
+                };
+                format!(
+                    "{{\"save\":{save},\"prompt\":{},\"kind\":\"{kind}\"}}",
+                    json_string(prompt)
+                )
             }
             None => "null".to_owned(),
         }

@@ -157,8 +157,15 @@ fn main() {
                 save,
                 folder,
                 prompt,
+                kind,
             }) => {
-                let script = choose_file(&window, save, &folder, &prompt, &mut chosen.borrow_mut());
+                let asked = Asked {
+                    save,
+                    folder: &folder,
+                    prompt: &prompt,
+                    kind: &kind,
+                };
+                let script = choose_file(&window, &asked, &mut chosen.borrow_mut());
                 let _ = webview.evaluate_script(&script);
             }
             Event::WindowEvent {
@@ -182,12 +189,31 @@ enum PageEvent {
     /// Something for the page to run: the answer to what it sent.
     Script(String),
     /// The game asks for a file, to save or not, in its folder, with its
-    /// prompt.
+    /// prompt, and of a kind: `game` for a saved game, `text`, or `file`.
     Dialog {
         save: bool,
         folder: PathBuf,
         prompt: String,
+        kind: String,
     },
+}
+
+/// A file dialog the game asks for.
+struct Asked<'a> {
+    save: bool,
+    folder: &'a Path,
+    prompt: &'a str,
+    kind: &'a str,
+}
+
+/// The files of a kind, as a dialog shows them: their description and
+/// their extension.
+fn kind_filter(kind: &str) -> Option<(&'static str, &'static str)> {
+    match kind {
+        "game" => Some(("Saved games", "hxs")),
+        "text" => Some(("Text files", "txt")),
+        _ => None,
+    }
 }
 
 /// The answer to a request from the page: one of its files, the game, or
@@ -317,7 +343,7 @@ fn game_files(folder: &Path) -> String {
 
 /// Do what the page asks of a game's files, which it sends as a line of
 /// words: `write <game> <name> <contents>`, `delete <game> <name>`,
-/// `show <game>`, or `dialog <open|save> <game> <prompt>`, the names and
+/// `show <game>`, or `dialog <open|save> <game> <prompt> <kind>`, the names and
 /// the prompt as they go in an address and the contents in base64. What
 /// goes wrong comes back as a script for the page to run; a dialog, as
 /// the event that shows it.
@@ -333,6 +359,7 @@ fn take_message(message: &str, folder: &Path, chosen: &HashSet<PathBuf>) -> Opti
             save,
             folder: game_folder(folder, &decode(words.next()?)),
             prompt: decode(words.next().unwrap_or("")),
+            kind: words.next().unwrap_or("file").to_owned(),
         });
     }
     let game = game_folder(folder, &decode(words.next()?));
@@ -394,18 +421,33 @@ fn write_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {
 /// to know it by (its name in the folder, or the whole of its path
 /// elsewhere), and for a file to open, its contents in base64; or
 /// `hexiconPlayer.fileChosen(null)` for none.
+///
+/// The dialog shows the files of the kind the game asks for (saved games,
+/// `.hxs`, or text, `.txt`), with all files a choice when opening one; a
+/// file to save of that kind, named without an extension, is given it.
 fn choose_file(
     window: &tao::window::Window,
-    save: bool,
-    folder: &Path,
-    prompt: &str,
+    asked: &Asked,
     chosen: &mut HashSet<PathBuf>,
 ) -> String {
+    let Asked {
+        save,
+        folder,
+        prompt,
+        kind,
+    } = *asked;
     let _ = std::fs::create_dir_all(folder);
-    let dialog = rfd::FileDialog::new()
+    let mut dialog = rfd::FileDialog::new()
         .set_title(prompt.trim().trim_end_matches(['>', ':']).trim())
         .set_directory(folder)
         .set_parent(window);
+    let filter = kind_filter(kind);
+    if let Some((description, extension)) = filter {
+        dialog = dialog.add_filter(description, &[extension]);
+        if !save {
+            dialog = dialog.add_filter("All files", &["*"]);
+        }
+    }
     // A check, which cannot use the dialog, gives the answer instead: a
     // path, or nothing for none.
     let picked = if let Some(answer) = std::env::var_os("HEXICON_CHECK_CHOOSE") {
@@ -415,9 +457,14 @@ fn choose_file(
     } else {
         dialog.pick_file()
     };
-    let Some(path) = picked else {
+    let Some(mut path) = picked else {
         return "hexiconPlayer.fileChosen(null)".to_owned();
     };
+    if let Some((_, extension)) = filter {
+        if save && path.extension().is_none() {
+            path.set_extension(extension);
+        }
+    }
     let in_folder = path
         .parent()
         .is_some_and(|parent| same_folder(parent, folder));
@@ -614,7 +661,7 @@ mod tests {
     fn a_dialog_is_asked_for_by_a_message() {
         let folder = Path::new("games");
         match take_message(
-            "dialog save skull.hxg Save%20game%20to%20file%20>",
+            "dialog save skull.hxg Save%20game%20to%20file%20> game",
             folder,
             &HashSet::new(),
         ) {
@@ -622,8 +669,10 @@ mod tests {
                 save,
                 folder: game,
                 prompt,
+                kind,
             }) => {
                 assert!(save);
+                assert_eq!(kind_filter(&kind), Some(("Saved games", "hxs")));
                 assert_eq!(game, folder.join("skull"));
                 assert_eq!(prompt, "Save game to file >");
             }

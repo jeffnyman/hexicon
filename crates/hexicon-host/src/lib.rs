@@ -112,6 +112,29 @@ pub enum FileDialog {
     Save,
 }
 
+/// What kind of file a program asks for, so that a dialog can show files
+/// of that kind and name a new one as they are named.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileKind {
+    /// A saved game: `.hxs`.
+    SavedGame,
+    /// A transcript, or other text: `.txt`.
+    Text,
+    /// Anything else.
+    Other,
+}
+
+impl FileKind {
+    /// The kind a program's file type code (`FileTypeSave`, ...) asks for.
+    pub fn from_code(code: i64) -> Self {
+        match code {
+            15 => FileKind::SavedGame,
+            2 | 7 => FileKind::Text,
+            _ => FileKind::Other,
+        }
+    }
+}
+
 /// What the player did with a file dialog.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileChoice {
@@ -279,8 +302,13 @@ pub trait Host {
     /// the program's prompt as its title, or `None` for a host that has
     /// no such dialog: the VM then asks for the file's name as a line of
     /// input, after the prompt, as a console of text does.
-    fn choose_file(&mut self, prompt: &str, dialog: FileDialog) -> Option<FileChoice> {
-        let _ = (prompt, dialog);
+    fn choose_file(
+        &mut self,
+        prompt: &str,
+        dialog: FileDialog,
+        kind: FileKind,
+    ) -> Option<FileChoice> {
+        let _ = (prompt, dialog, kind);
         None
     }
 

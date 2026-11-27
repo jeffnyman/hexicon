@@ -179,6 +179,7 @@ function askForFile() {
     asked.save ? "save" : "open",
     encodeURIComponent(gameName),
     encodeURIComponent(asked.prompt),
+    asked.kind,
   ];
   window.ipc.postMessage(`dialog ${words.join(" ")}`);
 }

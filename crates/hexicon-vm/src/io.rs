@@ -5,7 +5,7 @@
 //!
 //! The functions here are the `hexicon-io` function set apart from `print`.
 
-use hexicon_host::{FileChoice, FileDialog, Input};
+use hexicon_host::{FileChoice, FileDialog, FileKind, Input};
 
 use crate::console::{Formatter, Newline};
 use crate::error::{VmError, VmResult, code};
@@ -1033,9 +1033,9 @@ impl Vm {
                 let prompt = self.require_str(self.arg(0))?;
                 let prompt = String::from_utf8_lossy(&prompt).into_owned();
                 let dialog = self.int_arg(self.arg(1))?;
-                self.int_arg(self.arg(2))?;
+                let kind = FileKind::from_code(self.int_arg(self.arg(2))?.into());
                 self.cast_to_int(self.arg(3))?;
-                self.r0 = self.input_file(&prompt, dialog)?;
+                self.r0 = self.input_file(&prompt, dialog, kind)?;
             }
             // timeDelay(milliseconds)
             9 => {
@@ -1287,7 +1287,7 @@ impl Vm {
 
     /// Ask the player for a file name: a list of a result code, and for
     /// success the name as a FileName, nil, and a place for a warning.
-    fn input_file(&mut self, prompt: &str, dialog: i32) -> VmResult<Value> {
+    fn input_file(&mut self, prompt: &str, dialog: i32, kind: FileKind) -> VmResult<Value> {
         const SUCCESS: i32 = 0;
         const FAILURE: i32 = 1;
         const CANCEL: i32 = 2;
@@ -1339,7 +1339,7 @@ impl Vm {
                     match answer {
                         1 => break,
                         2 => {
-                            let (asked, chosen) = match self.ask_file(prompt, dialog, true) {
+                            let (asked, chosen) = match self.ask_file(prompt, dialog, kind, true) {
                                 Ok(found) => found,
                                 Err(_) => {
                                     self.io.prompt_shown = false;
@@ -1368,7 +1368,7 @@ impl Vm {
                 }
             }
         } else {
-            (result, name) = self.ask_file(prompt, dialog, false)?;
+            (result, name) = self.ask_file(prompt, dialog, kind, false)?;
             from_ui = true;
         }
         let list = self.event_list(result, if result == SUCCESS { 4 } else { 1 });
@@ -1403,14 +1403,15 @@ impl Vm {
         &mut self,
         prompt: &str,
         dialog: i32,
+        kind: FileKind,
         bypass_script: bool,
     ) -> VmResult<(i32, String)> {
-        let kind = if dialog == 2 {
+        let which = if dialog == 2 {
             FileDialog::Save
         } else {
             FileDialog::Open
         };
-        match self.host.choose_file(prompt, kind) {
+        match self.host.choose_file(prompt, which, kind) {
             Some(FileChoice::Chosen(name)) => return Ok((0, name)),
             Some(FileChoice::Cancelled) => return Ok((2, String::new())),
             // Nothing before this does anything more if it is done again,
