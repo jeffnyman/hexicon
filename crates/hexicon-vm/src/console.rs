@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use crate::entities;
+use hexicon_host::entities;
 
 /// The character after which a line must not be broken.
 const FLAG_NOBREAK: u8 = 0x01;

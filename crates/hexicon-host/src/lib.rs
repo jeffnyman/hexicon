@@ -4,7 +4,9 @@
 //! Everything outside the VM goes through a [`Host`], which keeps the VM
 //! portable to WebAssembly and makes runs reproducible under test.
 
+pub mod entities;
 pub mod pane;
+pub mod rich;
 
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
@@ -114,6 +116,25 @@ pub struct Time {
 pub trait Host {
     /// Display text on the main console.
     fn print(&mut self, text: &str);
+
+    /// What the display can do beyond plain text, if it is a rich
+    /// display; `None` for a display of text, which gets its text through
+    /// [`Host::print`], broken into lines that fit.
+    fn rich_display(&self) -> Option<rich::RichDisplay> {
+        None
+    }
+
+    /// On a rich display: what the program wrote, as it wrote it, markup
+    /// and all, in order. The host checks it with a [`rich::Checker`].
+    fn print_markup(&mut self, markup: &str) {
+        let _ = markup;
+    }
+
+    /// On a rich display: a line the player typed, from a script, shown
+    /// as the player's own words.
+    fn print_input(&mut self, text: &str) {
+        let _ = text;
+    }
 
     /// Fill a buffer with unpredictable bytes, for seeding the random
     /// number generator. A host that leaves the buffer alone gives every

@@ -381,6 +381,22 @@ The terminal stays a display of text, as it is: the same markup, shown as the pl
 4. The downloadable program, around the same page.
 5. Hexad's style tags as classes; The Golden Skull restyled with a style sheet instead of `<font>`; and the guide's page on styling a game.
 
+The profile was agreed on 2026-11-27.
+
+**Done, 2026-11-27: step 2.**
+
+- **A host can be a rich display.** `Host::rich_display` says what it can do and what the player has chosen (`RichDisplay`); such a host gets what the program writes, markup and all, through `print_markup`, and a line from a script as the player's words through `print_input`. The VM formats nothing for it; a transcript is still formatted as text. `systemInfo` answers for it: HTML, JPEG and PNG, WAV, MP3, and Ogg, sounds over each other, colors, highlighting, the interpreter class HTML, and the player's choices of pictures, sounds, music, and links; MIDI, MNG, fading, and links outside the game, no.
+- **The checker** (`hexicon_host::rich::Checker`) reads the stream a character at a time, so a tag or an entity split between writes is read whole. It replaces entities (the VM's table of them is now `hexicon_host::entities`, shared), turns the control characters into the page's (`\n` a line break, `\b` a blank line, `\^` and `\v` the next letter's case, a quoted space a space that stays), and TADS's tags into the page's (`<bq>` is `<blockquote>`, `<nobr>` a span that does not wrap, `<listing>` and `<xmp>` are `<pre>`, `<credit>` is `<cite>`). It keeps only the profile's elements and attributes, and in `style` only its properties, with a `url()` only for a resource; a script, a style element, a frame, a form, and what is in them, go, and so do an `on...` attribute, a picture or a background that is not one of the game's resources, and a link to anywhere but a command. An element outside the profile goes and its text stays. Elements are closed in order however they were written: an end tag closes what was opened inside it, one that ends nothing is dropped, and a paragraph, a list item, a row, or a cell ends the one before it. `<title>`, `<sound>`, `<body>`, `<tab>`, `<aboutbox>`, and `<banner>` are kept for the page to handle. Its 12 tests are in `rich.rs`.
+- **`hexicon run --rich`** is a rich display that can do everything, and writes the checked document as text: an element as the profile's markup, with a line ended at each line break, block, and line the player typed (`<kbd>look</kbd>`).
+- **game-check plays a script again with `--rich`** where there is a `.doc` beside its `.out`, and compares the document as it compares the transcript. The Golden Skull has one: its compass is a table of image maps with the ways out lit, its sign a table with its colors, its sounds in their layers, and its about box the page's.
+
+What the first document showed, for the steps after:
+
+- **Hexad, told it is on HTML, writes its status line in the stream** as TADS's `<banner id="StatusLine">`, with the room's name and the exits as links and the score after `<tab align=right>`. The page will show a `<banner>` as a pane, and a `<tab>` as its alignment.
+- **TADS's named colors** come with it: `<body bgcolor="statusbg" text="statustext">`. The page maps `statusbg`, `statustext`, `text`, `bgcolor`, `link`, `hlink`, `alink`, and `input` to its theme, and the player's.
+- **What the player types is wrapped in `<font face="hexicon-input">`**, Hexad's style for input in HTML; and the room's name is `<b>` between line breaks, with blank lines around it that will look loose on a page. Both are for step 5, when Hexad's style tags become classes.
+- Banners made through the banner functions (`bannerCreate`, Hexad's panes), rather than in the stream, still get formatted text on a rich display; they come with the page.
+
 ## Open questions
 
 - Is read/write compatibility with existing `.t3v` save files a hard requirement or a nice-to-have? (As of milestone 4 it is met for every class implemented so far.)

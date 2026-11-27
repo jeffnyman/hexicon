@@ -13,6 +13,11 @@ Hexicon, and played with --norand, a clock that starts at the same time
 (--clock), and the time zone UTC, so that it plays the same on every
 run. Without the folder, the check says so and passes.
 
+A script with a .doc beside its .out (walk.doc) is played a second time
+with --rich, as on a rich display, and the document the game's markup
+makes, checked, is compared with the .doc, as the transcript is with the
+.out. To start one, make an empty .doc and record it with --accept.
+
 The games are Airport and the exercises of adv3Lite's manual, written
 in Hexicon by hexicon convert while it existed. Their transcripts were
 first recorded where they matched the same games on adv3Lite, apart
@@ -67,11 +72,21 @@ def play(game):
     found = re.search(r"^Built (.+)\.$", said, re.MULTILINE)
     if built.returncode != 0 or not found:
         return None, said
-    return [run(game, found.group(1), script) for _, script, _ in scripts(game)], None
+    image = found.group(1)
+    return [
+        (
+            run(game, image, script),
+            run(game, image, script, rich=True)
+            if expect.with_suffix(".doc").exists()
+            else None,
+        )
+        for _, script, expect in scripts(game)
+    ], None
 
 
-def run(game, image, script):
-    """Play one script on a built game: the transcript."""
+def run(game, image, script, rich=False):
+    """Play one script on a built game: the transcript, or with rich, the
+    document a rich display is given, checked, as text."""
     # The same random choices, the same time of day, and the same zone,
     # on every run.
     done = subprocess.run(
@@ -81,7 +96,7 @@ def run(game, image, script):
             "--norand",
             "--clock",
             CLOCK,
-            "--plain",
+            "--rich" if rich else "--plain",
             "--nomore",
             "-I",
             script.name,
@@ -127,21 +142,29 @@ def main():
             different += 1
             print(f"DIFF {game.name}: it did not build\n{failed}")
             continue
-        for (name, _, expect), transcript in zip(scripts(game), transcripts):
-            if accept:
-                expect.write_text(transcript, encoding="utf-8", newline="\n")
-                print(f"recorded {name} ({transcript.count(chr(10))} lines)")
-                continue
-            want = expect.read_text(encoding="utf-8") if expect.exists() else ""
-            if transcript == want:
-                same += 1
-                print(f"SAME {name} ({transcript.count(chr(10))} lines)")
-            else:
-                different += 1
-                WORK.mkdir(parents=True, exist_ok=True)
-                got = WORK / f"{name.replace('/', '-')}.out"
-                got.write_text(transcript, encoding="utf-8", newline="\n")
-                print(f"DIFF {name}: see {got}")
+        for (name, _, expect), (transcript, document) in zip(
+            scripts(game), transcripts
+        ):
+            outputs = [(name, expect, transcript, ".out")]
+            if document is not None:
+                outputs.append(
+                    (f"{name} (rich)", expect.with_suffix(".doc"), document, ".doc")
+                )
+            for shown, expect, text, suffix in outputs:
+                if accept:
+                    expect.write_text(text, encoding="utf-8", newline="\n")
+                    print(f"recorded {shown} ({text.count(chr(10))} lines)")
+                    continue
+                want = expect.read_text(encoding="utf-8") if expect.exists() else ""
+                if text == want:
+                    same += 1
+                    print(f"SAME {shown} ({text.count(chr(10))} lines)")
+                else:
+                    different += 1
+                    WORK.mkdir(parents=True, exist_ok=True)
+                    got = WORK / f"{name.replace('/', '-')}{suffix}"
+                    got.write_text(text, encoding="utf-8", newline="\n")
+                    print(f"DIFF {shown}: see {got}")
     if not accept:
         print(f"same={same} different={different}")
     return 1 if different else 0

@@ -35,7 +35,6 @@ mod date;
 mod decimal_math;
 mod decimal_obj;
 mod dict;
-mod entities;
 mod error;
 mod file;
 mod frameref;

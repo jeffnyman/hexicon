@@ -350,8 +350,16 @@ impl Vm {
             }
             return;
         }
-        self.console.format_text(text);
-        self.send_output();
+        if self.host.rich_display().is_some() {
+            // A rich display takes the markup as it is; only a transcript
+            // is formatted as text.
+            if !self.io.scripts.last().is_some_and(|script| script.quiet) {
+                self.host.print_markup(&String::from_utf8_lossy(text));
+            }
+        } else {
+            self.console.format_text(text);
+            self.send_output();
+        }
         if let Some(log) = &mut self.io.log {
             log.formatter.format_text(text);
             self.send_log();
@@ -619,8 +627,20 @@ impl Vm {
         let mut line = self.io.read_buf.clone();
         truncate(&mut line, LINE_MAX - 1);
         if echo {
-            self.print(&line);
-            self.print(b"\n");
+            if self.host.rich_display().is_some() {
+                // The player's words are shown as they are, not as markup.
+                if !self.io.scripts.last().is_some_and(|script| script.quiet) {
+                    self.host.print_input(&String::from_utf8_lossy(&line));
+                }
+                if let Some(log) = &mut self.io.log {
+                    log.formatter.format_text(&line);
+                    log.formatter.format_text(b"\n");
+                    self.send_log();
+                }
+            } else {
+                self.print(&line);
+                self.print(b"\n");
+            }
         }
         if event == EVT_LINE {
             self.read_line_done();
@@ -1052,6 +1072,15 @@ impl Vm {
                     }
                     // Panes, if the host has them.
                     33 => Value::Int(i32::from(self.host.has_panes())),
+                    // A rich display: what it can do, and what the player
+                    // has chosen.
+                    which if self.host.rich_display().is_some() => {
+                        let display = self
+                            .host
+                            .rich_display()
+                            .unwrap_or_else(hexicon_host::rich::RichDisplay::full);
+                        Value::Int(rich_system_info(which, &display))
+                    }
                     // A console of plain text: no HTML, pictures, sounds,
                     // links, or colors.
                     4..=18 | 20..=27 | 31 | 32 => Value::Int(0),
@@ -1437,5 +1466,33 @@ impl Vm {
             }
         }
         Ok(labels)
+    }
+}
+
+/// What `systemInfo` answers on a rich display, for a code it has an
+/// answer for (the version and the system's name are answered before).
+fn rich_system_info(which: i32, display: &hexicon_host::rich::RichDisplay) -> i32 {
+    let yes = |b: bool| i32::from(b);
+    match which {
+        // HTML, and HTML mode.
+        4 | 19 => 1,
+        // JPEG and PNG pictures, and PNG's transparency.
+        5 | 6 | 25 | 26 => yes(display.pictures),
+        // WAV, sounds over each other, MPEG audio and its layer III (MP3),
+        // and Ogg.
+        7 | 10 | 15 | 18 | 27 => yes(display.sounds),
+        // The player's choices.
+        11 => yes(display.pictures && display.show_pictures),
+        12 => yes(display.sounds && display.play_sounds),
+        13 => yes(display.sounds && display.play_music),
+        14 => yes(display.links),
+        // Highlighted text, and colors of any kind (SysInfoTxcRGB).
+        31 => 1,
+        32 => 4,
+        // The class of interpreter: HTML.
+        34 => 3,
+        // MIDI, MPEG layers I and II, links to anywhere outside the game,
+        // MNG pictures, and fading sounds: none yet.
+        _ => 0,
     }
 }

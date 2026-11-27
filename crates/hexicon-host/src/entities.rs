@@ -325,7 +325,7 @@ const ENTITIES: &[(&str, u32)] = &[
 ];
 
 /// The character a named entity stands for.
-pub(crate) fn lookup(name: &str) -> Option<char> {
+pub fn lookup(name: &str) -> Option<char> {
     ENTITIES
         .binary_search_by(|(entry, _)| (*entry).cmp(name))
         .ok()

@@ -32,6 +32,9 @@ commands:
                                even when the program reseeds at random
       --plain                  treat a terminal as plain input and output:
                                80 columns, no pauses, and keys read as lines
+      --rich                   be a rich display that can show and play
+                               everything, and write the document the
+                               game's markup makes, checked, as text
       --nomore                 do not pause when a screenful has gone by
       --clock <time>           start the clock at a time in UTC
                                (2000-01-01T09:15:00), and move it on a
@@ -123,6 +126,7 @@ fn main() -> ExitCode {
         let mut options = RunOptions {
             seed_random: true,
             plain: false,
+            rich: false,
             paging: true,
             script: None,
             sandbox: None,
@@ -137,6 +141,11 @@ fn main() -> ExitCode {
                     rest = tail;
                 }
                 ["--plain", tail @ ..] => {
+                    options.plain = true;
+                    rest = tail;
+                }
+                ["--rich", tail @ ..] => {
+                    options.rich = true;
                     options.plain = true;
                     rest = tail;
                 }
@@ -229,6 +238,13 @@ fn main() -> ExitCode {
     }
 }
 
+/// Write out what a rich display's checker has given since last time, as
+/// the document's text.
+fn emit_items(checker: &mut hexicon_host::rich::Checker) {
+    let text: String = checker.take().iter().map(|item| item.markup()).collect();
+    emit(&text);
+}
+
 /// Write to standard output. A reader that stops early, such as a pager, is
 /// not an error.
 fn emit(text: &str) {
@@ -241,6 +257,9 @@ struct RunOptions<'a> {
     seed_random: bool,
     /// Make nothing of standard input and output being a terminal.
     plain: bool,
+    /// Be a rich display that can do everything, and write the document
+    /// the program's markup makes, checked, as text.
+    rich: bool,
     /// Pause when a screenful of text has gone by.
     paging: bool,
     /// A command script to read input from.
@@ -311,6 +330,8 @@ struct Console {
     /// For a clock that reads the same on every run, the time it reads
     /// next, in milliseconds since 1970 began.
     clock: Option<i64>,
+    /// On a rich display, the checker the program's markup goes through.
+    rich: Option<hexicon_host::rich::Checker>,
 }
 
 impl Console {
@@ -392,6 +413,26 @@ impl Host for Console {
         match &mut self.terminal {
             Some(terminal) => terminal.print(text),
             None => emit(text),
+        }
+    }
+
+    fn rich_display(&self) -> Option<hexicon_host::rich::RichDisplay> {
+        self.rich
+            .as_ref()
+            .map(|_| hexicon_host::rich::RichDisplay::full())
+    }
+
+    fn print_markup(&mut self, markup: &str) {
+        if let Some(checker) = &mut self.rich {
+            checker.write(markup);
+            emit_items(checker);
+        }
+    }
+
+    fn print_input(&mut self, text: &str) {
+        if let Some(checker) = &mut self.rich {
+            checker.input(text);
+            emit_items(checker);
         }
     }
 
@@ -815,6 +856,7 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
         stalled: false,
         entropy: options.seed_random,
         clock: options.clock,
+        rich: options.rich.then(hexicon_host::rich::Checker::new),
     };
     let mut vm = match Vm::new(&image, Box::new(console)) {
         Ok(vm) => vm,
@@ -896,6 +938,7 @@ pub(crate) fn preinit_image(
         stalled: false,
         entropy: true,
         clock: None,
+        rich: None,
     };
     let mut vm = Vm::new(&image, Box::new(console)).map_err(|error| error.to_string())?;
     vm.set_image_name(path);
@@ -1297,6 +1340,7 @@ mod tests {
             stalled: false,
             entropy,
             clock: None,
+            rich: None,
         };
         let seed = |entropy| {
             let mut bytes = [0u8; 64];
