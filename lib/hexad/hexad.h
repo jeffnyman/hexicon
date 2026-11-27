@@ -712,6 +712,9 @@ enum rmcDisambig;
  */
 Achievement template +points? "desc";
 
+Picture template 'pictureFile' 'pictureAlt'?;
+Sound template 'soundFile';
+
 
 /* ------------------------------------------------------------------------ */
 /*

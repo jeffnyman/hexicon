@@ -1,0 +1,189 @@
+#charset "us-ascii"
+import hexad;
+
+/*
+ *   Pictures and sounds.
+ *
+ *   A game names each as an object, and Hexad writes the markup that shows
+ *   or plays it, on a display that can, and that the player has not told
+ *   to leave them out. On one that cannot, a picture shows its pictureAlt
+ *   text, if it has any, and a sound nothing at all.
+ *
+ *   The files are the game's resources, named in its manifest.
+ */
+
+/* Whether the display can show or play a file of this name's kind. */
+displayCanUse(file)
+{
+    local ext = file.toLower();
+    local dot = ext.findLast('.');
+    ext = dot == nil ? '' : ext.substr(dot + 1);
+
+    local code, pref;
+    switch (ext)
+    {
+    case 'jpg':
+    case 'jpeg':
+        code = SysInfoJpeg;
+        pref = SysInfoPrefImages;
+        break;
+    case 'png':
+        code = SysInfoPng;
+        pref = SysInfoPrefImages;
+        break;
+    case 'mng':
+        code = SysInfoMng;
+        pref = SysInfoPrefImages;
+        break;
+    case 'wav':
+        code = SysInfoWav;
+        pref = SysInfoPrefSounds;
+        break;
+    case 'ogg':
+        code = SysInfoOgg;
+        pref = SysInfoPrefSounds;
+        break;
+    case 'mp3':
+        code = SysInfoMpeg3;
+        pref = SysInfoPrefSounds;
+        break;
+    case 'mid':
+    case 'midi':
+        code = SysInfoMidi;
+        pref = SysInfoPrefMusic;
+        break;
+    default:
+        return nil;
+    }
+    return systemInfoSays(code) && systemInfoSays(pref);
+}
+
+/* Whether systemInfo answers yes: a number other than 0. */
+systemInfoSays(code)
+{
+    local val = systemInfo(code);
+    return val != nil && val != 0;
+}
+
+/*
+ *   A picture: Picture 'cave.jpg'. Its show() shows it, wherever the text
+ *   it is called from has got to.
+ */
+class Picture: object
+    /* The picture's file, among the game's resources. */
+    pictureFile = nil
+
+    /* What a display without pictures shows instead, or nil for nothing. */
+    pictureAlt = nil
+
+    /*
+     *   Where it goes: nil for centered, on a line of its own; 'right' or
+     *   'left' for that side, with the text running beside it.
+     */
+    pictureAlign = nil
+
+    /* Whether show() shows it only the first time. */
+    showsOnce = nil
+
+    /* Whether it has been shown. */
+    pictureShown = nil
+
+    show()
+    {
+        if (showsOnce && pictureShown)
+            return;
+        pictureShown = true;
+
+        if (!displayCanUse(pictureFile))
+        {
+            if (pictureAlt != nil)
+                "<.p><<pictureAlt>><.p>";
+            return;
+        }
+
+        local alt = pictureAlt == nil ? '' : ' alt="' + pictureAlt + '"';
+        if (pictureAlign == nil)
+            "<.p><center><img src=\"<<pictureFile>>\"<<alt>>></center><.p>";
+        else
+            "<img src=\"<<pictureFile>>\" align=<<pictureAlign>>
+            hspace=30<<alt>>>";
+    }
+;
+
+/*
+ *   A sound: Sound 'drip.wav'. Its play() plays it; a room's roomSounds
+ *   play while the player is there.
+ */
+class Sound: object
+    /* The sound's file, among the game's resources. */
+    soundFile = nil
+
+    /*
+     *   Its layer: 'foreground' for a sound that something makes happen
+     *   (the default), 'ambient' for one of a place's sounds, 'bgambient'
+     *   for a place's sound behind those, and 'background' for music. A
+     *   sound in one layer does not stop one in another.
+     */
+    soundLayer = 'foreground'
+
+    /* How many times it plays: a number, or 'loop' for over and over. */
+    soundRepeat = 1
+
+    /*
+     *   For a sound that comes now and then, a bird or a drip: the chance,
+     *   as a percentage, that the display plays it each time it considers
+     *   it. Nil for a sound that plays straight away.
+     */
+    soundChance = nil
+
+    /* Whether it stops what is playing in its layer, to play at once. */
+    interrupts = nil
+
+    play()
+    {
+        if (!displayCanUse(soundFile))
+            return;
+        "<sound src=\"<<soundFile>>\" layer=<<soundLayer>><<
+          soundRepeat != 1 ? ' repeat=' + soundRepeat : ''>><<
+          soundChance != nil ? ' random=' + soundChance : ''>><<
+          interrupts ? ' interrupt' : ''>>>";
+    }
+;
+
+/* Stop the sounds playing in a layer: 'ambient', say. */
+stopSoundLayer(layer)
+{
+    if (systemInfoSays(SysInfoWav) || systemInfoSays(SysInfoOgg))
+        "<sound cancel=<<layer>>>";
+}
+
+/*
+ *   The sounds of the player's room: when the player is somewhere else,
+ *   the last room's layers are stopped and the new room's sounds played.
+ *   It is looked at before each prompt, so it follows the player however
+ *   they got there.
+ */
+roomSoundPlayer: InitObject
+    execute() { new PromptDaemon(self, &update); }
+
+    /* The sounds playing now, as the room's roomSounds gave them. */
+    playing = []
+
+    update()
+    {
+        local room = now.player == nil ? nil : now.player.getOutermostRoom();
+        local sounds = room == nil ? [] : valToList(room.roomSounds);
+        if (sounds == playing)
+            return;
+        foreach (local layer in playing.mapAll({ s: s.soundLayer }).getUnique())
+            stopSoundLayer(layer);
+        foreach (local s in sounds)
+            s.play();
+        playing = sounds;
+    }
+;
+
+modify Room
+    /* The sounds that play while the player is here. */
+    roomSounds = []
+;

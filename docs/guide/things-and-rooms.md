@@ -281,6 +281,8 @@ You have not finished up here yet.
 
 Exits go one way. The landing's `up` reaches the attic, and the attic has a `down` of its own to come back.
 
+To ask whether that list shows a way, as a compass or a map would, a room has `isExitListed(dir)`: on the landing, `isExitListed(upDir)` is true and `isExitListed(westDir)` nil. An exit that only says something is listed until the player has tried it and found it leads nowhere.
+
 ### Stairs and ladders
 
 The landing's way up is a ladder, which the player can also climb. A `StairwayUp` is a thing and an exit at once: going up it, or CLIMB LADDER, goes to its `destination`. A `StairwayDown` is the same, going down:

@@ -396,6 +396,18 @@ class Room: TravelConnector, Thing
     }
 
     
+    /*
+     *   Whether the exit list shows a way out of here in direction dir, for
+     *   actor (by default the player): northDir, say. A compass or a map can
+     *   ask, and agree with the list.
+     */
+    isExitListed(dir, actor = now.player)
+    {
+        return libGlobal.exitListerObj != nil
+            && libGlobal.exitListerObj.exitInfo(self, dir,
+                                                wouldBeLitFor(actor)) != nil;
+    }
+
     /*  The name of the room as it appears in the status line. */
     statusName(actor)
     {

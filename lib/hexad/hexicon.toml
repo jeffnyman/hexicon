@@ -38,6 +38,7 @@ sources = [
     "exits",
     "extras",
     "gadget",
+    "media",
     "menusys",
     "menucon",
     "hintsys",

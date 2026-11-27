@@ -288,48 +288,53 @@ exitLister: PreinitObject
         
         foreach(local dir in Direction.allDirections)
         {
-            local conn = nil;       
-            local dest = libGlobal.extraDestInfo[[loc, dir]];
-            
-            switch(loc.propType(dir.dirProp))
-            {
-            case TypeNil:
-                break;
-            case TypeString:
-                if(showSQSExits && locIsLit && dest != nil && dest != loc)
-                    destList.append(new DestInfo(dir, dest));
-                break;
-            case TypePrintString:
-                if(showDQSExits && locIsLit && dest != nil && dest != loc)
-                    destList.append(new DestInfo(dir, dest));
-                break;
-                                
-            case TypeObject:
-                conn = loc.(dir.dirProp);
-                if(conn.isConnectorVisible && conn.isConnectorListed)
-                    destList.append(new DestInfo(dir, conn.getApparentDestination(now.room)));
-                break;
-                
-                /* 
-                 *   If the property points to code then presumably something
-                 *   happens if the player goes this way, so we'll list the
-                 *   exit, unless the extraDestInfo table explicitly lists the
-                 *   destination as nil.
-                 */
-                
-            case TypeCode:    
-                if(locIsLit)
-                {                   
-                    if(dest != nil && dest != loc)
-                       destList.append(new DestInfo(dir, dest));
-                }
-                break;
-            }
-            
+            local info = exitInfo(loc, dir, locIsLit);
+            if(info != nil)
+                destList.append(info);
         }
-        
+
         /* show the list */
         lister.showListAll(destList.toList(), options, 0);
+    }
+
+    /*
+     *   The exit from loc in direction dir, as the exit list shows it: a
+     *   DestInfo, or nil if the list leaves that way out. locIsLit is
+     *   whether the actor could see in loc.
+     */
+    exitInfo(loc, dir, locIsLit)
+    {
+        local dest = libGlobal.extraDestInfo[[loc, dir]];
+
+        switch(loc.propType(dir.dirProp))
+        {
+        case TypeString:
+            if(showSQSExits && locIsLit && dest != nil && dest != loc)
+                return new DestInfo(dir, dest);
+            break;
+        case TypePrintString:
+            if(showDQSExits && locIsLit && dest != nil && dest != loc)
+                return new DestInfo(dir, dest);
+            break;
+
+        case TypeObject:
+            local conn = loc.(dir.dirProp);
+            if(conn.isConnectorVisible && conn.isConnectorListed)
+                return new DestInfo(dir, conn.getApparentDestination(now.room));
+            break;
+
+            /*
+             *   If the property points to code then presumably something
+             *   happens if the player goes this way, so we'll list the
+             *   exit, unless the extraDestInfo table explicitly lists the
+             *   destination as nil.
+             */
+        case TypeCode:
+            if(locIsLit && dest != nil && dest != loc)
+                return new DestInfo(dir, dest);
+            break;
+        }
+        return nil;
     }
     
    
