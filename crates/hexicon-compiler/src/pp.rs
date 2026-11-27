@@ -3074,6 +3074,10 @@ fn join_path(dir: &str, name: &str) -> String {
         name.to_owned()
     } else if dir.ends_with(is_separator) {
         format!("{dir}{name}")
+    } else if crate::builtin::is_built_in(dir) {
+        // The built-in files are named the same on every system, so that
+        // an image built from them is too.
+        format!("{dir}/{name}")
     } else {
         // As the reference joins them: with the system's separator.
         format!("{dir}{}{name}", std::path::MAIN_SEPARATOR)
@@ -3255,4 +3259,21 @@ fn stands_as_name(line: &[u8], start: usize, end: usize) -> bool {
         .position(|&c| c != b' ' && c != b'\t')
         .map(|i| &rest[i..]);
     matches!(after, Some([b':', next, ..]) if *next != b':') || after == Some(b":")
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::join_path;
+
+    #[test]
+    fn a_built_in_file_is_named_the_same_on_every_system() {
+        // An image records the files it was built from, so the built-in
+        // ones must not take the system's separator.
+        assert_eq!(
+            join_path("<hexicon>/system", "vector.h"),
+            "<hexicon>/system/vector.h"
+        );
+        let sep = std::path::MAIN_SEPARATOR;
+        assert_eq!(join_path("inc", "vector.h"), format!("inc{sep}vector.h"));
+    }
 }

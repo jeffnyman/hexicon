@@ -449,6 +449,11 @@ What the first document showed, for the steps after:
 - **Saved games are `.hxs` files.** The program says what kind of file it asks for (`FileTypeSave`, `FileTypeLog`, ...), and the host is told (`FileKind`): the player's dialog shows saved games (`.hxs`) or text files (`.txt`), with all files a choice when opening one, and a file to save of that kind named without an extension is given it. A name typed as a line, in a terminal or a browser, is kept as it is.
 - `HEXICON_CHECK_CHOOSE` answers the player's dialogs with a path, for checks: saved in the game's folder and restored from it, saved elsewhere and restored from there in a new run, and cancelled, all in WebView2. The dialog itself was not checked automatically.
 
+**Begun, 2026-11-27: Linux** (Ubuntu under WSL, with WSLg).
+
+- **The checks on Linux:** the tests, game-check, and doc-check were the same as on Windows from the first. program-check found 49 programs whose images differed, and only their images: an image records the files it was built from, and the preprocessor joined a built-in header's name to its folder with the system's separator, so Windows wrote `<hexicon>/systemector.h` where Linux wrote `<hexicon>/system/vector.h`. A built-in file is now named with `/` everywhere, as the manifest's were already, so an image is the same whatever it was built on; the 49 fingerprints, recorded on Windows, are recorded again, and program-check gives 535 the same on both.
+- The build and check scripts take `CARGO_TARGET_DIR`, so a Linux build of the same folder keeps out of Windows's `target/`.
+
 What is left: macOS and Linux for the player; and the system opening a game in the player when its file is opened, which takes an installer to say so (the player takes the game's file on its command line, so "Open with" works already).
 
 ## Open questions
