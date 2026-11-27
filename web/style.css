@@ -317,9 +317,15 @@ body:not(.rich) #transcript .typed {
     font: 1.05rem/1.55 Georgia, "Times New Roman", serif;
   }
 
-  body.rich #screen {
+  /* The game's colors are its part of the page's, which a game's style
+     sheet gives with a rule for body (which is #game); a <body> tag gives
+     its window's. */
+  body.rich #game {
     background: var(--hx-bg);
     color: var(--hx-text);
+  }
+
+  body.rich #screen {
     background-size: cover;
   }
 
@@ -350,11 +356,34 @@ body:not(.rich) #transcript .typed {
     height: auto;
   }
 
+  /* A picture of Hexad's (Picture), on a line of its own. */
+  #game div.picture {
+    text-align: center;
+  }
+
   #game area {
     cursor: pointer;
   }
 
+  /* Hexad's own text, by its classes: the room's name on a line of its
+     own, the status line's room and score, objects announced, and what
+     the player types. */
+  #game .roomname {
+    font-weight: bold;
+    margin-top: 0.8em;
+  }
+
+  #game .statusroom,
+  #game .announceObj {
+    font-weight: bold;
+  }
+
+  #game .statusscore {
+    font-style: italic;
+  }
+
   #game .hx-input,
+  #game .inputline,
   #game kbd.typed {
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
     font-size: 0.95em;

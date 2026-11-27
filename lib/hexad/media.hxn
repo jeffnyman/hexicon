@@ -28,6 +28,12 @@ displayCanUse(file)
         pref = SysInfoPrefImages;
         break;
     case 'png':
+    /*
+     *   SVG and WebP have no code of their own: Hexicon's rich display,
+     *   which shows PNG, shows them too.
+     */
+    case 'svg':
+    case 'webp':
         code = SysInfoPng;
         pref = SysInfoPrefImages;
         break;
@@ -101,12 +107,16 @@ class Picture: object
             return;
         }
 
+        /*
+         *   In the class picture, which a style sheet can style: centered
+         *   on a line of its own by default.
+         */
         local alt = pictureAlt == nil ? '' : ' alt="' + pictureAlt + '"';
         if (pictureAlign == nil)
-            "<.p><center><img src=\"<<pictureFile>>\"<<alt>>></center><.p>";
+            "<.p><div class=\"picture\"><img src=\"<<pictureFile>>\"<<alt>>></div><.p>";
         else
-            "<img src=\"<<pictureFile>>\" align=<<pictureAlign>>
-            hspace=30<<alt>>>";
+            "<img class=\"picture\" src=\"<<pictureFile>>\"
+            align=<<pictureAlign>> hspace=30<<alt>>>";
     }
 ;
 

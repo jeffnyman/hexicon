@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="240" viewBox="0 0 360 240">
+  <!-- A small harbour at evening: the gallery's painting. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2d3a66"/>
+      <stop offset="0.6" stop-color="#d9826a"/>
+      <stop offset="1" stop-color="#f2c57c"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f5f7a"/>
+      <stop offset="1" stop-color="#1c2b3c"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="150" fill="url(#sky)"/>
+  <circle cx="250" cy="138" r="22" fill="#f6d38c"/>
+  <rect y="150" width="360" height="90" fill="url(#sea)"/>
+  <path d="M0 150 L70 118 L120 132 L170 112 L230 150 Z" fill="#26304d"/>
+  <rect x="60" y="150" width="120" height="10" fill="#4a3a2a"/>
+  <path d="M95 182 L150 182 L140 196 L105 196 Z" fill="#7a3b2e"/>
+  <line x1="122" y1="182" x2="122" y2="140" stroke="#e8e0cf" stroke-width="2"/>
+  <path d="M124 142 L148 178 L124 178 Z" fill="#efe6d2"/>
+  <path d="M0 205 Q45 199 90 205 T180 205 T270 205 T360 205" fill="none" stroke="#6d8aa5" stroke-width="1.5"/>
+  <path d="M0 222 Q45 216 90 222 T180 222 T270 222 T360 222" fill="none" stroke="#56718b" stroke-width="1.5"/>
+  <rect x="2" y="2" width="356" height="236" fill="none" stroke="#3a2a18" stroke-width="4"/>
+</svg>

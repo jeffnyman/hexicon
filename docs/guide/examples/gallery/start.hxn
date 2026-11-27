@@ -1,0 +1,73 @@
+// The Gallery: the example of pictures, sounds, and a game's look.
+
+import hexad;
+
+versionInfo: GameID
+    IFID = 'BB1D738B-8013-4415-99E9-A0839AEE8D69'
+    name = 'The Gallery'
+    byline = 'by the Hexicon guide'
+    version = '1'
+;
+
+gameMain: GameMainDef
+    initialPlayerChar = me
+;
+
+// The picture, among the game's resources, and what a display without
+// pictures shows instead.
+harbourPicture: Picture 'harbour.svg'
+    'A small harbour at evening, under a setting sun.'
+;
+
+// A sound something makes, and a place's sound, which loops while the
+// player is there.
+chimeSound: Sound 'chime.wav' interrupts = true;
+fountainSound: Sound 'fountain.wav' soundLayer = 'ambient' soundRepeat = 'loop';
+
+gallery: Room 'Gallery'
+    "A quiet room with one painting on its wall, a brass plaque beside it,
+    and a small <<aHref('ring the bell', 'bell')>> on a stand. A door leads
+    out to the courtyard, to the south. "
+    south = courtyard
+    out = courtyard
+;
+
++ me: Player 'you';
+
++ painting: Fixture 'painting; small oil; harbour picture'
+    "A small oil painting of a harbour at evening.
+    <<harbourPicture.show()>>"
+;
+
+// The plaque's words, in a class of the game's own: a line for a display
+// of plain text, a brass plate on one that shows the game's look.
++ plaque: Fixture 'plaque; brass; plate'
+    "A brass plaque.
+    <p><span class=\"plaque\">Harbour at Evening<br>Oil on board, about
+    1890</span>"
+    readDesc = desc
+;
+
++ bell: Fixture 'bell; small brass; stand'
+    "A small brass bell on a stand. "
+
+    dobj Ring
+    {
+        verify() { }
+        action()
+        {
+            chimeSound.play();
+            "The bell gives a clear, high note. ";
+        }
+    }
+;
+
+courtyard: Room 'Courtyard'
+    "A courtyard of old stone, with a fountain in the middle. The gallery
+    is to the north. "
+    north = gallery
+    in = gallery
+    roomSounds = [fountainSound]
+;
+
++ Decoration 'fountain; stone' "Water falls from a stone basin. ";

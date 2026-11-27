@@ -217,7 +217,7 @@ function applyStyles() {
         `color: inherit`,
         `background-color: transparent`,
       ]);
-      player += rule("#game #screen a[data-command], #game #screen .hx-input, #game #screen kbd", [
+      player += rule("#game #screen a[data-command], #game #screen .hx-input, #game #screen .inputline, #game #screen kbd", [
         `color: var(--hx-link)`,
       ]);
     }

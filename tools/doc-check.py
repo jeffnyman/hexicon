@@ -10,7 +10,12 @@ transcripts as they now are, for a change meant to change them.
 
 Each Markdown file in docs/guide is checked too: a code block marked
 `hexicon` or `toml` has to be, word for word, part of an example's source
-or manifest, and one marked `transcript` part of an example's transcript.
+or manifest, one marked `css` part of an example's style sheet, and one
+marked `transcript` part of an example's transcript.
+
+An example with a walk.doc is played a second time with --rich, as on a
+rich display, and the document its markup makes, checked, has to be
+walk.doc; a block marked `document` has to be part of one.
 So the guide shows only code that builds and output that a game gives.
 
 Exit status: 0 if all is as it should be, 1 otherwise.
@@ -83,18 +88,44 @@ def check_example(name, hexicon, accept, problems):
         return
     print(f"SAME {name} ({transcript.count(chr(10))} lines)")
 
+    # On a rich display, where the example has a document recorded.
+    recorded = os.path.join(source, "walk.doc")
+    if not os.path.exists(recorded):
+        return
+    played = subprocess.run(
+        [hexicon, "run", "--rich", "--nomore", "--norand", "-I", "walk.txt", image],
+        cwd=work,
+        capture_output=True,
+        stdin=subprocess.DEVNULL,
+        check=False,
+    )
+    document = played.stdout.decode("utf-8", "replace").replace("\r\n", "\n")
+    if accept:
+        with open(recorded, "w", encoding="utf-8", newline="\n") as f:
+            f.write(document)
+    elif text(recorded) != document:
+        with open(
+            os.path.join(work, "walk.doc"), "w", encoding="utf-8", newline="\n"
+        ) as f:
+            f.write(document)
+        problems.append(f"{name}: the document is not walk.doc; see {work}")
+        return
+    print(f"SAME {name} (rich) ({document.count(chr(10))} lines)")
+
 
 def check_pages(problems):
     # Everything a block can be part of.
-    sources, transcripts = [], []
+    sources, transcripts, documents = [], [], []
     for name in sorted(os.listdir(EXAMPLES)):
         folder = os.path.join(EXAMPLES, name)
         for file in sorted(os.listdir(folder)):
             path = os.path.join(folder, file)
-            if file.endswith((".hxn", ".toml", ".h")):
+            if file.endswith((".hxn", ".toml", ".h", ".css")):
                 sources.append(text(path))
             elif file == "walk.out":
                 transcripts.append(text(path))
+            elif file == "walk.doc":
+                documents.append(text(path))
     blocks = 0
     for page in sorted(os.listdir(GUIDE)):
         if not page.endswith(".md"):
@@ -114,7 +145,9 @@ def check_pages(problems):
             where = {
                 "hexicon": sources,
                 "toml": sources,
+                "css": sources,
                 "transcript": transcripts,
+                "document": documents,
             }.get(kind)
             if where is not None:
                 blocks += 1

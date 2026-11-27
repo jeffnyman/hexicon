@@ -1,0 +1,43 @@
+/* The Gallery's look, on a display that shows it. */
+
+/* The whole game: its page and its type. */
+body {
+  background: #f7f3ea;
+  color: #2a2620;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* Hexad's own text, by its classes: the room's name, and its asides. */
+.roomname {
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  color: #6b3e1e;
+}
+
+.notification,
+.parser {
+  color: #7a7468;
+  font-size: 0.9em;
+}
+
+/* The game's own class: the brass plaque by the painting. */
+.plaque {
+  display: block;
+  width: 18em;
+  margin: 0.5em auto;
+  padding: 0.6em 1em;
+  border: 1px solid #a8823d;
+  border-radius: 4px;
+  background: #e9d8a6;
+  color: #3a2a10;
+  font-family: system-ui, sans-serif;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+/* Narrow windows: the plaque the width of the text. */
+@media (max-width: 30em) {
+  .plaque {
+    width: auto;
+  }
+}

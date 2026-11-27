@@ -1,0 +1,12 @@
+[game]
+name = "The Gallery"
+libraries = ["system", "hexad"]
+sources = ["start"]
+image = "gallery.hxg"
+# The picture and the sounds the game shows and plays.
+resources = ["harbour.svg", "chime.wav", "fountain.wav"]
+# Its look, on a display that shows it.
+stylesheets = ["gallery.css"]
+
+[defines]
+LANGUAGE = "english"

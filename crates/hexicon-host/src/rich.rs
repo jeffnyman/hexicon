@@ -354,6 +354,9 @@ const CSS_PROPERTIES: &[&str] = &[
     "justify-content",
     "align-items",
     "gap",
+    // A table's: how its cells' borders meet, and the space between them.
+    "border-collapse",
+    "border-spacing",
 ];
 
 /// The values `display` may have.

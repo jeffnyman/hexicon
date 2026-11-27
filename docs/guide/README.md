@@ -11,6 +11,7 @@ Hexad, the library games are built on:
 - [Characters and Conversation](characters.md): characters and their states, topic entries and what they answer, topics, revealing, and responses that change.
 - [Actions and Their Handlers](actions.md): how a command is carried out, a thing's own handlers, and new actions and their grammar.
 - [Telling the Story](telling.md): the first, second, or third person, the present or the past, and writing a game's own text to follow them.
+- [Pictures, Sounds, and Style](styling.md): the two kinds of display, pictures, sounds, links, a game's look and Hexad's classes, what a game may write, and the player's settings.
 
 The language:
 
@@ -18,4 +19,4 @@ The language:
 
 ## For the guide's writers
 
-Every example in [examples](examples) is a game, and `python tools/doc-check.py` builds and plays each one, from its `walk.txt`, against the transcript recorded in its `walk.out`. It also checks that each code block marked `hexicon` in these pages is part of an example's source, and each marked `transcript` part of a recorded transcript, word for word. So a page shows only code that builds and output a game really gives. When a change to Hexad is meant to change what an example prints, `--accept` records the new transcripts.
+Every example in [examples](examples) is a game, and `python tools/doc-check.py` builds and plays each one, from its `walk.txt`, against the transcript recorded in its `walk.out`. It also checks that each code block marked `hexicon`, `toml`, or `css` in these pages is part of an example's source, each marked `transcript` part of a recorded transcript, and each marked `document` part of a recorded document (`walk.doc`: what an example gives a rich display, played with `--rich`), word for word. So a page shows only code that builds and output a game really gives. When a change to Hexad is meant to change what an example prints, `--accept` records the new transcripts.

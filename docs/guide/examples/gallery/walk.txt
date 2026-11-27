@@ -1,0 +1,8 @@
+<eventscript>
+<line>look
+<line>x painting
+<line>read plaque
+<line>ring bell
+<line>s
+<line>x fountain
+<line>n

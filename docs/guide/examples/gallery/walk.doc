@@ -1,0 +1,106 @@
+<pane id="1" create></pane>
+<title>The Gallery</title>
+<pane id="1" clear></pane>
+<pane id="1"><body bgcolor="statusbg" text="statustext">
+<a plain href="look around"><span class="statusroom">Gallery</span></a><tab align="right"><a plain href="full score"><span class="statusscore">0/0</span></a><br>
+<b>Exits:</b> <font color="green"><a plain href="south" title="Go south">south</a></font> &nbsp; <font color="green"><a plain href="out" title="Go out">out</a></font><br>
+<br>
+</pane>
+<div class="roomname">Gallery</div>
+<br>
+<span class="roomdesc">A quiet room with one painting on its wall, a brass plaque beside it, and a small <a href="ring the bell">bell</a> on a stand. A door leads out to the courtyard, to the south. </span><br>
+<br>
+<span class="roomcontents"><br>
+</span><br>
+<span class="inputline">><span class="inputline"><kbd>look</kbd>
+</span></span><br>
+<div class="roomname">Gallery</div>
+<br>
+<span class="roomdesc">A quiet room with one painting on its wall, a brass plaque beside it, and a small <a href="ring the bell">bell</a> on a stand. A door leads out to the courtyard, to the south. </span><br>
+<br>
+<span class="roomcontents"><br>
+</span><br>
+<pane id="1" clear></pane>
+<pane id="1"><body bgcolor="statusbg" text="statustext">
+<a plain href="look around"><span class="statusroom">Gallery</span></a><tab align="right"><a plain href="full score"><span class="statusscore">0/1</span></a><br>
+<b>Exits:</b> <font color="green"><a plain href="south" title="Go south">south</a></font> &nbsp; <font color="green"><a plain href="out" title="Go out">out</a></font><br>
+<br>
+</pane>
+<span class="inputline">><span class="inputline"><kbd>x painting</kbd>
+</span></span><br>
+A small oil painting of a harbour at evening. <br>
+<br>
+<div class="picture"><img src="harbour.svg" alt="A small harbour at evening, under a setting sun."></div>
+<br>
+<pane id="1" clear></pane>
+<pane id="1"><body bgcolor="statusbg" text="statustext">
+<a plain href="look around"><span class="statusroom">Gallery</span></a><tab align="right"><a plain href="full score"><span class="statusscore">0/2</span></a><br>
+<b>Exits:</b> <font color="green"><a plain href="south" title="Go south">south</a></font> &nbsp; <font color="green"><a plain href="out" title="Go out">out</a></font><br>
+<br>
+</pane>
+<span class="inputline">><span class="inputline"><kbd>read plaque</kbd>
+</span></span><br>
+A brass plaque. <p><span class="plaque">Harbour at Evening<br>
+Oil on board, about 1890</span><br>
+<br>
+<pane id="1" clear></pane>
+<pane id="1"><body bgcolor="statusbg" text="statustext">
+<a plain href="look around"><span class="statusroom">Gallery</span></a><tab align="right"><a plain href="full score"><span class="statusscore">0/3</span></a><br>
+<b>Exits:</b> <font color="green"><a plain href="south" title="Go south">south</a></font> &nbsp; <font color="green"><a plain href="out" title="Go out">out</a></font><br>
+<br>
+</pane>
+<span class="inputline">><span class="inputline"><kbd>ring bell</kbd>
+</span></span><br>
+<sound src="chime.wav" layer="foreground" interrupt>The bell gives a clear, high note. <br>
+<br>
+<pane id="1" clear></pane>
+<pane id="1"><body bgcolor="statusbg" text="statustext">
+<a plain href="look around"><span class="statusroom">Gallery</span></a><tab align="right"><a plain href="full score"><span class="statusscore">0/4</span></a><br>
+<b>Exits:</b> <font color="green"><a plain href="south" title="Go south">south</a></font> &nbsp; <font color="green"><a plain href="out" title="Go out">out</a></font><br>
+<br>
+</pane>
+<span class="inputline">><span class="inputline"><kbd>s</kbd>
+</span></span><br>
+<br>
+</p>
+<div class="roomname">Courtyard</div>
+<br>
+<span class="roomdesc">A courtyard of old stone, with a fountain in the middle. The gallery is to the north. </span><br>
+<br>
+<span class="roomcontents"><br>
+</span><br>
+<pane id="1" clear></pane>
+<pane id="1"><body bgcolor="statusbg" text="statustext">
+<a plain href="look around"><span class="statusroom">Courtyard</span></a><tab align="right"><a plain href="full score"><span class="statusscore">0/5</span></a><br>
+<b>Exits:</b> <a plain href="north" title="Go north">north</a> &nbsp; <a plain href="in" title="Go in">in</a><br>
+<br>
+</pane>
+<sound src="fountain.wav" layer="ambient" repeat="loop"><br>
+<span class="inputline">><span class="inputline"><kbd>x fountain</kbd>
+</span></span><br>
+Water falls from a stone basin. <br>
+<br>
+<pane id="1" clear></pane>
+<pane id="1"><body bgcolor="statusbg" text="statustext">
+<a plain href="look around"><span class="statusroom">Courtyard</span></a><tab align="right"><a plain href="full score"><span class="statusscore">0/6</span></a><br>
+<b>Exits:</b> <a plain href="north" title="Go north">north</a> &nbsp; <a plain href="in" title="Go in">in</a><br>
+<br>
+</pane>
+<span class="inputline">><span class="inputline"><kbd>n</kbd>
+</span></span><br>
+<br>
+<div class="roomname">Gallery</div>
+<br>
+<span class="roomdesc">A quiet room with one painting on its wall, a brass plaque beside it, and a small <a href="ring the bell">bell</a> on a stand. A door leads out to the courtyard, to the south. </span><br>
+<br>
+<span class="roomcontents"><br>
+</span><br>
+<pane id="1" clear></pane>
+<pane id="1"><body bgcolor="statusbg" text="statustext">
+<a plain href="look around"><span class="statusroom">Gallery</span></a><tab align="right"><a plain href="full score"><span class="statusscore">0/7</span></a><br>
+<b>Exits:</b> <a plain href="south" title="Go south">south</a> &nbsp; <a plain href="out" title="Go out">out</a><br>
+<br>
+</pane>
+<sound cancel="ambient"><br>
+<span class="inputline">><span class="inputline"><br>
+<br>

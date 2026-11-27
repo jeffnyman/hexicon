@@ -948,9 +948,34 @@ class StyleTag: object
     /* 
      *   Closing text - this is substituted for each instance of the tag
      *   with a '/' prefix (<./xxx>).  Note that non-container tags don't
-     *   have closing text at all.  
+     *   have closing text at all.
      */
     closeText = ''
+
+    /*
+     *   On a display that shows HTML, the class of the page's that what the
+     *   tag holds is put in, so that a style sheet can style it, or nil for
+     *   none: Hexad's own text gets a class of its tag's name
+     *   (<span class="parser">). htmlElement is the element it is put in:
+     *   'span' within a line, 'div' for a line of its own.
+     */
+    htmlClass = nil
+    htmlElement = 'span'
+
+    /* What the tag is turned into, opening or closing (<./xxx>). */
+    openMarkup()
+    {
+        if (htmlClass != nil && outputManager.htmlMode)
+            return '<' + htmlElement + ' class="' + htmlClass + '">' + openText;
+        return openText;
+    }
+
+    closeMarkup()
+    {
+        if (htmlClass != nil && outputManager.htmlMode)
+            return closeText + '</' + htmlElement + '>';
+        return closeText;
+    }
 ;
 
 /*
@@ -986,13 +1011,25 @@ class HtmlStyleTag: StyleTag
  *   entering a new location).  By default, we display the room name in
  *   boldface on a line by itself.  
  */
-roomnameStyleTag: StyleTag 'roomname' '\n<b>' '</b><br>\n';
+roomnameStyleTag: HtmlStyleTag 'roomname'
+    /*
+     *   On a display that shows HTML, a line of its own in the class
+     *   roomname, which the page shows in bold, and a style sheet can
+     *   change.
+     */
+    htmlClass = 'roomname'
+    htmlElement = 'div'
+    htmlOpenText = ''
+    htmlCloseText = ''
+    plainOpenText = '\n<b>'
+    plainCloseText = '</b><br>\n'
+;
 
 /* <.roomdesc> - we use this to display a room's long description */
-roomdescStyleTag: StyleTag 'roomdesc' '' '';
+roomdescStyleTag: StyleTag 'roomdesc' '' '' htmlClass = 'roomdesc';
 
 /* <.roomcontents> - we use this to display a room's contents */
-roomcontentsStyleTag: StyleTag 'roomcontents' '' '';
+roomcontentsStyleTag: StyleTag 'roomcontents' '' '' htmlClass = 'roomcontents';
 
 /* 
  *   <.roompara> - we use this to separate paragraphs within a room's long
@@ -1006,9 +1043,10 @@ roomparaStyleTag: StyleTag 'roompara' '<.p>\n';
  *   - it's used only for the command-line text itself.  
  */
 inputlineStyleTag: HtmlStyleTag 'inputline'
-    /* in HTML mode, switch in and out of the input font */
-    htmlOpenText = '<font face="hexicon-input">'
-    htmlCloseText = '</font>'
+    /* in HTML mode, the class inputline, which the page shows as typing */
+    htmlClass = 'inputline'
+    htmlOpenText = ''
+    htmlCloseText = ''
 
     /* in plain mode, do nothing */
     plainOpenText = ''
@@ -1026,14 +1064,16 @@ hyperlinkStyleTag: HtmlStyleTag 'a'
 
 /* <.statusroom> - style for the room name in a status line */
 statusroomStyleTag: HtmlStyleTag 'statusroom'
-    htmlOpenText = '<b>'
-    htmlCloseText = '</b>'
+    htmlClass = 'statusroom'
+    htmlOpenText = ''
+    htmlCloseText = ''
 ;
 
 /* <.statusscore> - style for the score in a status line */
 statusscoreStyleTag: HtmlStyleTag 'statusscore'
-    htmlOpenText = '<i>'
-    htmlCloseText = '</i>'
+    htmlClass = 'statusscore'
+    htmlOpenText = ''
+    htmlCloseText = ''
 ;
 
 /* 
@@ -1053,6 +1093,7 @@ statusscoreStyleTag: HtmlStyleTag 'statusscore'
 parserStyleTag: StyleTag 'parser'
     openText = ''
     closeText = ''
+    htmlClass = 'parser'
 ;
 
 /* 
@@ -1067,6 +1108,7 @@ parserStyleTag: StyleTag 'parser'
 notificationStyleTag: StyleTag 'notification'
     openText = '('
     closeText = ')'
+    htmlClass = 'notification'
 ;
 
 /*
@@ -1078,6 +1120,7 @@ notificationStyleTag: StyleTag 'notification'
 assumeStyleTag: StyleTag 'assume'
     openText = '('
     closeText = ')'
+    htmlClass = 'assume'
 ;
 
 /*  
@@ -1086,7 +1129,8 @@ assumeStyleTag: StyleTag 'assume'
  */
 tipStyleTag: StyleTag 'tip'
    openText = '('
-   closeText = ')'    
+   closeText = ')'
+   htmlClass = 'tip'    
 ;
 
 /*
@@ -1097,9 +1141,12 @@ tipStyleTag: StyleTag 'tip'
  *   player know that the response text that follows applies to the
  *   announced object.  
  */
-announceObjStyleTag: StyleTag 'announceObj'
-    openText = '<b>'
-    closeText = '</b>'
+announceObjStyleTag: HtmlStyleTag 'announceObj'
+    htmlClass = 'announceObj'
+    htmlOpenText = ''
+    htmlCloseText = ''
+    plainOpenText = '<b>'
+    plainCloseText = '</b>'
 ;
 
 singleTypographicalQuoteTag: StyleTag 'sq'
@@ -1205,7 +1252,7 @@ styleTagFilter: OutputFilter, PreinitObject
          *   appropriate; otherwise return nil 
          */
         return (styleTag != nil
-                ? (isClose ? styleTag.closeText : styleTag.openText)
+                ? (isClose ? styleTag.closeMarkup() : styleTag.openMarkup())
                 : nil);
     }
 
