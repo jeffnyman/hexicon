@@ -450,6 +450,30 @@ Michael Roberts's 2004 game, written to show adv3 at its fullest: 36,160 lines i
 
 So a port would find little new in Hexad's mechanisms: four small classes, the report machinery, and some parser hooks, at the cost of twice Square Circle's work. What it shows best is in `mods.t`: what the author of adv3 found missing while writing its showcase. That list is the input to an improvement pass (a fuller set of verbs, generic objects, rule-based disambiguation, the common preconditions, a keyring, vapor), and the parser hooks are worth a port of their own pieces later, as a probe of how far Hexad's parser can be extended. Recommended (2026-11-26): no full port for now.
 
+### The Golden Skull (2026-11-27)
+
+The HTML-TADS demonstration game (N. K. Guy, 1998, from the gold skull of the TADS 2 manual), ported from TADS 2 to Hexad in about 520 lines, to find out what a game with pictures and sounds needs. Two rooms, a skull on a pedestal that kills whoever takes it without leaving the rock in its place, a sign, a list, a parchment, a clock that shows the real time in pictures of its digits, and a compass whose picture lights the ways out of the room and can be clicked. Almost every description has markup in it: pictures, sounds in three layers, links, an image map, tables, fonts, the page's colors, a title, and an about box. Its script plays to the win, through the death and an UNDO; game-check plays it under a fixed clock. Its pictures and sounds are bundled into the image from the manifest's `resources`, and stay in the playground: their licence lets them be used only with this game.
+
+On today's displays, which are text, the game plays as the reference's plain console would show it: a picture and a sound show nothing, a table's text runs on, and a list is one line ("To Do Today Plunder ancient civilization. Avoid gruesome death. Buy milk."). That is the display's part, for later (below).
+
+**What it found wrong in Hexad, and fixed:**
+
+- **A tag with an expression in it swallowed the rest of the game's output.** `<img src='clock/<<digit>>.jpg'>` reaches the output filters in pieces, and the first piece, `<img src='clock/`, has no `>`. The curly-quote filter did not take it for a tag, and made its `'` a curly quote, so the console's tag was left with a quoted value that never closed, and it read on as the tag until some later text had a `'` in it: after X CLOCK, three commands showed nothing at all. The filter now notes a tag begun and not finished in one piece, and leaves it alone until it ends.
+- **A paragraph after a sentence was indented**: "surprise!<p> Shucks." showed "  Shucks.". The typographical filter puts an en space after a sentence's end, and allowed any tag between the two; the space after `<p>` became an en space at the start of a line, which the console does not drop as it drops a space. Its pattern now allows only closing tags (`</b>`, `</q>`), as its comment said.
+- **A sound was taken for an action's report.** Taking the skull plays a scrape, and Hexad, seeing output, left out "Taken.". A `<sound>` or `<body>` tag shows nothing on any display, and is no longer counted as output.
+
+`hexad-fixes` checks all three, and none changed any other game.
+
+**What an author meets:**
+
+- **Nothing says whether a room has a way out in a direction**, as the exit lister shows it: the compass works it out with the lister's own test (`isConnectorVisible`, `isConnectorListed`). A method on Room for it would serve the compass, a map, and the exit lister alike.
+- **A make of thing with a capital is taken for a proper name**: "DirectionMaster 2000" had no article until `proper = nil`.
+- **Pictures and sounds are written as tags**, in strings, with no help from Hexad: which layer a sound is in, stopping a room's sounds on leaving (`travelerLeaving`), showing a picture only the first time. A small set of Hexad objects for them (a room's ambient sounds, a thing's picture) would do what this game does by hand in every room.
+- **ABOUT is Hexad's**, and a game gives its text in `versionInfo.showAbout()`; the warning for replacing the library's action said so.
+- TADS 2's `\H+` and `\H-`, which the game's HTML command used to turn markup off, have no equivalent; the command is left out.
+
+**What a display that shows HTML would need**, from this game: pictures inline, aligned at the right with the text around them, and centered; the page's colors and a background picture; links, and an image map's areas as links; sounds in the background, ambient (at random intervals), and foreground layers, looping, cancelled, and interrupting; tables with borders, padding, widths, and colored cells; fonts by face, size, and color; centered text, lists, block quotes, a rule drawn with a picture; a window title; an about box; pictures and sounds read from the image's resources; and `systemInfo` saying what the display can do. Whether that is the page alone, or a renderer of Hexicon's own drawn by each host (HTML TADS's design: a portable parser and formatter, and a small system interface for each platform), is the decision this waits for.
+
 ### Ruins (2026-11-25)
 
 The first port from adv3: the sample game of the Inform Designer's Manual, from its adv3 version, rewritten on Hexad in 1,189 lines (the adv3 game is 1,578, with two files of utilities Hexad does not need). An archaeologist, five treasures to photograph where they lie and pack, a sodium lamp that burns down and is pushed from room to room, a stone ball rolled into a chasm, a priest seen only through a mask, a dictionary of glyphs, scuttling claws in the dark, and a cage that turns the player into a warthog and back. Its script, 90 commands, plays to the full score of 30.

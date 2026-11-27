@@ -192,6 +192,9 @@ transient outputManager: object
  *   track the UI state should not be saved either.  
  */
 class OutputStream: PreinitObject
+    /* Whether a tag was begun and not finished in what was last written. */
+    cquoteInTag = nil
+
     /*
      *   Write a value to the stream.  If the value is a string, we'll
      *   display the text of the string; if it's nil, we'll ignore it; if
@@ -821,11 +824,20 @@ class OutputFilter: object
  *   Our 'outputFlag' is true if we've seen any output, nil if not.
  */
 class MonitorFilter: OutputFilter
+    /*
+     *   Tags that show nothing on any display: a sound played, and the
+     *   page's colors. Text that is only these is not output, so an action
+     *   that plays a sound still gets its report ("Taken.").
+     */
+    silentTagPat = static new Regex(
+        '<nocase><langle>(sound|body)(<space><^rangle>*)?<rangle>')
+
     /* filter text */
     filterText(ostr, val)
     {
         /* if the value is non-empty, note the output */
-        if (val != nil && val != '')
+        if (val != nil && val != ''
+            && regexReplace(silentTagPat, val, '', ReplaceAll) != '')
             outputFlag = true;
 
         /* return the input value unchanged */
@@ -1954,7 +1966,9 @@ typographicalOutputFilter: OutputFilter
      *   mark, optionally followed by any number of closing group marks
      *   (right parentheses or square brackets, closing HTML tags, or
      *   double or single quotes in either straight or curly styles), all
-     *   followed by an ordinary space.
+     *   followed by an ordinary space.  Only closing tags: after a tag that
+     *   starts something, such as <p> or <br>, the space is at the start of
+     *   a line, and is not a sentence's spacing.
      *
      *   If a lower-case letter follows the space, though, we won't
      *   consider it a sentence ending.  This applies most commonly after
@@ -1974,7 +1988,7 @@ typographicalOutputFilter: OutputFilter
         +   '[.!?]'
         +   '('
         +     '<rparen|rsquare|dquote|squote|\u2019|\u201D>'
-        +     '|<langle><^rangle>*<rangle>'
+        +     '|<langle>/<^rangle>*<rangle>'
         +   ')*'
         + ')'
         + ' +(?![-a-z])'
@@ -2046,11 +2060,45 @@ cquoteOutputFilter: OutputFilter
     patIsCont2Tag = static new Regex('(<alpha>)n<squote>t')
     patIsPossTag = static new Regex('(<alpha>)s<squote>')
     
-    filterText(ostr, val) {
-	local ret;
-        
+    /*
+     *   A string with an expression embedded in it comes here in pieces, so
+     *   a tag can begin in one piece and end in another:
+     *   "<img src='clock/<<n>>.jpg'>". What is inside a tag is left as it
+     *   is, whichever piece it is in; ostr notes a tag still open at the
+     *   end of a piece.
+     */
+    filterText(ostr, val)
+    {
         if(!isActive)
             return val;
+
+        /* The rest of a tag an earlier piece began. */
+        local head = '';
+        if(ostr.cquoteInTag)
+        {
+            local e = val.find('>');
+            if(e == nil)
+                return val;
+            ostr.cquoteInTag = nil;
+            head = val.substr(1, e);
+            val = val.substr(e + 1);
+        }
+
+        /* A tag this piece begins and does not finish. */
+        local tail = '';
+        local open = val.findLast('<');
+        if(open != nil && val.find('>', open) == nil)
+        {
+            ostr.cquoteInTag = true;
+            tail = val.substr(open);
+            val = val.substr(1, open - 1);
+        }
+
+        return head + filterPiece(ostr, val) + tail;
+    }
+
+    filterPiece(ostr, val) {
+	local ret;
 
 	// Look for an HTML tag. We only need to find the first one,
 	// because we'll be recursing through the string
@@ -2068,8 +2116,8 @@ cquoteOutputFilter: OutputFilter
 	// (since e.g. "\<font face='courier>" isn't really an HTML tag)
 	if (ret != nil && (ret[1] == 1 ||
 			   val.substr(ret[1] - 1, 1) != '\\')) {
-	    return filterText(ostr, val.substr(1, ret[1] - 1)) + ret[3] +
-		filterText(ostr, val.substr(ret[1] + ret[2],
+	    return filterPiece(ostr, val.substr(1, ret[1] - 1)) + ret[3] +
+		filterPiece(ostr, val.substr(ret[1] + ret[2],
 					    val.length() - (ret[1]+ret[2])
 					    + 1));
 	}
