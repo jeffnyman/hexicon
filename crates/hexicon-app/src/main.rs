@@ -31,9 +31,9 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
-use tao::window::WindowBuilder;
+use tao::window::{Window, WindowBuilder};
 use wry::http::{Request, Response, StatusCode, header::CONTENT_TYPE};
-use wry::{WebContext, WebViewBuilder};
+use wry::{WebContext, WebView, WebViewBuilder};
 
 /// The page's files: their names, their contents, and their types.
 const FILES: &[(&str, &[u8], &str)] = &[
@@ -132,8 +132,8 @@ fn main() {
         })
         .with_document_title_changed_handler(move |title| {
             let _ = title_proxy.send_event(PageEvent::Title(title));
-        })
-        .build(&window);
+        });
+    let built = build_in(built, &window);
     let webview = match built {
         Ok(webview) => webview,
         Err(error) => {
@@ -179,6 +179,37 @@ fn main() {
             _ => {}
         }
     });
+}
+
+/// Put the web view in the window. On Linux and the BSDs it goes in the
+/// window's GTK box, which works whether the window is shown by Wayland or
+/// by X; the window's own handle is X's only.
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
+fn build_in<'a>(builder: WebViewBuilder<'a>, window: &'a Window) -> wry::Result<WebView> {
+    use tao::platform::unix::WindowExtUnix;
+    use wry::WebViewBuilderExtUnix;
+    match window.default_vbox() {
+        Some(vbox) => builder.build_gtk(vbox),
+        None => builder.build(window),
+    }
+}
+
+/// Put the web view in the window.
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+)))]
+fn build_in<'a>(builder: WebViewBuilder<'a>, window: &'a Window) -> wry::Result<WebView> {
+    builder.build(window)
 }
 
 /// What the page tells the window.
@@ -425,11 +456,7 @@ fn write_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {
 /// The dialog shows the files of the kind the game asks for (saved games,
 /// `.hxs`, or text, `.txt`), with all files a choice when opening one; a
 /// file to save of that kind, named without an extension, is given it.
-fn choose_file(
-    window: &tao::window::Window,
-    asked: &Asked,
-    chosen: &mut HashSet<PathBuf>,
-) -> String {
+fn choose_file(window: &Window, asked: &Asked, chosen: &mut HashSet<PathBuf>) -> String {
     let Asked {
         save,
         folder,
