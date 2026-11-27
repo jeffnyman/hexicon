@@ -664,6 +664,18 @@ class ParagraphManager: OutputFilter
      */
     suppressAfter = static new Regex('[\b\n]')
 
+    /*
+     *   The tags a style tag puts around what it holds on a display that
+     *   shows HTML (<span class="parser">, </span>, and the <div> of a
+     *   room's name). They show nothing of their own, so a paragraph break
+     *   on either side of them is still next to the other: they are passed
+     *   through without changing what came last.
+     */
+    wrapperPat = static new Regex(
+        '<nocase><langle>/?(span|div)(<space>[^>]*)?<rangle>')
+    trailingWrappersPat = static new Regex(
+        '<nocase>(<langle>/?(span|div)(<space>[^>]*)?<rangle>)+$')
+
     /* pre-compile some regular expression patterns we use a lot */
     leadingMultiPat = static new Regex('(<langle><dot>[pP]0?<rangle>)+')
     leadingSinglePat = static new Regex(
@@ -684,8 +696,19 @@ class ParagraphManager: OutputFilter
             local match;
             local p0;
             local unp0;
-            
-            /* 
+
+            /*
+             *   A style tag's wrapper passes through, and leaves the
+             *   paragraph state as it was.
+             */
+            if ((len = regexMatch(wrapperPat, txt)) != nil)
+            {
+                ret += txt.substr(1, len);
+                txt = txt.substr(len + 1);
+                continue;
+            }
+
+            /*
              *   if we just wrote a paragraph break, suppress any
              *   character that matches 'suppressAfter', and suppress any
              *   paragraph markers that immediately follow 
@@ -777,9 +800,11 @@ class ParagraphManager: OutputFilter
              *   pending.  Likewise, if we found a <.p0> rather than a
              *   <.p>, this counts as a suppressor.  
              */
-            ostr.justDidParaSuppressor =
-                (p0 || regexMatch(suppressBefore,
-                                ret.substr(ret.length(), 1)) != nil);
+            local shown = regexReplace(trailingWrappersPat, ret, '', ReplaceOnce);
+            if (p0 || shown != '' || ret == '')
+                ostr.justDidParaSuppressor =
+                    (p0 || regexMatch(suppressBefore,
+                                    shown.substr(shown.length(), 1)) != nil);
 
             /* 
              *   if we found a paragraph marker, and we didn't find a

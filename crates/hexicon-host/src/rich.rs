@@ -930,6 +930,12 @@ impl Checker {
         if self.dropping.is_some() || self.log_depth > 0 || self.title.is_some() {
             return;
         }
+        // A newline at the start of a line adds nothing, as on a display
+        // of text: a blank line has to be asked for ("\b", <p>, <br>).
+        // In preformatted text every line counts.
+        if self.at_line_start && !self.open.iter().any(|name| name == "pre") {
+            return;
+        }
         self.push(Item::Void("br".into(), Vec::new()));
         self.at_line_start = true;
     }
@@ -1460,6 +1466,16 @@ mod tests {
             check("<bq>Quoted.</bq><nobr>12:30</nobr>"),
             "<blockquote>Quoted.</blockquote>\n<span style=\"white-space: nowrap\">12:30</span>"
         );
+    }
+
+    #[test]
+    fn a_newline_at_the_start_of_a_line_adds_nothing() {
+        // As on a display of text: a blank line is asked for, not made of
+        // newlines; but preformatted text keeps every line.
+        assert_eq!(check("one\n\n\ntwo"), "one<br>\ntwo");
+        assert_eq!(check("<div>a</div>\nb"), "<div>a</div>\nb");
+        assert_eq!(check("one\u{b}two"), "one<br>\n<br>\ntwo");
+        assert_eq!(check("<pre>a\n\nb</pre>"), "<pre>a<br>\n<br>\nb</pre>\n");
     }
 
     #[test]
