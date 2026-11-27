@@ -76,6 +76,9 @@ action Restart: SystemAction
         /* before restarting, notify anyone interested of our intentions */
         PreRestartObject.classExec();
 
+        /* the game starts again on a clear screen, as it first did */
+        cls();
+
         /* 
          *   Throw a 'restart' signal; the main entrypoint loop will catch
          *   this and actually perform the restart.
