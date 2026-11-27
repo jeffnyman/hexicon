@@ -28,7 +28,8 @@ usage:
   game-check.py --accept [game...]  record what they print now
 
 Environment:
-  HEXICON     the hexicon executable (default: target/release/hexicon)
+  HEXICON     the hexicon executable (default: target/release/hexicon, or the
+              same under CARGO_TARGET_DIR)
   GAME_TESTS  the folder of games
 """
 
@@ -39,7 +40,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-HEXICON = os.environ.get("HEXICON", str(ROOT / "target" / "release" / "hexicon"))
+# Where cargo builds: target/, unless CARGO_TARGET_DIR says elsewhere.
+BUILT = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
+HEXICON = os.environ.get("HEXICON", str(BUILT / "release" / "hexicon"))
 GAMES = Path(
     os.environ.get("GAME_TESTS", ROOT.parent / "hexicon-playground" / "game-tests")
 )

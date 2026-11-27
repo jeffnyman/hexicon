@@ -163,7 +163,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--accept", action="store_true")
     parser.add_argument(
-        "--hexicon", default=os.path.join(ROOT, "target", "release", "hexicon" + EXE)
+        "--hexicon",
+        # Where cargo builds: target/, unless CARGO_TARGET_DIR says elsewhere.
+        default=os.path.join(
+            os.environ.get("CARGO_TARGET_DIR", os.path.join(ROOT, "target")),
+            "release",
+            "hexicon" + EXE,
+        ),
     )
     args = parser.parse_args()
     problems = []

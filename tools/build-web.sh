@@ -19,10 +19,12 @@ set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 target=${1:-web}
+# Where cargo builds: target/, unless CARGO_TARGET_DIR says elsewhere.
+built=${CARGO_TARGET_DIR:-target}
 out=web/pkg
 [ "$target" = web ] || out=build/web-$target
 
 cargo build --release --target wasm32-unknown-unknown -p hexicon-wasm
 wasm-bindgen --target "$target" --out-dir "$out" \
-  target/wasm32-unknown-unknown/release/hexicon_wasm.wasm
+  "$built/wasm32-unknown-unknown/release/hexicon_wasm.wasm"
 ls -l "$out"

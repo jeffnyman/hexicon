@@ -23,8 +23,10 @@ Push-Location $root
 try {
     cargo build --release --target wasm32-unknown-unknown -p hexicon-wasm
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    # Where cargo builds: target/, unless CARGO_TARGET_DIR says elsewhere.
+    $built = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
     wasm-bindgen --target $Target --out-dir $out `
-        target/wasm32-unknown-unknown/release/hexicon_wasm.wasm
+        "$built/wasm32-unknown-unknown/release/hexicon_wasm.wasm"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Get-ChildItem $out
 }
