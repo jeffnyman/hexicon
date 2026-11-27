@@ -1155,13 +1155,57 @@ function fillStrip(strip, panes, firstRow, height) {
 // The command line takes up the rest of the line its prompt is on.
 function sizeCommandLine() {
   if (rich) {
-    command.style.width = "";
+    fitCommandBesideFloats();
     return;
   }
   const text = transcript.textContent;
   const prompt = text.length - (text.lastIndexOf("\n") + 1);
   command.style.width = `${Math.max(columns - prompt - 1, 8)}ch`;
 }
+
+// On a rich display, the command line is as wide as its style says, but no
+// wider than the room left on its line: beside a picture floated at the
+// right, a line too wide for the room would be put below the picture,
+// away from its prompt.
+function fitCommandBesideFloats() {
+  command.style.width = "";
+  if (entry.hidden || !entry.isConnected) {
+    return;
+  }
+  const natural = command.offsetWidth;
+  // Where it starts when it is small enough to stay beside the prompt.
+  command.style.width = "2em";
+  const box = command.getBoundingClientRect();
+  let right = transcript.getBoundingClientRect().right;
+  // Only the last of them can be beside the last line.
+  const candidates = [...transcript.querySelectorAll("img, figure, div, table")].slice(-40);
+  for (const element of candidates) {
+    const style = getComputedStyle(element);
+    if (style.float === "none") {
+      continue;
+    }
+    // Text keeps clear of the picture's margin too (an <img hspace>).
+    const area = element.getBoundingClientRect();
+    const left = area.left - parseFloat(style.marginLeft || "0");
+    if (area.top < box.bottom && area.bottom > box.top && left >= box.left) {
+      right = Math.min(right, left);
+    }
+  }
+  const room = Math.floor(right - box.left - 8);
+  command.style.width = room < natural ? `${Math.max(room, 32)}px` : "";
+}
+
+// A picture has its size once it has loaded, which may be after the
+// command line was fitted beside it.
+transcript.addEventListener(
+  "load",
+  (event) => {
+    if (event.target.tagName === "IMG") {
+      sizeCommandLine();
+    }
+  },
+  true,
+);
 
 // Whether there is text below the bottom of the screen.
 const lineHeight = () => parseFloat(getComputedStyle(screen).lineHeight) || 24;

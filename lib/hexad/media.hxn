@@ -215,21 +215,30 @@ stopSoundLayer(layer, fadeOut?)
 roomSoundPlayer: InitObject
     execute() { new PromptDaemon(self, &update); }
 
-    /* The sounds playing now, as the room's roomSounds gave them. */
-    playing = []
-
     update()
     {
         local room = now.player == nil ? nil : now.player.getOutermostRoom();
         local sounds = room == nil ? [] : valToList(room.roomSounds);
+        local playing = roomSoundsPlaying.sounds;
         if (sounds == playing)
             return;
         foreach (local layer in playing.mapAll({ s: s.soundLayer }).getUnique())
             stopSoundLayer(layer);
         foreach (local s in sounds)
             s.play();
-        playing = sounds;
+        roomSoundsPlaying.sounds = sounds;
     }
+;
+
+/*
+ *   The room's sounds that are playing now, as the room's roomSounds gave
+ *   them. This is what the display is doing, not part of the game, so it
+ *   is transient: RESTART, RESTORE, and UNDO change the game, and not
+ *   what is playing, and the next look at the player's room stops what
+ *   it no longer has and plays what it does.
+ */
+transient roomSoundsPlaying: object
+    sounds = []
 ;
 
 modify Room
