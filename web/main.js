@@ -525,6 +525,11 @@ const sounds = {
       }, 1000);
       return;
     }
+    // A sound that loops for good loops in the element itself, without a
+    // break: started again at its end, as one played a number of times
+    // is, it had a gap on Linux, whose web view takes a moment to start
+    // a sound.
+    audio.loop = left === Infinity;
     audio.addEventListener("playing", () => {
       entry.played = true;
     });
