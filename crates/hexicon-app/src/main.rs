@@ -29,7 +29,7 @@ use std::rc::Rc;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 
-use tao::event::{Event, WindowEvent};
+use tao::event::{Event, StartCause, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::window::{Window, WindowBuilder};
 use wry::http::{Request, Response, StatusCode, header::CONTENT_TYPE};
@@ -142,9 +142,13 @@ fn main() {
         }
     };
 
+    // The Mac's menu bar, made once the program has started, and kept for
+    // as long as it runs.
+    let mut _menus = None;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
+            Event::NewEvents(StartCause::Init) => _menus = menu_bar(),
             // The page's title is the window's: the game's, once it says.
             Event::UserEvent(PageEvent::Title(title)) => window.set_title(&title),
             Event::UserEvent(PageEvent::Script(script)) => {
@@ -210,6 +214,61 @@ fn build_in<'a>(builder: WebViewBuilder<'a>, window: &'a Window) -> wry::Result<
 )))]
 fn build_in<'a>(builder: WebViewBuilder<'a>, window: &'a Window) -> wry::Result<WebView> {
     builder.build(window)
+}
+
+/// The menu bar a Mac program has: the program's menu, with Hide and Quit,
+/// the Edit menu, whose keys (Command-C and the rest) the web view's text
+/// takes, and the Window menu. Without them those keys do nothing.
+#[cfg(target_os = "macos")]
+fn menu_bar() -> Option<muda::Menu> {
+    use muda::{Menu, PredefinedMenuItem, Submenu};
+    let app = Submenu::with_items(
+        "Hexicon",
+        true,
+        &[
+            &PredefinedMenuItem::hide(None),
+            &PredefinedMenuItem::hide_others(None),
+            &PredefinedMenuItem::show_all(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::quit(None),
+        ],
+    )
+    .ok()?;
+    let edit = Submenu::with_items(
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(None),
+            &PredefinedMenuItem::redo(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::cut(None),
+            &PredefinedMenuItem::copy(None),
+            &PredefinedMenuItem::paste(None),
+            &PredefinedMenuItem::select_all(None),
+        ],
+    )
+    .ok()?;
+    let window = Submenu::with_items(
+        "Window",
+        true,
+        &[
+            &PredefinedMenuItem::minimize(None),
+            &PredefinedMenuItem::fullscreen(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::close_window(None),
+        ],
+    )
+    .ok()?;
+    let menu = Menu::with_items(&[&app, &edit, &window]).ok()?;
+    menu.init_for_nsapp();
+    window.set_as_windows_menu_for_nsapp();
+    Some(menu)
+}
+
+/// Elsewhere a program has no menu bar of its own: the keys work without.
+#[cfg(not(target_os = "macos"))]
+fn menu_bar() -> Option<()> {
+    None
 }
 
 /// What the page tells the window.

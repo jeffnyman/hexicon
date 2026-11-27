@@ -24,5 +24,10 @@ dirs = "7"
 # GTK's, which the web view needs already.
 rfd = { version = "0.18", default-features = false, features = ["gtk3"] }
 
+# The menu bar a Mac program has, where Quit, and Cut, Copy, and Paste,
+# are, with their keys.
+[target.'cfg(target_os = "macos")'.dependencies]
+muda = { version = "0.22", default-features = false }
+
 [lints]
 workspace = true
