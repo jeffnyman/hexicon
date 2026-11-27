@@ -151,11 +151,37 @@ window.hexiconPlayer = {
   failed(name, message) {
     say(
       name
-        ? `The file "${name}" could not be kept in the folder: ${message}`
+        ? `The file "${name}" could not be used: ${message}`
         : `The folder could not be shown: ${message}`,
     );
   },
+
+  // The file the player chose in the dialog the game asked for, by the
+  // name the game is to know it by, with its contents if it is to be
+  // read; or null for none.
+  fileChosen(name, contents) {
+    if (state !== "file") {
+      return;
+    }
+    if (name !== null && contents !== undefined) {
+      game.putFile(name, fromBase64(contents));
+    }
+    game.sendFileChoice(name ?? undefined);
+    advance();
+  },
 };
+
+// In the player, the game's file dialogs are the system's: the player
+// shows one, starting in the game's folder.
+function askForFile() {
+  const asked = JSON.parse(game.fileDialog());
+  const words = [
+    asked.save ? "save" : "open",
+    encodeURIComponent(gameName),
+    encodeURIComponent(asked.prompt),
+  ];
+  window.ipc.postMessage(`dialog ${words.join(" ")}`);
+}
 
 // Store the files the game has written, and forget the ones it deleted.
 function storeFiles() {
@@ -1178,6 +1204,8 @@ function update() {
   sizeCommandLine();
   if (state === "line") {
     command.focus({ preventScroll: true });
+  } else if (state === "file") {
+    askForFile();
   } else if (state === "sleep") {
     setTimeout(() => {
       game.wake();
@@ -1406,6 +1434,7 @@ async function play(bytes, name) {
   try {
     const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     game = new Game(bytes, name, zone);
+    game.setFileDialogs(inPlayer);
   } catch (error) {
     game = null;
     state = "done";

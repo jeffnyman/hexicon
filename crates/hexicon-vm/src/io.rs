@@ -5,7 +5,7 @@
 //!
 //! The functions here are the `hexicon-io` function set apart from `print`.
 
-use hexicon_host::Input;
+use hexicon_host::{FileChoice, FileDialog, Input};
 
 use crate::console::{Formatter, Newline};
 use crate::error::{VmError, VmResult, code};
@@ -1339,7 +1339,7 @@ impl Vm {
                     match answer {
                         1 => break,
                         2 => {
-                            let (asked, chosen) = match self.ask_file(prompt, true) {
+                            let (asked, chosen) = match self.ask_file(prompt, dialog, true) {
                                 Ok(found) => found,
                                 Err(_) => {
                                     self.io.prompt_shown = false;
@@ -1368,7 +1368,7 @@ impl Vm {
                 }
             }
         } else {
-            (result, name) = self.ask_file(prompt, false)?;
+            (result, name) = self.ask_file(prompt, dialog, false)?;
             from_ui = true;
         }
         let list = self.event_list(result, if result == SUCCESS { 4 } else { 1 });
@@ -1395,10 +1395,30 @@ impl Vm {
         }
     }
 
-    /// Ask for a file name on a console that has only text: a result
-    /// code and the name. The answer is a line of input, so a command
-    /// script supplies it like any other line. An empty answer cancels.
-    fn ask_file(&mut self, prompt: &str, bypass_script: bool) -> VmResult<(i32, String)> {
+    /// Ask for a file name: a result code and the name. A host with a
+    /// file dialog of its own shows it. On a console that has only text,
+    /// the answer is a line of input, so a command script supplies it like
+    /// any other line, and an empty answer cancels.
+    fn ask_file(
+        &mut self,
+        prompt: &str,
+        dialog: i32,
+        bypass_script: bool,
+    ) -> VmResult<(i32, String)> {
+        let kind = if dialog == 2 {
+            FileDialog::Save
+        } else {
+            FileDialog::Open
+        };
+        match self.host.choose_file(prompt, kind) {
+            Some(FileChoice::Chosen(name)) => return Ok((0, name)),
+            Some(FileChoice::Cancelled) => return Ok((2, String::new())),
+            // Nothing before this does anything more if it is done again,
+            // so the call can be made again from the top when the player
+            // has chosen.
+            Some(FileChoice::Pending) => return Err(self.suspend()),
+            None => {}
+        }
         if !self.io.prompt_shown {
             self.print(prompt.as_bytes());
             self.print(b" >");

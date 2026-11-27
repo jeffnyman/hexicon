@@ -441,7 +441,14 @@ What the first document showed, for the steps after:
 - **The guide's page** has the button and the fades, in *The Gallery*: its bell is now a picture that lights up under the pointer and rings when clicked, and its fountain fades in and out.
 - Checked in Chrome: a game with a pane at the left, a `<banner>` at the right, and the status line across the top; the same in a window 390 wide; and The Golden Skull as before.
 
-What is left: macOS and Linux for the player; the system's own dialog for a file's name, where the page now asks for it as a line of text; and the system opening a game in the player when its file is opened, which takes an installer to say so (the player takes the game's file on its command line, so "Open with" works already).
+**Done, 2026-11-27: the system's file dialog.**
+
+- **A host can show a dialog of its own** for a file a program asks for (`inputFile`): `Host::choose_file`, with the program's prompt and whether the file is to be opened or saved, answers with the file, a cancel, or that the player has not chosen yet, on which the VM stops and asks again when it is resumed, as it does for a line. A host without one says so, and the VM asks for the name as a line after the prompt, as before: the terminal, `hexicon run`, the tests, and the page in a browser.
+- **The WebAssembly build** shows it when the page says it can (`setFileDialogs`): the game then waits with `file`, `fileDialog()` says which dialog with what prompt, and `sendFileChoice(name)` answers, or cancels with nothing.
+- **The player shows the system's own** (the `rfd` crate: Windows's, macOS's, and GTK's on Linux, which the web view needs already), with the prompt as its title, starting in the game's folder, in front of the window. A file chosen in the folder the game knows by its name there, as it knows the others. One chosen anywhere else it knows by the whole of its path, and the player writes it there, as the player chose; a path the player did not choose in a dialog, the player will not write. A file opened from elsewhere is read when it is chosen. A command script still gives a file's name as it always has, and no dialog is shown.
+- `HEXICON_CHECK_CHOOSE` answers the player's dialogs with a path, for checks: saved in the game's folder and restored from it, saved elsewhere and restored from there in a new run, and cancelled, all in WebView2. The dialog itself was not checked automatically.
+
+What is left: macOS and Linux for the player; and the system opening a game in the player when its file is opened, which takes an installer to say so (the player takes the game's file on its command line, so "Open with" works already).
 
 ## Open questions
 

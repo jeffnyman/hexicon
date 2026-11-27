@@ -17,9 +17,14 @@
 //! usage: hexicon-player [game.hxg]
 //!
 //! HEXICON_GAMES_FOLDER, if it is set, is the folder for the games' files.
+//! HEXICON_CHECK_CHOOSE, for checks, answers every file dialog with the
+//! path it names (or none, if it is empty) instead of showing it.
 
 use std::borrow::Cow;
+use std::cell::RefCell;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
@@ -107,6 +112,10 @@ fn main() {
     }
 
     let folder = games_folder();
+    // The files the player has chosen in a dialog, outside the game's
+    // folder: a game can write those, and no others outside it.
+    let chosen: Rc<RefCell<HashSet<PathBuf>>> = Rc::default();
+    let message_chosen = chosen.clone();
     let mut context = WebContext::new(data_folder());
     let game_file = game.clone();
     let protocol_folder = folder.clone();
@@ -117,8 +126,8 @@ fn main() {
             respond(&request, game_file.as_deref(), &protocol_folder)
         })
         .with_ipc_handler(move |request| {
-            if let Some(script) = take_message(request.body(), &folder) {
-                let _ = proxy.send_event(PageEvent::Script(script));
+            if let Some(event) = take_message(request.body(), &folder, &message_chosen.borrow()) {
+                let _ = proxy.send_event(event);
             }
         })
         .with_document_title_changed_handler(move |title| {
@@ -141,6 +150,17 @@ fn main() {
             Event::UserEvent(PageEvent::Script(script)) => {
                 let _ = webview.evaluate_script(&script);
             }
+            // Shown here, and not while the web view is telling the
+            // window of the page's message, so that the web view is not
+            // held up while the player chooses.
+            Event::UserEvent(PageEvent::Dialog {
+                save,
+                folder,
+                prompt,
+            }) => {
+                let script = choose_file(&window, save, &folder, &prompt, &mut chosen.borrow_mut());
+                let _ = webview.evaluate_script(&script);
+            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
@@ -161,6 +181,13 @@ enum PageEvent {
     Title(String),
     /// Something for the page to run: the answer to what it sent.
     Script(String),
+    /// The game asks for a file, to save or not, in its folder, with its
+    /// prompt.
+    Dialog {
+        save: bool,
+        folder: PathBuf,
+        prompt: String,
+    },
 }
 
 /// The answer to a request from the page: one of its files, the game, or
@@ -289,42 +316,140 @@ fn game_files(folder: &Path) -> String {
 }
 
 /// Do what the page asks of a game's files, which it sends as a line of
-/// words: `write <game> <name> <contents>`, `delete <game> <name>`, or
-/// `show <game>`, the names as they go in an address and the contents in
-/// base64. What goes wrong comes back as a script for the page to run.
-fn take_message(message: &str, folder: &Path) -> Option<String> {
+/// words: `write <game> <name> <contents>`, `delete <game> <name>`,
+/// `show <game>`, or `dialog <open|save> <game> <prompt>`, the names and
+/// the prompt as they go in an address and the contents in base64. What
+/// goes wrong comes back as a script for the page to run; a dialog, as
+/// the event that shows it.
+///
+/// A game's file is in its folder, unless it is one the player chose in a
+/// dialog somewhere else, which a game names by the whole of its path.
+fn take_message(message: &str, folder: &Path, chosen: &HashSet<PathBuf>) -> Option<PageEvent> {
     let mut words = message.split(' ');
     let verb = words.next()?;
+    if verb == "dialog" {
+        let save = words.next()? == "save";
+        return Some(PageEvent::Dialog {
+            save,
+            folder: game_folder(folder, &decode(words.next()?)),
+            prompt: decode(words.next().unwrap_or("")),
+        });
+    }
     let game = game_folder(folder, &decode(words.next()?));
     let name = words.next().map(decode);
     let result = match (verb, &name) {
-        ("write", Some(name)) => BASE64
-            .decode(words.next().unwrap_or(""))
-            .map_err(|error| error.to_string())
-            .and_then(|contents| write_file(&game, name, &contents).map_err(|e| e.to_string())),
-        ("delete", Some(name)) => match std::fs::remove_file(game.join(file_name_for(name))) {
-            Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.to_string()),
-            _ => Ok(()),
-        },
+        ("write", Some(name)) => file_path(&game, name, chosen).and_then(|path| {
+            BASE64
+                .decode(words.next().unwrap_or(""))
+                .map_err(|error| error.to_string())
+                .and_then(|contents| write_file(&path, &contents).map_err(|e| e.to_string()))
+        }),
+        ("delete", Some(name)) => {
+            file_path(&game, name, chosen).and_then(|path| match std::fs::remove_file(path) {
+                Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                    Err(error.to_string())
+                }
+                _ => Ok(()),
+            })
+        }
         ("show", None) => show_folder(&game).map_err(|error| error.to_string()),
         _ => return None,
     };
     let error = result.err()?;
-    Some(format!(
+    Some(PageEvent::Script(format!(
         "hexiconPlayer.failed({}, {})",
         js_string(name.as_deref().unwrap_or("")),
         js_string(&error)
-    ))
+    )))
 }
 
-/// Write one of a game's files: first beside it, then in its place, so
-/// that a file is never left half written.
-fn write_file(folder: &Path, name: &str, contents: &[u8]) -> std::io::Result<()> {
+/// Where one of a game's files is: in its folder, or, for a whole path,
+/// where the player chose it to be.
+fn file_path(game: &Path, name: &str, chosen: &HashSet<PathBuf>) -> Result<PathBuf, String> {
+    let path = Path::new(name);
+    if !path.is_absolute() {
+        return Ok(game.join(file_name_for(name)));
+    }
+    if chosen.contains(path) {
+        Ok(path.to_owned())
+    } else {
+        Err("it is outside the game's folder, and was not chosen there".to_owned())
+    }
+}
+
+/// Write a file: first beside it, then in its place, so that a file is
+/// never left half written.
+fn write_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    let folder = path.parent().unwrap_or(Path::new("."));
     std::fs::create_dir_all(folder)?;
-    let file = file_name_for(name);
+    let file = path.file_name().unwrap_or_default().to_string_lossy();
     let part = folder.join(format!(".{file}.part"));
     std::fs::write(&part, contents)?;
-    std::fs::rename(&part, folder.join(file))
+    std::fs::rename(&part, path)
+}
+
+/// Show the system's dialog for a file the game asks for, starting in the
+/// game's folder, and give the page what the player chose, as a script:
+/// `hexiconPlayer.fileChosen(name, contents)`, with the name the game is
+/// to know it by (its name in the folder, or the whole of its path
+/// elsewhere), and for a file to open, its contents in base64; or
+/// `hexiconPlayer.fileChosen(null)` for none.
+fn choose_file(
+    window: &tao::window::Window,
+    save: bool,
+    folder: &Path,
+    prompt: &str,
+    chosen: &mut HashSet<PathBuf>,
+) -> String {
+    let _ = std::fs::create_dir_all(folder);
+    let dialog = rfd::FileDialog::new()
+        .set_title(prompt.trim().trim_end_matches(['>', ':']).trim())
+        .set_directory(folder)
+        .set_parent(window);
+    // A check, which cannot use the dialog, gives the answer instead: a
+    // path, or nothing for none.
+    let picked = if let Some(answer) = std::env::var_os("HEXICON_CHECK_CHOOSE") {
+        Some(PathBuf::from(answer)).filter(|path| !path.as_os_str().is_empty())
+    } else if save {
+        dialog.save_file()
+    } else {
+        dialog.pick_file()
+    };
+    let Some(path) = picked else {
+        return "hexiconPlayer.fileChosen(null)".to_owned();
+    };
+    let in_folder = path
+        .parent()
+        .is_some_and(|parent| same_folder(parent, folder));
+    let name = if in_folder {
+        name_from_file(&path.file_name().unwrap_or_default().to_string_lossy())
+    } else {
+        chosen.insert(path.clone());
+        path.to_string_lossy().into_owned()
+    };
+    if save {
+        return format!("hexiconPlayer.fileChosen({})", js_string(&name));
+    }
+    match std::fs::read(&path) {
+        Ok(contents) => format!(
+            "hexiconPlayer.fileChosen({}, {})",
+            js_string(&name),
+            js_string(&BASE64.encode(contents))
+        ),
+        Err(error) => format!(
+            "hexiconPlayer.failed({}, {}); hexiconPlayer.fileChosen(null)",
+            js_string(&name),
+            js_string(&error.to_string())
+        ),
+    }
+}
+
+/// Whether two paths are the same folder, however each is written.
+fn same_folder(one: &Path, other: &Path) -> bool {
+    match (one.canonicalize(), other.canonicalize()) {
+        (Ok(one), Ok(other)) => one == other,
+        _ => one == other,
+    }
 }
 
 /// Open a game's folder in the system's file manager.
@@ -466,10 +591,56 @@ mod tests {
     }
 
     #[test]
+    fn a_file_outside_the_folder_is_only_one_the_player_chose() {
+        let game = Path::new("games").join("skull");
+        let outside = std::env::temp_dir().join("elsewhere.sav");
+        let mut chosen = HashSet::new();
+        assert_eq!(
+            file_path(&game, "first save", &chosen),
+            Ok(game.join("first save"))
+        );
+        // A name with a slash in it is a name, not a way out.
+        assert_eq!(
+            file_path(&game, "../escape", &chosen),
+            Ok(game.join("%2E.%2Fescape"))
+        );
+        let whole = outside.to_string_lossy().into_owned();
+        assert!(file_path(&game, &whole, &chosen).is_err());
+        chosen.insert(outside.clone());
+        assert_eq!(file_path(&game, &whole, &chosen), Ok(outside));
+    }
+
+    #[test]
+    fn a_dialog_is_asked_for_by_a_message() {
+        let folder = Path::new("games");
+        match take_message(
+            "dialog save skull.hxg Save%20game%20to%20file%20>",
+            folder,
+            &HashSet::new(),
+        ) {
+            Some(PageEvent::Dialog {
+                save,
+                folder: game,
+                prompt,
+            }) => {
+                assert!(save);
+                assert_eq!(game, folder.join("skull"));
+                assert_eq!(prompt, "Save game to file >");
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
     fn a_games_files_are_written_listed_and_deleted() {
         let folder = std::env::temp_dir().join(format!("hexicon-app-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&folder);
-        let send = |message: &str| take_message(message, &folder);
+        let none = HashSet::new();
+        let send = |message: &str| match take_message(message, &folder, &none) {
+            Some(PageEvent::Script(script)) => Some(script),
+            Some(other) => panic!("{other:?}"),
+            None => None,
+        };
         let one = BASE64.encode(b"one");
         let two = BASE64.encode(b"two");
         assert_eq!(send(&format!("write skull.hxg a%2Fb {one}")), None);

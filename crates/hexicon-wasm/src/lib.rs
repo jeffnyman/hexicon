@@ -8,7 +8,8 @@
 //! const game = new Game(imageBytes, "game.hxg", timeZoneName);
 //! let state = game.start();
 //! show(game.takeOutput());
-//! // state is "line", "key", "sleep", or "done". For "line":
+//! // state is "line", "key", "sleep", "file" (with setFileDialogs), or
+//! // "done". For "line":
 //! game.sendLine("look");
 //! state = game.resume();
 //! ```
@@ -22,7 +23,9 @@ use std::rc::Rc;
 
 use hexicon_host::pane::{self, PaneInfo, PaneSpec, Placement, Screen};
 use hexicon_host::rich::{self, Document, Event, Item, RichDisplay};
-use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, Time, file_attr, file_type};
+use hexicon_host::{
+    FileChoice, FileDialog, FileError, FileInfo, Host, Input, Sandbox, Time, file_attr, file_type,
+};
 use hexicon_image::Image;
 use hexicon_vm::{RunState, Vm};
 use wasm_bindgen::prelude::*;
@@ -34,6 +37,8 @@ enum Waiting {
     Line,
     Key,
     Sleep(u32),
+    /// A file, chosen in the page's dialog.
+    File,
 }
 
 /// What the game and the page pass between them.
@@ -62,6 +67,13 @@ struct Shared {
     /// document the game's markup makes, the main window's and the panes'.
     rich: Option<RichDisplay>,
     document: Document,
+    /// Whether the page shows a dialog for a file the game asks for.
+    file_dialogs: bool,
+    /// The dialog the game is waiting on: whether it is to save, and the
+    /// game's prompt.
+    file_asked: Option<(bool, String)>,
+    /// What the player chose in it, until the game takes it.
+    file_choice: Option<FileChoice>,
 }
 
 impl Shared {
@@ -210,6 +222,20 @@ impl Host for WebHost {
                 Input::Pending
             }
         }
+    }
+
+    fn choose_file(&mut self, prompt: &str, dialog: FileDialog) -> Option<FileChoice> {
+        let mut shared = self.0.borrow_mut();
+        if !shared.file_dialogs {
+            return None;
+        }
+        if let Some(choice) = shared.file_choice.take() {
+            shared.file_asked = None;
+            return Some(choice);
+        }
+        shared.file_asked = Some((dialog == FileDialog::Save, prompt.to_owned()));
+        shared.waiting = Waiting::File;
+        Some(FileChoice::Pending)
     }
 
     fn clear_screen(&mut self) {
@@ -397,6 +423,9 @@ impl Game {
             screen: Screen::new(24, 81, false),
             rich: None,
             document: Document::new(),
+            file_dialogs: false,
+            file_asked: None,
+            file_choice: None,
         }));
         let mut vm = Vm::new(&parsed, Box::new(WebHost(shared.clone())))
             .map_err(|error| JsError::new(&error.to_string()))?;
@@ -431,7 +460,8 @@ impl Game {
 
     /// Start the game, and run it until it needs something. Returns what
     /// it needs: `line` for a line of input, `key` for a keystroke,
-    /// `sleep` for a pause of `sleepMillis()`, or `done` if the game is
+    /// `sleep` for a pause of `sleepMillis()`, `file` for a file chosen in
+    /// a dialog (`fileDialog()` says which), or `done` if the game is
     /// over.
     pub fn start(&mut self) -> String {
         if self.started {
@@ -462,6 +492,7 @@ impl Game {
                 match waiting {
                     Waiting::Key => "key",
                     Waiting::Sleep(_) => "sleep",
+                    Waiting::File => "file",
                     _ => "line",
                 }
                 .to_owned()
@@ -491,6 +522,36 @@ impl Game {
         self.vm.flush_output();
         self.vm.close_files();
         "done".to_owned()
+    }
+
+    /// Say that the page shows a dialog of its own for a file the game
+    /// asks for. Without it the game asks for the file's name as a line.
+    /// When it has asked, `start` and `resume` return `file`.
+    #[wasm_bindgen(js_name = setFileDialogs)]
+    pub fn set_file_dialogs(&mut self, on: bool) {
+        self.shared.borrow_mut().file_dialogs = on;
+    }
+
+    /// The dialog the game is waiting on, as JSON: whether it is to save
+    /// a file, and the game's prompt.
+    #[wasm_bindgen(js_name = fileDialog)]
+    pub fn file_dialog(&self) -> String {
+        match &self.shared.borrow().file_asked {
+            Some((save, prompt)) => {
+                format!("{{\"save\":{save},\"prompt\":{}}}", json_string(prompt))
+            }
+            None => "null".to_owned(),
+        }
+    }
+
+    /// Give the game the file the player chose, by the name the game's
+    /// files go by, or nothing for none.
+    #[wasm_bindgen(js_name = sendFileChoice)]
+    pub fn send_file_choice(&mut self, name: Option<String>) {
+        self.shared.borrow_mut().file_choice = Some(match name {
+            Some(name) if !name.is_empty() => FileChoice::Chosen(name),
+            _ => FileChoice::Cancelled,
+        });
     }
 
     /// Give the game a line the player entered.

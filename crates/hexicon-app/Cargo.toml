@@ -20,6 +20,9 @@ wry = "0.58"
 # the user's folders.
 base64 = "0.23"
 dirs = "7"
+# The system's own dialog for a file the game asks for. On Linux it is
+# GTK's, which the web view needs already.
+rfd = { version = "0.18", default-features = false, features = ["gtk3"] }
 
 [lints]
 workspace = true

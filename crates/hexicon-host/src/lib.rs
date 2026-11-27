@@ -103,6 +103,27 @@ pub enum Input {
     Pending,
 }
 
+/// Which file dialog a program asks for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileDialog {
+    /// A file to read: one that is there.
+    Open,
+    /// A file to write: one that may not be there yet.
+    Save,
+}
+
+/// What the player did with a file dialog.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileChoice {
+    /// They chose a file: its name, as the host's file functions take it.
+    Chosen(String),
+    /// They chose none.
+    Cancelled,
+    /// They have not chosen yet. As with [`Input::Pending`], the VM stops
+    /// and asks again when it is resumed.
+    Pending,
+}
+
 /// The time on the host's clock.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Time {
@@ -252,6 +273,15 @@ pub trait Host {
     /// brackets, such as `[up]` or `[f1]`.
     fn read_key(&mut self) -> Input {
         Input::End
+    }
+
+    /// Ask the player for a file in a dialog of the system's own, with
+    /// the program's prompt as its title, or `None` for a host that has
+    /// no such dialog: the VM then asks for the file's name as a line of
+    /// input, after the prompt, as a console of text does.
+    fn choose_file(&mut self, prompt: &str, dialog: FileDialog) -> Option<FileChoice> {
+        let _ = (prompt, dialog);
+        None
     }
 
     /// Clear the main console.
