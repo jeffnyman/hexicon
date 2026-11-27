@@ -41,6 +41,7 @@ body {
 
 header {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 1rem;
   padding: 0.6rem 1rem;
@@ -77,6 +78,96 @@ h1 {
 
 #game-name {
   color: var(--muted);
+}
+
+.header-end {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+header button,
+dialog button {
+  font: inherit;
+  padding: 0.15rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.3rem;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+/* The game's part of the page: what it shows, and nothing else. */
+#game {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+dialog {
+  max-width: min(36rem, calc(100vw - 2rem));
+  border: 1px solid var(--rule);
+  border-radius: 0.5rem;
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, sans-serif;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+
+#settings form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1rem;
+}
+
+#settings h2,
+#settings .hint,
+#settings .wide,
+#settings .buttons {
+  grid-column: 1 / -1;
+}
+
+#settings h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+#settings .hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+#settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+#settings label.check {
+  flex-direction: row;
+  align-items: center;
+}
+
+#settings textarea {
+  font: 0.9rem ui-monospace, Consolas, monospace;
+}
+
+dialog .buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 30rem) {
+  #settings form {
+    grid-template-columns: 1fr;
+  }
 }
 
 #status {
@@ -174,14 +265,15 @@ h1 {
   margin-top: 1.5rem;
 }
 
-/* The game's text comes already broken into lines that fit the window:
-   the page tells the game how many characters it has room for, up to 80. */
-#transcript {
+/* On a display of plain text, the game's text comes already broken into
+   lines that fit the window: the page tells the game how many characters
+   it has room for, up to 80. */
+body:not(.rich) #transcript {
   display: inline;
   white-space: pre;
 }
 
-#transcript .typed {
+body:not(.rich) #transcript .typed {
   color: var(--accent);
 }
 
@@ -205,4 +297,113 @@ h1 {
 #status-left {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ---- the rich display ----
+
+   Its defaults are in the "base" layer, which the player's settings and
+   then the game's style sheets come after (see main.js), so that either
+   can change any of them. */
+@layer base {
+  #game {
+    --hx-bg: var(--page);
+    --hx-text: var(--ink);
+    --hx-link: var(--accent);
+    --hx-hlink: var(--accent);
+    --hx-alink: var(--accent);
+    --hx-input: var(--accent);
+    --hx-status-bg: var(--bar);
+    --hx-status-text: var(--bar-ink);
+    font: 1.05rem/1.55 Georgia, "Times New Roman", serif;
+  }
+
+  body.rich #screen {
+    background: var(--hx-bg);
+    color: var(--hx-text);
+    background-size: cover;
+  }
+
+  body.rich #transcript {
+    max-width: 42em;
+    margin: 0 auto;
+    overflow-wrap: break-word;
+  }
+
+  #game a[data-command] {
+    color: var(--hx-link);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+    cursor: pointer;
+  }
+
+  #game a[data-command]:hover {
+    color: var(--hx-hlink);
+  }
+
+  #game a.plain {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  #game img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  #game area {
+    cursor: pointer;
+  }
+
+  #game .hx-input,
+  #game kbd.typed {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.95em;
+    color: var(--hx-input);
+  }
+
+  #game .hx-right {
+    float: right;
+  }
+
+  body.rich #command {
+    width: 24em;
+    max-width: 60%;
+    color: var(--hx-input);
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.95em;
+  }
+
+  /* A text pane: the status line's colors unless the game gives it its
+     own, and as tall as what is in it. */
+  .rich-pane {
+    padding: 0.3rem 1rem;
+    background: var(--hx-status-bg);
+    color: var(--hx-status-text);
+    font-family: system-ui, sans-serif;
+    font-size: 0.95rem;
+    display: flow-root;
+  }
+
+  .rich-pane a[data-command] {
+    color: inherit;
+  }
+
+  body.rich .panes {
+    border: 0;
+  }
+
+  .grid-pane {
+    white-space: pre;
+    padding: 0 1rem;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+
+  .grid-pane.status {
+    background: var(--hx-status-bg);
+    color: var(--hx-status-text);
+  }
+
+  #about-content img {
+    max-width: 100%;
+  }
 }

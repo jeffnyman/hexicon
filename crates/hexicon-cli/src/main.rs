@@ -238,13 +238,6 @@ fn main() -> ExitCode {
     }
 }
 
-/// Write out what a rich display's checker has given since last time, as
-/// the document's text.
-fn emit_items(checker: &mut hexicon_host::rich::Checker) {
-    let text: String = checker.take().iter().map(|item| item.markup()).collect();
-    emit(&text);
-}
-
 /// Write to standard output. A reader that stops early, such as a pager, is
 /// not an error.
 fn emit(text: &str) {
@@ -330,8 +323,31 @@ struct Console {
     /// For a clock that reads the same on every run, the time it reads
     /// next, in milliseconds since 1970 began.
     clock: Option<i64>,
-    /// On a rich display, the checker the program's markup goes through.
-    rich: Option<hexicon_host::rich::Checker>,
+    /// On a rich display, the checkers the program's markup goes through,
+    /// and its panes.
+    rich: Option<RichConsole>,
+}
+
+/// A rich display that writes the document it is given, checked, as text.
+struct RichConsole {
+    /// The document, the main window's and the panes'.
+    document: hexicon_host::rich::Document,
+    /// The panes, laid out on a screen of the plain console's size.
+    screen: pane::Screen,
+}
+
+impl RichConsole {
+    fn new() -> Self {
+        RichConsole {
+            document: hexicon_host::rich::Document::new(),
+            screen: pane::Screen::new(24, 81, false),
+        }
+    }
+
+    /// Write out what the document has been given since last time.
+    fn emit(&mut self) {
+        emit(&self.document.take_text());
+    }
 }
 
 impl Console {
@@ -423,16 +439,22 @@ impl Host for Console {
     }
 
     fn print_markup(&mut self, markup: &str) {
-        if let Some(checker) = &mut self.rich {
-            checker.write(markup);
-            emit_items(checker);
+        if let Some(rich) = &mut self.rich {
+            rich.document.write(markup);
+            rich.emit();
         }
     }
 
     fn print_input(&mut self, text: &str) {
-        if let Some(checker) = &mut self.rich {
-            checker.input(text);
-            emit_items(checker);
+        if let Some(rich) = &mut self.rich {
+            rich.document.input(text);
+            rich.emit();
+        }
+    }
+
+    fn pane_write_markup(&mut self, id: u32, markup: &str) {
+        if let Some(rich) = &mut self.rich {
+            rich.document.pane_write(id, markup);
         }
     }
 
@@ -698,10 +720,13 @@ impl Host for Console {
 
     // Panes are for a terminal. Plain output has none, as the
     // reference's plain console has none.
+    // A rich display has panes of its own.
     fn has_panes(&self) -> bool {
-        self.terminal
-            .as_ref()
-            .is_some_and(terminal::Terminal::has_panes)
+        self.rich.is_some()
+            || self
+                .terminal
+                .as_ref()
+                .is_some_and(terminal::Terminal::has_panes)
     }
 
     fn pane_create(
@@ -710,14 +735,32 @@ impl Host for Console {
         placement: pane::Placement,
         spec: pane::PaneSpec,
     ) -> Option<u32> {
+        if let Some(rich) = &mut self.rich {
+            let id = rich.screen.create(parent, placement, spec)?;
+            rich.document.pane_created(id);
+            rich.emit();
+            return Some(id);
+        }
         self.terminal.as_mut()?.create_pane(parent, placement, spec)
     }
 
     fn pane_delete(&mut self, id: u32) {
+        if let Some(rich) = &mut self.rich {
+            rich.screen.delete(id);
+            rich.document.pane_deleted(id);
+            rich.emit();
+            return;
+        }
         self.with_panes(|screen| screen.delete(id));
     }
 
     fn pane_clear(&mut self, id: u32) {
+        if let Some(rich) = &mut self.rich {
+            rich.screen.clear(id);
+            rich.document.pane_cleared(id);
+            rich.emit();
+            return;
+        }
         self.with_panes_later(|screen| screen.clear(id));
     }
 
@@ -726,6 +769,10 @@ impl Host for Console {
     }
 
     fn pane_flush(&mut self, _id: u32) {
+        if let Some(rich) = &mut self.rich {
+            rich.document.pane_flush();
+            rich.emit();
+        }
         if let Some(terminal) = &mut self.terminal {
             terminal.flush_panes();
         }
@@ -744,6 +791,9 @@ impl Host for Console {
     }
 
     fn pane_info(&mut self, id: u32) -> Option<pane::PaneInfo> {
+        if let Some(rich) = &mut self.rich {
+            return rich.screen.info(id);
+        }
         self.terminal.as_mut()?.pane_info(id)
     }
 
@@ -856,7 +906,7 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
         stalled: false,
         entropy: options.seed_random,
         clock: options.clock,
-        rich: options.rich.then(hexicon_host::rich::Checker::new),
+        rich: options.rich.then(RichConsole::new),
     };
     let mut vm = match Vm::new(&image, Box::new(console)) {
         Ok(vm) => vm,

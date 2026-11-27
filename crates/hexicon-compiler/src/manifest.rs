@@ -235,6 +235,7 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
         "modules",
         "image",
         "resources",
+        "stylesheets",
     ])?;
     let mut args: Vec<String> = Vec::new();
     let mut push = |items: &[&str]| args.extend(items.iter().map(|&s| s.to_owned()));
@@ -335,7 +336,10 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
         }
     }
 
-    let resources = game.strings("resources")?;
+    // A game's style sheets are resources too: a rich display applies
+    // every resource whose name ends in ".css", in order.
+    let mut resources = game.strings("resources")?;
+    resources.extend(game.strings("stylesheets")?);
     if !resources.is_empty() {
         push(&["-res"]);
         for resource in resources {

@@ -131,10 +131,19 @@ impl Vm {
             22 => {
                 Self::check_argc_range(argc, 1, 32767)?;
                 let slot = self.pane_arg(self.arg(0))?;
+                let rich = self.host.rich_display().is_some()
+                    && self.io.panes[slot].as_ref().expect("pane").kind != kind::GRID;
                 for index in 1..argc as usize {
                     let Some(text) = self.say_text(self.arg(index))? else {
                         continue;
                     };
+                    if rich {
+                        // A rich display takes the pane's markup as it is.
+                        let host = self.io.panes[slot].as_ref().expect("pane").host;
+                        self.host
+                            .pane_write_markup(host, &String::from_utf8_lossy(&text));
+                        continue;
+                    }
                     self.sync_pane_width(slot);
                     let pane = self.io.panes[slot].as_mut().expect("pane");
                     pane.formatter.format_text(&text);

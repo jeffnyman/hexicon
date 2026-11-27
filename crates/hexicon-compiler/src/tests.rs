@@ -3183,6 +3183,26 @@ fn resources_come_from_libraries_and_the_game() {
 }
 
 #[test]
+fn a_games_style_sheets_are_resources() {
+    let mut files = Files::default()
+        .with(
+            "game/hexicon.toml",
+            "[game]\nsources = [\"start\"]\nresources = [\"cave.jpg\"]\n\
+             stylesheets = [\"skull.css\"]\n",
+        )
+        .with("game/start.hxn", "");
+    let project = read(&mut files, &["-nodef", "-f", "game"]).expect("a project");
+    let files: Vec<&str> = project.resources.iter().map(|r| r.file.as_str()).collect();
+    assert_eq!(
+        files,
+        [
+            sys_path(&["game", "cave.jpg"]).as_str(),
+            sys_path(&["game", "skull.css"]).as_str()
+        ]
+    );
+}
+
+#[test]
 fn a_folder_of_resources_is_the_files_in_it() {
     use crate::{DirEntry, Resource, ResourceSpec};
     let entry = |name: &str, is_dir: bool, hidden: bool| DirEntry {

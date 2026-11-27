@@ -17,6 +17,8 @@
 //   HEXICON_CHECK_SIZE=390x800   the size of the window, for trying a
 //                                narrow one
 //   HEXICON_CHECK_PICTURE=a.png  save a picture of the page at the end
+//   HEXICON_CHECK_BEFORE_PICTURE=js  run this in the page first, such as
+//                                a click that opens a dialog
 
 const { spawn } = require("child_process");
 const fs = require("fs");
@@ -183,6 +185,11 @@ async function main() {
   process.stderr.write(
     `longest line: ${longest} characters; scrolls sideways: ${sideways ? "yes" : "no"}\n`,
   );
+  if (process.env.HEXICON_CHECK_BEFORE_PICTURE) {
+    // Something to do to the page first, such as opening a dialog.
+    await evaluate(process.env.HEXICON_CHECK_BEFORE_PICTURE);
+    await sleep(300);
+  }
   if (process.env.HEXICON_CHECK_PICTURE) {
     const picture = await send("Page.captureScreenshot", { format: "png" });
     fs.writeFileSync(process.env.HEXICON_CHECK_PICTURE, Buffer.from(picture.result.data, "base64"));
@@ -192,6 +199,9 @@ async function main() {
   );
   if (files) {
     process.stderr.write(`stored: ${files}\n`);
+  }
+  for (const problem of problems) {
+    process.stderr.write(`problem: ${problem}\n`);
   }
   socket.close();
 }

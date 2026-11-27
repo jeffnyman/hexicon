@@ -21,6 +21,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::rc::Rc;
 
 use hexicon_host::pane::{self, PaneInfo, PaneSpec, Placement, Screen};
+use hexicon_host::rich::{self, Document, Event, Item, RichDisplay};
 use hexicon_host::{FileError, FileInfo, Host, Input, Sandbox, Time, file_attr, file_type};
 use hexicon_image::Image;
 use hexicon_vm::{RunState, Vm};
@@ -57,6 +58,10 @@ struct Shared {
     width: Option<usize>,
     /// The panes, laid out on a screen as big as the page.
     screen: Screen,
+    /// On a rich display, what it can do and the player's choices, and the
+    /// document the game's markup makes, the main window's and the panes'.
+    rich: Option<RichDisplay>,
+    document: Document,
 }
 
 impl Shared {
@@ -73,6 +78,29 @@ struct WebHost(Rc<RefCell<Shared>>);
 impl Host for WebHost {
     fn print(&mut self, text: &str) {
         self.0.borrow_mut().output.push_str(text);
+    }
+
+    fn rich_display(&self) -> Option<RichDisplay> {
+        self.0.borrow().rich
+    }
+
+    fn print_markup(&mut self, markup: &str) {
+        self.0.borrow_mut().document.write(markup);
+    }
+
+    fn print_input(&mut self, text: &str) {
+        self.0.borrow_mut().document.input(text);
+    }
+
+    fn pane_write_markup(&mut self, id: u32, markup: &str) {
+        self.0.borrow_mut().document.pane_write(id, markup);
+    }
+
+    fn pane_flush(&mut self, _id: u32) {
+        let mut shared = self.0.borrow_mut();
+        if shared.rich.is_some() {
+            shared.document.pane_flush();
+        }
     }
 
     fn random_bytes(&mut self, buffer: &mut [u8]) {
@@ -241,15 +269,28 @@ impl Host for WebHost {
         placement: Placement,
         spec: PaneSpec,
     ) -> Option<u32> {
-        self.0.borrow_mut().screen.create(parent, placement, spec)
+        let mut shared = self.0.borrow_mut();
+        let id = shared.screen.create(parent, placement, spec)?;
+        if shared.rich.is_some() {
+            shared.document.pane_created(id);
+        }
+        Some(id)
     }
 
     fn pane_delete(&mut self, id: u32) {
-        self.0.borrow_mut().screen.delete(id);
+        let mut shared = self.0.borrow_mut();
+        shared.screen.delete(id);
+        if shared.rich.is_some() {
+            shared.document.pane_deleted(id);
+        }
     }
 
     fn pane_clear(&mut self, id: u32) {
-        self.0.borrow_mut().screen.clear(id);
+        let mut shared = self.0.borrow_mut();
+        shared.screen.clear(id);
+        if shared.rich.is_some() {
+            shared.document.pane_cleared(id);
+        }
     }
 
     fn pane_write(&mut self, id: u32, text: &str) {
@@ -304,6 +345,10 @@ pub struct Game {
     name: String,
     started: bool,
     finished: bool,
+    /// The image, for the resources in it.
+    image: Vec<u8>,
+    /// Each resource's name, and where it is in the image, in order.
+    resources: Vec<(String, std::ops::Range<usize>)>,
 }
 
 #[wasm_bindgen]
@@ -350,6 +395,8 @@ impl Game {
             temp_count: 0,
             width: None,
             screen: Screen::new(24, 81, false),
+            rich: None,
+            document: Document::new(),
         }));
         let mut vm = Vm::new(&parsed, Box::new(WebHost(shared.clone())))
             .map_err(|error| JsError::new(&error.to_string()))?;
@@ -363,12 +410,22 @@ impl Game {
                 vm.add_resource(&resource.name, contents);
             }
         }
+        let resources = parsed
+            .resources
+            .iter()
+            .map(|resource| {
+                let end = resource.offset + resource.size as usize;
+                (resource.name.clone(), resource.offset..end)
+            })
+            .collect();
         Ok(Game {
             vm,
             shared,
             name: name.to_owned(),
             started: false,
             finished: false,
+            image: image.to_vec(),
+            resources,
         })
     }
 
@@ -421,8 +478,15 @@ impl Game {
         self.finished = true;
         if let Some(message) = error {
             let mut shared = self.shared.borrow_mut();
-            shared.output.push_str(&message);
-            shared.output.push('\n');
+            if shared.rich.is_some() {
+                // Shown as it is, not as markup.
+                let text = message.replace('&', "&amp;").replace('<', "&lt;");
+                shared.document.write(&text);
+                shared.document.write("\n");
+            } else {
+                shared.output.push_str(&message);
+                shared.output.push('\n');
+            }
         }
         self.vm.flush_output();
         self.vm.close_files();
@@ -504,7 +568,7 @@ impl Game {
                 .map(|line| json_string(line))
                 .collect();
             out.push_str(&format!(
-                "{{\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"status\":{},\"lines\":[{}]}}",
+                "{{\"id\":{id},\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"status\":{},\"lines\":[{}]}}",
                 rect.x,
                 rect.y,
                 rect.width,
@@ -562,5 +626,143 @@ impl Game {
     #[wasm_bindgen(js_name = takeChangedFiles)]
     pub fn take_changed_files(&mut self) -> Vec<String> {
         std::mem::take(&mut self.shared.borrow_mut().changed)
+    }
+
+    // ---- the rich display ----
+
+    /// Make the page a rich display, before the game starts: one that
+    /// shows the game's markup, checked against Hexicon's profile, and
+    /// gets it from `takeDocument` instead of `takeOutput`. The rest say
+    /// what the player has chosen; they can be changed with
+    /// `setPlayerChoices`.
+    #[wasm_bindgen(js_name = setRichDisplay)]
+    pub fn set_rich_display(
+        &mut self,
+        show_pictures: bool,
+        play_sounds: bool,
+        play_music: bool,
+        links: bool,
+    ) {
+        self.shared.borrow_mut().rich = Some(RichDisplay {
+            pictures: true,
+            sounds: true,
+            show_pictures,
+            play_sounds,
+            play_music,
+            links,
+        });
+    }
+
+    /// Change what the player has chosen. The game hears of it the next
+    /// time it asks (`systemInfo`).
+    #[wasm_bindgen(js_name = setPlayerChoices)]
+    pub fn set_player_choices(
+        &mut self,
+        show_pictures: bool,
+        play_sounds: bool,
+        play_music: bool,
+        links: bool,
+    ) {
+        if let Some(display) = &mut self.shared.borrow_mut().rich {
+            display.show_pictures = show_pictures;
+            display.play_sounds = play_sounds;
+            display.play_music = play_music;
+            display.links = links;
+        }
+    }
+
+    /// The checked document since this was last called, as JSON: a list
+    /// of items for the main window, each a list, and of the panes'.
+    /// `["t", text]` is text; `["o", name, attrs]` opens an element and
+    /// `["c", name]` closes the one opened last; `["v", name, attrs]` is an
+    /// element that holds nothing; `["title", text]` is the window's
+    /// title; and `["in", text]` a line the player typed, from a script.
+    /// `attrs` is a list of `[name, value]`, with `null` for an attribute
+    /// without a value. `["pane", id, items]` is what a text pane is to
+    /// show next, as a list of items; and `["pane-create", id]`,
+    /// `["pane-delete", id]`, and `["pane-clear", id]` say a pane was made,
+    /// removed, or emptied (see `panes` for where each is).
+    #[wasm_bindgen(js_name = takeDocument)]
+    pub fn take_document(&mut self) -> String {
+        let events = self.shared.borrow_mut().document.take();
+        let list: Vec<String> = events.iter().map(event_json).collect();
+        format!("[{}]", list.join(","))
+    }
+
+    /// The document since this was last called, as the profile's markup,
+    /// one line to each line break, block, and line typed, and a pane's as
+    /// `<pane id="1">...</pane>`: what `hexicon run --rich` writes, for
+    /// tests.
+    #[wasm_bindgen(js_name = takeDocumentText)]
+    pub fn take_document_text(&mut self) -> String {
+        self.shared.borrow_mut().document.take_text()
+    }
+
+    /// The contents of one of the game's resources: a picture, a sound,
+    /// a font, a style sheet.
+    pub fn resource(&self, name: &str) -> Option<Vec<u8>> {
+        let (_, range) = self.resources.iter().find(|(n, _)| n == name)?;
+        self.image.get(range.clone()).map(<[u8]>::to_vec)
+    }
+
+    /// The game's style sheets, checked against the profile and put under
+    /// `scope` (the page's element for the game), one after another: every
+    /// resource whose name ends in ".css", in order.
+    #[wasm_bindgen(js_name = styleSheets)]
+    pub fn style_sheets(&self, scope: &str) -> String {
+        let mut out = String::new();
+        for (name, range) in &self.resources {
+            if !name.to_ascii_lowercase().ends_with(".css") {
+                continue;
+            }
+            if let Some(bytes) = self.image.get(range.clone()) {
+                out.push_str(&rich::check_stylesheet(
+                    &String::from_utf8_lossy(bytes),
+                    scope,
+                ));
+            }
+        }
+        out
+    }
+}
+
+/// An event of the document as JSON.
+fn event_json(event: &Event) -> String {
+    match event {
+        Event::Main(item) => item_json(item),
+        Event::PaneCreated(id) => format!("[\"pane-create\",{id}]"),
+        Event::PaneDeleted(id) => format!("[\"pane-delete\",{id}]"),
+        Event::PaneCleared(id) => format!("[\"pane-clear\",{id}]"),
+        Event::Pane(id, items) => {
+            let list: Vec<String> = items.iter().map(item_json).collect();
+            format!("[\"pane\",{id},[{}]]", list.join(","))
+        }
+    }
+}
+
+/// An item of the document as JSON.
+fn item_json(item: &Item) -> String {
+    let attrs = |attrs: &[rich::Attr]| {
+        let list: Vec<String> = attrs
+            .iter()
+            .map(|(name, value)| {
+                format!(
+                    "[{},{}]",
+                    json_string(name),
+                    value
+                        .as_deref()
+                        .map_or_else(|| "null".to_owned(), json_string)
+                )
+            })
+            .collect();
+        format!("[{}]", list.join(","))
+    };
+    match item {
+        Item::Text(text) => format!("[\"t\",{}]", json_string(text)),
+        Item::Open(name, a) => format!("[\"o\",{},{}]", json_string(name), attrs(a)),
+        Item::Close(name) => format!("[\"c\",{}]", json_string(name)),
+        Item::Void(name, a) => format!("[\"v\",{},{}]", json_string(name), attrs(a)),
+        Item::Title(text) => format!("[\"title\",{}]", json_string(text)),
+        Item::Input(text) => format!("[\"in\",{}]", json_string(text)),
     }
 }

@@ -4,9 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hexicon</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="style.css" />
+    <!-- The player's settings and the game's style sheets, in their layers. -->
+    <style id="styles"></style>
   </head>
-  <body>
+  <body class="rich">
     <header>
       <h1>Hexicon</h1>
       <label class="choose">
@@ -14,6 +17,10 @@
         <input id="file" type="file" accept=".hxg" />
       </label>
       <span id="game-name"></span>
+      <span class="header-end">
+        <button id="about" type="button" hidden>About this game</button>
+        <button id="settings-open" type="button">Settings</button>
+      </span>
     </header>
 
     <div id="status" hidden>
@@ -21,21 +28,81 @@
       <span id="status-right"></span>
     </div>
 
-    <div id="panes-top" class="panes" hidden></div>
+    <!-- Everything the game shows. Its style sheets reach no further. -->
+    <div id="game">
+      <div id="panes-top" class="panes" hidden></div>
 
-    <main id="screen" aria-live="polite">
-      <p id="welcome">
-        Choose a game file (<code>.hxg</code>) to play it here. The game runs in this
-        page; nothing is sent anywhere. Saved games are kept in this browser.
-      </p>
-      <div id="transcript"></div>
-      <form id="entry" hidden autocomplete="off">
-        <input id="command" type="text" aria-label="Command" spellcheck="false" autocapitalize="off" />
-      </form>
-      <p id="notice" hidden></p>
-    </main>
-    <div id="panes-bottom" class="panes" hidden></div>
+      <main id="screen" aria-live="polite">
+        <p id="welcome">
+          Choose a game file (<code>.hxg</code>) to play it here. The game runs in this
+          page; nothing is sent anywhere. Saved games are kept in this browser.
+        </p>
+        <div id="transcript"></div>
+        <form id="entry" hidden autocomplete="off">
+          <input id="command" type="text" aria-label="Command" spellcheck="false" autocapitalize="off" />
+        </form>
+        <p id="notice" hidden></p>
+      </main>
+      <div id="panes-bottom" class="panes" hidden></div>
+    </div>
     <button id="more" type="button" hidden>More &#9662;</button>
+
+    <dialog id="settings" aria-labelledby="settings-title">
+      <form method="dialog">
+        <h2 id="settings-title">Settings</h2>
+        <p class="hint">For every game you play here. A game's own look comes first, unless you say yours does.</p>
+        <label>Colors
+          <select name="theme">
+            <option value="game">The game's</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="contrast">High contrast</option>
+          </select>
+        </label>
+        <label>Font
+          <select name="font">
+            <option value="game">The game's</option>
+            <option value="serif">Serif</option>
+            <option value="sans">Sans serif</option>
+            <option value="mono">Monospace</option>
+          </select>
+        </label>
+        <label>Size <input name="size" type="range" min="70" max="200" step="10" /></label>
+        <label>Width of the text
+          <select name="width">
+            <option value="game">The game's</option>
+            <option value="narrow">Narrow</option>
+            <option value="medium">Medium</option>
+            <option value="wide">Wide</option>
+            <option value="full">The whole window</option>
+          </select>
+        </label>
+        <label class="check"><input name="pictures" type="checkbox" /> Pictures</label>
+        <label class="check"><input name="sounds" type="checkbox" /> Sounds</label>
+        <label class="check"><input name="music" type="checkbox" /> Music</label>
+        <label class="check"><input name="links" type="checkbox" /> Links in the text</label>
+        <label class="check"><input name="mineFirst" type="checkbox" /> My colors and font come first</label>
+        <label>Display
+          <select name="display">
+            <option value="rich">Pictures, sounds, and styled text</option>
+            <option value="text">Plain text, as a terminal shows it</option>
+          </select>
+        </label>
+        <p id="display-note" class="hint" hidden>This takes effect when a game is next opened.</p>
+        <label class="wide">My own style sheet (CSS)
+          <textarea name="css" rows="5" spellcheck="false" placeholder="#game .roomname { font-variant: small-caps }"></textarea>
+        </label>
+        <div class="buttons">
+          <button id="settings-reset" type="button">Start again</button>
+          <button id="settings-close" type="button">Done</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="about-dialog">
+      <div id="about-content"></div>
+      <div class="buttons"><button id="about-close" type="button">Close</button></div>
+    </dialog>
 
     <script type="module" src="main.js"></script>
   </body>

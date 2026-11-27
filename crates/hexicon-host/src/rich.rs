@@ -443,14 +443,29 @@ fn is_command_link(href: &str) -> bool {
 /// The declarations of a `style` attribute that the profile allows, or
 /// `None` if none are left.
 fn check_style(style: &str) -> Option<String> {
+    let kept = check_declarations(style, CSS_PROPERTIES);
+    if kept.is_empty() {
+        None
+    } else {
+        Some(kept.join("; "))
+    }
+}
+
+/// The declarations, of those listed, that the profile allows, each as
+/// `property: value`. A game's `!important` is taken out: the player's
+/// own choices are the only ones that may come first.
+fn check_declarations(declarations: &str, allowed: &[&str]) -> Vec<String> {
     let mut kept = Vec::new();
-    for decl in style.split(';') {
+    for decl in declarations.split(';') {
         let Some((prop, value)) = decl.split_once(':') else {
             continue;
         };
         let prop = prop.trim().to_ascii_lowercase();
-        let value = value.trim();
-        if value.is_empty() || !CSS_PROPERTIES.contains(&prop.as_str()) {
+        let mut value = value.trim();
+        if let Some(i) = value.to_ascii_lowercase().find("!important") {
+            value = value[..i].trim_end();
+        }
+        if value.is_empty() || !allowed.contains(&prop.as_str()) {
             continue;
         }
         if !css_value_allowed(&prop, value) {
@@ -458,11 +473,191 @@ fn check_style(style: &str) -> Option<String> {
         }
         kept.push(format!("{prop}: {value}"));
     }
-    if kept.is_empty() {
-        None
-    } else {
-        Some(kept.join("; "))
+    kept
+}
+
+/// What a `@font-face` rule may say.
+const FONT_FACE_PROPERTIES: &[&str] = &[
+    "font-family",
+    "src",
+    "font-weight",
+    "font-style",
+    "font-display",
+    "unicode-range",
+];
+
+/// The words a `@media` query may use.
+const MEDIA_WORDS: &[&str] = &[
+    "all",
+    "screen",
+    "print",
+    "and",
+    "not",
+    "only",
+    "min-width",
+    "max-width",
+    "width",
+    "orientation",
+    "portrait",
+    "landscape",
+    "prefers-color-scheme",
+    "light",
+    "dark",
+    "prefers-reduced-motion",
+    "reduce",
+    "no-preference",
+    "prefers-contrast",
+    "more",
+    "less",
+];
+
+/// A game's style sheet, held to the profile, as text: each rule with
+/// only the properties the profile lists, `@media` with only its
+/// queries, `@font-face` with fonts among the game's resources, and every
+/// other at-rule gone. Each selector is put under `scope`, the page's
+/// element for the game, so a game styles its own text and not the
+/// page's: `body`, `html`, and `:root` are `scope` itself.
+pub fn check_stylesheet(css: &str, scope: &str) -> String {
+    let css = strip_comments(css);
+    let mut out = String::new();
+    check_rules(&css, scope, &mut out, 0);
+    out
+}
+
+fn strip_comments(css: &str) -> String {
+    let mut out = String::with_capacity(css.len());
+    let mut rest = css;
+    while let Some(i) = rest.find("/*") {
+        out.push_str(&rest[..i]);
+        match rest[i + 2..].find("*/") {
+            Some(j) => rest = &rest[i + 2 + j + 2..],
+            None => return out,
+        }
     }
+    out.push_str(rest);
+    out
+}
+
+fn check_rules(css: &str, scope: &str, out: &mut String, depth: usize) {
+    let mut rest = css;
+    loop {
+        rest = rest.trim_start();
+        if rest.is_empty() {
+            return;
+        }
+        let brace = rest.find('{');
+        // An at-rule that ends with ";" and has no block: @import,
+        // @charset, @namespace. All go.
+        if rest.starts_with('@') {
+            if let Some(semi) = rest.find(';') {
+                if brace.is_none_or(|b| semi < b) {
+                    rest = &rest[semi + 1..];
+                    continue;
+                }
+            }
+        }
+        let Some(open) = brace else {
+            return;
+        };
+        let prelude = rest[..open].trim();
+        let Some(len) = block_length(&rest[open..]) else {
+            return;
+        };
+        let body = &rest[open + 1..open + len - 1];
+        rest = &rest[open + len..];
+
+        if let Some(at) = prelude.strip_prefix('@') {
+            let (keyword, query) = at.split_once(char::is_whitespace).unwrap_or((at, ""));
+            match keyword.to_ascii_lowercase().as_str() {
+                "media" if depth < 4 && media_query_allowed(query) => {
+                    let mut inner = String::new();
+                    check_rules(body, scope, &mut inner, depth + 1);
+                    if !inner.is_empty() {
+                        out.push_str(&format!("@media {} {{\n{inner}}}\n", query.trim()));
+                    }
+                }
+                "font-face" => {
+                    let kept = check_declarations(body, FONT_FACE_PROPERTIES);
+                    if kept.iter().any(|d| d.starts_with("src:")) {
+                        out.push_str(&format!("@font-face {{ {} }}\n", kept.join("; ")));
+                    }
+                }
+                _ => {}
+            }
+            continue;
+        }
+
+        let selectors = scope_selectors(prelude, scope);
+        let kept = check_declarations(body, CSS_PROPERTIES);
+        if !selectors.is_empty() && !kept.is_empty() {
+            out.push_str(&format!("{selectors} {{ {} }}\n", kept.join("; ")));
+        }
+    }
+}
+
+/// The length of the block that starts at a "{", to its matching "}"
+/// included.
+fn block_length(css: &str) -> Option<usize> {
+    let mut depth = 0;
+    for (i, c) in css.char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn media_query_allowed(query: &str) -> bool {
+    query
+        .split(|c: char| c.is_whitespace() || "(),:".contains(c))
+        .filter(|word| !word.is_empty())
+        .all(|word| {
+            let word = word.to_ascii_lowercase();
+            MEDIA_WORDS.contains(&word.as_str())
+                || word.chars().all(|c| c.is_ascii_digit() || c == '.')
+                || ["px", "em", "rem", "ch"].iter().any(|unit| {
+                    word.strip_suffix(unit).is_some_and(|n| {
+                        !n.is_empty() && n.chars().all(|c| c.is_ascii_digit() || c == '.')
+                    })
+                })
+        })
+}
+
+/// Selectors put under the scope. One with anything that could reach
+/// outside a selector is dropped.
+fn scope_selectors(prelude: &str, scope: &str) -> String {
+    let mut kept = Vec::new();
+    for selector in prelude.split(',') {
+        let selector = selector.trim();
+        if selector.is_empty() || selector.contains(['<', '\\', ';', '@']) {
+            continue;
+        }
+        let (first, rest) = match selector.find(|c: char| c.is_whitespace() || ">+~".contains(c)) {
+            Some(i) => (&selector[..i], &selector[i..]),
+            None => (selector, ""),
+        };
+        let first_lower = first.to_ascii_lowercase();
+        let scoped = if ["body", "html", ":root"].contains(&first_lower.as_str()) {
+            format!("{scope}{rest}")
+        } else if let Some(more) = first_lower
+            .strip_prefix("body")
+            .filter(|m| m.starts_with(['.', ':', '[']))
+        {
+            // body.dark, body:hover: the scope with the rest of it.
+            format!("{scope}{}{rest}", &first[first.len() - more.len()..])
+        } else {
+            format!("{scope} {selector}")
+        };
+        kept.push(scoped);
+    }
+    kept.join(", ")
 }
 
 fn css_value_allowed(prop: &str, value: &str) -> bool {
@@ -512,6 +707,7 @@ enum State {
 }
 
 /// Reads what a program writes, and gives out the checked document.
+#[derive(Debug)]
 pub struct Checker {
     state: State,
     tag: String,
@@ -1094,6 +1290,135 @@ fn decode_entities(value: &str) -> String {
     out
 }
 
+/// What happens on a rich display, in order: the main window's items, and
+/// the panes'.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Event {
+    /// Something for the main window.
+    Main(Item),
+    /// A pane was made.
+    PaneCreated(u32),
+    /// A pane was removed.
+    PaneDeleted(u32),
+    /// A pane's text was removed.
+    PaneCleared(u32),
+    /// Something for a text pane: what was written to it since it was
+    /// last shown.
+    Pane(u32, Vec<Item>),
+}
+
+impl Event {
+    /// The event as text: a main window's item as [`Item::markup`]
+    /// writes it, and a pane's as `<pane id="1">...</pane>`, on a line of
+    /// its own.
+    pub fn markup(&self) -> String {
+        match self {
+            Event::Main(item) => item.markup(),
+            Event::PaneCreated(id) => format!("<pane id=\"{id}\" create></pane>\n"),
+            Event::PaneDeleted(id) => format!("<pane id=\"{id}\" delete></pane>\n"),
+            Event::PaneCleared(id) => format!("<pane id=\"{id}\" clear></pane>\n"),
+            Event::Pane(id, items) => {
+                let text: String = items.iter().map(Item::markup).collect();
+                format!("<pane id=\"{id}\">{text}</pane>\n")
+            }
+        }
+    }
+}
+
+/// A rich display's document: the main window's and each pane's, checked,
+/// as a list of [`Event`]s in the order they were shown. What is written
+/// to a pane is gathered until the pane is shown (`pane_flush`), or until
+/// something else is written, so that it comes as one event.
+#[derive(Debug, Default)]
+pub struct Document {
+    main: Checker,
+    panes: std::collections::HashMap<u32, Checker>,
+    /// The panes written to since they were last shown, in the order
+    /// they were first written to.
+    written: Vec<u32>,
+    events: Vec<Event>,
+}
+
+impl Document {
+    /// A document with nothing in it.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// What the program wrote to the main window.
+    pub fn write(&mut self, markup: &str) {
+        self.show_panes();
+        self.main.write(markup);
+        self.take_main();
+    }
+
+    /// A line the player typed.
+    pub fn input(&mut self, text: &str) {
+        self.show_panes();
+        self.main.input(text);
+        self.take_main();
+    }
+
+    /// What the program wrote to a text pane.
+    pub fn pane_write(&mut self, id: u32, markup: &str) {
+        self.panes.entry(id).or_default().write(markup);
+        if !self.written.contains(&id) {
+            self.written.push(id);
+        }
+    }
+
+    /// The panes are to show what they have been given.
+    pub fn pane_flush(&mut self) {
+        self.show_panes();
+    }
+
+    /// A pane was made.
+    pub fn pane_created(&mut self, id: u32) {
+        self.show_panes();
+        self.events.push(Event::PaneCreated(id));
+    }
+
+    /// A pane was removed.
+    pub fn pane_deleted(&mut self, id: u32) {
+        self.show_panes();
+        self.panes.remove(&id);
+        self.events.push(Event::PaneDeleted(id));
+    }
+
+    /// A pane's text was removed: what it is given next starts afresh.
+    pub fn pane_cleared(&mut self, id: u32) {
+        self.show_panes();
+        self.panes.insert(id, Checker::new());
+        self.events.push(Event::PaneCleared(id));
+    }
+
+    /// The events since the last time.
+    pub fn take(&mut self) -> Vec<Event> {
+        std::mem::take(&mut self.events)
+    }
+
+    /// The events since the last time, as text.
+    pub fn take_text(&mut self) -> String {
+        self.take().iter().map(Event::markup).collect()
+    }
+
+    fn take_main(&mut self) {
+        let items = self.main.take();
+        self.events.extend(items.into_iter().map(Event::Main));
+    }
+
+    fn show_panes(&mut self) {
+        for id in std::mem::take(&mut self.written) {
+            if let Some(checker) = self.panes.get_mut(&id) {
+                let items = checker.take();
+                if !items.is_empty() {
+                    self.events.push(Event::Pane(id, items));
+                }
+            }
+        }
+    }
+}
+
 /// Check a whole piece of markup at once, and give its document as text:
 /// for tests, and for a host that checks a page at a time.
 pub fn check(markup: &str) -> String {
@@ -1217,6 +1542,35 @@ mod tests {
         checker.input("look <b>");
         let doc: String = checker.take().iter().map(Item::markup).collect();
         assert_eq!(doc, "><kbd>look &lt;b></kbd>\n");
+    }
+
+    #[test]
+    fn a_style_attribute_loses_important() {
+        assert_eq!(
+            check("<span style='color: red !important; font-size: 2em'>x</span>"),
+            "<span style=\"color: red; font-size: 2em\">x</span>"
+        );
+    }
+
+    #[test]
+    fn a_stylesheet_is_scoped_and_held_to_the_profile() {
+        let css = "@import url(http://x/y.css);\n\
+                   /* the page */ body { background: #000; position: absolute; color: #eee }\n\
+                   .roomname, h1 { font-variant: small-caps !important }\n\
+                   @media (max-width: 40em) { p { margin: 0 } }\n\
+                   @media (hover: hover) { p { color: red } }\n\
+                   @font-face { font-family: Uncial; src: url('uncial.woff2') format('woff2') }\n\
+                   @font-face { font-family: Far; src: url(https://x/y.woff2) }\n\
+                   @keyframes spin { from { color: red } }\n\
+                   a { color: blue; behavior: url(x.htc) }";
+        assert_eq!(
+            check_stylesheet(css, "#game"),
+            "#game { background: #000; color: #eee }\n\
+             #game .roomname, #game h1 { font-variant: small-caps }\n\
+             @media (max-width: 40em) {\n#game p { margin: 0 }\n}\n\
+             @font-face { font-family: Uncial; src: url('uncial.woff2') format('woff2') }\n\
+             #game a { color: blue }\n"
+        );
     }
 
     #[test]

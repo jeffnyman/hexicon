@@ -342,6 +342,14 @@ pub trait Host {
         let _ = (id, text);
     }
 
+    /// On a rich display: add what the program wrote to a text pane, as
+    /// it wrote it, markup and all, as [`Host::print_markup`] does for the
+    /// main window. A text grid's text still comes through
+    /// [`Host::pane_write`].
+    fn pane_write_markup(&mut self, id: u32, markup: &str) {
+        let _ = (id, markup);
+    }
+
     /// Show what has been written to a pane.
     fn pane_flush(&mut self, id: u32) {
         let _ = id;
