@@ -339,9 +339,51 @@ Findings from milestone 1 that later milestones depend on:
 - The reference compiler emits a `switch` whose default branch points into the middle of an instruction (`rand.t` in the suite). The default is never taken. The VM must not validate branch targets ahead of execution.
 - Ten opcodes in the reference interpreter are missing from the instruction set document: `iternext`, `getsetlcl1`, `getsetlcl1r0`, `dupr0`, and `getlcln0` through `getlcln5`.
 
+## The rich display (planned)
+
+What a game shows beyond text: pictures, sounds, links, styled text, panes. TADS 3 had it as HTML TADS, whose markup is HTML 3.2 and TADS's own tags (`<banner>`, `<sound>`, `<tab>`, `<aboutbox>`, `<nobr>`, `<wrap>`, `<bq>`, `<credit>`), with no style sheets at all: a look is written as `<font>`, `bgcolor`, and `align` wherever it is wanted, and the player can change almost nothing of it. The Golden Skull (Hexad plan, 2026-11-27) is the first game to need it.
+
+### Decided (2026-11-27)
+
+- **The display is the web engine**, in a browser and in a downloadable program alike. The program is a window around the system's web view (WebView2 on Windows, WebKit on macOS and Linux), showing the same page as the browser. Hexicon does not lay out text itself.
+- **Not HTML TADS's look.** Existing markup has to work, and look reasonable; it need not look as it did in HTML TADS.
+- **Styling is open to authors and players**, as a browser's is: an author styles a game with a style sheet, and a player can restyle any game.
+
+The terminal stays a display of text, as it is: the same markup, shown as the plain console shows it.
+
+### Recommended
+
+**A profile, written down.** Hexicon promises a defined set of markup and style, not whatever a browser does, so that a game written for it works wherever Hexicon runs. The profile is a subset of real HTML and CSS, which is what makes the web engine cheap: the page shows it as it is, once it is checked.
+
+- **Kept:** everything HTML TADS has, with its own tags turned into the page's: a banner is a pane, `<tab>` alignment, sounds in their layers, the about box, the title, a More prompt, links, and image maps.
+- **Added:** `class` and `style` on any element; `<span>` and `<div>`; `<figure>` and `<figcaption>`; SVG and WebP pictures, besides JPEG and PNG; Ogg, MP3, and WAV sounds; fonts bundled as resources (`@font-face`); and a style sheet for the game, a resource named in the manifest (`stylesheets = ["skull.css"]`).
+- **CSS, a listed subset:** colors and backgrounds, fonts (family, size, weight, style, variant), text alignment, decoration, transform, and indent, line height and letter spacing, margins, padding, borders and their radius, widths and heights with their limits, `display` (block, inline, inline-block, none, and flex for a row of things), floats, list styles, and media queries for the width of the window, for light and dark (`prefers-color-scheme`), and for reduced motion. Transitions and simple animations, perhaps later. Not positioning beyond that, not grid, not anything that reaches outside the game.
+- **Left out on purpose:** scripts, event handlers (`onclick`), forms, frames, and any address outside the game's own resources. A game's text cannot run code in the page or fetch anything from the network. Everything else is removed before the page sees it, so a game cannot get round the profile by writing markup the profile does not list.
+
+**Hexad's own text, styled by name.** Hexad already marks its text with style tags (`roomname`, `roomdesc`, `roomcontents`, `parser`, `notification`, `assume`, `tip`, `inputline`, `statusroom`, `statusscore`, and the rest). On the rich display each is an element with a class of that name (`<div class="roomname">`), so a style sheet can style the library's text as well as the game's: the room's name, the parser's complaints, the score notices, what the player typed. The class names are part of the profile, and the guide lists them.
+
+**The player's styles.** As in a browser, the player's choices are a style sheet of their own, under the game's in the cascade, except where the player says theirs come first (CSS's `!important` from the player): a font and size to read in, colors or a high-contrast theme, the width of the text, pictures and sounds on or off, links on or off. The page offers the common ones as settings, and takes a style sheet of the player's own for the rest; a setting can be for every game or for one. `systemInfo` answers the player's choices (pictures off is `SysInfoPrefImages` 0), so a game, and Hexad's `Picture` and `Sound`, do as the player asked.
+
+**How it is built.**
+
+- **The VM passes the markup on.** On a rich display the VM does not break lines or flatten tags, as its console does for text: it passes what the game writes, in the order written, to the host.
+- **One checker, shared by every rich host** (in `hexicon-host`): it parses the stream, turns TADS's tags into the page's, keeps what the profile lists and drops the rest, and gives the host a document to show. Being shared, the browser and the program show the same thing.
+- **The page shows that document**, as elements, with the game's style sheet and the player's. Pictures, sounds, and fonts come from the image's resources.
+- **`systemInfo` answers for the display it is on**: HTML, the kinds of picture and sound, panes, colors, and the player's choices.
+
+**How it is tested.** The checked document is written out as text, as a transcript is, so game-check and doc-check can compare it without a browser: The Golden Skull's sign, as a table with its style, its sounds in their layers, its compass as an image map. Headless browser screenshots check the page itself, less often.
+
+### First steps, in order
+
+1. This profile, finished and agreed.
+2. The VM passing markup to a rich host, and the checker, with its document written out as text for the tests.
+3. The page showing the document, with the game's style sheet and the player's settings.
+4. The downloadable program, around the same page.
+5. Hexad's style tags as classes; The Golden Skull restyled with a style sheet instead of `<font>`; and the guide's page on styling a game.
+
 ## Open questions
 
 - Is read/write compatibility with existing `.t3v` save files a hard requirement or a nice-to-have? (As of milestone 4 it is met for every class implemented so far.)
-- Should HTML TADS games (banners, images, sound) be supported in the first browser front end, or text only first?
+- ~~Should HTML TADS games (banners, images, sound) be supported in the first browser front end, or text only first?~~ Settled (2026-11-27): a rich display on the web engine, in the browser and in a downloadable program; see "The rich display" above.
 - Minimum supported Rust version policy (proposal: latest stable minus two releases).
 - License for Hexicon itself (GPLv2-or-later vs. GPLv3).
