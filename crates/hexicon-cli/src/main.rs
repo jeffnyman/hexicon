@@ -5,6 +5,7 @@ mod new;
 mod preprocess;
 mod resources;
 mod terminal;
+mod test;
 mod windows_zones;
 
 use std::fmt::Write as _;
@@ -99,6 +100,13 @@ commands:
                                nothing, such as the time it was compiled,
                                each as an offset and a length; a comparison
                                of two images should skip them
+  test [-f <manifest>] [--transcript <file>] [<scenario>...]
+                               build a game for debugging, play its
+                               scenarios (or those named), and report
+                               how they went: the exit status is 0 if
+                               they all passed, 1 if not, and 2 if the
+                               game could not be built or played them;
+                               --transcript keeps what the game said
   preinit [--unspecified <file>] <game> <new-game> [args...]
                                run a program as it is run before its
                                image is written, and write the image it
@@ -206,6 +214,9 @@ fn main() -> ExitCode {
     }
     if let ["new", rest @ ..] = args.as_slice() {
         return new::run(rest, USAGE);
+    }
+    if let ["test", rest @ ..] = args.as_slice() {
+        return test::run(rest, USAGE);
     }
     if let ["preprocess", rest @ ..] = args.as_slice() {
         return preprocess::run(rest, USAGE, preprocess::Output::Text);
@@ -1385,6 +1396,63 @@ mod tests {
         );
         assert_eq!(super::unix_millis_of("2000-13-01T00:00:00"), None);
         assert_eq!(super::unix_millis_of("2000-01-01"), None);
+    }
+
+    /// One source file, held in memory.
+    struct OneFile(&'static str);
+
+    impl hexicon_compiler::pp::SourceFiles for OneFile {
+        fn read(&mut self, name: &str) -> Option<Vec<u8>> {
+            (name == "main.hxn").then(|| self.0.as_bytes().to_vec())
+        }
+
+        fn exists(&mut self, name: &str) -> bool {
+            name == "main.hxn"
+        }
+    }
+
+    /// What a program prints, compiled for debugging from `source`.
+    fn printed(source: &'static str) -> String {
+        let options = hexicon_compiler::CompileOptions {
+            debug: true,
+            ..hexicon_compiler::CompileOptions::default()
+        };
+        let compiled =
+            hexicon_compiler::compile_program(&mut OneFile(source), &["main.hxn"], &options);
+        assert!(
+            compiled.diagnostics.is_empty(),
+            "{:?}",
+            compiled.diagnostics
+        );
+        let data = compiled.image.expect("an image");
+        let image = hexicon_image::Image::parse(&data).expect("a readable image");
+        let host = hexicon_host::BufferHost::new();
+        let mut vm = hexicon_vm::Vm::new(&image, Box::new(host.clone())).expect("a VM");
+        vm.run(&[]).expect("the program runs");
+        vm.flush_output();
+        host.output()
+    }
+
+    #[test]
+    fn a_method_says_where_it_is_written() {
+        let source = "builtin 'hexicon-vm/010007'\n\
+            {\n    collectGarbage(); setSay(val); vmVersion(); vmId(); vmBanner();\n    \
+            inPreinit(); debugTrace(mode, ...); globalSymbols(which?);\n    \
+            newProperty(); stackTrace(level?, flags?); namedArg(name, defval?);\n    \
+            namedArgList(); definitionPlace(obj, prop);\n}\n\
+            builtin 'hexicon-io/030007' { print(val, ...); }\n\
+            property nothing;\n\
+            class Base: object\n    greet() { return 1; }\n;\n\
+            thing: Base\n    count = 3\n    expect = (count > 2)\n;\n\
+            show(place) { print(place == nil ? 'nil' : place, '\\n'); }\n\
+            _main(args)\n{\n    \
+            show(definitionPlace(thing, &expect));\n    \
+            show(definitionPlace(thing, &greet));\n    \
+            show(definitionPlace(thing, &count));\n    \
+            show(definitionPlace(thing, &nothing));\n}\n";
+        // A method of the object's own, one it inherits, a value, and
+        // nothing: the first two are where they are written.
+        assert_eq!(printed(source), "main.hxn:15\nmain.hxn:11\nnil\nnil\n");
     }
 
     #[test]

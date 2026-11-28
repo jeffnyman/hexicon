@@ -56,6 +56,7 @@ const MACHINE: Table = &[
     ("stackTrace", opt(0, 2)),
     ("namedArg", opt(1, 1)),
     ("namedArgList", fixed(0)),
+    ("definitionPlace", fixed(2)),
 ];
 
 const MACHINE_TEST: Table = &[
@@ -139,7 +140,7 @@ impl FunctionSet {
     pub(crate) fn from_image_name(image_name: &str) -> VmResult<Self> {
         let (name, version) = image_name.split_once('/').unwrap_or((image_name, "000000"));
         let (set, provided) = match name {
-            "hexicon-vm" => (Self::Machine, "010006"),
+            "hexicon-vm" => (Self::Machine, "010007"),
             "hexicon-vm-test" => (Self::MachineTest, "010000"),
             "hexicon-gen" => (Self::Gen, "030008"),
             "hexicon-io" => (Self::Io, "030007"),
@@ -296,6 +297,23 @@ impl Vm {
             9 => self.stack_trace(argc)?,
             10 => self.named_arg(argc)?,
             11 => self.named_arg_list(argc)?,
+            // definitionPlace(obj, prop): where the method obj.prop is
+            // written, as 'file:line'; nil if it is not a method, or if
+            // the image does not record where its code came from.
+            12 => {
+                Self::check_argc(argc, 2)?;
+                let (Value::Obj(object), Value::Prop(prop)) = (self.arg(0), self.arg(1)) else {
+                    return Err(VmError::new(code::BAD_TYPE_BIF));
+                };
+                let place = match crate::program_object::find_prop(&self.objects, object, prop) {
+                    Some((Value::CodeOfs(func), _)) => self.definition_place(func),
+                    _ => None,
+                };
+                self.r0 = match place {
+                    Some(place) => self.new_str(&place),
+                    None => Value::Nil,
+                };
+            }
             _ => return Err(self.unimplemented_bif(FunctionSet::Machine, index)),
         }
         Ok(())

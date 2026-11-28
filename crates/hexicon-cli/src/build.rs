@@ -138,8 +138,19 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
         project_args.push((*first).to_owned());
         rest = tail;
     }
+    build_project(&project_args, usage, unspecified, None)
+}
 
-    let project = match read_project(&mut DiskFiles, &project_args, &default_paths()) {
+/// Build a game as `project_args` say, as `hexicon build` does; or, with
+/// `image_path`, into that file instead of the one the project names, and
+/// without saying so (as `hexicon test` builds the game it plays).
+pub(crate) fn build_project(
+    project_args: &[String],
+    usage: &str,
+    unspecified: Option<&str>,
+    image_path: Option<&str>,
+) -> ExitCode {
+    let project = match read_project(&mut DiskFiles, project_args, &default_paths()) {
         Ok(project) => project,
         Err(ProjectError::Usage(problem)) => {
             if !problem.is_empty() {
@@ -158,7 +169,10 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     for line in &project.messages {
         eprintln!("{line}");
     }
-    let Some(output) = project.image.clone() else {
+    let Some(output) = image_path
+        .map(str::to_owned)
+        .or_else(|| project.image.clone())
+    else {
         eprint!("{usage}");
         return ExitCode::from(2);
     };
@@ -290,7 +304,7 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
         return ExitCode::FAILURE;
     }
     // A build from a manifest says what it made.
-    if project.manifest {
+    if project.manifest && image_path.is_none() {
         println!("Built {output}.");
     }
     if let Some(path) = unspecified {

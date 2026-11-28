@@ -17,6 +17,10 @@ Each game is also built for debugging (-d), with Hexad's debugging
 commands compiled in, and not played: a name one of those commands
 takes shows as a game that does not build for debugging.
 
+A game with scenarios (a source that defines one, `name: Scenario`) has
+them played by `hexicon test`, and they must all pass; its report is
+shown if they do not. See docs/story-testing.md.
+
 A script with a .doc beside its .out (walk.doc) is played a second time
 with --rich, as on a rich display, and the document the game's markup
 makes, checked, is compared with the .doc, as the transcript is with the
@@ -141,6 +145,30 @@ def run(game, image, script, rich=False):
     )
 
 
+def has_scenarios(game):
+    """Whether a game defines scenarios, for `hexicon test` to play."""
+    pattern = re.compile(r"^\s*\w+\s*:\s*Scenario\b", re.MULTILINE)
+    return any(
+        pattern.search(source.read_text(encoding="utf-8", errors="replace"))
+        for source in game.glob("*.hxn")
+    )
+
+
+def test_scenarios(game):
+    """Play a game's scenarios: (passed, how many), and the report."""
+    done = subprocess.run(
+        [HEXICON, "test"],
+        cwd=game,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=TIMEOUT,
+        check=False,
+    )
+    said = (done.stdout + done.stderr).decode("utf-8", "replace").replace("\r", "")
+    found = re.search(r"^(\d+) passed, ", said, re.MULTILINE)
+    return done.returncode == 0, found.group(1) if found else "0", said
+
+
 def main():
     args = sys.argv[1:]
     accept = args[:1] == ["--accept"]
@@ -172,6 +200,14 @@ def main():
             if failed is not None:
                 different += 1
                 print(f"DIFF {game.name}: it did not build for debugging\n{failed}")
+            elif has_scenarios(game):
+                passed, count, report = test_scenarios(game)
+                if passed:
+                    same += 1
+                    print(f"SAME {game.name}/scenarios ({count} passed)")
+                else:
+                    different += 1
+                    print(f"DIFF {game.name}/scenarios:\n{report}")
         transcripts, failed = play(game)
         if transcripts is None:
             different += 1

@@ -140,7 +140,7 @@ In source files of their own, listed in the manifest as tests, which a build for
 ## How to get there
 
 1. **A trial, in the playground.** The parts above (`Scenario`, `Step`, `expect`, `mentions`, `given`, `after`, the in-game `scenario` command) as a Hexad extension, used on one game there, with a few scenarios written for it, including one that is made to fail. The question it answers: does a game's suite read well and catch what breaks?
-2. **`hexicon test`**: the runner, the report, the exit status, snapshots for `after`, and source lines for failures. game-check could then play a game's scenarios as well as its transcripts.
+2. **`hexicon test`**: the runner, the report, the exit status, snapshots for `after`, and source lines for failures. game-check could then play a game's scenarios as well as its transcripts. Done, 2026-11-28 (below).
 3. **Walkthroughs**, and printing them.
 4. **The order of events**: `storyEvent`, `happened`, and `happenedBefore`. (`Await` came sooner, in the trial.)
 5. **Into Hexad**, from the playground, with a page in the guide, if the trial says so.
@@ -167,6 +167,29 @@ Step 1, on The Tide Mill, in the playground (`game-tests/tidemill`): `scenarios.
   - A step may be several commands (`'n. n. d'`), checked after the last: what the game said, in a failure, is all of them.
   - The start has to be taken once the game is running, at the first prompt, and kept when restoring it comes back to the code that took it.
 - **Not in the trial:** `hexicon test` and its report and exit status, the source line of a failed check, walkthroughs and printing them, and the record of the story's events. A failure's report names the step, its reason, and what failed (`expect`, or a `Check`'s label).
+
+## Step 2: `hexicon test` (2026-11-28)
+
+`hexicon test [-f <manifest>] [--transcript <file>] [<scenario>...]` builds the game for debugging, plays its scenarios, all or those named, and prints a report:
+
+```
+passed   freeing the wheel (3 steps)
+FAILED   the flour, in time
+           at step 2: z. z
+           why: Two turns on, it has not come yet.
+           failed: expect is not true, at tests.hxn:182
+           the game said: Time passes. Time passes. Flour comes pouring from the spout, and the sack beneath it fills and sags.
+not run  bringing Ada her flour, since "grinding the flour" did not pass
+
+8 passed, 1 failed, 3 not run
+```
+
+- **The exit status** is 0 if every scenario passed, 1 if any failed or was not run, and 2 if the game could not be built, or did not play its scenarios (a game without the scenario runner, which the report says, with how its output ends).
+- **How it plays them:** the game is built into a file of its own beside the manifest's image, which is left alone, and played by `hexicon run` with the random numbers and the clock game-check uses, given the arguments `-hexicon-test=<file>` and `-scenario=<name>` for each scenario named. The scenario runner sees them at the first prompt, plays the scenarios, writes a line for each, one for each failure, and a last line to the file, and quits; `hexicon test` reads the file and deletes both. `--transcript` keeps everything the game printed.
+- **Where a check is written:** `definitionPlace(obj, prop)`, a function of the VM's own (`vm.h`, `hexicon-vm/010007`), gives the file and line of a method without calling it, from the line records every build keeps. A failed `expect`, `Check`, or `Await` is reported at its line.
+- **game-check** plays the scenarios of each game that has them (a source that defines `name: Scenario`) and wants them all to pass: `SAME tidemill/scenarios (12 passed)`.
+- **Tried** on The Tide Mill with the flour's timing broken and with the hopper never filling (above): each failure named its step, its reason, and its line, and the scenarios after the hopper were not run. A scenario named that is not there fails, and so does a game with no scenarios, with exit status 2.
+- **Still in the playground:** the scenario runner itself, in Tidemill's folder, until step 5 brings it into Hexad, so `hexicon test` works today for a game that has it among its sources.
 
 ## Questions for the user
 

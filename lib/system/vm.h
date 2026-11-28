@@ -17,7 +17,7 @@
 /*
  *   The virtual machine's function set
  */
-builtin 'hexicon-vm/010006'
+builtin 'hexicon-vm/010007'
 {
     /* 
      *   Explicitly run garbage collection.
@@ -183,6 +183,15 @@ builtin 'hexicon-vm/010006'
      *   that's currently active.  
      */
     namedArgList();
+
+    /*
+     *   Where a method is written: 'file:line', the first line of the code
+     *   of obj.prop, where obj defines it or inherits it. nil if obj.prop
+     *   is not a method (a value, or nothing), or if the program does not
+     *   record where its code came from. The method is not called. This
+     *   is Hexicon's.
+     */
+    definitionPlace(obj, prop);
 }
 
 

@@ -39,4 +39,6 @@ the exercises of adv3Lite's manual, in Hexicon) and compares their
 transcripts with those recorded before. The games are not ours, so they
 are kept outside this repository, by default in
 `../hexicon-playground/game-tests`; without them, the check says so and
-passes. The guide's own example games are played by `tools/doc-check.py`.
+passes. A game with scenarios has them played by `hexicon test` as well,
+and they must all pass (see `docs/story-testing.md`). The guide's own
+example games are played by `tools/doc-check.py`.

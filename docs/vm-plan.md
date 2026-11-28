@@ -497,6 +497,10 @@ What is left: macOS for the player, as an app bundle, which also says that it op
 **Releases could be built by GitHub** (to consider, 2026-11-28): GitHub Actions has Windows and macOS machines, so a workflow could build the installer and the Mac app on a tagged commit and attach them to a GitHub release, signing them there when there is an account to sign with (Microsoft has an Action for Artifact Signing). Where the files are kept does not sign them: an unsigned installer downloaded from GitHub gets the same warnings.
 
 
+### Where a method is written (2026-11-28)
+
+`definitionPlace(obj, prop)`, in the VM's function set (`hexicon-vm/010007`, `vm.h`): the file and line where the method `obj.prop` is written, as `'file:line'`, from the first line record of its code, without calling it; nil for a value, for nothing, or for code with no line records. Every build records the line of each statement, so it answers in any build. Scenarios use it to say where a failed check is (see [story-testing.md](story-testing.md)); a test in `hexicon-cli` compiles a program and checks it for a method of an object's own, an inherited one, a value, and nothing. The 49 test programs that include `vm.h` were recorded again, their images alone changed, for the set's new version.
+
 ### Keeping UNDO through a visit (2026-11-28)
 
 Hexad's reversion extension visits an earlier state and comes back (a branch point's `visit()`, and `imagineBackAt()`), which is two restores, and a restore forgets the savepoints UNDO goes back to, as the reference does. So `restoreGame` takes a second argument, Hexicon's own, for Hexad's snapshots only (`snapshot.hxn`): 1 sets the savepoints aside instead, and 2, restoring the state saved just before they were set aside, puts them back. Without it, or with 0, a restore is the reference's, and none of the comparisons changes.
