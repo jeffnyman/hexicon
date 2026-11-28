@@ -64,22 +64,14 @@ Every game says what it is called, and how it begins:
 ```hexicon
 import hexad;
 
-// What the game is called, and who wrote it.
-versionInfo: GameID
+// The story: what it is called, who wrote it, and how it begins.
+story: Story
     IFID = '5C2A6E7B-1D4F-4A83-9E21-7B3C0F8D2A64'
     name = 'The Lighthouse'
     byline = 'by the Hexicon guide'
     version = '1'
-;
-```
 
-`import hexad;` makes Hexad's classes and templates available to this file. Every source of a game starts with it.
-
-`versionInfo` describes the game. Its `IFID` is a number that identifies this game and no other, in every version of it: `hexicon new` makes a new one for each game, so keep the one you are given.
-
-```hexicon
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
     maxScore = 2
 
     showIntro()
@@ -90,7 +82,11 @@ gameMain: GameMainDef
 ;
 ```
 
-`gameMain` says who the player is (`me`, below), what the best score is, and what to show before the first room. `showIntro()` is a **method**: a property whose value is code, run when the game asks for it. `\b` leaves a blank line.
+`import hexad;` makes Hexad's classes and templates available to this file. Every source of a game starts with it.
+
+`story` is the game, described once. Its `IFID` is a number that identifies this game and no other, in every version of it: `hexicon new` makes a new one for each game, so keep the one you are given. Its `name`, `byline`, and `version` are what the game is called, who wrote it, and which version it is; VERSION shows the name and the version.
+
+The rest says how the story begins: its `protagonist`, the character the player plays (`me`, below), what the best score is, and what to show before the first room. `showIntro()` is a **method**: a property whose value is code, run when the game asks for it. `\b` leaves a blank line.
 
 ### Rooms and exits
 

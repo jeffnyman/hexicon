@@ -2,17 +2,14 @@
 
 import hexad;
 
-// What the game is called, and who wrote it.
-versionInfo: GameID
+// The story: what it is called, who wrote it, and how it begins.
+story: Story
     IFID = '5C2A6E7B-1D4F-4A83-9E21-7B3C0F8D2A64'
     name = 'The Lighthouse'
     byline = 'by the Hexicon guide'
     version = '1'
-;
 
-// How the game begins.
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
     maxScore = 2
 
     showIntro()

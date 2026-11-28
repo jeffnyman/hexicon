@@ -2825,7 +2825,7 @@ class Region: object
      *   Should the fastGoTo option be used in this region (i.e. traveling from
      *   one room in the region to another is all done in one turn without the
      *   need for CONTINUE, even if several steps are involved)? Note that the
-     *   value of this setting has no effect if gameMain.fastGoTo is true, since
+     *   value of this setting has no effect if story.fastGoTo is true, since
      *   then the fastGoTo setting is always in effect.
      */
     fastGoTo = nil
@@ -2834,7 +2834,7 @@ class Region: object
      *   Should the briefGoTo option be used in this region (i.e. traveling from one room in the
      *   region to another is all done in one turn without the need for CONTINUE and without
      *   intervening rooms descriptions, even if several steps are involved)? Note that the value of
-     *   this setting has no effect if gameMain.briefGoTo is true, since then the briedGoTo setting
+     *   this setting has no effect if story.briefGoTo is true, since then the briedGoTo setting
      *   is always in effect.
      */
     

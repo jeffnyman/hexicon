@@ -2,15 +2,13 @@
 
 import hexad;
 
-versionInfo: GameID
+story: Story
     IFID = '0B36193B-0F9A-4789-98B2-C9E08F24D5A3'
     name = 'The Well House'
     byline = 'by the Hexicon guide'
     version = '1'
-;
 
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
     maxScore = 2
 
     showIntro()

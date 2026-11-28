@@ -24,16 +24,16 @@ timeManager: InitObject
     execute()
     {
         /* 
-         *   Get our starting time from the gameMain object, unless we're
+         *   Get our starting time from the story object, unless we're
          *   getting it from the clockManager (in the SUBTIME extension).
          */
         if(defined(clockManager) && clockManager.lastEvent)
             ;
-        else if(gameMain.propType(&gameStartTime) == TypeList)
-            currentTime = new Date(gameMain.gameStartTime...);
-        else if(gameMain.propType(&gameStartTime) == TypeObject 
-                && gameMain.gameStartTime.ofKind(Date))
-            currentTime = gameMain.gameStartTime;
+        else if(story.propType(&gameStartTime) == TypeList)
+            currentTime = new Date(story.gameStartTime...);
+        else if(story.propType(&gameStartTime) == TypeObject 
+                && story.gameStartTime.ofKind(Date))
+            currentTime = story.gameStartTime;
         
         /* Set up the PromptDaemon to reset certain values each turn. */
         new PromptDaemon(self, &reset);
@@ -153,7 +153,7 @@ timeManager: InitObject
  *  the OBJTIME EXTENSION
  */
 
-modify GameMainDef
+modify Story
     /* 
      *   The date and time at which this game notionally starts. This should be
      *   specified as a list of numbers in the format [year, month, day, hour,

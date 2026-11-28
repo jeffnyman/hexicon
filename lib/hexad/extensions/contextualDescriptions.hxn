@@ -41,12 +41,12 @@ import hexad;
  *   visit, with its roomFirstDesc if it has one, and text that depends on
  *   visited shown as it was. It takes no time, and isn't an arrival.
  *
- *   DECAY. A game that sets gameMain.descriptionsDecay = true has room
+ *   DECAY. A game that sets story.descriptionsDecay = true has room
  *   descriptions that shorten as a place grows familiar:
  *
  *       first arrival             the full description
  *       later arrivals, up to     the summary description, summaryDesc
- *         gameMain.decayThreshold   (3 by default: the second arrival)
+ *         story.decayThreshold   (3 by default: the second arrival)
  *       arrivals from there on    no description; the contents are still
  *                                 listed
  *       LOOK, at any time         the summary description
@@ -85,14 +85,14 @@ modify Room
 
     showInteriorDesc(descObj)
     {
-        if(!gameMain.descriptionsDecay)
+        if(!story.descriptionsDecay)
         {
             inherited(descObj);
             return;
         }
         if(roomMemory.recalling || !visited)
             "<.roomdesc><<descObj.interiorDesc>><./roomdesc><.p>";
-        else if(now.actionIs(Look) || arrivals < gameMain.decayThreshold)
+        else if(now.actionIs(Look) || arrivals < story.decayThreshold)
         {
             if(descObj == self && propType(&summaryDesc) != TypeNil)
                 "<.roomdesc><<summaryDesc>><./roomdesc><.p>";
@@ -140,7 +140,7 @@ summarize(room)
     return room.arrivals == 0 ? room.unvisitedSummary : room.visitedSummary;
 }
 
-modify GameMainDef
+modify Story
     /* Do room descriptions shorten as places grow familiar? */
     descriptionsDecay = nil
 
@@ -176,7 +176,7 @@ verb Impressions ('first' | ) 'impressions':
 modify Brief
     execAction(cmd)
     {
-        if(gameMain.descriptionsDecay)
+        if(story.descriptionsDecay)
             noModes();
         else
             inherited(cmd);
@@ -186,7 +186,7 @@ modify Brief
 modify Verbose
     execAction(cmd)
     {
-        if(gameMain.descriptionsDecay)
+        if(story.descriptionsDecay)
             noModes();
         else
             inherited(cmd);

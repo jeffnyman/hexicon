@@ -2,15 +2,13 @@
 
 import hexad;
 
-versionInfo: GameID
+story: Story
     IFID = '2F8C6A1D-4E9B-4D27-8A63-5B0E1C7D9F42'
     name = 'The Belfry'
     byline = 'by the Hexicon guide'
     version = '1'
-;
 
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
 ;
 
 // A new action, TOLL, which takes one object.

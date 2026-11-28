@@ -44,8 +44,8 @@ mainCommon(prop, [args])
 
        
         
-        /* call the appropriate gameMain method */
-        gameMain.(prop)(args...);
+        /* call the appropriate story method */
+        story.(prop)(args...);
     }
     catch (QuittingException q)
     {

@@ -109,7 +109,7 @@ action Credits: SystemAction
     
     execAction(cmd)
     {
-        versionInfo.showCredit();
+        story.showCredit();
         "<.p>";
     }
 ;
@@ -117,7 +117,7 @@ action Credits: SystemAction
 action About: SystemAction
     execAction(cmd)
     {
-        versionInfo.showAbout();
+        story.showAbout();
         "<.p>";
     }
 ;
@@ -469,9 +469,9 @@ action TipsOff: SystemAction
 action Brief: SystemAction
     execAction(cmd)
     {
-        if(gameMain.verbose)
+        if(story.verbose)
         {
-            gameMain.verbose = nil;
+            story.verbose = nil;
             showMsg(game now brief, 'The game is now in BRIEF mode. <<first
                   time>>Full room descriptions will now only be shown on the
                 first visit to a room or in response to an explicit
@@ -486,11 +486,11 @@ action Brief: SystemAction
 action Verbose: SystemAction
     execAction(cmd)
     {
-        if(gameMain.verbose)            
+        if(story.verbose)            
             showMsg(game already verbose, 'The game is already in VERBOSE mode. ');        
         else
         {
-            gameMain.verbose = true;
+            story.verbose = true;
             showMsg(game now verbose, 'The game is now in VERBOSE mode. <<first
                   time>>Full room descriptions be shown each time a room is
                 visited.<<only>> ');
@@ -1090,19 +1090,19 @@ action GoToMode: SystemAction
         local vp = c.verbProd;
         if(vp.brief_ != nil)
         {
-            gameMain.briefGoTo = true;
+            story.briefGoTo = true;
             showMsg(brief goto, 'Goto mode is now brief (no room descriptions or stopping to CONTINUE)');
         }
         if(vp.fast_ != nil)
         {
-            gameMain.briefGoTo = nil;
-            gameMain.fastGoTo = true;
+            story.briefGoTo = nil;
+            story.fastGoTo = true;
             showMsg(brief goto, 'Goto mode is now fast (no stopping to CONTINUE)');
         }
         if(vp.normal_ != nil)
         {
-            gameMain.briefGoTo = nil;
-            gameMain.fastGoTo = nil;
+            story.briefGoTo = nil;
+            story.fastGoTo = nil;
             showMsg(brief goto, 'Goto mode is now normal (explicit CONTINUE needed for each step)');
         }       
         
@@ -3587,7 +3587,7 @@ action Save: FileOpAction
         try
         {
             /* try saving the game */
-            saveGame(fname, gameMain.getSaveDesc(desc));
+            saveGame(fname, story.getSaveDesc(desc));
         }
         catch (StorageServerError sse)
         {
@@ -3860,13 +3860,13 @@ action Again: SystemAction
     
     exec(cmd)
     {
-        if((gameMain.againRepeatsParse && libGlobal.lastCommandForAgain is in
-           ('',nil)) || (!gameMain.againRepeatsParse && libGlobal.lastCommand is
+        if((story.againRepeatsParse && libGlobal.lastCommandForAgain is in
+           ('',nil)) || (!story.againRepeatsParse && libGlobal.lastCommand is
            in ('', nil)))
         {
             showMsg(no repeat, 'Sorry, there is no action available to repeat. ');
         }
-        else if (gameMain.againRepeatsParse)
+        else if (story.againRepeatsParse)
         {
             Parser.parse(libGlobal.lastCommandForAgain);
         }

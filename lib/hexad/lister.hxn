@@ -576,7 +576,7 @@ class CustomRoomLister: ItemLister
         "<<suffix_>>";
     }
     
-    showSubListing = (gameMain.useParentheticalListing)
+    showSubListing = (story.useParentheticalListing)
 ;
 
 

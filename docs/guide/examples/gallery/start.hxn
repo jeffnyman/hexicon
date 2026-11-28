@@ -2,15 +2,13 @@
 
 import hexad;
 
-versionInfo: GameID
+story: Story
     IFID = 'BB1D738B-8013-4415-99E9-A0839AEE8D69'
     name = 'The Gallery'
     byline = 'by the Hexicon guide'
     version = '1'
-;
 
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
 ;
 
 // The picture, among the game's resources, and what a display without

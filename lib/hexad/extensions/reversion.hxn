@@ -71,10 +71,10 @@ import hexad;
  *   time turned back.").
  *
  *   LIMITING UNDO. A game can refuse UNDO, saying why, with
- *   gameMain.undoPermitted(), and limit how many the player may use with
- *   gameMain.undoAllowance:
+ *   story.undoPermitted(), and limit how many the player may use with
+ *   story.undoAllowance:
  *
- *       gameMain: GameMainDef
+ *       story: Story
  *           undoAllowance = 3
  *           undoPermitted()
  *           {
@@ -373,7 +373,7 @@ class Recollection: object
     isRemembered = (reversionMemory.recalled[self] != nil)
 ;
 
-modify GameMainDef
+modify Story
     /* How many UNDOs the player may use, or nil for no limit. */
     undoAllowance = nil
 
@@ -391,10 +391,10 @@ modify GameMainDef
 modify Undo
     execAction(cmd)
     {
-        if(!gameMain.undoPermitted())
+        if(!story.undoPermitted())
             return nil;
-        if(gameMain.undoAllowance != nil
-           && reversionMemory.undosUsed >= gameMain.undoAllowance)
+        if(story.undoAllowance != nil
+           && reversionMemory.undosUsed >= story.undoAllowance)
         {
             showMsg(no more undo, '<.parser>You have no more UNDOs.<./parser> ');
             return nil;

@@ -2236,7 +2236,7 @@ withTense(usePastTense, callback)
     /*
      *   Remember the old value of the usePastTense flag.
      */
-    local oldUsePastTense = gameMain.usePastTense;
+    local oldUsePastTense = story.usePastTense;
     
     /* But if Narrator.tense is an object, we need to take the old tense from there. */
     if(Narrator.propType(&tense) == TypeObject)
@@ -2244,7 +2244,7 @@ withTense(usePastTense, callback)
     /*
      *   Set the new value.
      */
-    gameMain.usePastTense = usePastTense;
+    story.usePastTense = usePastTense;
     /*
      *   Invoke the callback (remembering the return value) and restore the
      *   usePastTense flag on our way out.
@@ -2256,9 +2256,9 @@ withTense(usePastTense, callback)
         /* if useOldPastTense is an object, it was taken from Narrator.tense. */
         if(typeOf(oldUsePastTense) == TypeObject)
             Narrator.tense = oldUsePastTense;
-        /* Otherwise we needs to restore the value on gameMain, */
+        /* Otherwise we needs to restore the value on story, */
         else            
-            gameMain.usePastTense = oldUsePastTense; 
+            story.usePastTense = oldUsePastTense; 
     }
     /*
      *   Return the result.

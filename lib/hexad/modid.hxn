@@ -524,10 +524,10 @@ class GameInfoModuleID: MetadataModuleID
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Base class for the game's module ID.  This merely sets the listing
- *   order to 1 so that the game's credit is listed first.  Normally,
- *   exactly one GameID object, called 'versionInfo', is defined in a game,
- *   to provide the game's identifying information.  
+ *   Base class for the game's module ID, which sets the listing order to
+ *   1 so that the game's credit is listed first. A game does not define
+ *   one of its own: its story (Story, in misc.hxn) is its GameID, so that
+ *   one object says what the game is and how it begins.
  *   
  *   Note that this class is based on GameInfoModuleID, so the library will
  *   automatically write out a gameinfo.txt file based on this object's

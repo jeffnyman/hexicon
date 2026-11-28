@@ -42,11 +42,11 @@ import hexad;
  *   RETRY SHOW to turn them on again. dangerBegins(recap, nil) and
  *   dangerEnds(nil) say nothing, whatever the player chose; the game says
  *   what it likes instead. A game whose first turn is already dangerous
- *   sets gameMain.startsInDanger, and is saved, silently, before the first
+ *   sets story.startsInDanger, and is saved, silently, before the first
  *   prompt.
  */
 
-modify GameMainDef
+modify Story
     /* Is the game dangerous from its first turn? */
     startsInDanger = nil
 
@@ -248,9 +248,9 @@ safePoint: object
 safePointInit: InitObject
     execute()
     {
-        safePoint.notesShown = gameMain.retryNotesInitiallyShown;
-        if(gameMain.startsInDanger)
-            safePoint.dangerBegins(gameMain.startsInDanger, nil);
+        safePoint.notesShown = story.retryNotesInitiallyShown;
+        if(story.startsInDanger)
+            safePoint.dangerBegins(story.startsInDanger, nil);
         new PromptDaemon(safePoint, &atPrompt);
     }
 ;

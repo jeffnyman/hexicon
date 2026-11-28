@@ -51,7 +51,7 @@ import hexad;
  *   backward, and leftward into a compass direction, for that thing's
  *   facing: relativeDirection(leftward, me).
  *
- *   THE COMPASS ROSE. A game that sets gameMain.compassRoseStatus = true
+ *   THE COMPASS ROSE. A game that sets story.compassRoseStatus = true
  *   shows the room's name in the status line, and at its right a rose of
  *   the exits around an arrow for the facing:
  *
@@ -299,7 +299,7 @@ verb FaceDirection ('face' | 'turn' | 'turn' 'to' | 'turn' 'to' 'face')
 
 /* ---- the compass rose ---- */
 
-modify GameMainDef
+modify Story
     /* Show a compass rose of the exits in the status line? */
     compassRoseStatus = nil
 ;
@@ -332,7 +332,7 @@ compassRoseLines()
 modify statusLine
     showStatusHtml()
     {
-        if(!gameMain.compassRoseStatus)
+        if(!story.compassRoseStatus)
         {
             inherited();
             return;
@@ -359,6 +359,6 @@ modify statusLine
 
     getEstimatedHeightHtml()
     {
-        return gameMain.compassRoseStatus ? 3 : inherited();
+        return story.compassRoseStatus ? 3 : inherited();
     }
 ;

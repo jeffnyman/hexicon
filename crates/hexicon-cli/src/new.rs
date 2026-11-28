@@ -80,17 +80,15 @@ fn start(title: &str, ifid: &str) -> String {
          \n\
          import hexad;\n\
          \n\
-         // What the game is called, and who wrote it.\n\
-         versionInfo: GameID\n\
+         // The story: what it is called, who wrote it, and who the player\n\
+         // is as it begins.\n\
+         story: Story\n\
          \x20   IFID = '{ifid}'\n\
          \x20   name = {}\n\
          \x20   byline = 'by the author'\n\
          \x20   version = '1'\n\
-         ;\n\
          \n\
-         // How the game begins: who the player is.\n\
-         gameMain: GameMainDef\n\
-         \x20   initialPlayerChar = me\n\
+         \x20   protagonist = me\n\
          ;\n\
          \n\
          // The first room, and what is in it.\n\
@@ -99,7 +97,7 @@ fn start(title: &str, ifid: &str) -> String {
          ;\n\
          \n\
          + note: Thing 'note'\n\
-         \x20   \"It says: <q>Welcome to <<versionInfo.name>>.</q> \"\n\
+         \x20   \"It says: <q>Welcome to <<story.name>>.</q> \"\n\
          ;\n\
          \n\
          // The player, who starts in the room.\n\

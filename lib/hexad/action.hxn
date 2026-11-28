@@ -981,12 +981,12 @@ class Action: ReplaceRedirector
     
     /* 
      *   Can ALL be used with this action? By default we take our value from
-     *   gameMain.allVerbsAllowAll, though basic inventory-handling actions in
+     *   story.allVerbsAllowAll, though basic inventory-handling actions in
      *   the library will override this. This property is really only relevant
      *   on TAction and its descendents, but we define it here just to make sure
      *   no cases are missed.
      */
-    allowAll = (gameMain.allVerbsAllowAll)
+    allowAll = (story.allVerbsAllowAll)
     
     /* 
      *   If we've been redirected here from another action, store a reference to
@@ -1739,10 +1739,10 @@ class TAction: Action
                
             
             /* 
-             *   If gameMain defines the option to run the before notifications
+             *   If story defines the option to run the before notifications
              *   before the check stage, run the before notifications now.
              */            
-            if(gameMain.beforeRunsBeforeCheck)
+            if(story.beforeRunsBeforeCheck)
                 beforeAction();
             
             /* 
@@ -1754,10 +1754,10 @@ class TAction: Action
                 return nil;            
             
             /* 
-             *   If gameMain defines the option to run the before notifications
+             *   If story defines the option to run the before notifications
              *   after the check stage, run the before notifications now.
              */
-            if(!gameMain.beforeRunsBeforeCheck)
+            if(!story.beforeRunsBeforeCheck)
                 beforeAction();
             
             /* Carry out the action on a single direct object. */
@@ -2439,10 +2439,10 @@ class TIAction: TAction
             
             
             /* 
-             *   If gameMain defines the option to run before notifications
+             *   If story defines the option to run before notifications
              *   before the check stage, run the before notifications now.
              */
-            if(gameMain.beforeRunsBeforeCheck)
+            if(story.beforeRunsBeforeCheck)
                 beforeAction();
             
             /* 
@@ -2453,10 +2453,10 @@ class TIAction: TAction
                 return nil;
             
             /* 
-             *   If gameMain defines the option to run before notifications
+             *   If story defines the option to run before notifications
              *   after the check stage, run the before notifications now.
              */            
-            if(!gameMain.beforeRunsBeforeCheck)
+            if(!story.beforeRunsBeforeCheck)
                 beforeAction();
             
             /* Carry out the action stage on one set of objects */

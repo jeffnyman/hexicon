@@ -1314,7 +1314,7 @@ class Thing:  ReplaceRedirector, Mentionable
         /* Begin by displaying our name */
         "<.roomname><<roomHeadline(now.player)>><./roomname>\n";
         
-        if(now.actionIn(GoTo, Continue) && !gameMain.verbose)
+        if(now.actionIn(GoTo, Continue) && !story.verbose)
             return;
 
     
@@ -1397,7 +1397,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     showInteriorDesc(descObj)
     {
-        if(gameMain.verbose || !visited || now.actionIs(Look))
+        if(story.verbose || !visited || now.actionIs(Look))
             "<.roomdesc><<descObj.interiorDesc>><./roomdesc><.p>";
     }
 
@@ -1788,9 +1788,9 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   Do we want paragraph breaks between the listings of subcontents (i.e.
      *   the contents of this item's contents)? By default we take our value
-     *   from the global setting on gameMain.
+     *   from the global setting on story.
      */
-    paraBrksBtwnSubcontents = (gameMain.paraBrksBtwnSubcontents)
+    paraBrksBtwnSubcontents = (story.paraBrksBtwnSubcontents)
     
     /* 
      *   Mark everything item in lst as not mentioned , and carry on down the
@@ -2999,7 +2999,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   The isInitialPlayerChar property was formerly used as an alternative method of identifying
      *   the player character. This method of doing so is now deprecated, except for its use on the
      *   Player class. Instead you should now define the player character on
-     *   gameMain.initialPlayerChar
+     *   story.protagonist
      */    
     isInitialPlayerChar = nil
     
@@ -3007,17 +3007,17 @@ class Thing:  ReplaceRedirector, Mentionable
     preinitThing()
     {
         /*    
-         *   If I am meant to be the initial player character and gameMain does
+         *   If I am meant to be the initial player character and story does
          *   not already define another one, register this object as the initial
          *   player character.
          */
-        if(isInitialPlayerChar && gameMain.propType(&initialPlayerChar) != TypeObject)
+        if(isInitialPlayerChar && story.propType(&protagonist) != TypeObject)
         {
-            /* Register me as the initial player character on gameMain */
-            gameMain.initialPlayerChar = self;
+            /* Register me as the initial player character on story */
+            story.protagonist = self;
             
             /* Register me as the current player character on libGlobal */
-            libGlobal.playerChar = gameMain.initialPlayerChar;
+            libGlobal.playerChar = story.protagonist;
         }
         
         
@@ -8132,14 +8132,14 @@ class Thing:  ReplaceRedirector, Mentionable
                     commonRegions.indexWhich({r: r.briefGoTo }) != nil;
                 
                 local fastGo = regionFastGoTo || regionBriefGoTo 
-                    || gameMain.fastGoTo || gameMain.briefGoTo;
-                local wasVerbose = gameMain.verbose;
+                    || story.fastGoTo || story.briefGoTo;
+                local wasVerbose = story.verbose;
                 
                 try
                 {                   
                     
-                    if(gameMain.briefGoTo || regionBriefGoTo)
-                        gameMain.verbose = nil;
+                    if(story.briefGoTo || regionBriefGoTo)
+                        story.verbose = nil;
                     
                     Continue.takeStep(dir, getOutermostRoom, fastGo);                
                     
@@ -8154,7 +8154,7 @@ class Thing:  ReplaceRedirector, Mentionable
                     {
                         local dir = route[++idx][1];
                         if(idx == route.length())
-                            gameMain.verbose = wasVerbose;
+                            story.verbose = wasVerbose;
                         
                         Continue.takeStep(dir, getOutermostRoom, true);
                     }    
@@ -8163,9 +8163,9 @@ class Thing:  ReplaceRedirector, Mentionable
                 }
                 finally
                 {
-                    gameMain.verbose = wasVerbose;
+                    story.verbose = wasVerbose;
                     
-                    if((gameMain.briefGoTo || regionBriefGoTo) && wasVerbose && !now.actor.isIn(dest))
+                    if((story.briefGoTo || regionBriefGoTo) && wasVerbose && !now.actor.isIn(dest))
                         now.actor.getOutermostRoom.lookAroundWithin();
                 }
             }
@@ -10305,7 +10305,7 @@ thingPreinit: PreinitObject
  *   The Player class can be used to define the player character object. If
  *   there is only one player character in the game (the PC never changes) and
  *   the game is in the second person this can be done very conveniently, and
- *   the Player object will register itself with gameMain and libGlobal.
+ *   the Player object will register itself with story and libGlobal.
  */
 class Player: Actor
     

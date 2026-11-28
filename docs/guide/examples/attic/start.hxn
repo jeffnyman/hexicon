@@ -2,15 +2,13 @@
 
 import hexad;
 
-versionInfo: GameID
+story: Story
     IFID = '8E1B4C2D-6F3A-4B9E-A170-2D5C9E4F8A13'
     name = 'The Attic'
     byline = 'by the Hexicon guide'
     version = '1'
-;
 
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
 ;
 
 me: Player 'you'

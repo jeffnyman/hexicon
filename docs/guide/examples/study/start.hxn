@@ -2,15 +2,13 @@
 
 import hexad;
 
-versionInfo: GameID
+story: Story
     IFID = '3A7F9C1E-2B6D-4E80-9F35-6C1D8B2E7A49'
     name = 'The Study'
     byline = 'by the Hexicon guide'
     version = '1'
-;
 
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
 ;
 
 me: Player 'you'

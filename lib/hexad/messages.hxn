@@ -46,7 +46,7 @@ Narrator: object
      *   kind of narrative fiction, and are mostly limited to experimental
      *   or novelty use.)  
      */
-    tense = (gameMain.usePastTense ? Past : Present)
+    tense = (story.usePastTense ? Past : Present)
 ;
 
 /*
@@ -241,7 +241,7 @@ buildMessage(id, txt, [args])
          *   but not including the opening brace up to but not including the
          *   bar)
          */
-        local subString = (gameMain.usePastTense || Narrator.tense == Past) ?
+        local subString = (story.usePastTense || Narrator.tense == Past) ?
             txt.substr(bar + 1, closeBrace - bar - 1) : txt.substr(openBrace +
                 1, bar - openBrace - 1);
         
@@ -1062,25 +1062,25 @@ class MessageParams: object
 
             /*
              *   If we're forcing present tense .Note the current game tense so we can restore it
-             *   once we've expanded this parameter. Since this could be defined either on gameMain
+             *   once we've expanded this parameter. Since this could be defined either on story
              *   or on Narrator we meed to check both places. If Narrator.tense is a method (rather
-             *   than a Tense object) we need to take the tense from gameMain.usePastTense,
+             *   than a Tense object) we need to take the tense from story.usePastTense,
              *   otherwise we need to note the Tense object on Narrator.tense.             
              */
-            local oldTense = Narrator.propType(&tense) == TypeCode ? gameMain.usePastTense :
+            local oldTense = Narrator.propType(&tense) == TypeCode ? story.usePastTense :
             Narrator.tense;
             
             /* 
              *   If we're forcing present tense, set the Narrator.tense to Present if oldTense is an
-             *   object, otherwise set gameMain.usePastTense to nil on the assumption that
-             *   Narrator.tense is getting its value to gameMain.usePastTense.
+             *   object, otherwise set story.usePastTense to nil on the assumption that
+             *   Narrator.tense is getting its value to story.usePastTense.
              */
             if(forcePresentTense)
             {
                 if(typeOf(&oldTense) == TypeObject)
                     Narrator.tense = Present;
                 else
-                    gameMain.usePastTense = nil;               
+                    story.usePastTense = nil;               
             }
             
             /*
@@ -1099,7 +1099,7 @@ class MessageParams: object
             /* 
              *   If we've been forcing present tense, now restore the previous tensse. If oldTense
              *   is an object, assume it's a Tense object and set Narrator.tense back to it,
-             *   otherwise restore the previous value of gameMain.usePastTense on the assumption
+             *   otherwise restore the previous value of story.usePastTense on the assumption
              *   that Narrator.tense is getting its value from there.
              */
             if(forcePresentTense)
@@ -1107,7 +1107,7 @@ class MessageParams: object
                 if(typeOf(&oldTense) == TypeObject)
                     Narrator.tense = oldTense;
                 else
-                    gameMain.usePastTense = oldTense;               
+                    story.usePastTense = oldTense;               
             }
             
             

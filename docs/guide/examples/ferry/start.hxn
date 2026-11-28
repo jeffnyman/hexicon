@@ -2,15 +2,13 @@
 
 import hexad;
 
-versionInfo: GameID
+story: Story
     IFID = '6D4B2A8F-9C1E-4F37-B852-1E7A3C9D5F06'
     name = 'The Ferry'
     byline = 'by the Hexicon guide'
     version = '1'
-;
 
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
 ;
 
 riverbank: Room 'River Bank'

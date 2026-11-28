@@ -41,7 +41,7 @@ helpMessage: object
         if(defined(extraHintManager) && extraHintManager.extraHintsExist())
            extraHintManager.explainExtraHints();
         
-        if(versionInfo.hasProp(&showAbout, PropDefDirectly))
+        if(story.hasProp(&showAbout, PropDefDirectly))
            "For more information specific to this game, type <<aHref('ABOUT',
                'ABOUT', 'Show information about this game')>>. ";
     }
@@ -290,7 +290,7 @@ playerHelper: InitObject
      *   goes on to display a message suggesting sources of help.
      *
      *   This method can usefully be called at the end of the
-     *   gameMain.showIntro() method, but it's up to game authors to incluse it
+     *   story.showIntro() method, but it's up to game authors to incluse it
      *   there if they want it/
      */
     offerHelp()

@@ -245,12 +245,12 @@ clockManager: PreinitObject
         local vec;
         
         /*  
-         *   If the gameMain object defines a gameStartTime, use it to set our
+         *   If the story object defines a gameStartTime, use it to set our
          *   baseDate.
          */
-        if(gameMain.hasProp(&gameStartTime))
+        if(story.hasProp(&gameStartTime))
         {
-            local gst = gameMain.gameStartTime;
+            local gst = story.gameStartTime;
             
             if(typeOf(gst) == TypeList)
                 baseDate = new Date(gst[1], gst[2], gst[3]);
@@ -434,7 +434,7 @@ clockManager: PreinitObject
      *   The base date (year, month, day) our game is meant to start on,
      *   expressed as a Date object. Often this doesn't matter if we're only
      *   interested in the time of day. By default we make it Jan 1, 2000. If
-     *   gameMain.gameStartDate is defines it will instead be taken from there.
+     *   story.gameStartDate is defines it will instead be taken from there.
 	 *   [SUBTIME EXTENSION]
      */    
     baseDate = static new Date(2000, 1, 1)

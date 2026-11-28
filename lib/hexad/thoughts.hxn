@@ -22,7 +22,7 @@ class ThoughtManager: PreinitObject, TopicDatabase
     execute()
     {
         /* Register this object as the game's intial thoughtManager object. */
-        if(thinker == nil || thinker == gameMain.initialPlayerChar)
+        if(thinker == nil || thinker == story.protagonist)
         {
             libGlobal.thoughtManagerObj = self;
                         

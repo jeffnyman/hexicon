@@ -203,10 +203,10 @@ class TIAAction: TIAction
             
             
             /* 
-             *   If gameMain defines the option to run before notifications
+             *   If story defines the option to run before notifications
              *   before the check stage, run the before notifications now.
              */
-            if(gameMain.beforeRunsBeforeCheck)
+            if(story.beforeRunsBeforeCheck)
                 beforeAction();
             
             /* 
@@ -217,10 +217,10 @@ class TIAAction: TIAction
                 return nil;
             
             /* 
-             *   If gameMain defines the option to run before notifications
+             *   If story defines the option to run before notifications
              *   after the check stage, run the before notifications now.
              */            
-            if(!gameMain.beforeRunsBeforeCheck)
+            if(!story.beforeRunsBeforeCheck)
                 beforeAction();
             
             /* Carry out the action stage on one set of objects */

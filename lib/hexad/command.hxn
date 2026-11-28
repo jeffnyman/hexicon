@@ -197,9 +197,9 @@ class Command: object
             if(verbProd != nil)
                 local lastCommandStr = buildCommandString();
                            
-            if(gameMain.autoSwitchAgain && action != Again)           
+            if(story.autoSwitchAgain && action != Again)           
             {                
-                gameMain.againRepeatsParse = action.againRepeatsParse;
+                story.againRepeatsParse = action.againRepeatsParse;
             }
             
             if(action.isRepeatable)

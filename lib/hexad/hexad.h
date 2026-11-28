@@ -943,14 +943,14 @@ enum masculine, feminine, neuter;
  *   Set the current narrative tense.  Use val = true for past and
  *   val = nil for present.
  */
-#define setPastTense(val) (gameMain.usePastTense = (val))
+#define setPastTense(val) (story.usePastTense = (val))
 
 /*
  *   Shorthand macro for selecting one of two values depending on the
  *   current narrative tense.
  */
 #define tSel(presVal, pastVal) \
-    (gameMain.usePastTense ? (pastVal) : (presVal))
+    (story.usePastTense ? (pastVal) : (presVal))
 
 /*
  *   Temporarily override the current narrative tense and invoke a callback

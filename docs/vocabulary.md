@@ -152,6 +152,8 @@ Hexad's vocabulary is adv3Lite's, and it is what authors write most. Its words a
 | `verify`, `check`, `action`, `report` | | the four stages; plain already, but `verify` is unusual | kept |
 | `BannerWindow` and the other banner classes | | to match the pane functions | `Pane` and the rest |
 | Hexad's own `get` methods | 801 | section 3's rule | kept: every class authors use has a name that would collide |
+| `gameMain: GameMainDef` and `versionInfo: GameID` | 160 | named for the plumbing ("main", "def", "info"), and two objects where an author is describing one thing | one object, `story: Story` (2026-11-28): a `Story` is a `GameID`, so it is the game's identity, listed in the credits and written to GameInfo, as well as how it begins and its settings (`story.usePastTense`) |
+| `initialPlayerChar` | 24 | the parser's notion of a player character, not the story's | `protagonist` (2026-11-28): who the player plays as the story begins; who the player is at any moment is still `now.player` |
 
 ## Decided
 

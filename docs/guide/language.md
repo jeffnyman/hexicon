@@ -22,7 +22,7 @@ A file starts by bringing in what it uses. A game says `import hexad;`, which br
 #include <hexicon.h>
 ```
 
-A program on the system library alone starts at its `main()` function. (A game on Hexad has no `main()`: Hexad starts it, from `gameMain`.)
+A program on the system library alone starts at its `main()` function. (A game on Hexad has no `main()`: Hexad starts it, from `story`.)
 
 ```hexicon
 main(args)

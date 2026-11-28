@@ -37,10 +37,10 @@ initUI()
 initDisplay()
 {
     /* set the interpreter window title */
-    gameMain.setGameTitle();
+    story.setGameTitle();
 
     /* set up the ABOUT box */
-    gameMain.setAboutBox();
+    story.setAboutBox();
 }
 
 /*
@@ -166,7 +166,7 @@ aioClearScreen()
     clearScreen();
 
     /* re-initialize any <ABOUTBOX> tag */
-    gameMain.setAboutBox();
+    story.setAboutBox();
 }
 
 /* ------------------------------------------------------------------------ */

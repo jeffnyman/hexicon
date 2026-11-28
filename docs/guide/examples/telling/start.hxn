@@ -3,15 +3,13 @@
 
 import hexad;
 
-versionInfo: GameID
+story: Story
     IFID = '53EAD783-C052-46A3-AC3C-20AEB10268F6'
     name = 'The Sitting Room'
     byline = 'by the Hexicon guide'
     version = '1'
-;
 
-gameMain: GameMainDef
-    initialPlayerChar = me
+    protagonist = me
 ;
 
 // Text of the game's own, written so that it follows the person and the
@@ -79,10 +77,10 @@ action FirstPerson: SystemAction execAction(cmd) { tellingIn.setPerson(1); };
 action SecondPerson: SystemAction execAction(cmd) { tellingIn.setPerson(2); };
 action ThirdPerson: SystemAction execAction(cmd) { tellingIn.setPerson(3); };
 action PastTense: SystemAction
-    execAction(cmd) { gameMain.usePastTense = true; "(Now in the past.) "; }
+    execAction(cmd) { story.usePastTense = true; "(Now in the past.) "; }
 ;
 action PresentTense: SystemAction
-    execAction(cmd) { gameMain.usePastTense = nil; "(Now in the present.) "; }
+    execAction(cmd) { story.usePastTense = nil; "(Now in the present.) "; }
 ;
 
 verb FirstPerson 'first' 'person': verbPhrase = 'tell/telling in the first person';

@@ -14,7 +14,7 @@ The player's `person` is 1, 2, or 3: "I pull the cord", "you pull the cord", or,
 ;
 ```
 
-The tense is `gameMain.usePastTense`: `nil`, the present, or `true`, the past. Either can be changed at any time. A change of person changes the player's `name` with it, since the other forms (me, my, myself) are made from the name:
+The tense is `story.usePastTense`: `nil`, the present, or `true`, the past. Either can be changed at any time. A change of person changes the player's `name` with it, since the other forms (me, my, myself) are made from the name:
 
 ```hexicon
 // How the story is told, which takes no turn.

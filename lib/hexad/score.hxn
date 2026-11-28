@@ -30,14 +30,14 @@ import hexad;
  *   entire game (saving you the trouble of checking to see if the event
  *   that triggered the scoring item has happened before already in the
  *   same game).  If you do this, you MUST set the property
- *   gameMain.maxScore to reflect the maximum score possible in the game.
+ *   story.maxScore to reflect the maximum score possible in the game.
  *   
  *   2.  You can use EXCLUSIVELY Achievement objects to represents scoring
  *   items, and give each Achievement object a 'points' property
  *   indicating the number of points it's worth.  To award a scoring item,
  *   you call the method awardPoints() on an Achievement object.  If you
  *   use this style of scoring, the library AUTOMATICALLY computes the
- *   gameMain.maxScore value, by adding up the 'points' values of all of
+ *   story.maxScore value, by adding up the 'points' values of all of
  *   the Achievement objects in the game.  For this to work properly, you
  *   have to obey the following rules:
  *   
@@ -423,8 +423,8 @@ libScore: PreinitObject
          *   the message, depending on whether or not there's a maximum
          *   score value. 
          */
-        if (gameMain.maxScore != nil)                
-            showScoreMessage(totalScore, gameMain.maxScore,
+        if (story.maxScore != nil)                
+            showScoreMessage(totalScore, story.maxScore,
                                           libGlobal.totalTurns);
         else
             showScoreNoMaxMessage(totalScore, libGlobal.totalTurns);
@@ -459,7 +459,7 @@ libScore: PreinitObject
     showScoreRank(points)
     {
         local idx;
-        local tab = gameMain.scoreRankTable;
+        local tab = story.scoreRankTable;
         
         /* if there's no rank table, skip the ranking */
         if (tab == nil)

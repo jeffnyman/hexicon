@@ -41,22 +41,32 @@ property calcMaxScore, runScoreNotifier;
 
 /* ------------------------------------------------------------------------ */
 /*
- *   The library base class for the gameMain object.
- *   
- *   Each game MUST define an object called 'gameMain' to define how the
- *   game starts up.  You can use GameMainDef as the base class of your
- *   'gameMain' object, in which case the only thing you're required to
- *   specify in your object is the 'initialPlayerChar' property - you can
- *   inherit everything else from the GameMainDef class if you don't
- *   require any further customizations.  
+ *   The story: what a game is, and how it begins. Each game defines one
+ *   object, `story`, of this class:
+ *
+ *.  story: Story
+ *.      IFID = '...'
+ *.      name = 'The Tide Mill'
+ *.      byline = 'by ...'
+ *.      version = '1'
+ *.      protagonist = me
+ *.      maxScore = 7
+ *.      showIntro() { "..."; }
+ *.  ;
+ *
+ *   What it is, its name, byline, version, and the rest, is a GameID's,
+ *   so it is listed in the credits and written to the game's GameInfo as
+ *   the game; how it begins, and the settings that hold while it is
+ *   played, are this class's own. The only thing a game must give it is
+ *   its protagonist.
  */
-class GameMainDef: object
+class Story: GameID
     /*
-     *   The initial player character.  Each game's 'gameMain' object MUST
-     *   define this to refer to the Actor object that serves as the
-     *   initial player character. 
+     *   The protagonist: the character the player plays as the story
+     *   begins. Each game's story MUST give it. Who the player is at any
+     *   moment after is now.player, which a game can change.
      */
-    initialPlayerChar = nil
+    protagonist = nil
 
     /*
      *   Show the game's introduction.  This routine is called by the
@@ -96,7 +106,7 @@ class GameMainDef: object
     {
         /*   Create an action context in case any startup code needs it */
         libGlobal.curAction = Look.createInstance();
-        libGlobal.curActor = initialPlayerChar;
+        libGlobal.curActor = protagonist;
 
         
         /* 
@@ -124,12 +134,12 @@ class GameMainDef: object
     /*
      *   Set the interpreter window title, if applicable to the local
      *   platform.  This simply displays a <TITLE> tag to set the title to
-     *   the string found in the versionInfo object.  
+     *   the string found in the story object.  
      */
     setGameTitle()
     {
         /* write the <TITLE> tag with the game's name */
-        "<title><<versionInfo.name>></title>";
+        "<title><<story.name>></title>";
     }
 
     /*
@@ -206,7 +216,7 @@ class GameMainDef: object
     }
 
     /*
-     *   The gameMain object also specifies some settings that control
+     *   The story object also specifies some settings that control
      *   optional library behavior.  If you want the standard library
      *   behavior, you can just inherit the default settings from this
      *   class.  Some games might want to select non-default variations,
@@ -449,8 +459,8 @@ hexadPreinit: PreinitObject
     execute()
     {
 
-        /* set the initial player character, as specified in gameMain */
-        libGlobal.playerChar = gameMain.initialPlayerChar;
+        /* set the initial player character, as specified in story */
+        libGlobal.playerChar = story.protagonist;
         
 
         
@@ -1615,7 +1625,7 @@ finishOptionCredits: FinishOption
         "\b";
 
         /* run the Credits action */
-        versionInfo.showCredit();
+        story.showCredit();
 
         /* show a paragraph break after the credits */
         "<.p>";
@@ -2994,11 +3004,11 @@ objOfKind(obj, cls) { return dataTypeXlat(obj) == TypeObject && obj.ofKind(cls);
 getPlayerChar()
 {
     /* 
-     *   If gPleyarChar is not nil, return now.player, otherwise if gameMain.initialPlayerChar is
-     *   not nil, return gameMain.initialPlayerChar, otherwise call the findPlayerChar() function
+     *   If gPleyarChar is not nil, return now.player, otherwise if story.protagonist is
+     *   not nil, return story.protagonist, otherwise call the findPlayerChar() function
      *   and return whatever that comes up with.
      */    
-    return (gameMain.initialPlayerChar) ?? findPlayerChar();
+    return (story.protagonist) ?? findPlayerChar();
 }
 
 /* 
@@ -3023,8 +3033,8 @@ findPlayerChar()
             /* If we've found the initial player character */
             if(obj.isInitialPlayerChar)
             {
-                /* Store the PC's identity in gameMain */
-                gameMain.initialPlayerChar = obj;
+                /* Store the PC's identity in story */
+                story.protagonist = obj;
                 
                 /* Set the player char to the objec we've found. */
 //                libGlobal.playerChar = obj;

@@ -1,0 +1,8 @@
+IFID: 5C2A6E7B-1D4F-4A83-9E21-7B3C0F8D2A64
+Name: The Lighthouse
+Byline: by the Hexicon guide
+Version: 1
+ReleaseDate: 2026-11-28
+LicenseType: Freeware
+CopyingRules: Nominal cost only; compilations allowed
+PresentationProfile: Default

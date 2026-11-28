@@ -77,7 +77,7 @@ initDisplay()
 
     /* capture the title string */
     local title = mainOutputStream.captureOutput(
-        {: gameMain.setGameTitle() });
+        {: story.setGameTitle() });
 
     /* parse out the contents of the <title> tag */
     if (regexSearch('<nocase>[<]title[>](.*)[<]/title[>]', title))
