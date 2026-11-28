@@ -8820,16 +8820,47 @@ impl Parser<'_, '_> {
         }
         tokens.push((Tok::Sym, name.clone()));
         tokens.push((Tok::Colon, b":".to_vec()));
+        let mut classes: Vec<Vec<u8>> = Vec::new();
         loop {
             if self.next() != Tok::Sym {
                 self.error_curtok("expected the action's class, but found \"%\"");
                 return;
             }
+            classes.push(self.cur_text());
             tokens.push((Tok::Sym, self.cur_text()));
             if self.next() != Tok::Comma {
                 break;
             }
             tokens.push((Tok::Comma, b",".to_vec()));
+        }
+        // An action made directly on TAction or TIAction gets the
+        // properties for its objects only from the objects it names, so
+        // one that names too few fails when it is first used, deep in the
+        // library: it is said here.
+        // A class, the roles it needs, and how they are written.
+        type Wanted = (&'static [u8], &'static [&'static [u8]], &'static str);
+        let wants: &[Wanted] = &[
+            (b"TAction", &[b"Dobj"], "(dobj)"),
+            (b"TIAction", &[b"Dobj", b"Iobj"], "(dobj, iobj)"),
+        ];
+        for (class, needed, shown) in wants {
+            if classes.iter().any(|c| c.as_slice() == *class)
+                && needed.iter().any(|r| !roles.contains(r))
+            {
+                let action = show_name(&name);
+                self.tok.log_at(
+                    place.file,
+                    place.line,
+                    Severity::Warning,
+                    format!(
+                        "the action \"{action}\" is a {} but does not name its objects \
+                         {shown}, so it will fail when it is used: write \
+                         \"action {action}{shown}: {}\"",
+                        show_name(class),
+                        show_name(class)
+                    ),
+                );
+            }
         }
         let mut assign = |prop: Vec<u8>, value: Vec<u8>, address: bool| {
             tokens.push((Tok::Sym, prop));

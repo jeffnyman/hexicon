@@ -3972,6 +3972,44 @@ mod checked_names {
     }
 
     #[test]
+    fn an_action_on_taction_without_its_objects_is_warned_of() {
+        let library = "class TAction: object;\n\
+                       class TIAction: TAction;\n\
+                       class IAction: object;\n\
+                       action Take(dobj): TAction;\n\
+                       _main(args) { }\n";
+        assert_eq!(
+            messages_with(library, "game.hxn", "action KState: TAction;\n"),
+            [
+                "game.hxn(1): the action \"KState\" is a TAction but does not name its \
+              objects (dobj), so it will fail when it is used: write \"action \
+              KState(dobj): TAction\""
+            ]
+        );
+        assert_eq!(
+            messages_with(library, "game.hxn", "action PutOver(dobj): TIAction;\n"),
+            [
+                "game.hxn(1): the action \"PutOver\" is a TIAction but does not name its \
+              objects (dobj, iobj), so it will fail when it is used: write \"action \
+              PutOver(dobj, iobj): TIAction\""
+            ]
+        );
+        // Named in full, or made on another action or on IAction, it is fine.
+        for good in [
+            "action KState(dobj): TAction;\n",
+            "action PutOver(dobj, iobj): TIAction;\n",
+            "action Grab: Take;\n",
+            "action Hum: IAction;\n",
+        ] {
+            assert_eq!(
+                messages_with(library, "game.hxn", good),
+                Vec::<String>::new(),
+                "{good}"
+            );
+        }
+    }
+
+    #[test]
     fn a_games_own_verb_rule_takes_the_place_of_the_librarys_however_written() {
         let library = "class IAction: object;\n\
                        class VerbProduction: object;\n\

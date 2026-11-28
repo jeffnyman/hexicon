@@ -514,7 +514,7 @@ The user's World Knowledge, checked against what Hexad already has rather than p
 
 World Knowledge's testing command, KSTATE, is among Hexad's debugging commands (built with `-d`).
 
-**Found on the way: debug builds of every game failed.** Ditch Day's TEST verb (2026-11-28) was the action `Test`, which is also the class of Hexad's test scripts (`Test 'foo' ['x me', 'i'];`), defined only in debug builds, which none of the checks made. The action is now `Probe` (and `ProbeWith`), with the same words; the hypothetical test game's own PROBE became `ProbeAll`. game-check now builds every game for debugging too, as part of its run. Also seen: a `TAction` declared without `(dobj)` fails only at run time, with "property reference required" deep in Hexad; the compiler could say so.
+**Found on the way: debug builds of every game failed.** Ditch Day's TEST verb (2026-11-28) was the action `Test`, which is also the class of Hexad's test scripts (`Test 'foo' ['x me', 'i'];`), defined only in debug builds, which none of the checks made. The action is now `Probe` (and `ProbeWith`), with the same words; the hypothetical test game's own PROBE became `ProbeAll`. game-check now builds every game for debugging too, as part of its run. Also seen: a `TAction` declared without `(dobj)` failed only at run time, with "property reference required" deep in Hexad. **Done, 2026-11-28:** the compiler now warns of an action made directly on `TAction` without `(dobj)`, or on `TIAction` without `(dobj, iobj)`, saying how to write it; one made on another action, which has its objects already, is not warned of. A compiler test checks both, and that neither Hexad nor any game is warned of.
 
 ### Contextual descriptions (2026-11-28)
 
