@@ -1,4 +1,4 @@
 image: none
 --- messages
-error: function _main() is not defined
+error: function _main() is not defined: a program built without the system library (-nosystem) has to define its own
 --- output

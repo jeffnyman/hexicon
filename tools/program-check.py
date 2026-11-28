@@ -100,7 +100,7 @@ def hexicon_result(case, run_it=True):
             [
                 HEXICON,
                 "build",
-                "-nodef",
+                "-nosystem",
                 "-nopre",
                 "-o",
                 str(image),

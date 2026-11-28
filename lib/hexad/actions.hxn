@@ -3727,51 +3727,6 @@ action Restore: SystemAction
         return succ;
     }
 
-    /*
-     *   Restore a game on startup.  This can be called from mainRestore()
-     *   to restore a saved game directly as part of loading the game.
-     *   (Most interpreters provide a way of starting the interpreter
-     *   directly with a saved game to be restored, skipping the
-     *   intermediate step of running the game and using a RESTORE
-     *   command.)
-     *   
-     *   Returns true on success, nil on failure.  On failure, the caller
-     *   should simply exit the program.  On success, the caller should
-     *   start the game running, usually using runGame(), after showing any
-     *   desired introductory messages.  
-     */
-    startupRestore(fname)
-    {
-        /* 
-         *   try restoring the game, using code 1 to indicate that this is
-         *   a direct startup restore 
-         */
-        if (performRestore(fname, 1))
-        {
-            /* success - tell the caller to proceed with the restored game */
-            return true;
-        }
-        else
-        {
-            /* 
-             *   Failure.  We've described the problem, so ask the user
-             *   what they want to do about it. 
-             */
-            try
-            {
-                /* show options and read the response */
-                failedRestoreOptions();
-
-                /* if we get here, proceed with the game */
-                return true;
-            }
-            catch (QuittingException qe)
-            {
-                /* quitting - tell the caller to terminate */
-                return nil;
-            }
-        }
-    }
     
 
     /*

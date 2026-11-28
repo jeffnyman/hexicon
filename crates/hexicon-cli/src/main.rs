@@ -82,7 +82,9 @@ commands:
       -Fs <dir>                a folder to look for sources and libraries
                                in, before those of HEXICON_LIB and the
                                libraries built in
-      -nodef                   leave out the system library's _main
+      -nosystem                build without the system library, which
+                               every program is otherwise built on; the
+                               program defines its own _main
       -nopre, -pre             whether to run the program before the
                                image is written (default: -pre, unless -d)
       -d                       build for debugging: __DEBUG defined, no

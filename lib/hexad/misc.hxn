@@ -122,46 +122,6 @@ class GameMainDef: object
     }
 
     /*
-     *   Restore a game and start it running.  This is invoked when the
-     *   user launches the interpreter using a saved game file; for
-     *   example, on a Macintosh, this happens when the user double-clicks
-     *   on a saved game file on the desktop.
-     *   
-     *   This default implementation bypasses any normal introduction
-     *   messages: we simply restore the game file if possible, and
-     *   immediately start the game's main command loop.  Most games won't
-     *   need to override this, but you can if you need some special effect
-     *   in the restore-at-startup case.  
-     */
-    restoreAndRunGame(filename)
-    {
-        local succ;
-
-        /* mention that we're about to restore the saved position */
-        showMsg(note main restore, 'Game restored.<.p>');
-
-        /* try restoring it */
-        succ = Restore.startupRestore(filename);
-
-        /* show a blank line after the restore result message */
-        "<.p>";
-
-        /* if we were successful, run the game */
-        if (succ)
-        {
-            /* 
-             *   Run the command loop.  There's no need to show the room
-             *   description, since the RESTORE action will have already
-             *   done so. 
-             */
-            runGame(nil);
-
-            /* show the end-of-game message */
-            showGoodbye();
-        }
-    }
-
-    /*
      *   Set the interpreter window title, if applicable to the local
      *   platform.  This simply displays a <TITLE> tag to set the title to
      *   the string found in the versionInfo object.  

@@ -98,7 +98,7 @@ source-text-group = false                # -Gstg
 charset = "cp1252"                       # -cs
 include-paths = ["include"]              # -I
 library-paths = ["../libs"]              # -Fs
-system-main = true                       # false is -nodef
+system = true                            # false is -nosystem: no system library
 ```
 
 A library's manifest says what a `.tl` says:
@@ -110,7 +110,6 @@ sources = ["action.t", "actions.t"]      # ...
 libraries = ["$(LANGUAGE)"]              # $(NAME) is a macro's value, as in a .tl
 # or modules = [...], as for a game, where the order matters
 resources = ["webuires"]
-system-main = true                       # false is nodef
 header = "advlite.h"                     # what `import adv3Lite;` gives a file
 
 [needs]                                  # needmacro
@@ -355,6 +354,15 @@ As built (2026-11-24):
 - Pattern matching over lists and objects.
 
 Both are large and neither is needed for Hexad. They are listed so that the early changes do not close them off.
+
+### 5. Where a program starts (done, 2026-11-28)
+
+TADS 3's start was a module, `_main.t`, that the build added to every program unless told not to (`-nodef`, or a library's `system-main = false`), though the system library, which every manifest names, had it among its sources too; that called the program's `main` through a helper that tolerates its taking no arguments; it had a second entry, `mainRestore`, exported for an interpreter starting a program with a saved game, reached through a function pointer looked up in the symbol table; and it was a file of 1,532 lines that held, besides, every exception class, the initialization framework, stack traces, and the utilities. The user found it a kludge, and wanted Hexicon to diverge from TADS where it can (2026-11-28). Now:
+
+- **Every program is built on the system library**, the whole of it, first, whether its manifest names it or not, as a language's standard library is; a manifest that names it has it where it says, once. `-nosystem`, or `system = false` in a manifest's `[build]`, builds without it, for a program that defines its own `_main`: the compiler's test programs. `-nodef` and `system-main` are gone.
+- **One entry.** The virtual machine calls `_main(args)`, in the system library, which initializes the program and calls its `main(args)` (or `main()`), again after each RESTART. The restore entry is gone from the VM, the system library, and Hexad: nothing called it, as no host starts a program with a saved game; if one does, that is designed then. A program with no `main` is told so when it is built: "the program has no main(args) function, which the system library calls when it starts", where it was an unresolved external reference.
+- **The system library by what each part is for:** `lifecycle.hxn` (the entry, restart, the default output, and what is done at exit), `initobjects.hxn` (`PreinitObject` and `InitObject`), `exceptions.hxn` (with stack traces), and `utilities.hxn`. Their names are specific, since no module of a game can share one with a library's.
+- Games play the same. A stack trace of Hexad Fixes' RECURSE counts one level fewer in the built-in libraries, where `_main` no longer goes through `_mainCommon`.
 
 ## Open questions
 

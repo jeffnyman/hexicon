@@ -62,14 +62,6 @@ fn prop_symbol(image: &Image, name: &str) -> VmResult<PropId> {
     }
 }
 
-fn function_symbol(image: &Image, name: &str) -> VmResult<u32> {
-    match image.symbol(name) {
-        None => Ok(0),
-        Some(ImageValue::FunctionPointer(address)) => Ok(address),
-        Some(_) => Err(bad_export(name)),
-    }
-}
-
 /// Build an object from its image data.
 fn load_object(kind: MetaKind, meta_index: u16, data: &[u8]) -> VmResult<Object> {
     let bad = || VmError::new(code::INVAL_METACLASS_DATA);
@@ -434,7 +426,6 @@ impl Vm {
             last_prop: prop_symbol(image, "LastProp")?,
             prop_not_defined: prop_symbol(image, "propNotDefined")?,
             stack_info_class: object_symbol(image, "StackInfo")?,
-            main_restore: function_symbol(image, "mainRestore")?,
             length: prop_symbol(image, "length")?,
             const_str_obj: ObjId::INVALID,
             const_lst_obj: ObjId::INVALID,

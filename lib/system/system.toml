@@ -8,6 +8,5 @@
 
 [library]
 name = "System"
-sources = ["_main", "file", "tok", "grammarrule", "multmeth"]
-# The library brings its own _main, so the build does not add another.
-system-main = false
+sources = ["lifecycle", "initobjects", "exceptions", "utilities", "file", "tok",
+           "grammarrule", "multmeth"]

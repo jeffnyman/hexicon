@@ -8,11 +8,8 @@ import hexad;
  */
 
 /*
- *   Main program entrypoint.  The core run-time start-up code calls this
- *   after running pre-initialization and load-time initialization.  This
- *   entrypoint is called when we're starting the game normally; when the
- *   game is launched through a saved-position file, mainRestore() will be
- *   invoked instead.  
+ *   The program's main: the system library calls it once the program is
+ *   initialized, and again after each RESTART. It starts the story.
  */
 main(args)
 {
@@ -21,23 +18,8 @@ main(args)
 }
 
 /*
- *   Main program entrypoint for restoring a saved-position file.  This is
- *   invoked from the core run-time start-up code when the game is launched
- *   from the operating system via a saved-position file.  For example, on
- *   Windows, double-clicking on a saved-position file on the Windows
- *   desktop launches the interpreter, which looks in the save file to find
- *   the game executable to run, then starts the game and invokes this
- *   entrypoint.  
- */
-mainRestore(args, restoreFile)
-{
-    libGlobal.commandLineArgs = args;
-    mainCommon(&restoreAndRunGame, restoreFile);
-}
-
-/*
- *   Common main entrypoint - this handles starting a new game or restoring
- *   an existing saved state. 
+ *   Start the game: set up the display, and call the property of the game's
+ *   main object given (newGame).
  */
 mainCommon(prop, [args])
 {

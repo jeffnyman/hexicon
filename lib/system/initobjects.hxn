@@ -1,0 +1,340 @@
+#charset "us-ascii"
+
+/*
+ *   Initialization: the objects that run before the program is saved as an
+ *   image (PreinitObject) and each time it starts (InitObject), in the
+ *   order their execBeforeMe and execAfterMe say.
+ */
+
+#include "hexicon.h"
+#include "reflect.h"
+#include "stringbuilder.h"
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   General post-load initialization.  The main program entrypoint
+ *   _main() calls this routine to set up the default display function,
+ *   run pre-initialization if necessary, and run initialization.  This
+ *   routine is also useful for the target of a restartGame() routine, to
+ *   perform all of the basic load-time initialization again after a
+ *   restart.  
+ */
+initAfterLoad()
+{
+    /* establish the default display function */
+    setSay(_default_display_fn);
+
+    /* if we haven't run preinit, do so now */
+    if (!mainGlobal.preinited_)
+    {
+        /* 
+         *   Explicitly run garbage collection prior to preinit.
+         *   
+         *   In most cases, this is unnecessary, but in some cases it's
+         *   important.  In particular, object loops (over all objects, or
+         *   over all instances of a given class) can still see otherwise
+         *   unreachable objects.  It's common to do object loops in
+         *   preinit to set up static data caches and tables and so on.  If
+         *   there *were* any garbage objects lying around, preinit could
+         *   find them via object loops, and might register them into
+         *   tables or what not.
+         *   
+         *   Even considering the preinit object loop, doing a garbage
+         *   collection sweep would *still* be redundant in most cases,
+         *   since preinit is normally done right after compilation, when
+         *   the program wouldn't yet have had a chance to create any
+         *   garbage objects to be worried about in object loops.  However,
+         *   there's still one more case to consider, and that's RESTART:
+         *   in a debug build, or even in some release builds, we'd have to
+         *   re-run preinit after a RESTART, and there certainly could be
+         *   garbage objects left around from before the RESTART.
+         *   
+         *   To ensure that we deal gracefully with this combination of
+         *   conditions - garbage objects, RESTART, and object loops in
+         *   preinit - simply do an explicit garbage collection run before
+         *   invoking preinit.  
+         */
+        collectGarbage();
+
+        /* run our internal preinit */
+        _preinit();
+        
+        /* remember that we've run preinit */
+        mainGlobal.preinited_ = true;
+    }
+
+    /* if we're not in preinit-only mode, run internal initialization */
+    if (!inPreinit())
+        _init();
+}
+
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Module Execution Object.  This is an abstract base class for various
+ *   classes that provide modular execution hooks.  This class and its
+ *   subclasses are mix-in classes - they can be multiply inherited by any
+ *   object (as long as it's not already some other kind of module
+ *   execution object).
+ *   
+ *   The point of the Module Execution Object and its subclasses is to
+ *   allow libraries and user code to define execution hooks, without
+ *   having to worry about what other libraries and user code bits are
+ *   defining the same hook.  When we need to execute a hook defined via
+ *   this object, we iterate over all of the instances of the appropriate
+ *   subclass and invoke its execute() method.
+ *   
+ *   By default, the order of execution is arbitrary.  In some cases,
+ *   though, dependencies will exist, so that one object cannot be invoked
+ *   until another object has already been invoked.  In these cases, you
+ *   must set the execBeforeMe property to contain a list of the objects
+ *   whose execute() methods must be invoked before this object's
+ *   execute() method is invoked.  The library will check this list before
+ *   calling execute() on this object, and ensure that each object in the
+ *   list has been invoked before calling this object's execute().  
+ */
+class ModuleExecObject: object
+    /* 
+     *   List of objects that must be executed before me - by default, the
+     *   order doesn't matter, so we'll set this to an empty list.
+     *   Instances can override this if it is necessary to execute other
+     *   objects before this object can be executed.  
+     */
+    execBeforeMe = []
+
+    /*
+     *   List of objects that must be executed after me - this is
+     *   analogous to execBeforeMe, but we make sure we run before these. 
+     */
+    execAfterMe = []
+
+    /* 
+     *   Subclass-specific execution method.  Each subclass should
+     *   override this method to provide its execution code.  
+     */
+    execute() { }
+
+
+    /* 
+     *   PRIVATE METHODS AND PROPERTIES.  Subclasses and instances should
+     *   not need to override or invoke these.  
+     */
+
+    /* flag - true if we've been executed on this round */
+    isExecuted_ = nil
+
+    /* flag - true if we're in the process of executing */
+    isDoingExec_ = nil
+
+    /* execute - internal method: checks dependency order */
+    _execute()
+    {
+        /*
+         *   If I've already been executed, there's nothing more that I
+         *   need to do.  We might be called by the arbitrarily-ordered
+         *   iteration over all objects after we've already been executed,
+         *   because we might be executed explicitly by an object that
+         *   depends upon us if it's reached before we are.  
+         */
+        if (isExecuted_)
+            return;
+
+        /* 
+         *   If we're in the process of executing any of the objects we
+         *   depend upon, and a dependent calls us, we have a circular
+         *   dependency.  
+         */
+        if (isDoingExec_)
+            throw new CircularExecException(self);
+
+        /*
+         *   Mark ourselves as being in the process of executing.  If
+         *   there are any circular dependencies (i.e., if we depend on an
+         *   object, which in turn depends on us), it's clearly an error,
+         *   in that both objects can't be executed before the other.
+         *   This flag allows us to detect circular dependencies by
+         *   noticing if we're called by a dependent while we're in the
+         *   process of calling the things we depend upon.  
+         */
+        isDoingExec_ = true;
+        
+        /*
+         *   Check each entry in my 'before' list to ensure that they've
+         *   all been executed already.  Invoke execute() now for any that
+         *   haven't.  
+         */
+        for (local i = 1, local cnt = execBeforeMe.length() ;
+             i <= cnt ; ++i)
+        {
+            local cur;
+
+            /* get this object */
+            cur = execBeforeMe[i];
+            
+            /* if this one hasn't been executed yet, do so now */
+            if (!cur.isExecuted_)
+            {
+                /* 
+                 *   This one hasn't been executed yet - explicitly
+                 *   execute it now.  Note that we do this recursively
+                 *   through the internal execution method, so that 'cur'
+                 *   has a chance to execute any objects that it depends
+                 *   upon.  
+                 */
+                cur._execute();
+            }
+        }
+
+        /* 
+         *   we've resolved all of our dependencies, so we're good to go -
+         *   run the user's execution code 
+         */
+        execute();
+
+        /* 
+         *   mark ourselves as having been executed, so we don't run the
+         *   user's code again should we be called again by a dependent or
+         *   by the global iteration loop later in the scan 
+         */
+        isExecuted_ = true;
+        isDoingExec_ = nil;
+    }
+
+    /* flag to indicate that this is the first time running classExec */
+    hasInitialized_ = nil
+
+    /*
+     *   Class execution.  Call this method on the particular class of
+     *   modules to execute.  We'll iterate over all instances of that
+     *   class and invoke each instance's _execute() method. 
+     */
+    classExec()
+    {
+        /*
+         *   If this is the first time running this classExec, turn
+         *   execAfterMe dependencies into appropriate execBeforeMe
+         *   dependencies.  
+         */
+        if (!hasInitialized_)
+        {
+            /* 
+             *   Go through all instances of this type of initializer, and
+             *   re-cast the execAfterMe lists as execBeforeMe lists.  
+             */
+            forEachInstance(self,
+                function(obj)
+                {
+                    foreach(local dependent in obj.execAfterMe)
+                        dependent.execBeforeMe += obj;
+                });
+
+            /* remember that we're now initialized */
+            hasInitialized_ = true;
+        }
+        
+        /* 
+         *   since we're starting a new round, clear all of the 'executed'
+         *   flags in all of the objects, to ensure that we execute all
+         *   objects on this round (this cleans up the flag settings from
+         *   any previous rounds) 
+         */
+        forEachInstance(self,
+            { obj: obj.isExecuted_ = obj.isDoingExec_ = nil });
+
+        /* execute all objects */
+        forEachInstance(self, { obj: obj._execute() });
+    }
+;
+
+/*
+ *   Pre-Initialization object.  During pre-initialization, we'll invoke
+ *   the execute() method on each instance of this class.  
+ */
+class PreinitObject: ModuleExecObject
+    /*
+     *   Each instance of this object MUST override execute() with the
+     *   specific pre-initialization code that the instance wants to
+     *   perform.
+     *   
+     *   In addition, each instance can optionally set the property
+     *   execBeforeMe to a list of the other PreinitObject's that must be
+     *   invoked before this object is.  If this property is not set, this
+     *   object's place in the preinit execution order will be arbitrary.  
+     */
+;
+
+/*
+ *   Initialization object.  During initialization, just before calling
+ *   the user's main(args) function, we'll invoke the execute() method on
+ *   each instance of this class. 
+ */
+class InitObject: ModuleExecObject
+    /*
+     *   Each instance of this object MUST override execute() with the
+     *   specific initialization code that the instance wants to perform.
+     *   
+     *   In addition, each instance can optionally set the property
+     *   execBeforeMe to a list of the other InitObject's that must be
+     *   invoked before this object is.  If this property is not set, this
+     *   object's place in the initialization execution order will be
+     *   arbitrary.  
+     */
+;
+
+
+/*
+ *   Exception: circular execution dependency in ModuleExecObject
+ */
+class CircularExecException: Exception
+    construct(obj) { obj_ = obj; }
+    displayException()
+    {
+        "circular module dependency detected (refer to
+        ModuleExecObject._execute() in initobjects.hxn)";
+    }
+
+    /* 
+     *   The object that detected the circular dependency.  We can't use
+     *   this for much ourselves, but it might be useful to store this
+     *   information so that it's available to the programmer from within
+     *   the debugger.  
+     */
+    obj_ = nil
+;
+
+/*
+ *   Library pre-initialization.  This is called immediately after
+ *   compilation to pre-initialize the program.  Any changes made here to
+ *   object states become part of the initial state stored in the image
+ *   file, so this establishes the static initial state of the program.
+ *   
+ *   The advantage of doing work during pre-initialization is that this
+ *   work is done once, during compilation, and is thus not repeated each
+ *   time a user starts the program.  Time-consuming initialization work
+ *   can thus be made invisible to the user.
+ *   
+ *   Note that the pre-initialization code should never do anything that
+ *   involves the user interface, since this code runs during compilation
+ *   and does not run again when users start the program.  So, anything
+ *   that you want a user to see must be done during normal initialization
+ *   (such as in the main() routine), not here.  
+ */
+_preinit()
+{
+    /* execute all preinit objects */
+    PreinitObject.classExec();
+}
+
+/*
+ *   Library initialization.  This is called during each program start-up
+ *   to initialize the program.  Since this is run each time the user
+ *   starts the program, this can display any introductory messages, set
+ *   up the user interface, and so on.  
+ */
+_init()
+{
+    /* execute all init objects */
+    InitObject.classExec();
+}
+

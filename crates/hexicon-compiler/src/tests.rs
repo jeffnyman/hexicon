@@ -552,7 +552,10 @@ fn the_parts_that_mean_nothing_are_listed() {
 fn a_program_needs_a_main_function() {
     assert_eq!(
         compile_messages("f() { }\n"),
-        ["0: error: function _main() is not defined"]
+        [
+            "0: error: function _main() is not defined: a program built without the \
+          system library (-nosystem) has to define its own"
+        ]
     );
 }
 
@@ -3007,20 +3010,41 @@ fn read(files: &mut Files, args: &[&str]) -> Result<crate::Project, crate::Proje
     crate::read_project(files, &args, &project_paths())
 }
 
+/// The sources of the system library built in, as a build has them.
+fn system_sources() -> Vec<String> {
+    [
+        "lifecycle",
+        "initobjects",
+        "exceptions",
+        "utilities",
+        "file",
+        "tok",
+        "grammarrule",
+        "multmeth",
+    ]
+    .iter()
+    .map(|name| format!("{}/{name}.hxn", crate::builtin::SYSTEM))
+    .collect()
+}
+
 #[test]
-fn the_system_librarys_main_comes_first_unless_told_otherwise() {
+fn the_system_library_comes_first_unless_told_otherwise() {
     let mut files = Files::default().with("main.hxn", "");
-    let main = format!("{}/_main.hxn", crate::builtin::SYSTEM);
+    let with_system = |source: &str| {
+        let mut sources = system_sources();
+        sources.push(source.to_owned());
+        sources
+    };
     let project = read(&mut files, &["main.hxn"]).expect("a project");
-    assert_eq!(project.sources, [main.clone(), "main.hxn".to_owned()]);
+    assert_eq!(project.sources, with_system("main.hxn"));
     assert!(project.preinit);
     assert_eq!(project.image, Some("main.hxg".to_owned()));
     // A source named without its extension is a .hxn file.
     let project = read(&mut files, &["-nopre", "main"]).expect("a project");
-    assert_eq!(project.sources, [main, "main.hxn".to_owned()]);
+    assert_eq!(project.sources, with_system("main.hxn"));
     assert!(!project.preinit);
     // `-D` without a value defines the macro as nothing.
-    let project = read(&mut files, &["-nodef", "-D", "X", "-DY=2", "main"]).expect("a project");
+    let project = read(&mut files, &["-nosystem", "-D", "X", "-DY=2", "main"]).expect("a project");
     assert_eq!(project.sources, ["main.hxn".to_owned()]);
     assert_eq!(
         project.options.defines,
@@ -3044,7 +3068,7 @@ fn two_modules_cannot_have_one_name() {
     let mut files = Files::default()
         .with("a/main.hxn", "")
         .with("b/main.hxn", "");
-    match read(&mut files, &["-nodef", "a/main", "b/main"]) {
+    match read(&mut files, &["-nosystem", "a/main", "b/main"]) {
         Err(crate::ProjectError::Failed(lines)) => assert_eq!(
             lines,
             ["error: module \"b/main.hxn\" has the same name as an existing module"]
@@ -3157,7 +3181,7 @@ fn resources_come_from_libraries_and_the_game() {
         .with("game/art/hexicon.toml", "[library]\nsources = [\"art\"]\nresources = [\"pics\"]\n")
         .with("game/art/art.hxn", "")
         .with("game/start.hxn", "");
-    let project = read(&mut files, &["-nodef", "-f", "game"]).expect("a project");
+    let project = read(&mut files, &["-nosystem", "-f", "game"]).expect("a project");
     let spec = |file: String, alias: Option<&str>, recurse: bool| crate::ResourceSpec {
         file,
         alias: alias.map(str::to_owned),
@@ -3191,7 +3215,7 @@ fn a_games_style_sheets_are_resources() {
              stylesheets = [\"skull.css\"]\n",
         )
         .with("game/start.hxn", "");
-    let project = read(&mut files, &["-nodef", "-f", "game"]).expect("a project");
+    let project = read(&mut files, &["-nosystem", "-f", "game"]).expect("a project");
     let files: Vec<&str> = project.resources.iter().map(|r| r.file.as_str()).collect();
     assert_eq!(
         files,
@@ -3520,7 +3544,8 @@ fn a_manifest_names_the_sources_and_the_libraries() {
              libraries = [{ name = \"mylib\", exclude = [\"two\"] }, \"oldlib\"]\n\
              image = \"out/game.hxg\"\n\n\
              [defines]\nLANG = \"english\"\nLEVEL = 3\nFLAG = true\n\n\
-             [build]\npreinit = false\nwarnings-as-errors = true\ninclude-paths = [\"inc\"]\n",
+             [build]\npreinit = false\nwarnings-as-errors = true\ninclude-paths = [\"inc\"]\n\
+             system = false\n",
         )
         .with(
             "game/mylib/hexicon.toml",
@@ -3529,7 +3554,7 @@ fn a_manifest_names_the_sources_and_the_libraries() {
         )
         .with(
             "game/mylib/english/english.toml",
-            "[library]\nsources = [\"words\"]\nsystem-main = false\n",
+            "[library]\nsources = [\"words\"]\n",
         )
         .with("game/oldlib.toml", "[library]\nsources = [\"legacy\"]\n")
         .with("game/start.hxn", "")
@@ -3581,11 +3606,12 @@ fn a_game_can_add_a_librarys_extensions() {
         .with(
             "game/hexicon.toml",
             "[game]\nsources = [\"start\"]\n\
-             libraries = [{ name = \"mylib\", include = [\"extensions/extra\"] }]\n",
+             libraries = [{ name = \"mylib\", include = [\"extensions/extra\"] }]\n\n\
+             [build]\nsystem = false\n",
         )
         .with(
             "game/mylib/hexicon.toml",
-            "[library]\nsources = [\"one\"]\nsystem-main = false\n",
+            "[library]\nsources = [\"one\"]\n",
         )
         .with("game/mylib/extensions/extra.hxn", "")
         .with("game/start.hxn", "");
@@ -3618,7 +3644,7 @@ fn a_games_tests_are_built_for_debugging_alone() {
     let mut files = Files::default()
         .with(
             "game/hexicon.toml",
-            "[game]\nsources = [\"start\"]\ntests = [\"scenarios\"]\n\n[build]\nsystem-main = false\n",
+            "[game]\nsources = [\"start\"]\ntests = [\"scenarios\"]\n\n[build]\nsystem = false\n",
         )
         .with("game/start.hxn", "")
         .with("game/scenarios.hxn", "");
@@ -3634,7 +3660,13 @@ fn a_games_tests_are_built_for_debugging_alone() {
     // game, not its tests.
     let project = read(
         &mut files,
-        &["-nodef", "-test", "game/scenarios", "-source", "game/start"],
+        &[
+            "-nosystem",
+            "-test",
+            "game/scenarios",
+            "-source",
+            "game/start",
+        ],
     )
     .unwrap_or_else(|e| panic!("{e:?}"));
     let slashed = |paths: &[String]| -> Vec<String> {
@@ -3736,6 +3768,35 @@ mod system_library {
     use super::Files;
 
     #[test]
+    fn a_program_on_the_system_library_needs_a_main() {
+        let mut files = Files::default().with(
+            "start.hxn",
+            "#include <hexicon.h>\nhelper() { return 1; }\n",
+        );
+        let paths = crate::ProjectPaths {
+            user_libraries: Vec::new(),
+        };
+        let args = ["start".to_owned()];
+        let project =
+            crate::read_project(&mut files, &args, &paths).unwrap_or_else(|e| panic!("{e:?}"));
+        let sources: Vec<&str> = project.sources.iter().map(String::as_str).collect();
+        let compiled = crate::compile_program(&mut files, &sources, &project.options);
+        let errors: Vec<&str> = compiled
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity != crate::pp::Severity::Warning)
+            .map(|d| d.message.as_str())
+            .collect();
+        assert_eq!(
+            errors,
+            [
+                "the program has no main(args) function, which the system library calls when it \
+              starts"
+            ]
+        );
+    }
+
+    #[test]
     fn a_game_builds_with_nothing_installed() {
         // No system library or headers where the paths say: the
         // compiler's own are used.
@@ -3757,7 +3818,10 @@ mod system_library {
         assert_eq!(
             project.sources,
             [
-                "<hexicon>/system/_main.hxn",
+                "<hexicon>/system/lifecycle.hxn",
+                "<hexicon>/system/initobjects.hxn",
+                "<hexicon>/system/exceptions.hxn",
+                "<hexicon>/system/utilities.hxn",
                 "<hexicon>/system/file.hxn",
                 "<hexicon>/system/tok.hxn",
                 "<hexicon>/system/grammarrule.hxn",
@@ -3861,10 +3925,10 @@ fn a_manifest_can_give_its_modules_in_order_and_a_library_can_be_a_toml_file() {
             "hexicon.toml",
             "[game]\nmodules = [{ library = \"sys\" }, \"early\", { library = \"lib/main\", exclude = [\"two\"] }, \"late\"]\n",
         )
-        .with("sys.toml", "[library]\nsources = [\"base\"]\nsystem-main = false\n")
+        .with("sys.toml", "[library]\nsources = [\"base\"]\n")
         .with("lib/main.toml", "[library]\nmodules = [{ library = \"sub\" }, \"one\", \"two\"]\n")
         .with("lib/sub.toml", "[library]\nsources = [\"leaf\"]\n");
-    let project = read(&mut files, &[]).unwrap_or_else(|e| panic!("{e:?}"));
+    let project = read(&mut files, &["-nosystem"]).unwrap_or_else(|e| panic!("{e:?}"));
     let names: Vec<&str> = project
         .options
         .module_names
@@ -4387,7 +4451,8 @@ mod imports {
             )
             .with("game/old.toml", "[library]\nsources = [\"legacy\"]\n")
             .with("game/start.hxn", "");
-        let project = read(&mut files, &["-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
+        let project =
+            read(&mut files, &["-nosystem", "-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(
             project.options.imports,
             [
@@ -4423,10 +4488,7 @@ fn a_library_on_the_search_path_comes_before_the_one_built_in() {
     // A system library of the game's own, in a folder -Fs names, before
     // the one built into Hexicon.
     let mut files = Files::default()
-        .with(
-            "syslib/system.toml",
-            "[library]\nsources = [\"_main\"]\nsystem-main = false\n",
-        )
+        .with("syslib/system.toml", "[library]\nsources = [\"_main\"]\n")
         .with("syslib/_main.hxn", "")
         .with(
             "game/hexicon.toml",

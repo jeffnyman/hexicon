@@ -1,9 +1,10 @@
 //! What to build: the options and the source files of a program, from
 //! the command line and from a manifest (`hexicon.toml`, read by
 //! [`crate::manifest`] as more of the command line). A library is a
-//! folder with a manifest, or a `.toml` manifest of its name. Unless told
-//! otherwise (`-nodef`, or `system-main = false` in a library), the build
-//! starts with the system library's `_main`.
+//! folder with a manifest, or a `.toml` manifest of its name. Every
+//! program is built on the system library, first, whether it names it or
+//! not, unless told otherwise (`-nosystem`, or `system = false` in a
+//! manifest's `[build]`).
 //!
 //! Files are found and read through [`SourceFiles`], like everything
 //! else the compiler reads.
@@ -255,8 +256,6 @@ fn cvt_url_dir(url: &str) -> String {
 enum Origin {
     /// The command line or the project file.
     Normal,
-    /// The system library's `_main`, which the build starts with.
-    SysLib,
     /// A library: its file.
     Lib(String),
 }
@@ -295,7 +294,10 @@ struct Reader<'f, 'a> {
     charset: Option<String>,
     modules: Vec<Module>,
     image: Option<String>,
-    nodef: bool,
+    /// Built without the system library (`-nosystem`).
+    no_system: bool,
+    /// The system library has been named among the libraries.
+    system_included: bool,
     preinit: Option<bool>,
     debug: bool,
     warnings: bool,
@@ -338,7 +340,8 @@ pub fn read_project(
         charset: None,
         modules: Vec::new(),
         image: None,
-        nodef: false,
+        no_system: false,
+        system_included: false,
         preinit: None,
         debug: false,
         warnings: true,
@@ -573,7 +576,7 @@ impl Reader<'_, '_> {
                 }
                 b'n' => match arg.as_str() {
                     "-nopre" => self.preinit = Some(false),
-                    "-nodef" => self.nodef = true,
+                    "-nosystem" => self.no_system = true,
                     _ => return Err(bad(&arg)),
                 },
                 b'p' if arg == "-pre" => self.preinit = Some(true),
@@ -652,8 +655,7 @@ impl Reader<'_, '_> {
             } else {
                 let found = self.find_library(&path, &name);
                 let first_lib_module = self.modules.len();
-                let nodef = self.process_lib(&found, "");
-                self.nodef |= nodef;
+                self.process_lib(&found, "");
                 // `-x name` after a library leaves one of its modules
                 // out, by its name in the library; `-with name` adds a
                 // source from the library's folder after it, such as one
@@ -783,24 +785,22 @@ impl Reader<'_, '_> {
     }
 
     /// Read a library's manifest, adding its sources to the modules, and
-    /// its libraries' in their places. What comes back is whether it
-    /// said that the build does not start with the system library's
-    /// `_main`.
-    fn process_lib(&mut self, full_name: &str, lib_url: &str) -> bool {
+    /// its libraries' in their places.
+    fn process_lib(&mut self, full_name: &str, lib_url: &str) {
         let lib_path = path_name(full_name).to_owned();
         self.maybe_add_include_path(&lib_path);
         let Some(text) = self.files.read(full_name) else {
             self.messages
                 .push(format!("unable to open library file \"{full_name}\""));
             self.lib_err = true;
-            return false;
+            return;
         };
         let lib = match manifest::library(&text) {
             Ok(lib) => lib,
             Err(problem) => {
                 self.messages.push(format!("{full_name}: {problem}"));
                 self.lib_err = true;
-                return false;
+                return;
             }
         };
         // What a name in the manifest comes to, and where it is.
@@ -820,8 +820,10 @@ impl Reader<'_, '_> {
             rem_ext(file_name_of(full_name)).to_owned()
         };
         let header = lib.header.as_ref().map(|header| place(self, header).1);
+        if import_name.eq_ignore_ascii_case("system") {
+            self.system_included = true;
+        }
         self.imports.push((import_name, header));
-        let mut nodef = lib.no_system_main;
         for module in &lib.modules {
             match module {
                 // A source is named without its extension.
@@ -842,7 +844,7 @@ impl Reader<'_, '_> {
                     let (value, full) = place(self, name);
                     let url = format!("{lib_url}{value}/");
                     let target = self.sub_library(full);
-                    nodef |= self.process_lib(&target, &url);
+                    self.process_lib(&target, &url);
                 }
             }
         }
@@ -857,27 +859,19 @@ impl Reader<'_, '_> {
         for (name, why) in &lib.needs {
             self.need_macro(full_name, name, why);
         }
-        nodef
     }
 
     fn finish(mut self) -> Result<Project, ProjectError> {
-        // The system library's `_main` comes first, unless something
-        // said not to.
-        if !self.nodef {
-            // The one built in.
-            let name = build_full_path(crate::builtin::SYSTEM, "_main.hxn");
-            self.modules.insert(
-                0,
-                Module {
-                    orig_name: "_main".to_owned(),
-                    source: name,
-                    search: "_main.hxn".to_owned(),
-                    origin: Origin::SysLib,
-                    url: String::new(),
-                    excluded: false,
-                    test: false,
-                },
-            );
+        // The system library comes first, unless the program named it
+        // itself, or said it is built without it. It is found as a
+        // library the program names is, so a folder of -Fs can give one
+        // of its own.
+        if !self.no_system && !self.system_included {
+            let found = self.find_library("system", "system");
+            let first = self.modules.len();
+            self.process_lib(&found, "");
+            let system: Vec<Module> = self.modules.drain(first..).collect();
+            self.modules.splice(0..0, system);
         }
         // No two modules can have one name: their object files would
         // be one file.

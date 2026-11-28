@@ -1,0 +1,516 @@
+#charset "us-ascii"
+
+/*
+ *   Exceptions: the classes a program throws and catches, the run-time
+ *   errors the virtual machine throws, and the stack traces they carry.
+ */
+
+#include "hexicon.h"
+#include "reflect.h"
+#include "stringbuilder.h"
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Base class for all exception objects.  We derive all exceptions from
+ *   this base class so that we can write 'catch' blocks that catch all
+ *   exceptions by catching 'Exception'.
+ *   
+ *   The displayException() method displays a message describing the
+ *   exception.  Subclasses should override this method.  
+ */
+class Exception: object
+    /* construct, with an optional message describing the error */
+    construct(msg?, ...)
+    {
+        /* if there's a message, save it, otherwise keep the default */
+        if (msg != nil)
+            errmsg_ = msg;
+    }
+
+    /* display the exception - should always be overridden */
+    displayException()
+    {
+        "<<errmsg_>>";
+    }
+
+    /* 
+     *   Get the exception message as a string.  This captures the output
+     *   of displayException() and returns it a string.  Use this instead
+     *   of accessing errmsg_, since that member is private and might not
+     *   reflect the actual displayed message. 
+     */
+    getExceptionMessage()
+    {
+        /* capture and return the displayed exception message as a string */
+        return _outputCapture({: displayException() });
+    }
+
+    /* 
+     *   Private member: The error message passed to the constructor, if
+     *   any.  Note that this doesn't necessarily contain the actual
+     *   displayed exception message, since displayException() can be
+     *   overridden in subclasses to display additional parameters or other
+     *   text entirely.  The definitive message is the one that
+     *   displayException() generates.  If you want the displayed message
+     *   as a string, use getExceptionMessage().  
+     */
+    errmsg_ = 'Unknown exception'
+
+    /* 
+     *   Display a stack trace, given a list of StackInfo objects.  Note
+     *   that, for efficiency, we do not by default cache a stack trace
+     *   when an exception occurs; individual subclasses can obtain a
+     *   stack trace if desired at construction and use the information to
+     *   show a stack trace for the exception. 
+     */
+    showStackTrace(stackList)
+    {
+        local haveSrc;
+
+        /* check to see if there's any source info in the stack trace */
+        haveSrc = nil;
+        foreach (local cur in stackList)
+        {
+            /* note if we have source info here */
+            if (cur.srcInfo_ != nil)
+            {
+                /* 
+                 *   we have source information - note it and stop
+                 *   searching, since even one bit of source info is
+                 *   enough to show the stack 
+                 */
+                haveSrc = true;
+                break;
+            }
+        }
+
+        /* 
+         *   if we have any source information at all, or we have
+         *   reflection services available to decode the stack trace
+         *   symbolically, show the stack 
+         */
+        if (haveSrc || mainGlobal.reflectionObj != nil)
+        {
+            /*
+             *   The levels in the game's own sources are always shown,
+             *   since they are where an author looks. The levels in the
+             *   built-in libraries (<hexicon>/...) are shown down to the
+             *   first of the game's, five at most, and the rest counted.
+             */
+            local seenGame = nil;
+            local shownLib = 0;
+            local hidden = 0;
+
+            /*
+             *   A runaway recursion is one line called from itself over and
+             *   over: a run of levels at the place just shown is one line
+             *   saying so.
+             */
+            local lastPlace = nil;
+            local repeats = 0;
+            for (local i = 1, local cnt = stackList.length() ; i <= cnt ; ++i)
+            {
+                local cur = stackList[i];
+                local place = (cur.srcInfo_ == nil ? nil
+                               : cur.srcInfo_[1] + ':' + cur.srcInfo_[2]);
+                if (place != nil && place == lastPlace)
+                {
+                    ++repeats;
+                    continue;
+                }
+                if (repeats > 0)
+                {
+                    "\ \ \ \ \ \ (the same, again and again)\n";
+                    repeats = 0;
+                }
+                lastPlace = nil;
+                local inLibrary = (cur.srcInfo_ == nil
+                                   || cur.srcInfo_[1].startsWith('<hexicon>/'));
+                if (i > 1 && inLibrary && (seenGame || shownLib >= 5))
+                {
+                    ++hidden;
+                    continue;
+                }
+                if (inLibrary)
+                    ++shownLib;
+                else
+                    seenGame = true;
+                lastPlace = place;
+
+                /* 
+                 *   show a mark next to level 1, where the error happened,
+                 *   as the compiler's messages do; the levels it was called
+                 *   from line up under it 
+                 */
+                if (i == 1)
+                    "\ \ &#45;&#45;&gt;\ ";
+                else
+                    "\ \ \ \ \ \ ";
+
+                /* 
+                 *   if there's a system reflection object, show symbolic
+                 *   information on the current function call; otherwise,
+                 *   simply show the source location 
+                 */
+                if (mainGlobal.reflectionObj != nil)
+                {
+                    /* reflection is available - show full symbolic info */
+                    "<<mainGlobal.reflectionObj.
+                      formatStackFrame(cur, true)>>";
+                }
+                else
+                {
+                    /* no reflection information - show source only */
+                    /* 
+                     *   the file's name is text, not markup: a library's
+                     *   is <hexicon>/... 
+                     */
+                    if (cur.srcInfo_ != nil)
+                        "<<cur.srcInfo_[1].escapeHtml()>>:<<cur.srcInfo_[2]>>";
+                    else if (cur.isSystem())
+                        "&lt;System&gt;";
+                    else
+                        "???";
+                }
+
+                /* end the line */
+                "\n";
+            }
+
+            if (repeats > 0)
+                "\ \ \ \ \ \ (the same, again and again)\n";
+
+            /* say how many library levels were left out */
+            if (hidden > 0)
+                "\ \ \ \ \ \ (and <<hidden>> more in the built-in
+                libraries)\n";
+        }
+    }
+;
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   RuntimeError exception class.  The VM creates and throws an instance
+ *   of this class when any run-time error occurs.  The VM explicitly sets
+ *   the exceptionMessage property to a string giving the VM error message
+ *   for the run-time error that occurred.  
+ */
+class RuntimeError: Exception
+    construct(errno, ...)
+    {
+        /* remember the VM error number */
+        errno_ = errno;
+
+        /* 
+         *   Store a stack trace for the current location.  Always discard
+         *   the first element of the result, since this will reflect
+         *   RuntimeError.construct, which is obviously not interesting.  
+         */
+        stack_ = stackTrace().sublist(2);
+
+        /* 
+         *   The next element of the stack trace is usually a native code
+         *   frame, because the VM itself invokes our constructor in
+         *   response to a runtime exception; this is not an interesting
+         *   frame, so if it's present, remove it.  
+         */
+        if (stack_.length() > 0 && stack_[1].isSystem())
+            stack_ = stack_.sublist(2);
+    }
+
+    /* create a runtime error with a given error message */
+    newRuntimeError(errno, msg)
+    {
+        local e = new RuntimeError(errno);
+        e.exceptionMessage = msg;
+        return e;
+    }
+
+    /* display the exception */
+    displayException()
+    {
+        /* show the exception message */
+        "Runtime error: <<exceptionMessage>>\n";
+
+        /* show a stack trace if possible */
+        showStackTrace(stack_);
+    }
+
+    /* check to see if it's a debugger signal of some kind */
+    isDebuggerSignal()
+    {
+        return errno_ is in (
+            2391,                        /* debugger 'abort command' signal */
+            2392                               /* debugger 'restart' signal */
+        );
+    }
+
+    /* the VM error number of the exception */
+    errno_ = 0
+
+    /* the exception message, provided to us by the VM after creation */
+    exceptionMessage = ''
+
+    /* the stack trace, which we store at the time we're created */
+    stack_ = nil
+;
+
+/*
+ *   Export our RuntimeError class so that the VM knows about it and can
+ *   create instances of it.  Also export our exceptionMessage property,
+ *   so the VM can store its explanatory text there.
+ */
+export RuntimeError;
+export exceptionMessage;
+
+/*
+ *   Unknown character set exception - this is thrown from any routine that
+ *   needs a local character set mapping when no mapping exists on the local
+ *   platform. 
+ */
+class UnknownCharSetException: Exception
+    displayException = "Unknown character set"
+;
+
+/* 
+ *   this exception object must be exported for use by the CharacterSet
+ *   built-in class 
+ */
+export UnknownCharSetException 'CharacterSet.UnknownCharSetException';
+
+
+/*
+ *   A Program Exception terminates the entire program, passing an error
+ *   indication to the operating system.  The VM doesn't provide a way to
+ *   specify the *particular* error code to return to the OS, as there's no
+ *   portable set of error codes; rather, the VM simply returns a code to
+ *   the OS that means generically that an error occurred, if there's any
+ *   such concept on the local operating system.  The VM will normally
+ *   display this message just before it terminates the program, possibly
+ *   with some additional text mentioning that a program error occurred
+ *   (such as "unhandled exception: <your message>").
+ */
+class ProgramException: Exception
+    construct(msg) { exceptionMessage = msg.escapeHtml(); }
+    displayException() { "<<exceptionMessage>> "; }
+;
+
+/*
+ *   A StorageServerError is thrown when a file operation on a remote
+ *   storage server fails.  The storage server is used when the game runs
+ *   on a Web game server in client/server mode.  In Web mode, files are
+ *   stored on a separate storage server rather than on the Web server
+ *   itself, so that the files can be transparently accessed if the game is
+ *   continued from another Web server.  This exception is used when a
+ *   request to the storage server fails, which could be due to an error on
+ *   the storage server, a network error communicating between the game
+ *   server and the storage server, or an invalid request (e.g., incorrect
+ *   user credentials).  
+ */
+class StorageServerError: RuntimeError
+    construct(errno, msg)
+    {
+        /* 
+         *   Do the base class construction.  Note that errno is the
+         *   VM-level error number, which is usually just the generic
+         *   "storage server error" code.  The storage server provides a
+         *   separate, more specific error code of its own as the first
+         *   token of the message string.  
+         */
+        inherited(errno);
+        
+        /* 
+         *   storage server error messages are formatted with an error code
+         *   as the first space-delimited token, and a human-readable
+         *   message following 
+         */
+        local sp = msg.find(' ');
+        errCode = msg.substr(1, sp - 1);
+        msg = msg.substr(sp + 1);
+
+        /* 
+         *   If the error code is a negative integer, it's an error on the
+         *   client side sending the HTTP request to the storage server.
+         *   If it's a positive integer, it's an HTTP error code from the
+         *   storage server.  Otherwise it's an error abbreviation token
+         *   from the server. 
+         */
+        local errNum = toInteger(errCode);
+        if (errNum < 0)
+        {
+            local reqErrs = [
+                -1 -> 'out of memory',
+                -2 -> 'unable to connect',
+                -3 -> 'network error',
+                -4 -> 'invalid parameters',
+                -5 -> 'error reading temporary file',
+                -6 -> 'error writing temporary file',
+                * -> 'error code <<errNum>>'
+            ];
+            errMsg = reqErrs[errNum];
+        }
+        else if (errNum > 0)
+            errMsg = 'HTTP error (status code <<errCode>>)';
+        else
+            errMsg = msg;
+    }
+
+    /* the storage server error code */
+    errCode = nil
+
+    /* 
+     *   error message - this is the message text we get back from the
+     *   storage server for a request that's successful at the HTTP level
+     *   but fails on the storage server, OR a message describing the HTTP
+     *   error or network error that caused the request to fail 
+     */
+    errMsg = 'no details available'
+
+    /* display the exception */
+    displayException()
+    {
+        /* show the exception message */
+        "Storage server error: <<errMsg>>\n";
+
+        /* show a stack trace if possible */
+        showStackTrace(stack_);
+    }
+;
+
+/* export this for use by the interpreter networking package */
+export StorageServerError 'StorageServerError';
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   The stack information object.  The built-in function
+ *   stackTrace() in the 'hexicon-vm' function set returns a list of these
+ *   objects; each object represents a level in the stack trace.  
+ */
+class StackInfo: object
+    /*
+     *   Construct a stack level object.  The system invokes this
+     *   constructor with information on the stack level.
+     */
+    construct(func, obj, prop, selfObj, argList, srcInfo,
+              locals, namedArgs, frameDesc)
+    {
+        /* remember the values */
+        func_ = func;
+        obj_ = obj;
+        prop_ = prop;
+        self_ = selfObj;
+        argList_ = argList;
+        srcInfo_ = srcInfo;
+        locals_ = locals;
+        namedArgs_ = namedArgs;
+        frameDesc_ = frameDesc;
+    }
+
+    /*
+     *   Is this a system routine?  This returns true if a built-in
+     *   function or a built-in class method is running at this level. 
+     */
+    isSystem()
+    {
+        /*
+         *   It's a system function if:
+         *   
+         *   - we have NEITHER a function nor a method
+         *.  - the function is a built-in function pointer
+         *.  - the defining object is a built-in class
+         *   
+         *   The first case applies to pre-3.0.19 VMs, where no information
+         *   was available for native callers.  Starting in 3.0.19, full
+         *   information is available.  
+         */
+        return ((func_ == nil && obj_ == nil)
+                || typeOf(func_) == TypeBuiltin
+                || (obj_ != nil && BuiltinClass.isBuiltinClass(obj_)));
+    }
+
+    /* 
+     *   the function running at this stack level - this is nil if an
+     *   object property is running instead of a function 
+     */
+    func_ = nil
+
+    /* 
+     *   The object and property running at this stack level - these are
+     *   nil if a function is running instead of an object method.  The
+     *   object is the object where the method is actually defined - this
+     *   might not be the same as self, because the object might have
+     *   inherited the method from a base class.  
+     */
+    obj_ = nil
+    prop_ = nil
+
+    /* 
+     *   the 'self' object at this level - this is nil if a function is
+     *   running at this level instead of an object method 
+     */
+    self_ = nil
+
+    /* 
+     *   The list of positional arguments to the function or method.  Each
+     *   element is the value of an argument; the list is arranged in the
+     *   same order as the arguments. 
+     */
+    argList_ = []
+
+    /*
+     *   Local variables.  This is a Map containing the local
+     *   variables currently in scope at this stack level.  Each element in
+     *   the table has a string key (index) giving the name of the local
+     *   variable, and each corresponding value is the local's current
+     *   value.  The table is only included when the stack listing was
+     *   produced by a call to stackTrace() with the StackTraceLocals
+     *   flag set; otherwise it's nil.  If the locals were requested, and
+     *   the stack level has no local variables, this will be an empty
+     *   lookup table.  
+     */
+    locals_ = nil
+
+    /*
+     *   Named arguments.  This is a Map containing the named
+     *   arguments passed in from this stack level.  Each element in the
+     *   table has a string key (index) giving the name of the argument,
+     *   and each corresponding value is the value of that argument.  If
+     *   there are no named arguments, this value is nil.  
+     */
+    namedArgs_ = nil
+
+    /*
+     *   The source location of the next code to be executed in the
+     *   function or method in this frame.  If source-level debugging
+     *   information is available for the current execution point in this
+     *   frame, this will contain a list of two values:
+     *   
+     *   srcInfo_[1] = string giving the name of the source file
+     *.  srcInfo_[2] = integer giving the line number in the source file
+     *   
+     *   If the program wasn't compiled with source-level debugging
+     *   information, or the current code location in the frame doesn't
+     *   have any source information, this will be set to nil.
+     *   
+     *   Note that the location reflected here is the *return address* in
+     *   this frame - that is, the code location that will be executed when
+     *   control returns to the frame.  This means that the source location
+     *   will frequently appear as the next executable line after the one
+     *   that called the next inner frame, because this is where execution
+     *   will resume when control returns to the frame.  
+     */
+    srcInfo_ = nil
+
+    /*
+     *   A StackFrame object that can be used to get information from
+     *   the frame and change local variables in the frame.  
+     */
+    frameDesc_ = nil
+;
+
+/* export StackInfo for use by the system */
+export StackInfo;
+
+

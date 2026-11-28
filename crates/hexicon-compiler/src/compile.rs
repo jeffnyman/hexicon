@@ -509,10 +509,17 @@ pub fn compile_program(
     }
     let mut generated = emit::link_generate(&mut prog, out, enum_ids.clone());
     for name in emit::unresolved_externs(&prog, &generated) {
-        let message = format!(
-            "unresolved external reference \"{}\"",
-            crate::pp::show_name(&name)
-        );
+        // The system library starts the program by calling its main.
+        let message = if name.as_slice() == b"main" {
+            "the program has no main(args) function, which the system library calls \
+             when it starts"
+                .to_owned()
+        } else {
+            format!(
+                "unresolved external reference \"{}\"",
+                crate::pp::show_name(&name)
+            )
+        };
         note(&mut compiled, Severity::Error, message);
     }
     // A program has to have somewhere to start.
@@ -524,7 +531,9 @@ pub fn compile_program(
         note(
             &mut compiled,
             Severity::Error,
-            "function _main() is not defined".to_owned(),
+            "function _main() is not defined: a program built without the system \
+             library (-nosystem) has to define its own"
+                .to_owned(),
         );
         return compiled;
     }

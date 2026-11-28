@@ -1,0 +1,364 @@
+#charset "us-ascii"
+
+/*
+ *   Utilities every program can use: going through every instance of a
+ *   class, the type of a value with functions counted as one, the state of
+ *   text turned into HTML, and the index generator the compiler makes for
+ *   each <<one of>> list in a string.
+ */
+
+#include "hexicon.h"
+#include "reflect.h"
+#include "stringbuilder.h"
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   For convenience, a simple object iterator function.  This function
+ *   invokes a callback function for each instance of the given class, in
+ *   arbitrary order.
+ *   
+ *   The callback is invoked with one argument, which gives the current
+ *   instance.  The callback can "break" out of the loop by throwing a
+ *   BreakLoopSignal, which can be done conveniently using the breakLoop
+ *   macro.  
+ */
+forEachInstance(cls, func)
+{
+    try
+    {
+        /* loop over all objects of the given class */
+        for (local obj = firstObj(cls) ; obj != nil ; obj = nextObj(obj, cls))
+            func(obj);
+    }
+    catch (BreakLoopSignal sig)
+    {
+        /* 
+         *   ignore the signal - it simply means we want to terminate the
+         *   loop and return to the caller 
+         */
+    }
+}
+
+/*
+ *   Find an instance of the given class for which the given function
+ *   returns true.  We iterate over objects of the given class in
+ *   arbitrary order, and return the first instance for which the function
+ *   returns true.  Retursn nil if there is no such instance.  
+ */
+instanceWhich(cls, func)
+{
+    /* loop over all objects of the given class */
+    for (local obj = firstObj(cls) ; obj != nil ; obj = nextObj(obj, cls))
+    {
+        /* if the callback returns true for this object, return the object */
+        if (func(obj))
+            return obj;
+    }
+
+    /* 
+     *   we didn't find any instances for which the callback returns true;
+     *   indicate this by returning nil 
+     */
+    return nil;
+}
+
+/*
+ *   An exception object for breaking out of a callback loop, such as
+ *   forEachInstance. 
+ */
+class BreakLoopSignal: Exception
+    displayException() { "loop break signal"; }
+;
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Get the "translated" datatype of a value.  This is essentially the
+ *   same as typeOf(), except that anonymous function objects and dynamic
+ *   function objects are treated as being "function pointer" types
+ *   (TypeFunction).  
+ */
+dataTypeXlat(val)
+{
+    local t;
+
+    /* get the base type */
+    t = typeOf(val);
+    
+    /* if it's an anonymous function, return TypeFunction */
+    if (t == TypeObject
+        && (val.ofKind(Function)
+            || (defined(CompiledCode) && val.ofKind(CompiledCode))))
+        return TypeFunction;
+
+    /* otherwise, just return the base type */
+    return t;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Stream state object for String.specialsToHtml().
+ */
+class SpecialsToHtmlState: object
+    /* 
+     *   Reset the state.  This should be used when the output stream
+     *   context is reset, such as when clearing the window.  
+     */
+    resetState()
+    {
+        flags_ = 0;
+        tag_ = '';
+    }
+
+    /* 
+     *   Explicitly reset to the start of a line.  This can be called after
+     *   a non-output operation that resets the line position, such as
+     *   reading an input line.  
+     */
+    resetLine()
+    {
+        /* reset the in-line flag, space flag, qspace flag, and tab column */
+        flags_ &= ~(0x0001 | 0x0040 | 0x0080 | 0x0300);
+    }
+
+    /* 
+     *   Internal output state flags at end of last string parsed.  This is
+     *   a combination of bit flags:
+     *   
+     *   0x0001 - last string ended within a line of text
+     *.  0x0002 - caps flag '\^' pending
+     *.  0x0004 - lowercase flag '\v' pending
+     *.  0x0008 - last string ended within an HTML tag
+     *.  0x0010 - last string ended in double-quoted HTML tag attribute text
+     *.  0x0020 - last string ended in single-quoted HTML tag attribute text
+     *.  0x0040 - last string ended with an ordinary space
+     *.  0x0080 - last string ended with a quoted space '\ '
+     *.  0x0100 - <Q> parity level: 0=double quotes, 1=single quotes
+     *.  0x0300 - distance from last '\t' tab column (0..3)
+     */
+    flags_ = 0
+
+    /* tag in progress at end of last string parsed */
+    tag_ = ''
+;
+    
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   <<one of>> index generator.  The compiler generates an anonymous
+ *   instance of this class for each <<one of>> list in string, setting the
+ *   property 'numItems' to the number of items in the list, and
+ *   'listAttrs' property to a string giving the sequence type.  The
+ *   compiler generates a call to getNextIndex() within the string to get
+ *   the next index value, which is an integer from 1 to numItems.  
+ */
+class OneOfIndexGen: object
+    /* number of list items */
+    numItems = 1
+
+    /* 
+     *   List attributes.  This is a string with a comma-delimited list of
+     *   tokens describing the treatment on the list for each fetch.  The
+     *   first call to getNextIndex() takes the first token off the list
+     *   and generates an appropriate return value, possibly queuing up a
+     *   list of future values.  The next call to getNextIndex() reads from
+     *   the queue.  Once the queue is exhausted, the next call takes the
+     *   second token off the attribute list and repeats the process.  Once
+     *   the attribute list is down to one token, we don't remove the
+     *   token, but simply repeat it forever.
+     *   
+     *   For example, 'seq,rand' runs through the entire list in sequence
+     *   once, then generates independently random values from then on.
+     *   'shuffle,stop' runs through the list once in shuffled order, then
+     *   repeats the last pick from the shuffled list forever.
+     *   
+     *   The individual attribute values are:
+     *   
+     *   rand - pick an item at random, independently of past selections.
+     *   
+     *   rand-norpt - pick an item at random, but don't pick the single
+     *   most recent item chosen, to avoid repeating the same thing twice
+     *   in a row.
+     *   
+     *   rand-wt - pick an item by random, weighting the items with
+     *   decreasing probabilities.  The last item is given relative weight
+     *   1, the second to last weight 2, the third to last weight 3, etc.
+     *   In other words, the nth item from the end of the list is n times
+     *   as likely to be picked as the last item.  The picks are
+     *   independent.
+     *   
+     *   seq - run through the items in sequence (1, 2, ... numItems).
+     *   
+     *   shuffle - run through the list in a shuffled order.
+     *   
+     *   shuffle2 - shuffle the list into a random order, but only run
+     *   through half before reshuffling
+     *   
+     *   stop - repeat the previous selection forever.  (This should only
+     *   be used as the second or later attribute in the list, since it
+     *   depends on a prior selection being made.)  
+     */
+    listAttrs = ''
+
+    /* 
+     *   Get the next index value.  Returns an integer from 1 to numItems.
+     *   The algorithm for choosing the index depends on the list type, as
+     *   defined by listAttrs.  
+     */
+    getNextIndex()
+    {
+        /* if we're out of items, generate the next iteration of the list */
+        if (idx_ > lst_.length())
+        {
+            /* pull out the first item from the attributes */
+            local alst = listAttrs.split(',', 2);
+
+            /* 
+             *   If we have more than one attribute, keep only the
+             *   remaining attributes, since the first attribute is for the
+             *   first list iteration only. 
+             */
+            if (alst.length() > 1)
+                listAttrs = alst[2];
+
+            /* some of the attributes are interested in the last item */
+            local last = lst_.length() >= 1 ? lst_[lst_.length()] : nil;
+
+            /* build the list for the head attribute */
+            local pick;
+            switch (alst[1])
+            {
+            case 'stop':
+                /* reuse the last item every time from now on */
+                lst_ = [last ?? 1];
+                break;
+
+            case 'seq':
+                /* run through the list in sequence */
+                lst_ = List.generate({i: i}, numItems);
+                break;
+                
+            case 'rand':
+                /* 
+                 *   pick an item at random, independent of other picks -
+                 *   just generate a single item list, since we'll want to
+                 *   pick at random again next time 
+                 */
+                lst_ = [rand(numItems) + 1];
+                break;
+
+            case 'rand-norpt':
+                /* 
+                 *   Pick an item at random, but don't repeat the last item
+                 *   chosen.  Pick repeatedly until we select an item that
+                 *   doesn't match the last selection, if there is one.
+                 *   Exception: if the list has only one item, it's
+                 *   impossible to choose a different item, so don't try.  
+                 */
+                do
+                {
+                    pick = rand(numItems) + 1;
+                }
+                while (numItems > 1 && pick == last);
+                lst_ = [pick];
+                break;
+
+            case 'rand-wt':
+                /* 
+                 *   Pick an item at random, independently of other trials,
+                 *   weighting the list in decreasing order of probability.
+                 *   The relative weights are 1 for the last item, 2 for
+                 *   the second to last item, 3 for the third to last, etc.
+                 *   This gives us a total weight of n(n+1)/2, so start by
+                 *   picking a number in that range.  1 represents the last
+                 *   item, 2..3 the second to last, 3..5 the third, etc.  
+                 */
+                pick = rand(numItems*(numItems+1)/2) + 1;
+                for (local i in 1..numItems ; ; pick -= i)
+                {
+                    /* if pick is <= i, it's this item */
+                    if (pick <= i)
+                    {
+                        lst_ = [numItems - i + 1];
+                        break;
+                    }
+                }
+                break;
+
+            case 'shuffle':
+            case 'shuffle2':
+                /* 
+                 *   Shuffle the list.  Populate the list with the integer
+                 *   values from 1 to numItems, then shuffle the list into
+                 *   a random order.
+                 *   
+                 *   The shuffling algorithm, as a physical analogy: Start
+                 *   with a deck of cards labeled 1 to numItems.  Put all
+                 *   of the cards in a hat.  Pick a card at random from the
+                 *   hat and set it aside - call this the "pile".  Pick
+                 *   another random card from the hat and put it on the top
+                 *   of the pile.  Repeat until the hat is empty.  We now
+                 *   have a pile of the cards arranged in random order.
+                 *   
+                 *   To implement this, we create a vector and fill it with
+                 *   integers from 1 to numItems.  Partition the vector
+                 *   with an index 'i': items from 1..i are the hat, items
+                 *   from i+1..numItems are the deck.  To draw a card at
+                 *   random, we pick a random number from 1..i.  To remove
+                 *   it from the hat, we swap it into position 'i', because
+                 *   that will effectively shrink the hat by one slot and
+                 *   grow the pile by one slot.  Decrement i and repeat.  
+                 */
+                lst_ = Vector.generate({i: i}, numItems);
+                for (local i in numItems..2 step -1)
+                {
+                    /* pick a random element from the remaining set */
+                    pick = rand(i) + 1;
+                    
+                    /* swap the chosen item and the last element */
+                    local tmp = lst_[i];
+                    lst_[i] = lst_[pick];
+                    lst_[pick] = tmp;
+                }
+
+                /* 
+                 *   The whole point of shuffling is to avoid obvious
+                 *   repetition, so make sure we don't repeat any previous
+                 *   item from a previous run through the list as the first
+                 *   item of the new list.  If the first item matches the
+                 *   previous item, reshuffle it into a random spot in the
+                 *   list.  (If the list only has one item, of course, this
+                 *   is pointless, so don't bother in that case.)  
+                 */
+                if (lst_[1] == last && numItems > 1)
+                {
+                    pick = rand(numItems - 1) + 2;
+                    lst_[1] = lst_[pick];
+                    lst_[pick] = last;
+                }
+
+                /* 
+                 *   in half-shuffle mode, only keep the first half of the
+                 *   list, so that we re-shuffle halfway through 
+                 */
+                if (alst[1] == 'shuffle2' && numItems > 2)
+                    lst_ = lst_.toList(1, numItems/2);
+                break;
+            }
+
+            /* start from the first item in the list */
+            idx_ = 1;
+        }
+
+        /* return and consume the next item */
+        return lst_[idx_++];
+    }
+
+    /* generated list */
+    lst_ = []
+
+    /* current position in the list */
+    idx_ = 1
+;
+

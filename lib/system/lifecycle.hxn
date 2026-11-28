@@ -1,0 +1,276 @@
+#charset "us-ascii"
+
+/*
+ *   The program's life: where it starts, how it restarts, where its output
+ *   goes by default, and what is done as it ends. The virtual machine
+ *   starts the program at _main(), here, which initializes it, runs its
+ *   preinitialization or its initialization, and calls the program's own
+ *   main(args), again after each RESTART; a library such as Hexad defines
+ *   main(args), and a game on it never sees any of this. The system
+ *   library is part of every program, unless it is built with -nosystem,
+ *   when the program defines its own _main.
+ */
+
+#include "hexicon.h"
+#include "reflect.h"
+#include "stringbuilder.h"
+
+/* ------------------------------------------------------------------------ */
+/* the program's own main, which every program defines */
+extern function main;
+
+/*
+ *   The program's entry point: the virtual machine calls this when the
+ *   program starts. It initializes the program and calls its main(args),
+ *   and again from the start after each RESTART.
+ */
+_main(args)
+{
+    try
+    {
+        /* keep going as long as we keep restarting */
+        for (;;)
+        {
+            /* perform load-time initialization */
+            initAfterLoad();
+
+            /* if we're in preinit-only mode, we're done */
+            if (inPreinit())
+                return;
+
+            /* catch any RESTART signals thrown out of the main entrypoint */
+            try
+            {
+                /*
+                 *   Call the program's main(args), or main() if it takes
+                 *   no arguments.
+                 */
+                flexcall(&main, args);
+
+                /* 
+                 *   we made it through the main entrypoint without a
+                 *   restart, so we're done 
+                 */
+                break;
+            }
+            catch (RestartSignal rsig)
+            {
+                /* 
+                 *   call the built-in restartGame function to reset all
+                 *   of the static objects to their initial state 
+                 */
+                restartGame();
+
+                /* 
+                 *   Now that we've reset the VM, update the restart ID in
+                 *   the main globals.  Note that we waited until now to do
+                 *   this, because this change would have been lost in the
+                 *   reset if we'd made the change before the reset.  Note
+                 *   also that the 'rsig' object itself will survive the
+                 *   reset because the thrower presumably allocated it
+                 *   dynamically, hence it's not a static object subject to
+                 *   reset.  
+                 */
+                mainGlobal.restartID = rsig.restartID;
+
+                /*
+                 *   Now we can just continue on to the next iteration of
+                 *   the restart loop.  This will take us back to the
+                 *   initialization and enter the game as though we'd just
+                 *   started the program again.  
+                 */
+            }
+        }
+    }
+    catch (ProgramException exc)
+    {
+        /* 
+         *   just re-throw these out to the VM, so that the VM exits to
+         *   the operating system with an error indication 
+         */
+        throw exc;
+    }
+    catch (Exception exc)
+    {
+        /* write output to the main console */
+        setSay(_default_display_fn);
+        
+        /* display the unhandled exception */
+        "\n<<exc.displayException()>>\n";
+
+        /*
+         *   In preinitialization, the exception goes on to the VM as well,
+         *   which fails the build: an image whose preinitialization failed
+         *   would only run it again when the game starts, and fail there.
+         */
+        if (inPreinit())
+            throw exc;
+    }
+    finally
+    {
+        /* before exiting, call registered exit handlers */
+        mainAtExit.callHandlers();
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Flexible function call.  This calls the given function, passing as
+ *   many arguments from the given argument list as the function actually
+ *   wants.  If the list doesn't have enough arguments to satisfy the
+ *   function's minimum requirements, we add 'nil' arguments to pad out the
+ *   minimum.  If the list exceeds the function's maximum, we drop
+ *   arguments past the maximum.
+ */
+flexcall(func, [args])
+{
+    /* get the function's desired argument list */
+    local paramDesc = functionParams(func);
+
+    /* add or remove arguments as needed to fit the limits */
+    local n = args.length();
+    if (n < paramDesc[1])
+    {
+        /* we need more to satisfy the minimum - add nil values */
+        args += repeatList(nil, paramDesc[1] - n);
+    }
+    else if (n > paramDesc[1] + paramDesc[2] && !paramDesc[3])
+    {
+        /* 
+         *   the function doesn't take infinite arguments, and we have more
+         *   than it allows in the fixed plus optional parts, so drop the
+         *   extra elements 
+         */
+        args = args.sublist(1, paramDesc[1] + paramDesc[2]);
+    }
+
+    /* call the function */
+    func(args...);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Restart signal.  This can be used to restart from the main
+ *   entrypoint.  The caller should create one of these objects, then use
+ *   restartGame() (or an equivalent from a different function set, if
+ *   appropriate) to reset static object state to the initial program load
+ *   conditions, then throw the signal object.  
+ */
+class RestartSignal: Exception
+    construct()
+    {
+        /* 
+         *   use the next restart ID, so we can tell that we're on a fresh
+         *   run on this session 
+         */
+        restartID = mainGlobal.restartID + 1;
+    }
+;
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Default string display function.  Our main entrypoint code
+ *   establishes this function as the default output function.  
+ */
+_default_display_fn(str) { _hexicon_io_say(str); }
+
+/*
+ *   Raw output capture.  This bypasses any filtering and directly captures
+ *   any output generated by the callback. 
+ */
+_outputCapture(func)
+{
+    /* temporarily set the low-level string output to capture output */
+    local buf = new StringBuilder();
+    local oldSay = setSay({str: buf.append(str)});
+
+    /* make sure we restore the "say" function on the way out */
+    try
+    {
+        /* call the callback in the new capture context */
+        func();
+
+        /* return the captured data */
+        return toString(buf);
+    }
+    finally
+    {
+        /* restore the old "say" function */
+        setSay(oldSay);
+    }
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   global data object for this module
+ */
+mainGlobal: object
+    /* flag: we've run pre-initialization */
+    preinited_ = nil
+
+    /* 
+     *   The global reflection object - if the program is compiled with
+     *   the standard reflection module, that module will set this
+     *   property to point to the reflection object.
+     *   
+     *   We use this so that we don't require the reflection module to be
+     *   included.  If the module isn't included, this will be nil, so
+     *   we'll know not to use reflection.  If this is not nil, we'll know
+     *   we can use reflection services.  
+     */
+    reflectionObj = nil
+
+    /*
+     *   Restart ID.  This is an integer that indicates how the main
+     *   entrypoint was last reached.  This is initially zero; each time
+     *   we restart the game, this is incremented.
+     *   
+     *   The restart ID is the only information that survives across a
+     *   restart boundary.  Other than this, entering via a restart is
+     *   exactly like loading the program from scratch; all other
+     *   information about the program state before the restart is lost in
+     *   the restart operation.  
+     */
+    restartID = 0
+
+;
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   At-exit handlers.  This is a registry for custom handlers that are to
+ *   be invoked just before the program terminates.  
+ */
+transient mainAtExit: object
+    /*
+     *   Add an at-exit handler.  User code can call this to register a
+     *   handler that will be invoked just before the program exits. 
+     */
+    addHandler(func)
+    {
+        handlers.append(func);
+    }
+
+    /* call our exit handlers */
+    callHandlers()
+    {
+        /* call each handler in the list */
+        foreach (local f in handlers)
+        {
+            try
+            {
+                /* call this handler */
+                f();
+            }
+            catch (Exception exc)
+            {
+                /* display and ignore any exceptions it throws */
+                "\nError in exit handler: <<exc.displayException()>>\n";
+            }
+        }
+    }
+
+    /* list of exit handlers */
+    handlers = static new Vector()
+;
+

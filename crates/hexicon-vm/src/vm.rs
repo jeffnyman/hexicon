@@ -166,9 +166,6 @@ pub(crate) struct Predef {
     pub prop_not_defined: PropId,
     /// Class of the entries in a stack trace.
     pub stack_info_class: ObjId,
-    /// Function to call to restore a saved state at startup.
-    #[allow(dead_code)]
-    pub main_restore: u32,
     /// The `length` property.
     pub length: PropId,
     /// A string object standing for all constant strings in method lookups.

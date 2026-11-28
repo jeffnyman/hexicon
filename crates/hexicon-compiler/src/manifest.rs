@@ -66,9 +66,6 @@ pub(crate) struct Library {
     pub resources: Vec<String>,
     /// Macros a game has to define, and why.
     pub needs: Vec<(String, String)>,
-    /// The build does not start with the system library's `_main`
-    /// (`system-main = false` in its manifest).
-    pub no_system_main: bool,
     /// The header a Hexicon source gets by importing the library
     /// (`import hexad;`), relative to the library's folder.
     pub header: Option<String>,
@@ -253,10 +250,10 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
             "include-paths",
             "library-paths",
             "source-text-group",
-            "system-main",
+            "system",
         ])?;
-        if build.boolean("system-main")? == Some(false) {
-            push(&["-nodef"]);
+        if build.boolean("system")? == Some(false) {
+            push(&["-nosystem"]);
         }
         if build.boolean("debug")? == Some(true) {
             push(&["-d"]);
@@ -375,7 +372,6 @@ pub(crate) fn library(text: &[u8]) -> Result<Library, String> {
         "libraries",
         "modules",
         "resources",
-        "system-main",
         "header",
     ])?;
     let _ = lib.string("name")?;
@@ -401,7 +397,6 @@ pub(crate) fn library(text: &[u8]) -> Result<Library, String> {
         modules,
         resources: lib.strings("resources")?,
         needs,
-        no_system_main: lib.boolean("system-main")? == Some(false),
         header: lib.string("header")?,
     })
 }

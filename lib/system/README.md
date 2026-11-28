@@ -3,7 +3,10 @@
 Hexicon's system library: what every program is built on, below any library such as Hexad.
 
 - `system.toml`: the library's manifest. A game names it among its libraries as `system`.
-- `_main.hxn`: the program's entry point, the basic exception classes, and the framework that initializes a program's modules.
+- `lifecycle.hxn`: the program's entry point, `_main`, which initializes the program and calls its `main(args)`, and again after each RESTART; the default output; and what is done as the program ends.
+- `initobjects.hxn`: the objects that run before the program is saved as an image (`PreinitObject`) and each time it starts (`InitObject`).
+- `exceptions.hxn`: the exception classes, the run-time errors the virtual machine throws, and stack traces.
+- `utilities.hxn`: going through every instance of a class, and what the compiler's `<<one of>>` lists use.
 - `file.hxn`, `tok.hxn`, `grammarrule.hxn`, `multmeth.hxn`: files, the tokenizer, grammar productions, and multi-methods.
 - `compiledcode.hxn`: functions compiled while a program runs. `reflect.hxn`: what a program can find out about itself.
 - The headers (`.h`): the virtual machine's built-in functions and classes, as a program sees them. `hexicon.h` brings in the rest: `vm.h` (the virtual machine's own functions), `general.h`, `io.h`, `systype.h` (the built-in classes, among them `ProgramObject`), and the others a program includes as it needs them.
