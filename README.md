@@ -36,6 +36,8 @@ A game can also be opened from the player's window, or dropped on it. The player
 
 On Windows, `tools/build-installer.sh` builds an installer, `build/installer/hexicon-<version>-setup.exe`, with [Inno Setup 6](https://jrsoftware.org/isinfo.php). It installs for you alone, with no administrator's rights: the player, which then opens `.hxg` files when they are opened in Explorer, and the compiler, on your PATH, unless you untick it. Settings > Apps uninstalls it. The programs are not signed yet, so Windows may warn before the installer runs, and an antivirus program may hold the player the first time it starts while it checks it.
 
+On a Mac, `tools/build-mac-app.sh` builds the player as an app, `build/mac/Hexicon.app`, which opens `.hxg` files from the Finder, and a disk image to hand to others, `build/mac/Hexicon-<version>.dmg` (`UNIVERSAL=1` builds it for Apple silicon and Intel Macs both). The app is signed for the Mac that built it alone; another Mac will refuse it until it is signed and notarized for a release.
+
 `tools/build-web.sh` builds the browser's page alone, into `web/`; `node tools/web-serve.js` serves it at `http://127.0.0.1:8765/web/index.html`.
 
 ## Documentation

@@ -1,10 +1,10 @@
 """Draw Hexicon's icon: crates/hexicon-app/icon/hexicon.svg, and from the
 same shapes hexicon.ico, which the player and the files of its games show
-on Windows.
+on Windows, and hexicon.icns, which they show on macOS.
 
 The mark is three hexagons, one inside another: a dark one, a light ring,
 and a warm one in the middle. Drawn here in Python alone, sampled sixteen
-times a pixel, so it needs nothing installed.
+times a pixel (four for the largest sizes), so it needs nothing installed.
 
 usage: python tools/make-icon.py
 """
@@ -27,7 +27,15 @@ LAYERS = [
 ]
 
 SIZES = [16, 24, 32, 48, 64, 128, 256]
-SAMPLES = 4  # a side: 16 samples a pixel
+
+# The Mac's sizes, each with the type that names it in an .icns: the
+# pictures for a Retina screen are twice the size they are shown at.
+ICNS_TYPES = [
+    (b"icp4", 16), (b"icp5", 32), (b"icp6", 64),
+    (b"ic07", 128), (b"ic08", 256), (b"ic09", 512),
+    (b"ic11", 32), (b"ic12", 64), (b"ic13", 256), (b"ic14", 512),
+    (b"ic10", 1024),
+]
 
 
 def inside(dx, dy, radius):
@@ -46,23 +54,26 @@ def color_at(dx, dy):
 
 
 def draw(size):
+    # A side's samples: 16 a pixel, or 4 for the large sizes, whose edges
+    # are long enough to be smooth with fewer.
+    samples = 4 if size <= 256 else 2
     half = size / 2
     rows = []
     for py in range(size):
         row = bytearray([0])  # the PNG filter: none
         for px in range(size):
             r = g = b = covered = 0
-            for sy in range(SAMPLES):
-                for sx in range(SAMPLES):
-                    x = (px + (sx + 0.5) / SAMPLES - half) / half
-                    y = (py + (sy + 0.5) / SAMPLES - half) / half
+            for sy in range(samples):
+                for sx in range(samples):
+                    x = (px + (sx + 0.5) / samples - half) / half
+                    y = (py + (sy + 0.5) / samples - half) / half
                     c = color_at(x, y)
                     if c:
                         r, g, b = r + c[0], g + c[1], b + c[2]
                         covered += 1
             if covered:
                 row += bytes([r // covered, g // covered, b // covered,
-                              round(255 * covered / SAMPLES ** 2)])
+                              round(255 * covered / samples ** 2)])
             else:
                 row += bytes(4)
         rows.append(bytes(row))
@@ -89,6 +100,13 @@ def ico(images):
     return out + b"".join(data for _, data in images)
 
 
+def icns(images):
+    """An .icns of PNG images, as macOS has read since 10.7."""
+    body = b"".join(kind + struct.pack(">I", len(data) + 8) + data
+                    for kind, data in images)
+    return b"icns" + struct.pack(">I", len(body) + 8) + body
+
+
 def svg():
     def points(radius):
         r = radius * 128
@@ -106,8 +124,17 @@ def svg():
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "hexicon.svg").write_text(svg(), encoding="utf-8", newline="\n")
-    (OUT / "hexicon.ico").write_bytes(ico([(s, draw(s)) for s in SIZES]))
-    print(f"wrote {OUT / 'hexicon.svg'} and {OUT / 'hexicon.ico'}")
+    drawn = {}
+
+    def picture(size):
+        if size not in drawn:
+            drawn[size] = draw(size)
+        return drawn[size]
+
+    (OUT / "hexicon.ico").write_bytes(ico([(s, picture(s)) for s in SIZES]))
+    (OUT / "hexicon.icns").write_bytes(
+        icns([(kind, picture(size)) for kind, size in ICNS_TYPES]))
+    print(f"wrote hexicon.svg, hexicon.ico, and hexicon.icns in {OUT}")
 
 
 if __name__ == "__main__":

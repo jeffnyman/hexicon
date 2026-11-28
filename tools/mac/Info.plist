@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hexicon.app's description of itself, for macOS: its name, its program,
+  its icon, and the games' files (.hxg), which it opens. The build
+  (tools/build-mac-app.sh) puts the version in for @VERSION@.
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Hexicon</string>
+    <key>CFBundleDisplayName</key>
+    <string>Hexicon</string>
+    <key>CFBundleIdentifier</key>
+    <string>org.hexicon.player</string>
+    <key>CFBundleExecutable</key>
+    <string>hexicon-player</string>
+    <key>CFBundleIconFile</key>
+    <string>hexicon.icns</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@VERSION@</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.games</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+
+    <!-- A game's file is a kind of file of Hexicon's own. -->
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>org.hexicon.game</string>
+            <key>UTTypeDescription</key>
+            <string>Hexicon game</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeIconFile</key>
+            <string>hexicon.icns</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>hxg</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+
+    <!-- And the player is what opens it. -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Hexicon game</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>hexicon.icns</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>org.hexicon.game</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

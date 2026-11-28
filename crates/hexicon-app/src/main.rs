@@ -6,6 +6,9 @@
 //! the program and given to the web view from it; nothing is fetched from
 //! anywhere. A game named on the command line is opened at the start; the
 //! page's "Open a game", or a game dropped on the window, opens any other.
+//! On macOS, a game opened in the Finder comes as a message to the running
+//! player, not on its command line, and is opened in its window, in place
+//! of the game there, as the page's "Open a game" opens one.
 //!
 //! The files a game writes, its saved games above all, are files in a
 //! folder of the player's: `Hexicon` in their documents, with a folder for
@@ -32,6 +35,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
@@ -105,14 +109,20 @@ fn window_icon() -> Option<tao::window::Icon> {
     }
 }
 
-/// Where the game named on the command line is, for the page to load.
+/// Where the game named on the command line, or opened in the Finder, is,
+/// for the page to load.
 const GAME_PATH: &str = "game/";
 
 /// Where a game's files are, for the page to load: `files/<game>`.
 const FILES_PATH: &str = "files/";
 
 fn main() {
-    let game = std::env::args_os().nth(1).map(PathBuf::from);
+    // A program the Finder started was once given a `-psn_` argument of
+    // its own, which is not a game.
+    let game = std::env::args_os()
+        .nth(1)
+        .filter(|arg| !arg.to_string_lossy().starts_with("-psn_"))
+        .map(PathBuf::from);
     if let Some(path) = &game {
         if !path.is_file() {
             fail(&format!("{}: there is no such file", path.display()));
@@ -131,19 +141,7 @@ fn main() {
         Err(error) => fail(&format!("no window: {error}")),
     };
 
-    let base = if cfg!(any(windows, target_os = "android")) {
-        format!("http://{PROTOCOL}.localhost/")
-    } else {
-        format!("{PROTOCOL}://localhost/")
-    };
-    let mut address = format!("{base}index.html");
-    if let Some(path) = &game {
-        let name = path.file_name().map_or_else(
-            || "game.hxg".to_owned(),
-            |name| name.to_string_lossy().into_owned(),
-        );
-        address.push_str(&format!("?game=/{GAME_PATH}{}", encode(&name)));
-    }
+    let address = page_address(game.as_deref());
 
     let folder = games_folder();
     // The files the player has chosen in a dialog, outside the game's
@@ -151,13 +149,20 @@ fn main() {
     let chosen: Rc<RefCell<HashSet<PathBuf>>> = Rc::default();
     let message_chosen = chosen.clone();
     let mut context = WebContext::new(data_folder());
+    // The game the page is given, which a game opened in the Finder
+    // replaces; the web view asks for it from a thread of its own.
+    let game = Arc::new(Mutex::new(game));
     let game_file = game.clone();
     let protocol_folder = folder.clone();
     let title_proxy = proxy.clone();
     let built = WebViewBuilder::new_with_web_context(&mut context)
         .with_url(&address)
         .with_custom_protocol(PROTOCOL.to_owned(), move |_id, request| {
-            respond(&request, game_file.as_deref(), &protocol_folder)
+            let game = game_file
+                .lock()
+                .map(|game| game.clone())
+                .unwrap_or_default();
+            respond(&request, game.as_deref(), &protocol_folder)
         })
         .with_ipc_handler(move |request| {
             if let Some(event) = take_message(request.body(), &folder, &message_chosen.borrow()) {
@@ -182,6 +187,22 @@ fn main() {
         *control_flow = ControlFlow::Wait;
         match event {
             Event::NewEvents(StartCause::Init) => _menus = menu_bar(),
+            // A game opened in the Finder, or dropped on the player's icon
+            // in the Dock: the page opens it in place of the one it has.
+            Event::Opened { urls } => {
+                let opened = urls
+                    .iter()
+                    .filter_map(|url| url.to_file_path().ok())
+                    .find(|path| path.is_file());
+                if let Some(path) = opened {
+                    let address = page_address(Some(&path));
+                    if let Ok(mut game) = game.lock() {
+                        *game = Some(path);
+                    }
+                    let _ = webview.load_url(&address);
+                    window.set_focus();
+                }
+            }
             // The page's title is the window's: the game's, once it says.
             Event::UserEvent(PageEvent::Title(title)) => window.set_title(&title),
             Event::UserEvent(PageEvent::Script(script)) => {
@@ -216,6 +237,24 @@ fn main() {
             _ => {}
         }
     });
+}
+
+/// The page's address, with the game it is to open, if there is one.
+fn page_address(game: Option<&Path>) -> String {
+    let base = if cfg!(any(windows, target_os = "android")) {
+        format!("http://{PROTOCOL}.localhost/")
+    } else {
+        format!("{PROTOCOL}://localhost/")
+    };
+    let mut address = format!("{base}index.html");
+    if let Some(path) = game {
+        let name = path.file_name().map_or_else(
+            || "game.hxg".to_owned(),
+            |name| name.to_string_lossy().into_owned(),
+        );
+        address.push_str(&format!("?game=/{GAME_PATH}{}", encode(&name)));
+    }
+    address
 }
 
 /// Put the web view in the window. On Linux and the BSDs it goes in the
