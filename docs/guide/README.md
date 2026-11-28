@@ -12,7 +12,7 @@ Hexad, the library games are built on:
 - [Actions and Their Handlers](actions.md): how a command is carried out, a thing's own handlers, and new actions and their grammar.
 - [Telling the Story](telling.md): the first, second, or third person, the present or the past, and writing a game's own text to follow them.
 - [Pictures, Sounds, and Style](styling.md): the two kinds of display, pictures, sounds, links, a game's look and Hexad's classes, what a game may write, and the player's settings.
-- [Testing a Story](testing.md): scenarios, what a step checks, where a scenario starts, waiting for what happens, the story so far, playing them with `hexicon test`, and walkthroughs.
+- [Testing a Story](testing.md): scenarios, what a step checks, where a scenario starts, waiting for what happens, the story so far, playing them with `hexicon test`, walkthroughs, and a walkthrough for players.
 
 The language:
 

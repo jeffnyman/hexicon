@@ -28,6 +28,13 @@ import hexad;
  *   before it is noted. A walkthrough that passes can be printed, as a
  *   commented walkthrough: each scenario a section, each command with why.
  *
+ *   Or printed for players, in words for them, which the author gives
+ *   apart from the reasons: a walkthrough's and a scenario's `playerTitle`
+ *   and `tellPlayer`, and a step's `tellPlayer`. Each scenario is then a
+ *   section that stays closed until it is opened (HTML's <details>, which
+ *   Markdown keeps), so that a player reads only as far as they are stuck;
+ *   a step with nothing for players is its command alone.
+ *
  *   SCENARIO <name> plays a scenario, with those it starts after, or a
  *   walkthrough; SCENARIOS plays every scenario, and WALKTHROUGHS every
  *   walkthrough, in the order they are written. Each sums up, and puts
@@ -37,7 +44,8 @@ import hexad;
  *   argument -hexicon-test=<file>, -scenario=<name> for each scenario or
  *   walkthrough it wants, if not every scenario, -walkthroughs for every
  *   walkthrough too, and -hexicon-print=<file> for the walkthroughs that
- *   pass, printed. They are played at the first prompt, what happened is
+ *   pass, printed (-for-players, for players). They are played at the
+ *   first prompt, what happened is
  *   written to the file, a line at a time, and the game quits. A failure
  *   names the line its check is written on.
  *
@@ -124,6 +132,10 @@ class Scenario: object
     scenarioName = ''
     purpose = ''
 
+    /* For players: a title, if not its name, and what to tell them. */
+    playerTitle = nil
+    tellPlayer = nil
+
     /* The scenario this one starts where it ends, or nil for the start. */
     after = nil
 
@@ -142,12 +154,19 @@ class Walkthrough: object
     walkthroughName = ''
     purpose = ''
 
+    /* For players: a title, if not its name, and what to tell them. */
+    playerTitle = nil
+    tellPlayer = nil
+
     /* The scenarios, in the order they are played. */
     scenarios = []
 ;
 
 class ScenarioStep: object
     why = ''
+
+    /* What to tell players, in a walkthrough printed for them. */
+    tellPlayer = nil
 ;
 
 class Step: ScenarioStep
@@ -635,8 +654,10 @@ scenarioRunner: object
      *   name and the walkthrough's, each scenario a section with what it is
      *   for, and each command with why it is there.
      */
-    printed(w)
+    printed(w, forPlayers?)
     {
+        if (forPlayers)
+            return printedForPlayers(w);
         local game = firstObj(GameID);
         local txt = '# ' + (game != nil ? game.name + ': ' : '')
             + w.walkthroughName + '\n';
@@ -667,6 +688,43 @@ scenarioRunner: object
     }
 
     /*
+     *   A walkthrough for players, in Markdown: in their words, each
+     *   scenario a section closed until it is opened.
+     */
+    printedForPlayers(w)
+    {
+        local game = firstObj(GameID);
+        local say = {x: scenarioMemory.plain(x, true)};
+        local title = {item, name: item.playerTitle != nil ? say(item.playerTitle)
+            : name.substr(1, 1).toUpper() + name.substr(2)};
+        local txt = '# ' + (game != nil ? game.name + ': ' : '')
+            + title(w, w.walkthroughName) + '\n';
+        if (w.tellPlayer != nil)
+            txt += '\n' + say(w.tellPlayer) + '\n';
+        foreach (local sc in w.scenarios)
+        {
+            txt += '\n<details>\n<summary>' + title(sc, sc.scenarioName)
+                + '</summary>\n\n';
+            if (sc.tellPlayer != nil)
+                txt += say(sc.tellPlayer) + '\n\n';
+            foreach (local step in sc.steps())
+            {
+                local tell = step.tellPlayer != nil ? ': ' + say(step.tellPlayer) : '';
+                if (step.ofKind(Await))
+                {
+                    local turns = scenarioMemory.waited[step] ?? step.within;
+                    txt += '- **WAIT**' + (turns == 1 ? '' : ', <<turns>> times')
+                        + tell + '\n';
+                }
+                else
+                    txt += '- **' + step.command.toUpper() + '**' + tell + '\n';
+            }
+            txt += '\n</details>\n';
+        }
+        return txt;
+    }
+
+    /*
      *   Asked to by `hexicon test` (-hexicon-test=<file>): play the
      *   scenarios, all or those named, and the walkthroughs asked for,
      *   write what happened to the file, print the walkthroughs that
@@ -675,6 +733,7 @@ scenarioRunner: object
     testFromOutside()
     {
         local file = nil, printTo = nil, names = [], walkthroughs = nil;
+        local forPlayers = nil;
         foreach (local arg in libGlobal.commandLineArgs)
         {
             if (arg.startsWith('-hexicon-test='))
@@ -685,6 +744,8 @@ scenarioRunner: object
                 names += arg.substr(11);
             else if (arg == '-walkthroughs')
                 walkthroughs = true;
+            else if (arg == '-for-players')
+                forPlayers = true;
         }
         if (file == nil)
             return;
@@ -746,7 +807,7 @@ scenarioRunner: object
             {
                 if (item.ofKind(Walkthrough)
                     && scenarioMemory.outcomes[item] == 'passed')
-                    doc.writeFile(printed(item));
+                    doc.writeFile(printed(item, forPlayers));
             }
             doc.closeFile();
         }

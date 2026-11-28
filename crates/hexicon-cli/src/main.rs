@@ -114,11 +114,13 @@ commands:
       -f <manifest>, -Fs <dir> as for build
       --walkthroughs           play every walkthrough as well
       --transcript <file>      keep what the game said
-  test [-f <manifest>] --print <walkthrough>
+  test [-f <manifest>] --print <walkthrough> [--for-players]
                                play a walkthrough, and if it passes,
                                write it as a commented walkthrough in
                                Markdown; how it went goes to the error
-                               output
+                               output. --for-players writes it in the
+                               words the game gives players, each part
+                               closed until it is opened
   preinit [--unspecified <file>] <game> <new-game> [args...]
                                run a program as it is run before its
                                image is written, and write the image it

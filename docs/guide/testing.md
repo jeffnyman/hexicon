@@ -21,9 +21,12 @@ A scenario is a name, what it is for, and its steps, the objects inside it, play
 ```hexicon
 getIn: Scenario 'getting in'
     'The well house is locked, and the key is in the apple tree.'
+    playerTitle = 'The locked door'
+    tellPlayer = 'Somebody hid the key where only a bird would look.'
 ;
 + Step 'look in nest' 'The nest is where the key is.'
     mentions = 'iron key'
+    tellPlayer = 'The nest in the apple tree.'
 ;
 + Step 'take key' 'Seen, it can be taken.'
     expect = (ironKey.isIn(me))
@@ -36,7 +39,7 @@ getIn: Scenario 'getting in'
 ;
 ```
 
-A command can be several, as a player types them (`'take lamp. light lamp'`); what the step checks is checked after the last.
+(`playerTitle` and `tellPlayer` are words for players, for a walkthrough printed for them: see [A walkthrough for players](#a-walkthrough-for-players).) A command can be several, as a player types them (`'take lamp. light lamp'`); what the step checks is checked after the last.
 
 ## What a step checks
 
@@ -52,6 +55,7 @@ A scenario starts at the start of the game, or, with `after`, where another one 
 ringBell: Scenario 'ringing the bell'
     'The bell is down in the dark cellar, and it brings the farmer.'
     after = getIn
+    playerTitle = 'Calling for help'
 ;
 ```
 
@@ -77,6 +81,7 @@ What happens on its own, a fuse, a daemon, a character arriving, is waited for w
 + Await 'The farmer comes running.'
     until = (scenarioMemory.ending == ftVictory)
     within = 2
+    tellPlayer = 'Then wait for him.'
 ;
 ```
 
@@ -135,6 +140,8 @@ A walkthrough is scenarios in order, played from the start of the game, each str
 wayThrough: Walkthrough 'the way through'
     'From the garden to the farmer, at a run.'
     [getIn, ringBell]
+    playerTitle = 'A walkthrough'
+    tellPlayer = 'Open a part only when you are stuck in it.'
 ;
 ```
 
@@ -151,4 +158,36 @@ The bell is down in the dark cellar, and it brings the farmer.
 - **WAIT**, 2 times: The farmer comes running.
 ```
 
-The reasons are the author's, so this is a walkthrough for the author and those who test the game; since the tests keep it true, it is a good start on one for players.
+The reasons are the author's, so this is a walkthrough for the author and those who test the game.
+
+## A walkthrough for players
+
+A walkthrough can be printed for players too, in words written for them, apart from the reasons: `playerTitle`, for a walkthrough or a scenario, and `tellPlayer`, for a walkthrough, a scenario, or a step.
+
+```hexicon
+ringBell: Scenario 'ringing the bell'
+    'The bell is down in the dark cellar, and it brings the farmer.'
+    after = getIn
+    playerTitle = 'Calling for help'
+;
++ Step 'take lamp. light lamp' 'The cellar is dark.'
+    expect = (lamp.isLit)
+    tellPlayer = 'You will want a light down there.'
+;
+```
+
+`hexicon test --print <walkthrough> --for-players` prints it with each part closed until it is opened, so that a player reads only as far as they are stuck; a step with nothing for players is its command alone:
+
+```walkthrough
+<details>
+<summary>Calling for help</summary>
+
+- **TAKE LAMP. LIGHT LAMP**: You will want a light down there.
+- **D**
+- **PULL ROPE**: The bell can be heard across the fields.
+- **WAIT**, 2 times: Then wait for him.
+
+</details>
+```
+
+It is played before it is printed, as the author's is, and printed only if it passes, so the walkthrough players are given is one that works.

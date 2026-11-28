@@ -236,10 +236,14 @@ While scenarios play, the story so far is kept: each moment, in order, with its 
 
 The user chose it (2026-11-28): a game's manifest names its tests, `tests = ["tests"]`, sources that a build for debugging takes in, after everything else, and one for release leaves out, so a game's scenarios need no `#ifdef __DEBUG`, and one forgotten cannot put how to win in what players get. On the command line a test is `-test <file>`, which is what the manifest's `tests` come to; a test does not name the image, as a first source does, and it is left out wherever the `-d` that would keep it is given. The Tide Mill and The Well House name theirs so, and `hexicon build -v` lists `tests.hxn` among what it compiles with `-d` and not without; a test in the compiler's tests says the same of a manifest and of the command line.
 
+## A walkthrough for players (2026-11-28)
+
+As sketched and agreed (the user, 2026-11-28): the author gives words for players apart from the reasons, `playerTitle` on a walkthrough or a scenario and `tellPlayer` on a walkthrough, a scenario, or a step, and `hexicon test --print <walkthrough> --for-players` prints the walkthrough in them. Each scenario is a section closed until it is opened (`<details>`, which Markdown keeps and GitHub and a browser show closed), so that a player reads only as far as they are stuck, and a step with nothing for players is its command alone. It is played first and printed only if it passes, as the author's is. *The Well House* has words for players, the guide's page a section on it, and doc-check prints each example walkthrough both ways, for `walkthrough` blocks. Hints in the game, from the same steps, through Hexad's hint system, are for later, if wanted.
+
 ## Questions for the user
 
 - ~~**Is this worth it?**~~ Yes (the user, 2026-11-28): it was built.
 - ~~**The names**~~ (kept as they are, the user, 2026-11-28): `Scenario`, `Step`, `Await` (`Wait` is Hexad's action), `Check`, `Walkthrough`, `after`, `given`, `expect`, `mentions`, `avoids`; `storyEvent`, `happened`, `happenedTimes` (`timesHappened` is a property of Hexad's `Scene`), `happenedBefore`; and the command, `hexicon test`.
 - ~~**Hexad's `Test` and its assertion commands**~~: kept as they are (the user, 2026-11-28), the quick tool for replaying commands while writing.
 - ~~**Test files in the manifest**~~: yes (the user, 2026-11-28), and made (above).
-- **A walkthrough for players** (the user: valuable, 2026-11-28): one written for them, apart from the author's reasons, printed from the same walkthroughs; how, to be proposed.
+- ~~**A walkthrough for players**~~: made (above), as sketched and agreed (the user, 2026-11-28).

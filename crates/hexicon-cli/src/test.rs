@@ -45,6 +45,7 @@ struct Asked<'a> {
     names: Vec<&'a str>,
     walkthroughs: bool,
     print: bool,
+    for_players: bool,
 }
 
 pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
@@ -71,6 +72,10 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
                 asked.walkthroughs = true;
                 rest = tail;
             }
+            ("--for-players", _) => {
+                asked.for_players = true;
+                rest = tail;
+            }
             ("--print", [name, tail @ ..]) => {
                 asked.print = true;
                 asked.names = vec![name];
@@ -86,7 +91,7 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
             }
         }
     }
-    if asked.print && asked.names.len() != 1 {
+    if (asked.print && asked.names.len() != 1) || (asked.for_players && !asked.print) {
         eprint!("{usage}");
         return ExitCode::from(2);
     }
@@ -188,6 +193,9 @@ fn play(folder: &Path, asked: &Asked<'_>) -> std::io::Result<String> {
     }
     if asked.print {
         command.arg(format!("-hexicon-print={PRINTED}"));
+    }
+    if asked.for_players {
+        command.arg("-for-players");
     }
     let done = command.output()?;
     let mut said = String::from_utf8_lossy(&done.stdout).replace('\r', "");

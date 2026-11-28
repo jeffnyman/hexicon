@@ -6,9 +6,12 @@ import hexad;
 // The way through, in two parts.
 getIn: Scenario 'getting in'
     'The well house is locked, and the key is in the apple tree.'
+    playerTitle = 'The locked door'
+    tellPlayer = 'Somebody hid the key where only a bird would look.'
 ;
 + Step 'look in nest' 'The nest is where the key is.'
     mentions = 'iron key'
+    tellPlayer = 'The nest in the apple tree.'
 ;
 + Step 'take key' 'Seen, it can be taken.'
     expect = (ironKey.isIn(me))
@@ -23,9 +26,11 @@ getIn: Scenario 'getting in'
 ringBell: Scenario 'ringing the bell'
     'The bell is down in the dark cellar, and it brings the farmer.'
     after = getIn
+    playerTitle = 'Calling for help'
 ;
 + Step 'take lamp. light lamp' 'The cellar is dark.'
     expect = (lamp.isLit)
+    tellPlayer = 'You will want a light down there.'
 ;
 + Step 'd' 'The cellar is under the trapdoor.'
     expect = (me.isIn(cellar))
@@ -34,10 +39,12 @@ ringBell: Scenario 'ringing the bell'
 + Step 'pull rope' 'The rope rings the bell.'
     expect = (rangBell.achieved)
     mentions = 'the bell clangs'
+    tellPlayer = 'The bell can be heard across the fields.'
 ;
 + Await 'The farmer comes running.'
     until = (scenarioMemory.ending == ftVictory)
     within = 2
+    tellPlayer = 'Then wait for him.'
 ;
 ++ Check 'the bell, then the end'
     test = (happenedBefore('the bell rings', ftVictory))
@@ -46,6 +53,8 @@ ringBell: Scenario 'ringing the bell'
 wayThrough: Walkthrough 'the way through'
     'From the garden to the farmer, at a run.'
     [getIn, ringBell]
+    playerTitle = 'A walkthrough'
+    tellPlayer = 'Open a part only when you are stuck in it.'
 ;
 
 // A rule, alone.

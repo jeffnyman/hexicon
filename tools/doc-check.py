@@ -20,7 +20,8 @@ walk.doc; a block marked `document` has to be part of one.
 An example with scenarios (a source that defines one, `name: Scenario`)
 has them and its walkthroughs played by `hexicon test`, and they have to
 pass; a block marked `report` has to be part of what that reports, and
-one marked `walkthrough` part of a walkthrough it prints (--print).
+one marked `walkthrough` part of a walkthrough it prints (--print, and
+--print --for-players).
 So the guide shows only code that builds and output that a game gives.
 
 Exit status: 0 if all is as it should be, 1 otherwise.
@@ -91,11 +92,13 @@ def check_scenarios(name, work, hexicon, problems):
         r"^passed   walkthrough: (.+) \(\d+ steps?\)$", report, re.MULTILINE
     )
     for walkthrough in walkthroughs:
-        status, printed, err = test("--print", walkthrough)
-        if status != 0:
-            problems.append(f"{name}: {walkthrough} did not print:\n{err}")
-            return
-        PRINTED.append(printed)
+        # As the author's, and as players'.
+        for extra in ([], ["--for-players"]):
+            status, printed, err = test("--print", walkthrough, *extra)
+            if status != 0:
+                problems.append(f"{name}: {walkthrough} did not print:\n{err}")
+                return
+            PRINTED.append(printed)
     print(f"SAME {name}/scenarios ({report.count('passed   ')} passed)")
 
 
