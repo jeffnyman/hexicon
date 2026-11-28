@@ -1344,9 +1344,8 @@ class Thing:  ReplaceRedirector, Mentionable
         /* If we're illuminate show our description and list our contents. */
         if(isIlluminated)
         {
-            /* Display our interior description. */
-            if(gameMain.verbose || !visited || now.actionIs(Look))
-                "<.roomdesc><<descObj.interiorDesc>><./roomdesc><.p>";
+            /* Display our interior description, if this look calls for it. */
+            showInteriorDesc(descObj);
             
             /* List our contents. */
             "<.roomcontents>";
@@ -1389,6 +1388,19 @@ class Thing:  ReplaceRedirector, Mentionable
             libGlobal.exitListerObj.lookAroundShowExits(now.actor, self, isIlluminated);
     }
     
+    /*
+     *   Show the interior description of descObj (ourselves, or the thing
+     *   the actor is in that describes its own interior) as part of looking
+     *   around within us: in VERBOSE mode always, and otherwise on the first
+     *   visit and for LOOK. An extension that chooses how much of a room to
+     *   describe can override this.
+     */
+    showInteriorDesc(descObj)
+    {
+        if(gameMain.verbose || !visited || now.actionIs(Look))
+            "<.roomdesc><<descObj.interiorDesc>><./roomdesc><.p>";
+    }
+
     /* List the contents of this object using lister. */
     listContents(lister = &roomContentsLister)
     {    

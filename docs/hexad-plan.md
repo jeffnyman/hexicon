@@ -494,6 +494,19 @@ On today's displays, which are text, the game plays as the reference's plain con
 
 **What a display that shows HTML would need**, from this game: pictures inline, aligned at the right with the text around them, and centered; the page's colors and a background picture; links, and an image map's areas as links; sounds in the background, ambient (at random intervals), and foreground layers, looping, cancelled, and interrupting; tables with borders, padding, widths, and colored cells; fonts by face, size, and color; centered text, lists, block quotes, a rule drawn with a picture; a window title; an about box; pictures and sounds read from the image's resources; and `systemInfo` saying what the display can do. Whether that is the page alone, or a renderer of Hexicon's own drawn by each host (HTML TADS's design: a portable parser and formatter, and a small system interface for each platform), is the decision this waits for. Settled (2026-11-27): the page alone, on the system's web engine, in the browser and in the player; see "The rich display" in [the VM plan](vm-plan.md).
 
+### Contextual descriptions (2026-11-28)
+
+The user's Contextual Descriptions and Description Decay, brought into Hexad as one extension, `extensions/contextualDescriptions`, with the decay a choice of the game's (`gameMain.descriptionsDecay`).
+
+- **Arrivals**: `room.arrivals`, counted when a room is described after the player character has been somewhere else, however they arrived; not for looking where they are, not for IMPRESSIONS, and not in the dark or inside something closed, so a cellar entered in the dark has its first arrival when the light goes on. `isNewlyArrived` and `isRevisited`.
+- **Summaries**: `unvisitedSummary` and `visitedSummary` (by default the room's `aName` and `theName`), and `summarize(room)` for whichever applies, to mention a room from another's description.
+- **IMPRESSIONS** (or FIRST IMPRESSIONS): the room as on its first visit, with its `roomFirstDesc` and text that depends on `visited`; no time passes and no arrival is counted.
+- **Decay**: the full description on the first arrival, `summaryDesc` (or the full description, for a room without one) on later arrivals and for LOOK, and nothing on arrival from `gameMain.decayThreshold` (3) on, while the contents are still listed; BRIEF and VERBOSE say why they change nothing.
+
+**In Hexad's core**, the one line of `lookAroundWithin` that chose whether to show a room's description is now a method, `showInteriorDesc(descObj)`, which the extension overrides; Hexad's own behavior (always in VERBOSE, otherwise on the first visit and for LOOK) is unchanged, and no game changed.
+
+`game-tests/descriptions` checks it on the original's Kensington Gardens, with the walk of its example and the cellar in the dark, and with decay turned off at the end.
+
 ### Imagining (2026-11-28)
 
 The user's Counterfactuals, brought into the hypothetical extension, which already had its trials: what would happen if something were done, for an action or for several turns, asked of the imagined world afterwards.

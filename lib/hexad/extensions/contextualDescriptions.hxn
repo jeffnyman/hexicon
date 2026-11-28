@@ -1,0 +1,201 @@
+#charset "us-ascii"
+import hexad;
+
+/*
+ *   Contextual descriptions: places described differently depending on
+ *   whether the player character has been there, a first impression the
+ *   player can recall, and, if the game wants it, room descriptions that
+ *   shorten as places grow familiar.
+ *
+ *   ARRIVALS. Every room counts its arrivals: room.arrivals. An arrival is
+ *   the first time a room is described after the player character has
+ *   been somewhere else, however they got there (on foot, in a vehicle, or
+ *   moved by the story); looking around where they already are doesn't
+ *   count, and neither does IMPRESSIONS. Being in a room without seeing it,
+ *   in the dark or shut inside something, isn't an arrival: the arrival is
+ *   when the room is next seen, so a cellar first entered in the dark
+ *   still has its first arrival when the light goes on. The room the story
+ *   starts in has its first arrival with the opening description.
+ *
+ *       room.isNewlyArrived      its arrivals are 1
+ *       room.isRevisited         its arrivals are more than 1
+ *
+ *   SUMMARIES. Each room has two, for mentioning it from somewhere else:
+ *   unvisitedSummary, before the player character has arrived there, and
+ *   visitedSummary, once they have. summarize(room) gives whichever applies:
+ *
+ *       hall: Room 'Hall'
+ *           "A plain hall. The study, <<summarize(study)>>, is east. "
+ *       ;
+ *
+ *       broadWalk: Room 'Broad Walk'
+ *           unvisitedSummary = 'what appears to be the crowded Broad Walk'
+ *           visitedSummary = 'the very crowded Broad Walk'
+ *       ;
+ *
+ *   By default they are the room's aName and theName ("a study", "the
+ *   study"), and just its name for a room with a proper name.
+ *
+ *   IMPRESSIONS (or FIRST IMPRESSIONS) recalls the first impression of
+ *   where the player character is: the room described as on its first
+ *   visit, with its roomFirstDesc if it has one, and text that depends on
+ *   visited shown as it was. It takes no time, and isn't an arrival.
+ *
+ *   DECAY. A game that sets gameMain.descriptionsDecay = true has room
+ *   descriptions that shorten as a place grows familiar:
+ *
+ *       first arrival             the full description
+ *       later arrivals, up to     the summary description, summaryDesc
+ *         gameMain.decayThreshold   (3 by default: the second arrival)
+ *       arrivals from there on    no description; the contents are still
+ *                                 listed
+ *       LOOK, at any time         the summary description
+ *       IMPRESSIONS               the full description
+ *
+ *       broadWalk: Room 'Broad Walk'
+ *           "A brooding statue of Queen Victoria faces east... "
+ *           summaryDesc = "The crowded Broad Walk. "
+ *       ;
+ *
+ *   A room without a summaryDesc is described in full wherever a summary
+ *   would be. Darkness, and being inside something that describes its own
+ *   interior, are described as always. Since the game decides how much of
+ *   a room to describe, BRIEF and VERBOSE say so and change nothing.
+ */
+
+modify Room
+    /* How many times the player character has arrived here. */
+    arrivals = 0
+
+    isNewlyArrived = (arrivals == 1)
+    isRevisited = (arrivals > 1)
+
+    /* How the room is mentioned from elsewhere, before and after arriving. */
+    unvisitedSummary = (aName)
+    visitedSummary = (theName)
+
+    /* A shorter description, for decay; nil for the full one. */
+    summaryDesc = nil
+
+    lookAroundWithin()
+    {
+        roomMemory.noteLook(self);
+        inherited();
+    }
+
+    showInteriorDesc(descObj)
+    {
+        if(!gameMain.descriptionsDecay)
+        {
+            inherited(descObj);
+            return;
+        }
+        if(roomMemory.recalling || !visited)
+            "<.roomdesc><<descObj.interiorDesc>><./roomdesc><.p>";
+        else if(now.actionIs(Look) || arrivals < gameMain.decayThreshold)
+        {
+            if(descObj == self && propType(&summaryDesc) != TypeNil)
+                "<.roomdesc><<summaryDesc>><./roomdesc><.p>";
+            else
+                "<.roomdesc><<descObj.interiorDesc>><./roomdesc><.p>";
+        }
+    }
+;
+
+/*
+ *   A look from inside something that is not a room (a closed booth one
+ *   can't see out of) shows no room: the next room seen is an arrival.
+ */
+modify Thing
+    lookAroundWithin()
+    {
+        if(!ofKind(Room))
+            roomMemory.lastDescribed = nil;
+        inherited();
+    }
+;
+
+/* The room most recently described, and whether a first impression is recalled. */
+roomMemory: object
+    lastDescribed = nil
+    recalling = nil
+
+    noteLook(room)
+    {
+        if(recalling)
+            return;
+        if(!room.isIlluminated)
+            lastDescribed = nil;
+        else if(room != lastDescribed)
+        {
+            room.arrivals++;
+            lastDescribed = room;
+        }
+    }
+;
+
+/* How a room is mentioned from elsewhere: as visited, or not yet. */
+summarize(room)
+{
+    return room.arrivals == 0 ? room.unvisitedSummary : room.visitedSummary;
+}
+
+modify GameMainDef
+    /* Do room descriptions shorten as places grow familiar? */
+    descriptionsDecay = nil
+
+    /* The arrival from which arriving shows no description. */
+    decayThreshold = 3
+;
+
+action Impressions: SystemAction
+    execAction(cmd)
+    {
+        local place = now.player.outermostVisibleParent();
+        local wasVisited = place.visited, wasExamined = place.examined;
+        roomMemory.recalling = true;
+        place.visited = nil;
+        place.examined = nil;
+        try
+        {
+            place.lookAroundWithin();
+        }
+        finally
+        {
+            place.visited = wasVisited;
+            place.examined = wasExamined;
+            roomMemory.recalling = nil;
+        }
+    }
+;
+
+verb Impressions ('first' | ) 'impressions':
+    verbPhrase = 'recall/recalling first impressions'
+;
+
+modify Brief
+    execAction(cmd)
+    {
+        if(gameMain.descriptionsDecay)
+            noModes();
+        else
+            inherited(cmd);
+    }
+;
+
+modify Verbose
+    execAction(cmd)
+    {
+        if(gameMain.descriptionsDecay)
+            noModes();
+        else
+            inherited(cmd);
+    }
+;
+
+/* Why BRIEF and VERBOSE change nothing in a game whose descriptions decay. */
+noModes()
+{
+    showMsg(no description modes, 'Room descriptions here change as places
+        become familiar, so the BRIEF and VERBOSE modes aren\'t used. ');
+}
