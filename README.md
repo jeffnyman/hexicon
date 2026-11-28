@@ -34,6 +34,8 @@ target/release/hexicon-player my-game.hxg
 
 A game can also be opened from the player's window, or dropped on it. The player keeps each game's saved games as files, in `Hexicon` in your documents, with a folder for each game; its "Saved games" button opens it. Saving and restoring show the system's own file dialog, starting in that folder.
 
+On Windows, `tools/build-installer.sh` builds an installer, `build/installer/hexicon-<version>-setup.exe`, with [Inno Setup 6](https://jrsoftware.org/isinfo.php). It installs for you alone, with no administrator's rights: the player, which then opens `.hxg` files when they are opened in Explorer, and the compiler, on your PATH, unless you untick it. Settings > Apps uninstalls it. The programs are not signed yet, so Windows may warn before the installer runs, and an antivirus program may hold the player the first time it starts while it checks it.
+
 `tools/build-web.sh` builds the browser's page alone, into `web/`; `node tools/web-serve.js` serves it at `http://127.0.0.1:8765/web/index.html`.
 
 ## Documentation

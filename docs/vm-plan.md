@@ -375,6 +375,8 @@ The terminal stays a display of text, as it is: the same markup, shown as the pl
 
 **How it is tested.** The checked document is written out as text, as a transcript is, so game-check and doc-check can compare it without a browser: The Golden Skull's sign, as a table with its style, its sounds in their layers, its compass as an image map. Headless browser screenshots check the page itself, less often.
 
+**SVG a game writes as it runs: not now (2026-11-28).** An SVG among the game's resources shows as any picture does (`<img src="map.svg">`); an `<svg>` the game writes into its text is dropped. Only the cartographer's port in the playground would draw one, and its text, table, and pane maps already show on the page, so this waits for a game that needs it. When one does, the way is to show the `<svg>` as a picture: the checker takes it out of the text, as written, and the page draws it as an image, which a browser draws with no scripts and with nothing fetched from outside it. Taking SVG into the page itself would need an allowlist for SVG as large as HTML's (scripts, handlers, links, `<use>` and `<image>` references, animation that sets them, and `foreignObject`, which holds HTML the profile never sees). As a picture, the page's style sheet and themes do not reach inside it, so the game gives its colors, and it holds no links. The terminal shows none of it either way, so a game drawing one also says it in text.
+
 ### First steps, in order
 
 1. This profile, finished and agreed.
@@ -473,7 +475,16 @@ What the first document showed, for the steps after:
 - **The profile's CSS gains `image-rendering`**, so a game can draw small pictures bigger with crisp pixels (decided 2026-11-27, as an addition to the agreed profile). Wasteland's style sheet draws its map twice the size that way, on a window with room.
 - `web-check.js` takes `HEXICON_CHECK_EVAL`, an expression to print from the page, which is how the panes' sizes were found.
 
-What is left: macOS for the player, as an app bundle; a Linux package, which depends on the GStreamer plugins above; and the system opening a game in the player when its file is opened, which takes an installer on Windows and the app bundle on macOS to say so (the player takes the game's file on its command line, so "Open with" works already).
+What is left: macOS for the player, as an app bundle, which also says that it opens games' files; and a Linux package, which depends on the GStreamer plugins above.
+
+**Done, 2026-11-28: an installer for Windows.** `tools/build-installer.sh` builds the player and the compiler and makes `build/installer/hexicon-<version>-setup.exe` with Inno Setup 6 (`tools/installer/hexicon.iss`).
+
+- **For one user, with no administrator's rights**, in `%LOCALAPPDATA%\Programs\Hexicon`: the player, with a Start menu entry and, if asked, one on the desktop; `.hxg` files open in it, with its icon; and the compiler, a component ticked unless unticked, in `bin`, which goes at the end of the user's PATH. Settings > Apps uninstalls it, and the uninstaller takes away everything it put there: the PATH as it was, to the character (a PATH ending in `;` keeps it), the keys around the association's values, and what Explorer records once a game is opened from it.
+- **The player is a program with a window and no console** on Windows, so a game opened from Explorer opens no console with it. A failure to start, which went to the error output, is a message box too, except under a check (`HEXICON_CHECK_CHOOSE`).
+- **An icon**, three hexagons, drawn by `tools/make-icon.py` as `crates/hexicon-app/icon/hexicon.svg` and `hexicon.ico`, in Python alone. The build puts the icon in the program, with its name ("Hexicon Player", "Hexicon") for Explorer and Task Manager (`winresource`), and the window takes it.
+- **Found on the way: an antivirus program and an unsigned player.** The first time the installed player opened a game, Norton's CyberCapture held it, as it holds any program it has not seen, to check it: the player's window stayed empty, a second player was started with the same command line, and the machine stopped answering until it was restarted. A watchdog that logged the player's processes every second found, the second time, nothing growing (about 0.2 GB and 3,400 handles throughout); the second player was started again, at the same instant as the first, and waited for the first to go; and the game played. Players who download Hexicon will meet the same: SmartScreen's warning for an unsigned installer, and antivirus programs holding an unknown program. The README says so.
+
+**Open: signing.** Signing the installer and the programs is what stops those warnings in time: Microsoft's Trusted Signing, by the month, or a code-signing certificate, by the year. Whether, and which, is the user's decision.
 
 
 ### Keeping UNDO through a visit (2026-11-28)

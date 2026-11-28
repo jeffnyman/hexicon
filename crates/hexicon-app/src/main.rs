@@ -18,7 +18,14 @@
 //!
 //! HEXICON_GAMES_FOLDER, if it is set, is the folder for the games' files.
 //! HEXICON_CHECK_CHOOSE, for checks, answers every file dialog with the
-//! path it names (or none, if it is empty) instead of showing it.
+//! path it names (or none, if it is empty) instead of showing it, and
+//! keeps a failure to start to the error output, with no message box.
+//!
+//! On Windows it is a program with a window and no console, so opening a
+//! game from Explorer opens no console with it; what it writes to its
+//! error output still reaches a program that started it with a pipe.
+
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -68,6 +75,36 @@ const FILES: &[(&str, &[u8], &str)] = &[
 /// `http://hexicon.localhost/`, and elsewhere as `hexicon://localhost/`.
 const PROTOCOL: &str = "hexicon";
 
+/// Say why the player cannot start, and stop. Started from Explorer or
+/// the Finder, there is no console to read it in, so it is a message box
+/// as well, unless a check is running the player.
+fn fail(message: &str) -> ! {
+    eprintln!("hexicon-player: {message}");
+    if std::env::var_os("HEXICON_CHECK_CHOOSE").is_none() {
+        rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Error)
+            .set_title("Hexicon")
+            .set_description(message)
+            .show();
+    }
+    std::process::exit(1);
+}
+
+/// The window's icon: on Windows, the one built into the program; the
+/// other systems take the program's icon from its bundle or its desktop
+/// entry.
+fn window_icon() -> Option<tao::window::Icon> {
+    #[cfg(windows)]
+    {
+        use tao::platform::windows::IconExtWindows;
+        tao::window::Icon::from_resource(1, None).ok()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
 /// Where the game named on the command line is, for the page to load.
 const GAME_PATH: &str = "game/";
 
@@ -78,8 +115,7 @@ fn main() {
     let game = std::env::args_os().nth(1).map(PathBuf::from);
     if let Some(path) = &game {
         if !path.is_file() {
-            eprintln!("hexicon-player: {}: there is no such file", path.display());
-            std::process::exit(1);
+            fail(&format!("{}: there is no such file", path.display()));
         }
     }
 
@@ -88,13 +124,11 @@ fn main() {
     let window = match WindowBuilder::new()
         .with_title("Hexicon")
         .with_inner_size(tao::dpi::LogicalSize::new(1000.0, 760.0))
+        .with_window_icon(window_icon())
         .build(&event_loop)
     {
         Ok(window) => window,
-        Err(error) => {
-            eprintln!("hexicon-player: no window: {error}");
-            std::process::exit(1);
-        }
+        Err(error) => fail(&format!("no window: {error}")),
     };
 
     let base = if cfg!(any(windows, target_os = "android")) {
@@ -136,10 +170,9 @@ fn main() {
     let built = build_in(built, &window);
     let webview = match built {
         Ok(webview) => webview,
-        Err(error) => {
-            eprintln!("hexicon-player: the system's web view could not be started: {error}");
-            std::process::exit(1);
-        }
+        Err(error) => fail(&format!(
+            "the system's web view could not be started: {error}"
+        )),
     };
 
     // The Mac's menu bar, made once the program has started, and kept for
