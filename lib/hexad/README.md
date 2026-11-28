@@ -25,7 +25,7 @@ Until 2026-11-24 a comparison played adv3Lite's games on both libraries and chec
 
 ## Using it
 
-`hexicon new my-game` starts a game on Hexad, ready to build and play. Hexad is built into Hexicon, as its system library is, so a game needs nothing else.
+`hexicon new my-game` starts a game on Hexad, ready to build and play. Hexad is built into Hexicon, as its system library is, so a game needs nothing else. A game built on Hexad is its author's to license as they choose: see [LIBRARY-EXCEPTION](../../LIBRARY-EXCEPTION).
 
 A game names Hexad among its libraries, after the system library (`system`), with `LANGUAGE` defined:
 

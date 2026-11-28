@@ -8,7 +8,7 @@ Hexicon's system library: what every program is built on, below any library such
 - `compiledcode.hxn`: functions compiled while a program runs. `reflect.hxn`: what a program can find out about itself.
 - The headers (`.h`): the virtual machine's built-in functions and classes, as a program sees them. `hexicon.h` brings in the rest: `vm.h` (the virtual machine's own functions), `general.h`, `io.h`, `systype.h` (the built-in classes, among them `ProgramObject`), and the others a program includes as it needs them.
 
-The compiler has all of this built in, as it has Hexad. A build finds it here with nothing else installed. A game can have a system library of its own: a library named `system` in a folder `-Fs` or `HEXICON_LIB` names comes before the one built in.
+The compiler has all of this built in, as it has Hexad. A build finds it here with nothing else installed. A game built on it is its author's to license as they choose: see [LIBRARY-EXCEPTION](../../LIBRARY-EXCEPTION). A game can have a system library of its own: a library named `system` in a folder `-Fs` or `HEXICON_LIB` names comes before the one built in.
 
 ## What is still the virtual machine's
 

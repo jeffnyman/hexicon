@@ -1,0 +1,39 @@
+                       HEXICON LIBRARY EXCEPTION
+
+This is an additional permission under section 7 of the GNU General Public
+License, version 3 ("GPLv3"). It applies to the files in Hexicon's `lib`
+directory: the system library, and Hexad with its extensions.
+
+0. Definitions.
+
+"Library Material" means those files, any part of them, and any form
+Hexicon's compiler produces from them, together with the code the compiler
+itself places in a program it compiles.
+
+"Game" means a program compiled with Hexicon, as a game image or in any
+other form, together with its own sources and any resources it is
+distributed with.
+
+1. Permission for Games.
+
+You may convey a Game that contains Library Material, or whose sources
+import or include it, under terms of your choice, even though the Library
+Material is covered by the GPLv3. This holds whether or not the Game changes,
+extends, or replaces parts of the Library Material, in its own sources or in
+copies of the library's files that it is built from.
+
+2. What this does not cover.
+
+The Library Material itself, conveyed on its own rather than as part of a
+Game, remains under the GPLv3, with this exception.
+
+Hexicon's compiler, virtual machine, and players are not Library Material.
+A Game conveyed with one of them, such as a web page or a program built
+around Hexicon's virtual machine, conveys that player under the GPLv3 as
+usual; the Game itself stays under the terms you chose.
+
+3. Modified versions.
+
+If you modify the Library Material and convey it on its own, you may extend
+this exception to your version, but you are not obliged to. If you do not
+wish to, delete this exception from your version.

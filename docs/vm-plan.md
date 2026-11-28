@@ -493,4 +493,4 @@ Two VM tests check a visit and back, with a collection during it, UNDO then goin
 - Is read/write compatibility with existing `.t3v` save files a hard requirement or a nice-to-have? (As of milestone 4 it is met for every class implemented so far.)
 - ~~Should HTML TADS games (banners, images, sound) be supported in the first browser front end, or text only first?~~ Settled (2026-11-27): a rich display on the web engine, in the browser and in a downloadable program; see "The rich display" above.
 - Minimum supported Rust version policy (proposal: latest stable minus two releases).
-- License for Hexicon itself (GPLv2-or-later vs. GPLv3).
+- ~~License for Hexicon itself (GPLv2-or-later vs. GPLv3).~~ Settled: GPL-3.0-or-later (2026-11-24), with a library exception (2026-11-28) for the system library and Hexad, so that a game built on them is its author's to license (`LIBRARY-EXCEPTION`).

@@ -55,3 +55,5 @@ python tools/doc-check.py
 ## License
 
 Hexicon is free software: you can redistribute it and modify it under the terms of the GNU General Public License, version 3 or (at your option) any later version. See [LICENSE](LICENSE).
+
+The libraries in `lib` (the system library and Hexad) carry an additional permission, [LIBRARY-EXCEPTION](LIBRARY-EXCEPTION): a game built on them may be distributed under terms of its author's choice.
