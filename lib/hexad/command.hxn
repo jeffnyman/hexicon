@@ -653,7 +653,7 @@ class Command: object
          */
         
         
-        if(dobjs.length > action.reportList.length)
+        if(dobjs.length > valToList(action.reportList).length)
             return nil;
         
         /* we have no objection to terse messages */
