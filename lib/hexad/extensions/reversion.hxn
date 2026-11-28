@@ -50,9 +50,10 @@ import hexad;
  *   declared "transient", which neither a restore nor UNDO changes). A
  *   visit isn't a reversion: it isn't counted, and arrive() isn't called.
  *   whenVisited() should print nothing, and must not revert, restart, or
- *   end the story. While it runs, reversion.isVisiting is true. A visit
- *   costs the player their UNDO, as a RESTORE does: the turns before it
- *   can no longer be undone.
+ *   end the story. While it runs, reversion.isVisiting is true. The
+ *   player's UNDO is kept through a visit: the turns before it can still
+ *   be undone. (Should the VM find the objects not all as they were when
+ *   it comes back, it forgets the UNDO instead, as a RESTORE does.)
  *
  *   RECOLLECTIONS. What the player character carries back:
  *
@@ -336,7 +337,11 @@ class BranchPoint: object
         reversionMemory.visiting = true;
         try
         {
-            if(!restoreSnapshot(bytes))
+            /*
+             *   The player's UNDO is set aside going, and brought back on
+             *   returning to the present, saved just before.
+             */
+            if(!restoreSnapshot(bytes, 1))
                 return nil;
             try
             {
@@ -347,7 +352,7 @@ class BranchPoint: object
             }
             finally
             {
-                restoreSnapshot(present);
+                restoreSnapshot(present, 2);
             }
         }
         finally

@@ -1434,6 +1434,98 @@ fn saved_state_is_checked_before_it_is_used() {
         .expect("the real one still restores");
 }
 
+/// A VM partway through three savepoints, with objects the program made:
+/// the property is 1 at the first savepoint and 2 at the second, and
+/// now 3; the vector holds 5, then 6; and at the third, another property
+/// changes from one new string to another. Returns the VM, the vector, the
+/// state saved at the second savepoint, and the state now.
+fn vm_two_savepoints_in() -> (Vm, ObjId, Vec<u8>, Vec<u8>) {
+    let mut vm = vm_with_one_object();
+    let other_prop = PROP_GREET + 1;
+    vm.objects.savepoint();
+    let vector = vm.objects.alloc(Object::Vector(vec![Value::Int(5)]));
+    vm.set_prop(ObjId(1), PROP_GREET, Value::Int(2))
+        .expect("set");
+    vm.set_prop(ObjId(1), other_prop, Value::Obj(vector))
+        .expect("set");
+    let past = vm.save_state(Value::Nil).expect("save");
+    vm.objects.savepoint();
+    vm.set_prop(ObjId(1), PROP_GREET, Value::Int(3))
+        .expect("set");
+    // A string that, once replaced, only the savepoint refers to.
+    let old_text = vm.new_str("old");
+    vm.set_prop(ObjId(1), PROP_GREET + 2, old_text)
+        .expect("set");
+    vm.objects.savepoint();
+    let new_text = vm.new_str("new");
+    vm.set_prop(ObjId(1), PROP_GREET + 2, new_text)
+        .expect("set");
+    if let Some(Object::Vector(items)) = vm.objects.get_mut(vector) {
+        items[0] = Value::Int(6);
+    }
+    let present = vm.save_state(Value::Nil).expect("save");
+    (vm, vector, past, present)
+}
+
+#[test]
+fn a_visit_to_the_past_and_back_keeps_undo() {
+    let (mut vm, vector, past, present) = vm_two_savepoints_in();
+
+    // Go to the past, change something there, and come back.
+    vm.restore_state_with(&past, crate::save::RestoreMode::SetUndoAside)
+        .expect("go");
+    assert_eq!(prop_of(&vm, 1, PROP_GREET), Some(Value::Int(2)));
+    vm.set_prop(ObjId(1), PROP_GREET, Value::Int(7))
+        .expect("set");
+    vm.collect_garbage(false);
+    vm.restore_state_with(&present, crate::save::RestoreMode::ReturnKeepingUndo)
+        .expect("return");
+    assert_eq!(prop_of(&vm, 1, PROP_GREET), Some(Value::Int(3)));
+
+    // The string only the savepoint referred to outlasted the visit.
+    assert!(vm.objects.undo());
+    let Some(text) = prop_of(&vm, 1, PROP_GREET + 2) else {
+        panic!("the old text is back");
+    };
+    assert_eq!(&*vm.as_str(text).expect("a string"), b"old");
+
+    // The vector is back under its own ID, and UNDO goes back through
+    // both savepoints as if the visit had not been made.
+    assert!(matches!(vm.objects.get(vector), Some(Object::Vector(_))));
+    assert!(vm.objects.undo());
+    assert_eq!(prop_of(&vm, 1, PROP_GREET), Some(Value::Int(2)));
+    assert_eq!(vector_of(&vm.objects, vector), [Value::Int(5)]);
+    assert!(vm.objects.undo());
+    assert_eq!(prop_of(&vm, 1, PROP_GREET), Some(Value::Int(1)));
+    assert!(!vm.objects.undo());
+}
+
+#[test]
+fn a_visit_forgets_undo_when_an_object_cannot_come_back_as_it_was() {
+    let (mut vm, vector, past, present) = vm_two_savepoints_in();
+    vm.restore_state_with(&past, crate::save::RestoreMode::SetUndoAside)
+        .expect("go");
+
+    // Something kept through the visit (transient) takes the vector's ID.
+    if vm.objects.get(vector).is_none() {
+        assert!(vm.objects.alloc_at(vector, Object::Vector(Vec::new())));
+    }
+    vm.objects.set_transient(vector);
+
+    vm.restore_state_with(&present, crate::save::RestoreMode::ReturnKeepingUndo)
+        .expect("return");
+    assert_eq!(prop_of(&vm, 1, PROP_GREET), Some(Value::Int(3)));
+    assert!(!vm.objects.undo(), "the savepoints are forgotten");
+
+    // A plain restore forgets them too, and any set aside.
+    vm.objects.savepoint();
+    vm.restore_state_with(&past, crate::save::RestoreMode::SetUndoAside)
+        .expect("go");
+    vm.restore_state(&present).expect("plain");
+    assert!(vm.undo_stash.is_none());
+    assert!(!vm.objects.undo());
+}
+
 #[test]
 fn restart_returns_to_the_loaded_state() {
     let mut vm = vm_with_one_object();

@@ -484,8 +484,15 @@ builtin 'hexicon-gen/030008'
      *   persistent objects stored in the given file.  The file must have
      *   been saved by the current version of the current running program; if
      *   not, an exception is thrown.  
+     *
+     *   A restore forgets the savepoints UNDO goes back to. mode, which is
+     *   Hexicon's, is for Hexad's snapshots (snapshot.hxn), and nothing
+     *   else: 1 sets the savepoints aside instead, and 2, restoring the
+     *   state that was saved just before they were set aside, puts them
+     *   back, if every object is the same one it was. Any other use gives
+     *   UNDO savepoints that describe some other state.
      */
-    restoreGame(filename);
+    restoreGame(filename, mode?);
 
     /*
      *   Restart the program from the beginning.  This resets all persistent

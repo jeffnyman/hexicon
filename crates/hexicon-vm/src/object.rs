@@ -225,6 +225,26 @@ impl std::hash::Hasher for IdHasher {
 /// The most savepoints kept. Making another drops the oldest.
 const MAX_SAVEPOINTS: usize = 255;
 
+/// Savepoints taken out of the object table, to be put back (see
+/// `ObjectTable::take_undo`).
+#[derive(Debug, Default)]
+pub struct UndoStash {
+    savepoints: std::collections::VecDeque<Vec<(u32, Object)>>,
+    saved_refs: std::collections::HashMap<u32, u32>,
+}
+
+impl UndoStash {
+    /// Every object the savepoints name: those they hold an earlier state
+    /// of, and those those states refer to. The savepoints can be put
+    /// back only if each of these is the same object it was.
+    pub fn ids(&self) -> impl Iterator<Item = ObjId> + '_ {
+        self.savepoints
+            .iter()
+            .flat_map(|changes| changes.iter().map(|(id, _)| ObjId(*id)))
+            .chain(self.saved_refs.keys().map(|&id| ObjId(id)))
+    }
+}
+
 /// The object table: every object in the VM, indexed by ID.
 ///
 /// Free IDs are kept on a list in the same order as the reference VM keeps
@@ -241,6 +261,14 @@ pub struct ObjectTable {
     /// collector; counting them as the states come and go spares it
     /// walking every state each time.
     saved_refs: std::collections::HashMap<u32, u32>,
+    /// The IDs of the objects the program had created when savepoints
+    /// were taken out to be put back (see `take_undo`). A reserved ID
+    /// that is freed is not handed out again until it is released, so
+    /// that each of those objects can come back under its own.
+    reserved: std::collections::BTreeSet<u32>,
+    /// While savepoints are taken out, the objects they refer to, which
+    /// stay roots for the collector, as they are in the table.
+    stashed_refs: Vec<u32>,
     /// Property lookups through superclasses, remembered: by the object
     /// the lookup starts at and the property, what it found.
     lookups: std::cell::RefCell<LookupCache>,
@@ -598,10 +626,95 @@ impl ObjectTable {
         true
     }
 
+    /// Release the reserved IDs: those no object took back go on the
+    /// free list.
+    pub fn release_reserved(&mut self) {
+        self.stashed_refs.clear();
+        let reserved = std::mem::take(&mut self.reserved);
+        for id in reserved {
+            if self.slots[id as usize].object.is_none() {
+                self.link_free(id);
+            }
+        }
+    }
+
     /// Forget every savepoint.
     pub fn drop_undo(&mut self) {
         self.savepoints.clear();
         self.saved_refs.clear();
+    }
+
+    /// Take every savepoint out of the table, to be put back later with
+    /// `put_undo`: while they are out, nothing is recorded into them,
+    /// and the objects only they refer to are not kept for them.
+    pub fn take_undo(&mut self) -> UndoStash {
+        self.release_reserved();
+        for (id, slot) in self.slots.iter().enumerate() {
+            if slot.object.is_some() && !slot.in_root_set && !slot.transient {
+                self.reserved.insert(id as u32);
+            }
+        }
+        let saved_refs = std::mem::take(&mut self.saved_refs);
+        self.stashed_refs = saved_refs.keys().copied().collect();
+        UndoStash {
+            savepoints: std::mem::take(&mut self.savepoints),
+            saved_refs,
+        }
+    }
+
+    /// Put back savepoints taken out with `take_undo`, in place of any
+    /// made since. They describe changes from the state the program was
+    /// in when they were taken out, so they are right only if it is in
+    /// that state again, every object under its own ID: that is the
+    /// caller's to make sure of (see `UndoStash::ids`).
+    /// Whether an ID is reserved: it has not been handed to any other
+    /// object since it was, so an object under it is the same object.
+    pub fn is_reserved(&self, id: ObjId) -> bool {
+        self.reserved.contains(&id.0)
+    }
+
+    pub fn put_undo(&mut self, stash: UndoStash) {
+        self.savepoints = stash.savepoints;
+        self.saved_refs = stash.saved_refs;
+        self.stashed_refs.clear();
+        self.track_all();
+    }
+
+    /// Store an object the program creates under a given ID, as a
+    /// restore does to give an object back the ID it had: false if the
+    /// ID is invalid or in use. A reserved ID still in use is in use by
+    /// the object it was reserved for, which is never freed in between:
+    /// that object stays, for the restore to give its saved state.
+    pub fn alloc_at(&mut self, id: ObjId, object: Object) -> bool {
+        if !id.is_valid() {
+            return false;
+        }
+        while id.0 as usize >= self.slots.len() {
+            self.add_page();
+        }
+        let reserved = self.reserved.contains(&id.0);
+        if self.slots[id.0 as usize].object.is_some() {
+            return reserved && !self.slots[id.0 as usize].transient;
+        }
+        if !reserved {
+            self.unlink(id.0);
+        }
+        self.serial = self.serial.wrapping_add(1);
+        self.allocs_since_gc += 1;
+        let serial = self.serial;
+        let slot = &mut self.slots[id.0 as usize];
+        slot.serial = serial;
+        slot.finalize = Finalize::NotYet;
+        slot.mark = Mark::Unreachable;
+        slot.vec_alloc = vec_len(&object);
+        slot.vec_cell = crate::heap::cell_for(crate::heap::vector_bytes(slot.vec_alloc as usize));
+        count_object(&object, slot.vec_alloc);
+        slot.object = Some(object);
+        slot.in_root_set = false;
+        slot.transient = false;
+        slot.in_undo = false;
+        slot.saved = false;
+        true
     }
 
     /// The program-defined object (or built-in class modifier) with an ID.
@@ -1087,6 +1200,7 @@ impl ObjectTable {
             }
         }
         all_roots.extend(self.saved_refs.keys().map(|&id| Value::Obj(ObjId(id))));
+        all_roots.extend(self.stashed_refs.iter().map(|&id| Value::Obj(ObjId(id))));
         prof_scope!(crate::prof::GC_MARK);
         self.mark_from(&all_roots, Mark::Reachable);
         self.slots
@@ -1256,10 +1370,10 @@ impl ObjectTable {
     }
 
     /// Release an object. Its ID goes to the front of the free list, so
-    /// it is the next one handed out.
+    /// it is the next one handed out; unless it is reserved, when it goes
+    /// on the list only once released.
     fn free(&mut self, id: u32) {
         self.changed(id);
-        let first = self.first_free;
         let slot = &mut self.slots[id as usize];
         // What a file object stands for outlives it until the VM has
         // dealt with it.
@@ -1269,6 +1383,18 @@ impl ObjectTable {
         slot.object = None;
         slot.in_root_set = false;
         slot.transient = false;
+        if self.reserved.contains(&id) {
+            slot.next_free = 0;
+            slot.prev_free = 0;
+            return;
+        }
+        self.link_free(id);
+    }
+
+    /// Put a free ID at the front of the free list.
+    fn link_free(&mut self, id: u32) {
+        let first = self.first_free;
+        let slot = &mut self.slots[id as usize];
         slot.next_free = first;
         slot.prev_free = 0;
         if first != 0 {

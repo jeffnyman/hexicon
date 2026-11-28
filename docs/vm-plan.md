@@ -475,6 +475,19 @@ What the first document showed, for the steps after:
 
 What is left: macOS for the player, as an app bundle; a Linux package, which depends on the GStreamer plugins above; and the system opening a game in the player when its file is opened, which takes an installer on Windows and the app bundle on macOS to say so (the player takes the game's file on its command line, so "Open with" works already).
 
+
+### Keeping UNDO through a visit (2026-11-28)
+
+Hexad's reversion extension visits an earlier state and comes back (a branch point's `visit()`, and `imagineBackAt()`), which is two restores, and a restore forgets the savepoints UNDO goes back to, as the reference does. So `restoreGame` takes a second argument, Hexicon's own, for Hexad's snapshots only (`snapshot.hxn`): 1 sets the savepoints aside instead, and 2, restoring the state saved just before they were set aside, puts them back. Without it, or with 0, a restore is the reference's, and none of the comparisons changes.
+
+Savepoints are copies of objects kept by ID, and a restore gives the objects the program made new IDs, so putting them back takes three things:
+
+- **The objects' own IDs.** Setting the savepoints aside reserves the IDs of every object the program has made; a reserved ID that is freed during the visit is not handed out again, so nothing made there can take one. Returning, each saved object is given back its own ID (`ObjectTable::alloc_at`): a reserved slot still occupied is held by the very object, which is never freed in between, and is given its saved state.
+- **What only the savepoints refer to.** An old property value, say, is kept alive by the savepoints, which are roots for the collector; while they are set aside, what they refer to stays a root, so the collector does not free it during the visit.
+- **A check.** The savepoints go back only if every object they name is from the image, transient, given back its own ID, or under a reserved ID; otherwise they are forgotten, as by any restore, so the worst case is the reference's behavior, never an UNDO into a state that was not. That they describe changes from the very state returned to is the caller's to make sure of, which is why the mode is for the snapshots alone: there, the present is saved just before leaving.
+
+Two VM tests check a visit and back, with a collection during it, UNDO then going through three savepoints (one of them a string only the savepoint referred to), and the savepoints forgotten when an object cannot come back under its ID.
+
 ## Open questions
 
 - Is read/write compatibility with existing `.t3v` save files a hard requirement or a nice-to-have? (As of milestone 4 it is met for every class implemented so far.)

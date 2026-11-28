@@ -861,7 +861,14 @@ impl Vm {
     }
 
     /// Replace the state of the program with a saved one.
+    #[cfg(test)]
     pub(crate) fn restore_state(&mut self, data: &[u8]) -> VmResult<()> {
+        self.restore_state_with(data, RestoreMode::Plain)
+    }
+
+    /// Replace the state of the program with a saved one, treating the
+    /// savepoints UNDO goes back to as `mode` says.
+    pub(crate) fn restore_state_with(&mut self, data: &[u8], mode: RestoreMode) -> VmResult<()> {
         let mut r = Reader { data, pos: 0 };
         // A file too short to hold the signature is one that could not
         // be read, not one of the wrong kind.
@@ -914,9 +921,21 @@ impl Vm {
             classes.push(found);
         }
 
+        match mode {
+            RestoreMode::Plain => {
+                self.undo_stash = None;
+                self.objects.release_reserved();
+            }
+            RestoreMode::SetUndoAside => self.undo_stash = Some(self.objects.take_undo()),
+            RestoreMode::ReturnKeepingUndo => {}
+        }
         self.reset_to_image();
 
-        // A new ID for each object the program had created.
+        // A new ID for each object the program had created; returning,
+        // the ID it had, where that is free.
+        let keep_ids = mode == RestoreMode::ReturnKeepingUndo;
+        let mut kept = std::collections::HashSet::new();
+        let mut moved = false;
         let mut fixups = Fixups {
             map: HashMap::new(),
         };
@@ -924,10 +943,15 @@ impl Vm {
         for _ in 0..listed {
             let old = r.u32()?;
             let transient = r.u32()? & 1 != 0;
+            let placeholder = || Object::List(Rc::from(&[][..]));
             let new = if transient {
                 None
+            } else if keep_ids && self.objects.alloc_at(ObjId(old), placeholder()) {
+                kept.insert(old);
+                Some(ObjId(old))
             } else {
-                Some(self.objects.alloc(Object::List(Rc::from(&[][..]))))
+                moved |= keep_ids;
+                Some(self.objects.alloc(placeholder()))
             };
             fixups.map.insert(old, new);
         }
@@ -1014,11 +1038,37 @@ impl Vm {
         self.place_dynamic_code();
         self.last_match = Default::default();
         self.collect_garbage(false);
+
+        // Returning, the savepoints set aside go back if every object they
+        // name is the one it was: from the image, transient (which no
+        // restore touches), given back its own ID, or under an ID reserved
+        // when they were set aside, which no other object has had since
+        // (the objects only they refer to are kept for them meanwhile).
+        // Otherwise they are forgotten, as by any restore.
+        if mode == RestoreMode::ReturnKeepingUndo
+            && let Some(stash) = self.undo_stash.take()
+        {
+            let same = !moved
+                && stash.ids().all(|id| {
+                    self.objects.is_in_root_set(id)
+                        || self.objects.is_transient(id)
+                        || kept.contains(&id.0)
+                        || self.objects.is_reserved(id)
+                });
+            if same {
+                self.objects.put_undo(stash);
+            }
+        }
+        if mode == RestoreMode::ReturnKeepingUndo {
+            self.objects.release_reserved();
+        }
         Ok(())
     }
 
     /// Return the program to the state it was loaded in.
     pub(crate) fn restart_state(&mut self) -> VmResult<()> {
+        self.undo_stash = None;
+        self.objects.release_reserved();
         self.reset_to_image();
         self.create_synthesized_objects()?;
         self.create_class_objects();
@@ -1047,11 +1097,20 @@ impl Vm {
         Ok(())
     }
 
-    /// `restoreGame(file)`.
+    /// `restoreGame(file, mode?)`. The mode is Hexicon's, for Hexad's
+    /// snapshots: 1 sets the savepoints aside, 2 returns keeping them
+    /// (see `RestoreMode`); without it, or 0, they are forgotten, as in
+    /// the reference.
     pub(crate) fn bif_restore(&mut self, argc: u32) -> VmResult<()> {
-        if argc != 1 {
+        if !(1..=2).contains(&argc) {
             return Err(VmError::new(code::WRONG_NUM_OF_ARGS));
         }
+        let mode = match if argc == 2 { self.arg(1) } else { Value::Nil } {
+            Value::Nil | Value::Int(0) => RestoreMode::Plain,
+            Value::Int(1) => RestoreMode::SetUndoAside,
+            Value::Int(2) => RestoreMode::ReturnKeepingUndo,
+            _ => return Err(VmError::new(code::BAD_TYPE_BIF)),
+        };
         let name = self.file_name_arg(self.arg(0), crate::file::Access::Read)?;
         self.sync_files();
         let state = self.host.read_file(&name).map_err(|error| {
@@ -1060,7 +1119,7 @@ impl Vm {
                 _ => code::READ_FILE,
             })
         })?;
-        self.restore_state(&state)?;
+        self.restore_state_with(&state, mode)?;
         self.r0 = Value::Nil;
         Ok(())
     }
@@ -1074,4 +1133,25 @@ impl Vm {
         self.r0 = Value::Nil;
         Ok(())
     }
+}
+
+/// How a restore treats the savepoints UNDO goes back to.
+///
+/// A visit to an earlier state and back (Hexad's branch points) restores
+/// twice, and a restore forgets the savepoints, so the player could not
+/// UNDO the turns before the visit. Going, they can be set aside instead;
+/// coming back to the state they were set aside from, they can be put
+/// back, if every object is under the ID it had, which the restore that
+/// returns sees to where it can. That they describe changes from this
+/// very state is the caller's to make sure of: it is so when the state
+/// returned to was saved just before setting them aside.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RestoreMode {
+    /// Forget them, as the reference does.
+    Plain,
+    /// Set them aside, to be put back by a later `ReturnKeepingUndo`.
+    SetUndoAside,
+    /// Give each object the ID it was saved with, and put back the
+    /// savepoints set aside if every object they name is the same.
+    ReturnKeepingUndo,
 }

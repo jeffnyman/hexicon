@@ -403,6 +403,9 @@ pub struct Vm {
     pub(crate) nesting: u32,
     /// The most recent regular expression match.
     pub(crate) last_match: crate::string::LastMatch,
+    /// Savepoints set aside by a restore that keeps them, to be put back
+    /// by the restore that returns (see `RestoreMode`).
+    pub(crate) undo_stash: Option<crate::object::UndoStash>,
     /// Patterns given as strings, compiled, by their text. Compiling a
     /// pattern always gives the same result, so one is compiled once.
     pub(crate) pattern_cache: std::collections::HashMap<Vec<u8>, Rc<crate::regex::Pattern>>,

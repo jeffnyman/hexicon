@@ -380,6 +380,7 @@ impl Vm {
             debug: image.debug.clone(),
             preinit_mode: false,
             last_match: Default::default(),
+            undo_stash: None,
             pattern_cache: Default::default(),
             rng: crate::rng::Rng::new(),
             image_timestamp: image.header.timestamp.as_bytes().to_vec(),

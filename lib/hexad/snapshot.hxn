@@ -11,7 +11,11 @@ import hexad;
  *   one back is a restore: everything returns to how it was when the
  *   snapshot was taken, except transient objects, and the code that put it
  *   back carries on, with its local variables, from just after the call.
- *   A restore leaves nothing for UNDO to go back to.
+ *   A restore leaves nothing for UNDO to go back to, unless, for a visit
+ *   to an earlier snapshot and back, the savepoints are set aside going
+ *   (restoreSnapshot(past, 1)) and brought back returning, to a snapshot
+ *   taken just before (restoreSnapshot(present, 2)): see the reversion
+ *   extension's BranchPoint.visit().
  */
 
 /*
@@ -56,9 +60,12 @@ snapshotGame(transientBytes?)
 /*
  *   Put a snapshot back: true if it was, or nil if it could not be (the
  *   game is then as it was). The PostRestoreObjects are not told: that is
- *   for the caller, which knows why it restored.
+ *   for the caller, which knows why it restored. undoMode is 0 to forget
+ *   the savepoints UNDO goes back to, as any restore does; 1 to set them
+ *   aside; and 2 to bring them back, restoring the snapshot taken just
+ *   before they were set aside.
  */
-restoreSnapshot(bytes)
+restoreSnapshot(bytes, undoMode = 0)
 {
     if(bytes == nil)
         return nil;
@@ -68,7 +75,7 @@ restoreSnapshot(bytes)
         local f = File.openRawFile(tmp, FileAccessWrite);
         f.writeBytes(bytes);
         f.closeFile();
-        restoreGame(tmp);
+        restoreGame(tmp, undoMode);
         return true;
     }
     catch(RuntimeError err)
