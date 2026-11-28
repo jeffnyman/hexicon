@@ -1,0 +1,364 @@
+#charset "us-ascii"
+import hexad;
+
+/*
+ *   Relative directions: the player character faces one of the eight
+ *   compass points, moves and turns relative to it (FORWARD, LEFT, TURN
+ *   AROUND), and descriptions can say where things lie from that point of
+ *   view ("behind you"). A compass rose can show in the status line.
+ *
+ *   FACING. Anything can face a compass direction: thing.facing (northDir,
+ *   say), and thing.facingDirection is it, or north for a thing that faces
+ *   no compass direction. The player character always faces one:
+ *
+ *       at the start, the starting room's arrivalFacing, or north if it
+ *         has none (or the player's own facing, if the game gives one);
+ *       after walking in a compass direction, that direction;
+ *       after going up, down, in, or out, or being carried somewhere, the
+ *         arrivalFacing of the room arrived in, if it has one; otherwise
+ *         the way they were facing;
+ *       after examining a thing that faces a compass direction, toward it:
+ *         a statue facing east is looked at from the east, facing west.
+ *
+ *   A move that fails changes nothing. The facing changes as the player
+ *   arrives, before the room is described, so a description can use it.
+ *
+ *   COMMANDS.
+ *
+ *       FORWARD, AHEAD or F; BACK, BACKWARD or B; LEFT; RIGHT or R, with
+ *         GO or WALK before them if the player likes: go that way
+ *       TURN LEFT, TURN RIGHT, TURN AROUND (or TURN BACK): turn a quarter
+ *         or a half turn
+ *       FACE NORTH, TURN EAST, TURN TO FACE SOUTHWEST: face a compass point
+ *
+ *   Left and right are a quarter turn from any of the eight, so LEFT while
+ *   facing northeast goes northwest. L is LOOK, not LEFT. With this
+ *   extension, FORWARD and F are no longer the shipboard FORE, and BACK and
+ *   GO BACK are no longer the way back to the last room (RETURN still is).
+ *
+ *   DESCRIPTIONS. relativeTo(dir) says where a direction lies from the
+ *   player character's point of view: "in front of you", "ahead of you and
+ *   to your right", "to your right", "behind you and to your right",
+ *   "behind you", "behind you and to your left", "to your left", "ahead of
+ *   you and to your left"; "above you" and "below you" for up and down.
+ *
+ *       broadWalk: Room 'Broad Walk'
+ *           "The Round Pond is <<relativeTo(eastDir)>>, and the gate
+ *           <<relativeTo(southDir)>>. "
+ *       ;
+ *
+ *   relativeDirection(rel, thing) turns one of forward, rightward,
+ *   backward, and leftward into a compass direction, for that thing's
+ *   facing: relativeDirection(leftward, me).
+ *
+ *   THE COMPASS ROSE. A game that sets gameMain.compassRoseStatus = true
+ *   shows the room's name in the status line, and at its right a rose of
+ *   the exits around an arrow for the facing:
+ *
+ *       U  NW N  NE
+ *       IO W  ^  E
+ *       D  SW S  SE
+ *
+ *   with the ways up and down at the left, and in and out (I, O, or IO) on
+ *   the middle row. In the dark only the arrow shows. compassRoseLines()
+ *   gives the three lines, eleven characters each, for a status line of
+ *   the game's own.
+ */
+
+/* The ways relative to a facing: how many eighths of a turn, clockwise. */
+enum forward, rightward, backward, leftward;
+
+modify Thing
+    /* The compass direction this faces, or nil. */
+    facing = nil
+
+    /* The way it faces: its facing, if that is a compass point, or north. */
+    facingDirection = (compassPoints.isPoint(facing) ? facing : northDir)
+;
+
+modify Room
+    /*
+     *   The way the player character faces on arriving here by a way that
+     *   isn't a compass point (up, down, in, out, or carried), or nil to
+     *   leave them facing as they were.
+     */
+    arrivalFacing = nil
+
+    execTravel(actor, traveler, conn)
+    {
+        if(actor != now.player)
+            return inherited(actor, traveler, conn);
+
+        local from = traveler.getOutermostRoom();
+        local old = actor.facing;
+        local way = (now.action != nil && now.action.ofKind(TravelAction))
+            ? now.action.direction : nil;
+        if(compassPoints.isPoint(way))
+            actor.facing = way;
+        else if(compassPoints.isPoint(arrivalFacing))
+            actor.facing = arrivalFacing;
+        try
+        {
+            return inherited(actor, traveler, conn);
+        }
+        finally
+        {
+            /* A move that didn't happen leaves the facing as it was. */
+            if(traveler.getOutermostRoom() == from)
+                actor.facing = old;
+        }
+    }
+;
+
+/* The eight compass points, clockwise from north, and turning among them. */
+compassPoints: object
+    points = [northDir, northeastDir, eastDir, southeastDir, southDir,
+              southwestDir, westDir, northwestDir]
+
+    /* The rose's arrow for each, and its label for an exit. */
+    arrows = ['\u2191', '\u2197', '\u2192', '\u2198', '\u2193', '\u2199',
+              '\u2190', '\u2196']
+    labels = ['N ', 'NE', 'E ', 'SE', 'S ', 'SW', 'W ', 'NW']
+
+    isPoint(dir) { return dir != nil && points.indexOf(dir) != nil; }
+
+    /* Which of the eight dir is, from 1 for north; 1 for anything else. */
+    bearing(dir) { return points.indexOf(dir) ?? 1; }
+
+    /* The point eighths of a turn clockwise (negative: anticlockwise). */
+    turn(dir, eighths)
+    {
+        local n = (bearing(dir) - 1 + eighths) % 8;
+        if(n < 0)
+            n += 8;
+        return points[n + 1];
+    }
+
+    /* How many eighths of a turn each relative way is. */
+    eighths(rel)
+    {
+        switch(rel)
+        {
+        case rightward: return 2;
+        case backward: return 4;
+        case leftward: return -2;
+        default: return 0;
+        }
+    }
+;
+
+/* The compass direction rel lies in, for thing's facing. */
+relativeDirection(rel, thing)
+{
+    return compassPoints.turn(thing.facingDirection,
+                              compassPoints.eighths(rel));
+}
+
+/* Where dir lies from the player character's point of view. */
+relativeTo(dir)
+{
+    if(dir == upDir)
+        return bmsg('above {me}');
+    if(dir == downDir)
+        return bmsg('below {me}');
+    if(!compassPoints.isPoint(dir))
+        return dir.name;
+    local n = (compassPoints.bearing(dir) + 8
+               - compassPoints.bearing(now.player.facingDirection)) % 8;
+    switch(n)
+    {
+    case 0: return bmsg('in front of {me}');
+    case 1: return bmsg('ahead of {me} and to {my} right');
+    case 2: return bmsg('to {my} right');
+    case 3: return bmsg('behind {me} and to {my} right');
+    case 4: return bmsg('behind {me}');
+    case 5: return bmsg('behind {me} and to {my} left');
+    case 6: return bmsg('to {my} left');
+    default: return bmsg('ahead of {me} and to {my} left');
+    }
+}
+
+/* The player character's first facing. */
+relativeDirectionsInit: InitObject
+    execute()
+    {
+        local pc = now.player;
+        if(compassPoints.isPoint(pc.facing))
+            return;
+        local room = pc.getOutermostRoom();
+        pc.facing = (room != nil && compassPoints.isPoint(room.arrivalFacing))
+            ? room.arrivalFacing : northDir;
+    }
+;
+
+/* Examining a thing that faces a compass point turns the player toward it. */
+modify Examine
+    doActionOnce()
+    {
+        local obj = curDobj;
+        if(now.actor == now.player && obj != nil && obj.ofKind(Thing)
+           && compassPoints.isPoint(obj.facing))
+            now.player.facing = obj.facing.opposite;
+        return inherited();
+    }
+;
+
+/* The relative way a command named, from its words. */
+relativeWayOf(prod)
+{
+    if(prod.right_ != nil)
+        return rightward;
+    if(prod.back_ != nil)
+        return backward;
+    if(prod.left_ != nil)
+        return leftward;
+    return forward;
+}
+
+action GoRelative: IAction
+    execAction(cmd)
+    {
+        doInstead(Go, relativeDirection(relativeWayOf(cmd.verbProd),
+                                        now.actor));
+    }
+;
+
+action TurnRelative: IAction
+    execAction(cmd)
+    {
+        local rel = relativeWayOf(cmd.verbProd);
+        if(rel == forward)
+        {
+            showMsg(already facing that way, '{I}{\'m} already facing {1}. ',
+                    now.actor.facingDirection.name);
+            return;
+        }
+        now.actor.facing = relativeDirection(rel, now.actor);
+        local way = now.actor.facing.name;
+        switch(rel)
+        {
+        case backward:
+            showMsg(turn around, '{I} turn{s/ed} around, to face {1}. ', way);
+            break;
+        case leftward:
+            showMsg(turn left, '{I} turn{s/ed} to {my} left, to face {1}. ',
+                    way);
+            break;
+        default:
+            showMsg(turn right, '{I} turn{s/ed} to {my} right, to face {1}. ',
+                    way);
+            break;
+        }
+    }
+;
+
+action FaceDirection: IAction
+    execAction(cmd)
+    {
+        local dir = cmd.verbProd.dirMatch.dir;
+        if(!compassPoints.isPoint(dir))
+            showMsg(cannot face that way, '{I} can only face one of the eight
+                compass directions. ');
+        else if(now.actor.facing == dir)
+            showMsg(already facing, '{I}{\'m} already facing {1}. ', dir.name);
+        else
+        {
+            now.actor.facing = dir;
+            showMsg(turn to face, '{I} turn{s/ed} to face {1}. ', dir.name);
+        }
+    }
+;
+
+verb GoRelative ('go' | 'walk' | )
+    ('forward'->forward_ | 'forwards'->forward_ | 'ahead'->forward_
+     | 'f'->forward_ | 'back'->back_ | 'backward'->back_ | 'backwards'->back_
+     | 'b'->back_ | 'left'->left_ | 'leftward'->left_ | 'leftwards'->left_
+     | 'right'->right_ | 'rightward'->right_ | 'rightwards'->right_
+     | 'r'->right_):
+    verbPhrase = 'go/going'
+    priority = 70
+;
+
+verb TurnRelative ('turn' | 'face') ('to' ('the' | ) | )
+    ('forward'->forward_ | 'forwards'->forward_ | 'ahead'->forward_
+     | 'back'->back_ | 'backward'->back_ | 'backwards'->back_
+     | 'around'->back_ | 'left'->left_ | 'leftward'->left_
+     | 'leftwards'->left_ | 'right'->right_ | 'rightward'->right_
+     | 'rightwards'->right_):
+    verbPhrase = 'turn/turning'
+    priority = 70
+;
+
+verb FaceDirection ('face' | 'turn' | 'turn' 'to' | 'turn' 'to' 'face')
+    singleDir:
+    verbPhrase = 'face/facing'
+
+    /* Below TurnRelative, so that TURN FORWARD is a turn, not FORE. */
+    priority = 65
+;
+
+/* ---- the compass rose ---- */
+
+modify GameMainDef
+    /* Show a compass rose of the exits in the status line? */
+    compassRoseStatus = nil
+;
+
+/*
+ *   The rose's three lines, eleven characters each, with no-break spaces,
+ *   so that a display that joins spaces keeps them.
+ */
+compassRoseLines()
+{
+    local room = now.player.getOutermostRoom();
+    local lit = room != nil && room.isIlluminated;
+    local hasExit = {dir: lit && room.propType(dir.dirProp) == TypeObject};
+    local mark = {dir, label: hasExit(dir) ? label : '  '};
+    local point = {dir: mark(dir, compassPoints.labels[compassPoints.bearing(dir)])};
+    local io = hasExit(inDir) ? (hasExit(outDir) ? 'IO' : 'I ')
+                           : (hasExit(outDir) ? 'O ' : '  ');
+    local arrow = compassPoints.arrows[
+        compassPoints.bearing(now.player.facingDirection)] + ' ';
+    local lines = [
+        mark(upDir, 'U ') + ' ' + point(northwestDir) + ' ' + point(northDir)
+            + ' ' + point(northeastDir),
+        io + ' ' + point(westDir) + ' ' + arrow + ' ' + point(eastDir),
+        mark(downDir, 'D ') + ' ' + point(southwestDir) + ' '
+            + point(southDir) + ' ' + point(southeastDir)
+    ];
+    return lines.mapAll({s: s.findReplace(' ', '\u00A0')});
+}
+
+modify statusLine
+    showStatusHtml()
+    {
+        if(!gameMain.compassRoseStatus)
+        {
+            inherited();
+            return;
+        }
+        local lines = compassRoseLines();
+
+        /*
+         *   On a display of HTML, the rose is a table at the right, which
+         *   the name flows beside; elsewhere, each line is tabbed to the
+         *   right, as the status line's score is.
+         */
+        local html = (systemInfo(SysInfoInterpClass) == SysInfoIClassHTML);
+        if(html)
+            "<table align=right cellspacing=0 cellpadding=0><tr><td><tt><<
+              lines[1]>><br><<lines[2]>><br><<lines[3]>></tt></td></tr></table>";
+        "<<statusHTML(0)>><<aHref(msgText(command look around, 'look around'),
+            nil, nil, AHREF_Plain)>>";
+        showStatusLeft();
+        "<./a></a>";
+        if(!html)
+            "<tab align=right><<lines[1]>>\n<tab align=right><<lines[2]>>\n<tab
+            align=right><<lines[3]>>";
+    }
+
+    getEstimatedHeightHtml()
+    {
+        return gameMain.compassRoseStatus ? 3 : inherited();
+    }
+;
