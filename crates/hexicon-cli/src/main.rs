@@ -100,13 +100,21 @@ commands:
                                nothing, such as the time it was compiled,
                                each as an offset and a length; a comparison
                                of two images should skip them
-  test [-f <manifest>] [--transcript <file>] [<scenario>...]
+  test [-f <manifest>] [--transcript <file>] [--walkthroughs] [<name>...]
                                build a game for debugging, play its
-                               scenarios (or those named), and report
-                               how they went: the exit status is 0 if
-                               they all passed, 1 if not, and 2 if the
-                               game could not be built or played them;
-                               --transcript keeps what the game said
+                               scenarios (or the scenarios and
+                               walkthroughs named), and report how they
+                               went: the exit status is 0 if they all
+                               passed, 1 if not, and 2 if the game could
+                               not be built or played them; the options
+                               are:
+      --walkthroughs           play every walkthrough as well
+      --transcript <file>      keep what the game said
+  test [-f <manifest>] --print <walkthrough>
+                               play a walkthrough, and if it passes,
+                               write it as a commented walkthrough in
+                               Markdown; how it went goes to the error
+                               output
   preinit [--unspecified <file>] <game> <new-game> [args...]
                                run a program as it is run before its
                                image is written, and write the image it

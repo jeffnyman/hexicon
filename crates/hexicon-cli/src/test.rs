@@ -1,40 +1,56 @@
-//! `hexicon test`: build a game for debugging, play its scenarios, and
-//! report how they went.
+//! `hexicon test`: build a game for debugging, play its scenarios and
+//! walkthroughs, and report how they went; or print a walkthrough.
 //!
 //! The game is built into a file of its own in the game's folder, beside
 //! the image its manifest names, which is left alone, and played by
 //! `hexicon run` with the same random choices and clock on every run, as
-//! game-check plays games. The game is told, by its arguments, to play
-//! its scenarios and write what happened to a file; the scenario runner
-//! (Hexad's scenarios, as tried in the playground) does so at the first
-//! prompt, one line for each scenario, each failure, and a last line, and
-//! quits:
+//! game-check plays games. The game is told, by its arguments, what to
+//! play (`-scenario=<name>` for each named, `-walkthroughs` for every
+//! walkthrough) and where to write what happened (`-hexicon-test=<file>`)
+//! and the walkthroughs that pass, printed (`-hexicon-print=<file>`). The
+//! scenario runner (Hexad's scenarios, as tried in the playground) does so
+//! at the first prompt, a line for each scenario or walkthrough, its notes
+//! and its failure, and a last line, and quits:
 //!
 //! ```text
 //! scenario <tab> name <tab> passed|failed|not run <tab> steps <tab> after
+//! walkthrough <tab> name <tab> passed|failed <tab> steps <tab>
+//! note <tab> name <tab> what is noted
 //! failure <tab> name <tab> step <tab> command <tab> why <tab> what failed
 //!         <tab> where <tab> what the game said
 //! done <tab> passed <tab> failed <tab> not run
 //! ```
 //!
-//! The exit status is 0 if every scenario passed, 1 if any failed or was
-//! not run, and 2 if the game could not be built or did not play them.
+//! The exit status is 0 if everything played passed, 1 if anything failed
+//! or was not run, and 2 if the game could not be built or did not play
+//! them.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 
-/// The image the game is built into, and the file its results go to, in
-/// the game's folder; both are deleted afterwards.
+/// The image the game is built into, the file its results go to, and the
+/// file a printed walkthrough goes to, in the game's folder; all are
+/// deleted afterwards.
 const IMAGE: &str = ".hexicon-test.hxg";
 const RESULTS: &str = ".hexicon-test-results.txt";
+const PRINTED: &str = ".hexicon-test-printed.md";
 
 /// The clock a game is played with, as game-check plays it.
 const CLOCK: &str = "2000-01-01T09:15:00";
 
+/// What to play, and how.
+#[derive(Default)]
+struct Asked<'a> {
+    names: Vec<&'a str>,
+    walkthroughs: bool,
+    print: bool,
+}
+
 pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     let mut manifest: Option<&str> = None;
     let mut transcript: Option<&str> = None;
-    let mut names: Vec<&str> = Vec::new();
+    let mut asked = Asked::default();
     let mut rest = args;
     while let Some((first, tail)) = rest.split_first() {
         match (*first, tail) {
@@ -46,15 +62,28 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
                 transcript = Some(path);
                 rest = tail;
             }
+            ("--walkthroughs", _) => {
+                asked.walkthroughs = true;
+                rest = tail;
+            }
+            ("--print", [name, tail @ ..]) => {
+                asked.print = true;
+                asked.names = vec![name];
+                rest = tail;
+            }
             (option, _) if option.starts_with('-') => {
                 eprint!("{usage}");
                 return ExitCode::from(2);
             }
             (name, _) => {
-                names.push(name);
+                asked.names.push(name);
                 rest = tail;
             }
         }
+    }
+    if asked.print && asked.names.len() != 1 {
+        eprint!("{usage}");
+        return ExitCode::from(2);
     }
 
     // The game's folder: the manifest's, or this one.
@@ -73,7 +102,9 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     };
     let image = folder.join(IMAGE);
     let results = folder.join(RESULTS);
+    let printed = folder.join(PRINTED);
     let _ = std::fs::remove_file(&results);
+    let _ = std::fs::remove_file(&printed);
 
     let mut project_args = vec!["-d".to_owned()];
     if let Some(path) = manifest {
@@ -87,7 +118,7 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
         return ExitCode::from(2);
     }
 
-    let played = play(&folder, &names);
+    let played = play(&folder, &asked);
     let _ = std::fs::remove_file(&image);
     let said = match played {
         Ok(said) => said,
@@ -102,54 +133,101 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
         eprintln!("hexicon test: {path}: {error}");
     }
     let lines = std::fs::read_to_string(&results).unwrap_or_default();
+    let document = std::fs::read_to_string(&printed).unwrap_or_default();
     let _ = std::fs::remove_file(&results);
-    report(&lines, &said, transcript.is_some())
+    let _ = std::fs::remove_file(&printed);
+
+    let Some((text, status)) = report(&lines, transcript.is_some()) else {
+        eprintln!(
+            "hexicon test: the game did not play its scenarios: are Hexad's \
+             scenarios among its sources? What it printed ends:"
+        );
+        let tail: Vec<&str> = said.lines().rev().take(12).collect();
+        for line in tail.iter().rev() {
+            eprintln!("    {line}");
+        }
+        return ExitCode::from(2);
+    };
+    if asked.print {
+        // The walkthrough is the output; how it went is said aside.
+        eprint!("{text}");
+        if status == ExitCode::SUCCESS {
+            print!("{document}");
+        }
+    } else {
+        print!("{text}");
+    }
+    status
 }
 
-/// Play the game built for testing, telling it to play its scenarios:
-/// what it printed.
-fn play(folder: &Path, names: &[&str]) -> std::io::Result<String> {
+/// Play the game built for testing, telling it what to play: what it
+/// printed.
+fn play(folder: &Path, asked: &Asked<'_>) -> std::io::Result<String> {
     let mut command = Command::new(std::env::current_exe()?);
     command
         .args([
             "run", "--norand", "--clock", CLOCK, "--plain", "--nomore", IMAGE,
         ])
         .arg(format!("-hexicon-test={RESULTS}"))
-        .args(names.iter().map(|name| format!("-scenario={name}")))
+        .args(asked.names.iter().map(|name| format!("-scenario={name}")))
         .current_dir(folder)
         .env("TZ", "Etc/UTC")
         .stdin(Stdio::null());
+    if asked.walkthroughs {
+        command.arg("-walkthroughs");
+    }
+    if asked.print {
+        command.arg(format!("-hexicon-print={PRINTED}"));
+    }
     let done = command.output()?;
     let mut said = String::from_utf8_lossy(&done.stdout).replace('\r', "");
     said.push_str(&String::from_utf8_lossy(&done.stderr).replace('\r', ""));
     Ok(said)
 }
 
-/// One scenario, as the game reported it.
+/// One scenario or walkthrough, as the game reported it.
 struct Outcome {
+    walkthrough: bool,
     name: String,
     outcome: String,
     steps: String,
     after: String,
+    notes: Vec<String>,
     failure: Option<Vec<String>>,
 }
 
-/// Print what the game reported, and say how it went.
-fn report(lines: &str, said: &str, kept: bool) -> ExitCode {
+/// The report of what the game reported, and the exit status; or None if
+/// it reported nothing.
+fn report(lines: &str, kept: bool) -> Option<(String, ExitCode)> {
     let mut outcomes: Vec<Outcome> = Vec::new();
     let mut done: Option<(usize, usize, usize)> = None;
     for line in lines.lines() {
         let fields: Vec<&str> = line.split('\t').collect();
         match fields.as_slice() {
-            ["scenario", name, outcome, steps, after] => outcomes.push(Outcome {
-                name: (*name).to_owned(),
-                outcome: (*outcome).to_owned(),
-                steps: (*steps).to_owned(),
-                after: (*after).to_owned(),
-                failure: None,
-            }),
+            [
+                kind @ ("scenario" | "walkthrough"),
+                name,
+                outcome,
+                steps,
+                after,
+            ] => {
+                outcomes.push(Outcome {
+                    walkthrough: *kind == "walkthrough",
+                    name: (*name).to_owned(),
+                    outcome: (*outcome).to_owned(),
+                    steps: (*steps).to_owned(),
+                    after: (*after).to_owned(),
+                    notes: Vec::new(),
+                    failure: None,
+                });
+            }
+            ["note", name, note] => {
+                if let Some(found) = outcomes.iter_mut().rfind(|o| o.name == *name) {
+                    found.notes.push((*note).to_owned());
+                }
+            }
             ["failure", name, rest @ ..] if rest.len() == 6 => {
-                if let Some(found) = outcomes.iter_mut().find(|o| o.name == *name) {
+                if let Some(found) = outcomes.iter_mut().rfind(|o| o.name == *name) {
                     found.failure = Some(rest.iter().map(|s| (*s).to_owned()).collect());
                 }
             }
@@ -163,68 +241,68 @@ fn report(lines: &str, said: &str, kept: bool) -> ExitCode {
         }
     }
 
-    let Some((passed, failed, not_run)) = done else {
-        eprintln!(
-            "hexicon test: the game did not play its scenarios: are Hexad's \
-             scenarios among its sources? What it printed ends:"
-        );
-        let tail: Vec<&str> = said.lines().rev().take(12).collect();
-        for line in tail.iter().rev() {
-            eprintln!("    {line}");
-        }
-        return ExitCode::from(2);
-    };
+    let (passed, failed, not_run) = done?;
+    let mut out = String::new();
     if outcomes.is_empty() {
-        println!("There are no scenarios.");
-        return ExitCode::SUCCESS;
+        out.push_str("There are no scenarios.\n");
+        return Some((out, ExitCode::SUCCESS));
     }
 
     for outcome in &outcomes {
+        let name = if outcome.walkthrough {
+            format!("walkthrough: {}", outcome.name)
+        } else {
+            outcome.name.clone()
+        };
         match outcome.outcome.as_str() {
             "passed" => {
                 let s = if outcome.steps == "1" { "" } else { "s" };
-                println!("passed   {} ({} step{s})", outcome.name, outcome.steps);
+                let _ = writeln!(out, "passed   {name} ({} step{s})", outcome.steps);
             }
-            "not run" => println!(
-                "not run  {}, since \"{}\" did not pass",
-                outcome.name, outcome.after
-            ),
+            "not run" => {
+                let _ = writeln!(
+                    out,
+                    "not run  {name}, since \"{}\" did not pass",
+                    outcome.after
+                );
+            }
             _ => {
-                println!("FAILED   {}", outcome.name);
-                if let Some(failure) = &outcome.failure {
-                    let [step, command, why, what, place, game_said] = failure.as_slice() else {
-                        continue;
-                    };
+                let _ = writeln!(out, "FAILED   {name}");
+                if let Some([step, command, why, what, place, game_said]) =
+                    outcome.failure.as_deref()
+                {
                     if step == "0" {
                         // Not a step: the scenario itself, which is not
                         // there.
                     } else if command.is_empty() {
-                        println!("           at step {step}");
+                        let _ = writeln!(out, "           at step {step}");
                     } else {
-                        println!("           at step {step}: {command}");
+                        let _ = writeln!(out, "           at step {step}: {command}");
                     }
                     if !why.is_empty() {
-                        println!("           why: {why}");
+                        let _ = writeln!(out, "           why: {why}");
                     }
                     if place.is_empty() {
-                        println!("           failed: {what}");
+                        let _ = writeln!(out, "           failed: {what}");
                     } else {
-                        println!("           failed: {what}, at {place}");
+                        let _ = writeln!(out, "           failed: {what}, at {place}");
                     }
                     if !game_said.is_empty() {
-                        println!("           the game said: {game_said}");
+                        let _ = writeln!(out, "           the game said: {game_said}");
                     }
                 }
             }
         }
+        for note in &outcome.notes {
+            let _ = writeln!(out, "           note: {note}");
+        }
     }
-    println!();
-    println!("{passed} passed, {failed} failed, {not_run} not run");
+    let _ = writeln!(out, "\n{passed} passed, {failed} failed, {not_run} not run");
     if failed + not_run == 0 {
-        return ExitCode::SUCCESS;
+        return Some((out, ExitCode::SUCCESS));
     }
     if !kept {
-        println!("(--transcript <file> keeps the whole of what the game said)");
+        out.push_str("(--transcript <file> keeps the whole of what the game said)\n");
     }
-    ExitCode::FAILURE
+    Some((out, ExitCode::FAILURE))
 }

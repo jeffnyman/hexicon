@@ -141,8 +141,8 @@ In source files of their own, listed in the manifest as tests, which a build for
 
 1. **A trial, in the playground.** The parts above (`Scenario`, `Step`, `expect`, `mentions`, `given`, `after`, the in-game `scenario` command) as a Hexad extension, used on one game there, with a few scenarios written for it, including one that is made to fail. The question it answers: does a game's suite read well and catch what breaks?
 2. **`hexicon test`**: the runner, the report, the exit status, snapshots for `after`, and source lines for failures. game-check could then play a game's scenarios as well as its transcripts. Done, 2026-11-28 (below).
-3. **Walkthroughs**, and printing them.
-4. **The order of events**: `storyEvent`, `happened`, and `happenedBefore`. (`Await` came sooner, in the trial.)
+3. **Walkthroughs**, and printing them. Done, 2026-11-28 (below).
+4. **The order of events**: `storyEvent`, `happened`, and `happenedBefore`. (`Await` came sooner, in the trial.) Done, 2026-11-28 (below).
 5. **Into Hexad**, from the playground, with a page in the guide, if the trial says so.
 
 ## The trial (2026-11-28)
@@ -191,10 +191,42 @@ not run  bringing Ada her flour, since "grinding the flour" did not pass
 - **Tried** on The Tide Mill with the flour's timing broken and with the hopper never filling (above): each failure named its step, its reason, and its line, and the scenarios after the hopper were not run. A scenario named that is not there fails, and so does a game with no scenarios, with exit status 2.
 - **Still in the playground:** the scenario runner itself, in Tidemill's folder, until step 5 brings it into Hexad, so `hexicon test` works today for a game that has it among its sources.
 
+## Step 3: walkthroughs (2026-11-28)
+
+`Walkthrough 'name' 'purpose' [scenarios]` plays its scenarios in order from the start of the game, each straight on from where the last ended, with no snapshots between them and their given conditions left out: the way a player goes. The Tide Mill's is the seven scenarios of the way through, 21 steps from the lane to the ending.
+
+- **Playing them:** `walkthrough <name>` and `walkthroughs` in the game; `hexicon test --walkthroughs` plays them after the scenarios, and a name given to `hexicon test` may be a walkthrough's. game-check plays a game's walkthroughs with its scenarios (`SAME tidemill/scenarios (13 passed)`).
+- **Notes, not failures:** a scenario whose `after` is not the one before it in the walkthrough, or that has given conditions, which the walkthrough leaves out, is noted in the report (`note: freeing the wheel starts after the tools in the cottage, but follows into the cottage here`). A failure says which scenario's step it was: `at step 1 of "the stones with no grain"`.
+- **Printing one:** `hexicon test --print <walkthrough>` plays it and, if it passes, writes it to the output as Markdown, with the report on the error output, so that `> walkthrough.md` keeps the walkthrough alone; one that fails prints nothing, with exit status 1. The game's name and the walkthrough's are the title, each scenario a section with its purpose, and each command a line with why it is there; a wait says how many turns it took when it was played:
+
+  ```markdown
+  ## Grinding the flour
+
+  With the wheel turning and the hopper full, the lever starts the stones, and the flour comes.
+
+  - **W. N. PULL LEVER**: The lever puts the stones in gear.
+  - **WAIT**, 3 times: The flour takes a while to come down the spout.
+  - **TAKE SACK**: The flour is for Ada.
+  ```
+
+  The reasons are written for the author, so this is a walkthrough for the author and those who test the game; one for players, in their words, with spoilers hidden, is the question below.
+- **Found on the way:** what the game said, in a report, ran sentences together where Hexad's paragraph markup separated them (`You see no lever here.If this was`); the markup is now taken out before the entities are.
+
+## Step 4: the order of events (2026-11-28)
+
+While scenarios play, the story so far is kept: each moment, in order, with its turn.
+
+- **What is kept without asking:** the rooms the player travels to (the room, from `Room.notifyDeparture`, which games do not override, where `travelerEntering`, which they do, would be missed), the achievements awarded (the `Achievement`, or the text a score is given with, from `addToScore`), the fuses that fire (the property they call, `&finishGrinding`, from `Fuse.executeEvent`), and the ending (the `FinishType`).
+- **What a game marks:** `storyEvent('Ada says where the key is')`, anywhere in its code. It is defined in a build for release too, and does nothing there, nor outside a scenario.
+- **Asking:** `happened(x)`, `happenedTimes(x)`, and `happenedBefore(a, b)` (whether `a` first happened before `b` first did), in an `expect`, a `Check`, or an `Await`. `timesHappened` would have been the name, but Hexad's `Scene` has a property of it, and a name is one thing in a program.
+- **The story runs from the start of the game:** a scenario after another goes on from that one's story (kept with the snapshot of its end), a walkthrough from its first scenario; a scenario that starts at the start of the game starts a story of its own, and given conditions are not part of any.
+- **The Tide Mill's,** five checks more: knocking is when Ada says where the key is, and that comes before the key's point; the way in is the yard before the kitchen; the flour's fuse fires after the stones start, and once; the dark pit is reached by the yard and the stone floor; and at the end, the seven points came in the order of the story, then the ending, each once. Broken two ways, and put back: without its mark, "into the cottage" failed at the knock, though the game's words were the same, and with the fuse firing twice, "grinding the flour" failed at the turn after it.
+- **Found on the way:** a report showed Hexad's quotations without their marks (`<q>`); what the game said is now shown with them.
+
 ## Questions for the user
 
 - **Is this worth it**, now the trial has run (above)? Recommended: yes, on to step 2, the runner.
-- **The names:** `Scenario`, `Step`, `Await` (`Wait` is Hexad's action), `Check`, `Walkthrough`, `after`, `given`, `expect`, `mentions`, `avoids`; and the command, `hexicon test`.
+- **The names:** `Scenario`, `Step`, `Await` (`Wait` is Hexad's action), `Check`, `Walkthrough`, `after`, `given`, `expect`, `mentions`, `avoids`; `storyEvent`, `happened`, `happenedTimes` (`timesHappened` is a property of Hexad's `Scene`), `happenedBefore`; and the command, `hexicon test`.
 - **Hexad's `Test` and its assertion commands:** kept as they are, as the quick tool for replaying commands while writing; or, once scenarios are in, retired, with the assertions folded into scenarios.
 - **Test files in the manifest** (`tests = [...]`), or `#ifdef __DEBUG` for now.
-- **A printed walkthrough**: wanted, and how much it should look like one written for players.
+- **A printed walkthrough** (made in step 3, above): how much it should look like one written for players, and whether a scenario may say something to players apart from why it is there for the author.

@@ -18,8 +18,8 @@ commands compiled in, and not played: a name one of those commands
 takes shows as a game that does not build for debugging.
 
 A game with scenarios (a source that defines one, `name: Scenario`) has
-them played by `hexicon test`, and they must all pass; its report is
-shown if they do not. See docs/story-testing.md.
+them played by `hexicon test`, with its walkthroughs, and they must all
+pass; its report is shown if they do not. See docs/story-testing.md.
 
 A script with a .doc beside its .out (walk.doc) is played a second time
 with --rich, as on a rich display, and the document the game's markup
@@ -157,7 +157,7 @@ def has_scenarios(game):
 def test_scenarios(game):
     """Play a game's scenarios: (passed, how many), and the report."""
     done = subprocess.run(
-        [HEXICON, "test"],
+        [HEXICON, "test", "--walkthroughs"],
         cwd=game,
         stdin=subprocess.DEVNULL,
         capture_output=True,
