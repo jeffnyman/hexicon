@@ -1260,7 +1260,36 @@ testInit: InitObject
 ;
 
 
+/*
+ *   KSTATE (debugging only): what the player character knows of a thing,
+ *   anywhere in the game: whether they have seen it, examined it, know of
+ *   it (familiar), and so know it (known: seen or familiar).
+ */
+action KnowledgeState(dobj): TAction
+    addExtraScopeItems(role) { makeScopeUniversal(); }
+    turnSequence() { }
+
+    /*
+     *   Said by the action itself, for any object, without a handler on
+     *   Thing (which is defined after this file).
+     */
+    execResolvedAction()
+    {
+        local obj = curDobj;
+        local yn = {v: v ? 'yes' : 'no'};
+        "<<obj.theName>>: seen <<yn(obj.seen)>>, examined <<yn(obj.examined)>>,
+        familiar <<yn(obj.familiar)>>, known
+        <<yn(now.player.knowsAbout(obj))>>. ";
+        return true;
+    }
+;
+
+verb KnowledgeState 'kstate' singleDobj:
+    verbPhrase = 'kstate/kstating (what)'
+    missingQ = 'what do you want to know the state of'
+;
+
+
 
 #endif // __DEBUG
-
 

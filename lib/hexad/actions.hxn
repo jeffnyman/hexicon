@@ -1263,14 +1263,56 @@ action Topics: SystemAction
 
 action Examine(dobj): TAction
     announceMultiAction = true
-    
+
     getAll(cmd, role)
     {
         return scopeList.subset({ x: !x.ofKind(Room)});
     }
 
     againRepeatsParse = nil
+
+    /*
+     *   Once EXAMINE reaches its object, the object has been examined (and
+     *   seen, by the player character), whatever handler the game gives it:
+     *   recorded after the handler, so that text for a first examination
+     *   still shows, and even if the handler ends with exit. Not when the
+     *   object is only seen dimly, in the dark (its inDarkDesc), as Hexad's
+     *   own handler has it.
+     */
+    doActionOnce()
+    {
+        try
+        {
+            return inherited();
+        }
+        finally
+        {
+            local obj = curDobj;
+            if(obj != nil && obj.ofKind(Thing)
+               && !(obj.propType(&inDarkDesc) != TypeNil
+                    && !obj.getOutermostRoom.isIlluminated()))
+            {
+                obj.examined = true;
+                if(now.actor == now.player)
+                    obj.noteSeen();
+            }
+        }
+    }
 ;
+
+/*
+ *   Note everything the player character can see now as seen: what LOOK
+ *   does for a room, for a game to call when things come into view some
+ *   other way.
+ */
+noteAllInViewSeen()
+{
+    foreach(local obj in Q.scopeList(now.player))
+    {
+        if(obj.ofKind(Thing) && Q.canSee(now.player, obj))
+            obj.noteSeen();
+    }
+}
 
 /* 
  *   The ExamineOrGoTo action is used as the default action by the Parser; it is
@@ -1598,7 +1640,24 @@ action Strike(dobj): TAction
     againRepeatsParse = nil
 ;
 
-action Open(dobj): TAction       
+action Open(dobj): TAction
+    /*
+     *   Opening something brings into view what is inside it, at any depth,
+     *   and the player character sees all of it, not only what is listed.
+     */
+    doActionOnce()
+    {
+        try
+        {
+            return inherited();
+        }
+        finally
+        {
+            if(now.actor == now.player && curDobj != nil
+               && curDobj.ofKind(Thing) && curDobj.isOpen)
+                noteAllInViewSeen();
+        }
+    }
 ;
 
 action Close(dobj): TAction        
@@ -2235,10 +2294,10 @@ action PayFor(dobj, iobj): TIAction
 action Scratch(dobj): TAction
 ;
 
-action Test(dobj): TAction
+action Probe(dobj): TAction
 ;
 
-action TestWith(dobj, iobj): TIAction
+action ProbeWith(dobj, iobj): TIAction
 ;
 
 action HangOn(dobj, iobj): TIAction

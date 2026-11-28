@@ -9159,10 +9159,11 @@ class Thing:  ReplaceRedirector, Mentionable
         happens. ')
 
     /*
-     *   TEST, or PROBE: a game says what can be tested; TEST ... WITH, what
-     *   can test, on the thing tested with.
+     *   TEST, or PROBE (the Probe action, since Test is the class of test
+     *   scripts): a game says what can be tested; TEST ... WITH (ProbeWith),
+     *   what can test, on the thing tested with.
      */
-    dobj Test
+    dobj Probe
     {
         preCond = [touchObj]
         verify() { illogical(cannotTestMsg); }
@@ -9171,13 +9172,13 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotTestMsg = msgText(cannot test, '{I} {have} no way to test {the
         dobj}. ')
 
-    dobj TestWith
+    dobj ProbeWith
     {
         preCond = [touchObj]
         verify() { }
     }
 
-    iobj TestWith
+    iobj ProbeWith
     {
         preCond = [objHeld]
         verify() { illogical(cannotTestWithMsg); }

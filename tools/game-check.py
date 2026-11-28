@@ -13,6 +13,10 @@ Hexicon, and played with --norand, a clock that starts at the same time
 (--clock), and the time zone UTC, so that it plays the same on every
 run. Without the folder, the check says so and passes.
 
+Each game is also built for debugging (-d), with Hexad's debugging
+commands compiled in, and not played: a name one of those commands
+takes shows as a game that does not build for debugging.
+
 A script with a .doc beside its .out (walk.doc) is played a second time
 with --rich, as on a rich display, and the document the game's markup
 makes, checked, is compared with the .doc, as the transcript is with the
@@ -87,6 +91,26 @@ def play(game):
     ], None
 
 
+def debug_build(game):
+    """Build a game for debugging: None if it built, or what the build said
+    if it did not. A manifest's image takes the place of any -o, as a
+    makefile's does for the reference compiler, so the debug build writes
+    the game's own image, which the ordinary build in play() then writes
+    again."""
+    built = subprocess.run(
+        [HEXICON, "build", "-d"],
+        cwd=game,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=TIMEOUT,
+        check=False,
+    )
+    said = (built.stdout + built.stderr).decode("utf-8", "replace")
+    if built.returncode != 0 or not re.search(r"^Built ", said, re.MULTILINE):
+        return said
+    return None
+
+
 def run(game, image, script, rich=False):
     """Play one script on a built game: the transcript, or with rich, the
     document a rich display is given, checked, as text."""
@@ -140,6 +164,14 @@ def main():
             sys.exit(f"no such game: {', '.join(sorted(missing))}")
     same = different = 0
     for game in games:
+        # Each game also builds for debugging (-d), where Hexad's debugging
+        # commands are compiled in, so that a name one of them takes is
+        # found. It is built, not played.
+        if not accept:
+            failed = debug_build(game)
+            if failed is not None:
+                different += 1
+                print(f"DIFF {game.name}: it did not build for debugging\n{failed}")
         transcripts, failed = play(game)
         if transcripts is None:
             different += 1

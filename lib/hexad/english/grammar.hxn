@@ -2778,12 +2778,12 @@ verb Scratch 'scratch' singleDobj:
     missingQ = 'what do you want to scratch'
 ;
 
-verb Test ('test' | 'probe') singleDobj:
+verb Probe ('test' | 'probe') singleDobj:
     verbPhrase = 'test/testing (what)'
     missingQ = 'what do you want to test'
 ;
 
-verb TestWith ('test' | 'probe') singleDobj 'with' singleIobj:
+verb ProbeWith ('test' | 'probe') singleDobj 'with' singleIobj:
     verbPhrase = 'test/testing (what) (with what)'
     missingQ = 'what do you want to test;what do you want to test it with'
     iobjReply = withSingleNoun
