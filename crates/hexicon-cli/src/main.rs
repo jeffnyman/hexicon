@@ -901,7 +901,15 @@ fn run(path: &str, program_args: &[&str], options: &RunOptions<'_>) -> ExitCode 
         terminal: if options.plain {
             None
         } else {
-            terminal::Terminal::detect(options.paging)
+            terminal::Terminal::detect(options.paging).map(|mut terminal| {
+                // The game has the screen to itself, as its panes take
+                // the top of it: what the shell showed before is cleared
+                // away (into the scrollback, in most terminals).
+                if terminal.has_panes() && !options.rich {
+                    terminal.clear();
+                }
+                terminal
+            })
         },
         stall: std::env::var_os("HEXICON_TEST_SUSPEND").is_some(),
         stalled: false,
