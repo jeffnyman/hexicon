@@ -1,0 +1,319 @@
+#charset "us-ascii"
+import hexad;
+
+/*
+ *   Hypothetical actions: what would happen if an actor tried an action,
+ *   found out without the actor trying it.
+ *
+ *   A character can use this to try only what makes sense to it, and a
+ *   game to suggest only commands that would work. There are two kinds of
+ *   test.
+ *
+ *   The first runs an action's verify stage, or its check stage, and
+ *   nothing more. Neither may change the game's state, so the test has no
+ *   effect on the game, and it answers by what the actor could know:
+ *
+ *       wouldBeLogical(bob, Open, frontDoor)    passes verify
+ *       isAlreadyDone(bob, Open, frontDoor)     the door is open already
+ *       wouldPassCheck(bob, Open, frontDoor)    passes check
+ *       wouldBeAllowed(bob, Open, frontDoor)    passes both
+ *       hypotheticalVerify(bob, Open, frontDoor)
+ *           the VerifyResult that decides, to look at more closely
+ *
+ *   The check stage is tried without its preconditions, which would carry
+ *   out implicit actions to be met; their verify routines are part of the
+ *   verify stage, as always.
+ *
+ *   The second carries an action out, looks at the game afterwards, and
+ *   puts everything back as it was with the VM's undo:
+ *
+ *       wouldSucceed(bob, Open, frontDoor)
+ *       whatIf({: frontDoor.isOpen }, bob, Open, frontDoor)
+ *
+ *   wouldSucceed says whether the action succeeded; whatIf gives what its
+ *   function returns once the action is done. Either takes several
+ *   actions, each as a list, carried out in turn:
+ *
+ *       wouldSucceed([bob, UnlockWith, frontDoor, houseKey],
+ *                    [bob, Open, frontDoor])
+ *
+ *   wouldSucceed stops at the first that fails. The actions are carried
+ *   out as an implicit action would be, from verify to their after
+ *   notifications, but no turn passes and nothing they print is shown.
+ *
+ *   Not everything can be taken back. An action tried this way must not
+ *   ask the player anything, end the game, write to a pane, play a sound,
+ *   or write a file. While any test runs, now.isHypothetical is true, so
+ *   code that would do one of those can do something else instead:
+ *
+ *       if (!now.isHypothetical)
+ *           finishGameMsg(ftDeath, [finishOptionUndo]);
+ *
+ *   A verify routine can use the same test to rule an action out of a
+ *   hypothetical test that it would allow when the player types it:
+ *
+ *       verify() { if (now.isHypothetical) illogical(''); }
+ *
+ *   Each trial also takes room in the VM's record of changes for UNDO,
+ *   until the turn is over, so a game should not try very many in one
+ *   turn.
+ */
+
+/*
+ *   The VerifyResult that decides whether actor could carry out action on
+ *   objs, found without carrying it out: the most illogical result that
+ *   rules the action out, or, if none does, the least logical of the
+ *   others. With no objects, the action is logical.
+ */
+hypotheticalVerify(actor, action, [objs])
+{
+    return hypothetical.during(actor, action, objs, new function(act)
+    {
+        local decides = nil;
+        local roles = [DirectObject, IndirectObject, AccessoryObject];
+        for (local i = 1; i <= objs.length && i <= roles.length; i++)
+        {
+            /*
+             *   Verified as when the parser scores the objects of a
+             *   command, so that an object that remaps the action to
+             *   another does not carry out the other.
+             */
+            local res = act.verify(objs[i], roles[i], true);
+            if (decides == nil || hypothetical.worse(res, decides))
+                decides = res;
+        }
+        return decides ?? new VerifyResult(100, '', true, nil);
+    });
+}
+
+/* Would actor's action pass its verify stage? */
+wouldBeLogical(actor, action, [objs])
+{
+    return hypotheticalVerify(actor, action, objs...).allowAction;
+}
+
+/*
+ *   Is actor's action illogical because what it would do is done already,
+ *   as opening a door that is open?
+ */
+isAlreadyDone(actor, action, [objs])
+{
+    return hypotheticalVerify(actor, action, objs...).meansAlreadyDone;
+}
+
+/*
+ *   Would actor's action pass its check stage, apart from its
+ *   preconditions? A check routine stops an action by printing why, so the
+ *   action passes if none of them prints anything.
+ */
+wouldPassCheck(actor, action, [objs])
+{
+    return hypothetical.during(actor, action, objs, new function(act)
+    {
+        local checks = [];
+        if (objs.length >= 1)
+            checks += [[objs[1], act.checkDobjProp]];
+        if (objs.length >= 2 && act.ofKind(TIAction))
+        {
+            /* The action's own check of both objects comes first. */
+            local both = hypothetical.silently(act,
+                {: act.mmCheck(objs[1], objs[2]) });
+            if (typeOf(both) == TypeInt)
+                return true;
+            if (both != nil)
+                return nil;
+            checks = [[objs[2], act.checkIobjProp]] + checks;
+        }
+        foreach (local c in checks)
+        {
+            local obj = c[1], prop = c[2];
+            if (hypothetical.silently(act, {: obj.(prop) }) != nil)
+                return nil;
+        }
+        return true;
+    });
+}
+
+/* Would actor's action pass both its verify and its check stages? */
+wouldBeAllowed(actor, action, [objs])
+{
+    return wouldBeLogical(actor, action, objs...)
+        && wouldPassCheck(actor, action, objs...);
+}
+
+/*
+ *   Would the action succeed if it were carried out? It is carried out,
+ *   and then undone. Give one action as actor, action, objects; or several,
+ *   each as a list of those. With several, the answer is nil as soon as
+ *   one fails.
+ */
+wouldSucceed([specs])
+{
+    return hypothetical.trial(specs, new function(steps)
+    {
+        foreach (local s in steps)
+            if (!hypothetical.carryOut(s))
+                return nil;
+        return true;
+    });
+}
+
+/*
+ *   Carry the actions out, then give what func returns, and undo them.
+ *   The actions are given as to wouldSucceed, and all of them are carried
+ *   out whether they succeed or not.
+ */
+whatIf(func, [specs])
+{
+    return hypothetical.trial(specs, new function(steps)
+    {
+        foreach (local s in steps)
+            hypothetical.carryOut(s);
+        return func();
+    });
+}
+
+modify VerifyResult
+    /*
+     *   Does this result rule an action out because what it would do is
+     *   done already? That is the result illogicalAlready gives.
+     */
+    meansAlreadyDone = (!allowAction && resultRank == 45)
+;
+
+modify libGlobal
+    /* Whether a hypothetical test is running, and how many are. */
+    hypotheticalDepth = 0
+;
+
+modify now
+    /*
+     *   Is a hypothetical test running? Code that cannot be undone, or
+     *   that the test should not count, can ask.
+     */
+    isHypothetical = (libGlobal.hypotheticalDepth > 0)
+;
+
+/* A trial's answer, kept out of what undo takes back. */
+transient hypotheticalAnswer: object
+    val = nil
+;
+
+/* The machinery of the tests. */
+hypothetical: object
+    /*
+     *   Call func(act) with act a new instance of action, holding objs,
+     *   as the current action and actor the current actor, while
+     *   now.isHypothetical is true; then put them back.
+     */
+    during(actor, action, objs, func)
+    {
+        local act = action.createInstance();
+        act.setResolvedObjects(objs...);
+        local oldActor = libGlobal.curActor;
+        local oldAction = libGlobal.curAction;
+        libGlobal.curActor = actor;
+        libGlobal.curAction = act;
+        libGlobal.hypotheticalDepth++;
+        try
+        {
+            return func(act);
+        }
+        finally
+        {
+            libGlobal.hypotheticalDepth--;
+            libGlobal.curActor = oldActor;
+            libGlobal.curAction = oldAction;
+        }
+    }
+
+    /* Is verify result a worse than b? One that rules out is worse. */
+    worse(a, b)
+    {
+        if (a.allowAction != b.allowAction)
+            return !a.allowAction;
+        return a.resultRank < b.resultRank;
+    }
+
+    /*
+     *   Call func with nothing shown: the text it printed, an integer if
+     *   it returned one (a check that leaves the rest of the checks out),
+     *   or nil if it printed nothing or the action lets the text through
+     *   (noHalt()).
+     */
+    silently(act, func)
+    {
+        act.haltOnMessageInCheck = true;
+        local res = nil;
+        local txt = now.outputStream.captureOutputIgnoreExit(
+            {: res = func() });
+        if (typeOf(res) == TypeInt)
+            return res;
+        if (typeOf(txt) == TypeInt)
+            return txt;
+        if (txt is in (nil, '') || !act.haltOnMessageInCheck)
+            return nil;
+        return txt;
+    }
+
+    /*
+     *   Set a savepoint, call func with the actions (each as a list of
+     *   actor, action, and objects), and undo back to the savepoint, with
+     *   nothing shown.
+     */
+    trial(specs, func)
+    {
+        if (specs.length > 0 && typeOf(specs[1]) != TypeList)
+            specs = [specs];
+        /*
+         *   The answer is kept where undo cannot take it back: a local the
+         *   function sets is kept in an object, which undo would restore.
+         */
+        local outer = hypotheticalAnswer.val;
+        hypotheticalAnswer.val = nil;
+        savepoint();
+        try
+        {
+            libGlobal.hypotheticalDepth++;
+            now.outputStream.captureOutputIgnoreExit(
+                {: hypotheticalAnswer.val = func(specs) });
+        }
+        finally
+        {
+            if (!undo())
+                throw new Exception('A hypothetical action could not be '
+                                    + 'undone: the record of changes is '
+                                    + 'full.');
+        }
+        local res = hypotheticalAnswer.val;
+        hypotheticalAnswer.val = outer;
+        return res;
+    }
+
+    /*
+     *   Carry out one action, [actor, action, objects...], as an implicit
+     *   action would be, with its after notifications: whether it
+     *   succeeded.
+     */
+    carryOut(spec)
+    {
+        local actor = spec[1];
+        local objs = spec.sublist(3);
+        local act = spec[2].createInstance();
+        act.setResolvedObjects(objs...);
+        libGlobal.curActor = actor;
+        libGlobal.curAction = act;
+        libGlobal.curCommand = new Command(actor, act, objs...);
+        local ok = nil;
+        try
+        {
+            ok = act.execResolvedAction();
+            if (ok && !act.actionFailed)
+                act.afterAction();
+        }
+        catch (ExitSignal ex) { }
+        catch (ExitActionSignal ex) { }
+        catch (AbortActionSignal ex) { }
+        return ok == true && !act.actionFailed;
+    }
+;

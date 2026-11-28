@@ -11,7 +11,7 @@ For each object, the action asks the object's **handler** for it, in stages:
 | Stage | Asks | Ends the action by |
 |---|---|---|
 | `preCond` | what has to be so first: a list of conditions such as `touchObj` (the player can touch it) or `objHeld` (the player is holding it), which Hexad tries to bring about | a condition that cannot be met |
-| `verify()` | does the command make sense for this object? | `illogical(msg)`: never; `illogicalNow(msg)`: not now; `implausible(msg)`: unlikely |
+| `verify()` | does the command make sense for this object? | `illogical(msg)`: never; `illogicalNow(msg)`: not now; `illogicalAlready(msg)`: done already, as opening what is open; `implausible(msg)`: unlikely |
 | `check()` | is it allowed now? | printing anything at all |
 | `action()` | what happens | (it is done) |
 | `report()` | what the player is told | |

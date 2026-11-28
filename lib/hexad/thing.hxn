@@ -4680,7 +4680,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotTakeMsg);
             
             if(isDirectlyIn(now.actor))
-                illogicalNow(alreadyHeldMsg);
+                illogicalAlready(alreadyHeldMsg);
             
             if(now.actor.isIn(self))
                 illogicalNow(cannotTakeMyContainerMsg);
@@ -5239,7 +5239,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotOpenMsg);
             
             if(isOpen)
-                illogicalNow(alreadyOpenMsg);
+                illogicalAlready(alreadyOpenMsg);
             
             logical;                          
         }
@@ -5312,7 +5312,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isCloseable)
                 illogical(cannotCloseMsg);
             if(!isOpen)
-                illogicalNow(alreadyClosedMsg);
+                illogicalAlready(alreadyClosedMsg);
             logical;
         }
            
@@ -5902,7 +5902,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotPutMsg);
             
             if(isDirectlyIn(now.verifyIobj))
-                illogicalNow(alreadyInMsg);
+                illogicalAlready(alreadyInMsg);
             
             if(now.verifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);     
@@ -5972,7 +5972,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalSelf(cannotPutInSelfMsg);   
             
             if(isDirectlyIn(now.verifyIobj))
-                illogicalNow(alreadyInMsg);
+                illogicalAlready(alreadyInMsg);
             
             if(isFixed)
                 illogical(cannotPutMsg);
@@ -6070,7 +6070,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotPutMsg);
             
             if(isDirectlyIn(now.verifyIobj))
-                illogicalNow(alreadyInMsg);
+                illogicalAlready(alreadyInMsg);
             
             if(now.verifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);           
@@ -6162,7 +6162,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotPutMsg);
             
             if(isDirectlyIn(now.verifyIobj))
-                illogicalNow(alreadyInMsg);
+                illogicalAlready(alreadyInMsg);
             
             if(now.verifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);           
@@ -6312,7 +6312,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 if(isLocked)
                     logical;
                 else
-                    illogicalNow(notLockedMsg);
+                    illogicalAlready(notLockedMsg);
             }
         }
     }
@@ -6383,7 +6383,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(lockability == lockableWithKey)
             {
                 if(isLocked)
-                   illogicalNow(alreadyLockedMsg);
+                   illogicalAlready(alreadyLockedMsg);
                 else                    
                     logical;
             }
@@ -6449,7 +6449,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 implausible(indirectLockableMsg);
             
             if(!isLocked)            
-                illogicalNow(notLockedMsg);           
+                illogicalAlready(notLockedMsg);           
         }
         
         check()
@@ -6525,7 +6525,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 implausible(indirectLockableMsg);            
             
             if(isLocked)
-                illogicalNow(alreadyLockedMsg);            
+                illogicalAlready(alreadyLockedMsg);            
             
         }
         
@@ -6670,7 +6670,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isSwitchable)
                 illogical(notSwitchableMsg);
             else if(isOn)
-                illogicalNow(alreadyOnMsg);
+                illogicalAlready(alreadyOnMsg);
         }
         
         action()
@@ -6698,7 +6698,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isSwitchable)
                 illogical(notSwitchableMsg);
             else if(!isOn)
-                illogicalNow(alreadyOffMsg);
+                illogicalAlready(alreadyOffMsg);
         }
         
         action()
@@ -6807,7 +6807,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotWearMsg);
             
             if(wornBy == now.actor)
-                illogicalNow(alreadyWornMsg);
+                illogicalAlready(alreadyWornMsg);
         }
         
         action()  {  makeWorn(now.actor);  }
@@ -6832,7 +6832,7 @@ class Thing:  ReplaceRedirector, Mentionable
         verify()
         {
             if(wornBy != now.actor)
-                illogicalNow(notWornMsg);
+                illogicalAlready(notWornMsg);
                         
             if(!isDoffable)
                 illogical(cannotDoffMsg);
@@ -6939,7 +6939,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotBoardMsg);
             
             if(now.actor.isIn(self))
-                illogicalNow(actorAlreadyOnMsg);
+                illogicalAlready(actorAlreadyOnMsg);
             
             if(isIn(now.actor))
                 illogicalNow(cannotGetOnCarriedMsg);
@@ -7077,7 +7077,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotEnterMsg);
             
             if(now.actor.isIn(self))
-                illogicalNow(actorAlreadyInMsg);
+                illogicalAlready(actorAlreadyInMsg);
             
             if(isIn(now.actor))
                 illogicalNow(cannotGetInCarriedMsg);
@@ -7194,7 +7194,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   there's nothing for remove to do.
              */
             if(isDirectlyIn(now.actor) && wornBy != now.actor)
-                illogicalNow(alreadyHeldMsg);
+                illogicalAlready(alreadyHeldMsg);
         }
     
         
@@ -7372,7 +7372,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotMoveToMsg);           
             
             if(now.dobj.movedTo == self)
-                illogicalNow(alreadyMovedToMsg);
+                illogicalAlready(alreadyMovedToMsg);
             
             if(now.verifyDobj == self)
                 illogicalSelf(cannotMoveToSelfMsg);
@@ -7445,7 +7445,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isLightable)
                 illogical(cannotLightMsg); 
             else if(isLit)
-                illogicalNow(alreadyLitMsg);
+                illogicalAlready(alreadyLitMsg);
         }
         
         action()
@@ -7481,7 +7481,7 @@ class Thing:  ReplaceRedirector, Mentionable
         verify()
         {
             if(!isLit)
-                illogicalNow(notLitMsg);
+                illogicalAlready(notLitMsg);
             
             if(!isExtinguishable)
                 illogical(cannotExtinguishMsg);
@@ -7591,7 +7591,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotCleanMsg);
             
             else if(isClean)
-                illogicalNow(alreadyCleanMsg);        
+                illogicalAlready(alreadyCleanMsg);        
         
             else if(!needsCleaning)
                 implausible(noNeedToCleanMsg);           
@@ -7647,7 +7647,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotCleanMsg);
             
             else if(isClean)
-                illogicalNow(alreadyCleanMsg);
+                illogicalAlready(alreadyCleanMsg);
         
             else if(!needsCleaning)
                 implausible(noNeedToCleanMsg);
@@ -8045,14 +8045,14 @@ class Thing:  ReplaceRedirector, Mentionable
              *   to move any further.
              */
             if(now.actor.isIn(self))
-                illogicalNow(alreadyThereMsg);
+                illogicalAlready(alreadyThereMsg);
             
             /*  
              *   If the direct object is in the actor's location, there's no
              *   need for the actor to move to get to it.
              */
             if(isIn(now.actor.getOutermostRoom))
-                illogicalNow(alreadyPresentMsg);
+                illogicalAlready(alreadyPresentMsg);
             
             /*  
              *   It's legal to GO TO a decoration object, but given the choice,
@@ -8304,7 +8304,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotFastenMsg); 
             
             if(isFastened)
-                illogicalNow(alreadyFastenedMsg);
+                illogicalAlready(alreadyFastenedMsg);
         }
         
         action() { makeFastened(true); }
@@ -8365,7 +8365,7 @@ class Thing:  ReplaceRedirector, Mentionable
                illogical(cannotUnfastenMsg); 
             
             if(!isFastened)
-                illogicalNow(notFastenedMsg);
+                illogicalAlready(notFastenedMsg);
         }
     }
     
@@ -8989,7 +8989,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(inside == nil)
                 illogical(cannotEmptyMsg);
             else if(inside.length == 0)
-                illogicalNow(alreadyEmptyMsg);
+                illogicalAlready(alreadyEmptyMsg);
         }
         action()
         {
@@ -9024,7 +9024,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(inside == nil)
                 illogical(cannotEmptyMsg);
             else if(inside.length == 0)
-                illogicalNow(alreadyEmptyMsg);
+                illogicalAlready(alreadyEmptyMsg);
             else if(now.verifyIobj == self)
                 illogicalSelf(cannotEmptyIntoSelfMsg);
         }
@@ -10071,7 +10071,7 @@ class Thing:  ReplaceRedirector, Mentionable
         verify()
         {
             if(isDirectlyIn(now.actor))
-                illogicalNow(alreadyHeldMsg);
+                illogicalAlready(alreadyHeldMsg);
 
             if(self == now.actor)
                 illogicalSelf(cannotPurloinSelfMsg);

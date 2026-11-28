@@ -137,7 +137,7 @@ class SimpleAttachable: Thing
             
             /* We can't be attached while we're already attached */
             if(attachedTo == now.verifyIobj)
-                illogicalNow(alreadyAttachedMsg);
+                illogicalAlready(alreadyAttachedMsg);
             else if(attachedTo != nil)
                 illogicalNow(cannotAttachToMoreMsg);
         }
@@ -621,7 +621,7 @@ class Attachable: NearbyAttachable
             
             if(isAttachedTo(now.verifyIobj))
             {                            
-                illogicalNow(alreadyAttachedToIobjMsg);
+                illogicalAlready(alreadyAttachedToIobjMsg);
             }
             
             else if(maxAttachedTo != nil && attachedToList.length >= maxAttachedTo)
@@ -719,7 +719,7 @@ class PlugAttachable: object
             
             /* We can't be plugged in if we're already plugged in. */
             if(isPluggedIn && !multiPluggable)
-                illogicalNow(alreadyAttachedMsg);
+                illogicalAlready(alreadyAttachedMsg);
             
         }
         

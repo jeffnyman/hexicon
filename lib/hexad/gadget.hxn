@@ -79,7 +79,7 @@ class Lever: Thing
              *   pulled position
              */
             if(isPulled)
-                illogicalNow(alreadyPulledMsg);
+                illogicalAlready(alreadyPulledMsg);
         }
         
         /* Use the makePulled() method to handle pulling the lever */
@@ -104,7 +104,7 @@ class Lever: Thing
              *   pushed position
              */             
             if(isPushed)
-                illogicalNow(alreadyPushedMsg);
+                illogicalAlready(alreadyPushedMsg);
         }
         
         /* Use the makePulled() method to handle pushing the lever */
