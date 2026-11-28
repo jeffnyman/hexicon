@@ -41,13 +41,59 @@ import hexad;
  *   out as an implicit action would be, from verify to their after
  *   notifications, but no turn passes and nothing they print is shown.
  *
- *   Not everything can be taken back. An action tried this way must not
- *   ask the player anything, end the game, write to a pane, play a sound,
- *   or write a file. While any test runs, now.isHypothetical is true, so
- *   code that would do one of those can do something else instead:
+ *   IMAGINING goes further: it carries an action out, then, if asked, the
+ *   end of the turn (daemons, fuses, the turn count) and more turns of the
+ *   player waiting, and then notes what the imagined world was like:
+ *
+ *       imagine([me, Drink, poison]);
+ *       if (imagined.ended) "Something tells you not to drink that. ";
+ *
+ *       imagine([me, Burn, fuse], 3);          the action, and three turns
+ *       imagineDoing({: me.moveInto(vault) }); any code, rather than an action
+ *       imagineBackAt(noon, [me, Take, coin]); at a branch point, which needs
+ *                                              the reversion extension
+ *
+ *   The first argument is one action, [actor, action, objects...], or a
+ *   list of them carried out in turn. What can be asked afterwards, until
+ *   the next imagining:
+ *
+ *       imagined.ran            whether it could run (not inside another)
+ *       imagined.ended          whether the imagined game ended
+ *       imagined.ending         how: what finishGameMsg was given (ftDeath)
+ *       imagined.scoreChange    points scored
+ *       imagined.location       where the player was at the end
+ *       imagined.turns          how many turns went by
+ *       imagined.carried        what the player held, at any depth
+ *       imagined.wasCarried(obj)
+ *       imagined.output         what the imagining printed
+ *       imagined.outputIncludes('glows')    ignoring case
+ *
+ *   For anything else, an ImaginedOutcome's record() is called at the end
+ *   of every imagining, in the imagined world, to write what it finds into
+ *   a transient object of the game's own:
+ *
+ *       transient floodVerdict: object flooded = nil;
+ *       ImaginedOutcome
+ *           record() { floodVerdict.flooded = cellar.isFlooded; }
+ *       ;
+ *
+ *   THE DICE. Every trial and imagining puts the random numbers back as
+ *   they were, so what it saw is what will happen if the same is done
+ *   next, as long as nothing else rolls the dice first. Passing true for
+ *   freshDice (imagine(spec, 0, true)) rolls new ones for the imagining
+ *   alone, to see one of the other things that might happen; the story's
+ *   own dice are left as they were.
+ *
+ *   ENDINGS. An ending reached in a trial or an imagining ends that, not
+ *   the game: nothing is shown or asked, an imagining notes how it ended,
+ *   and wouldSucceed counts the action that ended it as succeeding. Other
+ *   things cannot be taken back: an action tried this way must not ask the
+ *   player anything, write to a pane, play a sound, or write a file. While
+ *   any test runs, now.isHypothetical is true, so code that would do one of
+ *   those can do something else instead:
  *
  *       if (!now.isHypothetical)
- *           finishGameMsg(ftDeath, [finishOptionUndo]);
+ *           soundOfThunder.play();
  *
  *   A verify routine can use the same test to rule an action out of a
  *   hypothetical test that it would allow when the player types it:
@@ -152,8 +198,12 @@ wouldSucceed([specs])
     return hypothetical.trial(specs, new function(steps)
     {
         foreach (local s in steps)
+        {
             if (!hypothetical.carryOut(s))
                 return nil;
+            if (hypotheticalAnswer.ending != nil)
+                break;
+        }
         return true;
     });
 }
@@ -168,10 +218,104 @@ whatIf(func, [specs])
     return hypothetical.trial(specs, new function(steps)
     {
         foreach (local s in steps)
+        {
             hypothetical.carryOut(s);
+            if (hypotheticalAnswer.ending != nil)
+                break;
+        }
         return func();
     });
 }
+
+/*
+ *   Imagine the actions (one, [actor, action, objects...], or a list of
+ *   them), then turns more turns, and note in imagined what the world was
+ *   like. Returns whether it ran.
+ */
+imagine(specs, turns = 0, freshDice = nil)
+{
+    if (specs.length() > 0 && typeOf(specs[1]) != TypeList)
+        specs = [specs];
+    return hypothetical.imagining(turns, freshDice, new function()
+    {
+        foreach (local s in specs)
+        {
+            hypothetical.carryOut(s);
+            if (hypotheticalAnswer.ending != nil)
+                break;
+        }
+    });
+}
+
+/* Imagine running func, rather than actions, as imagine() does. */
+imagineDoing(func, turns = 0, freshDice = nil)
+{
+    return hypothetical.imagining(turns, freshDice, new function()
+    {
+        try
+        {
+            func();
+        }
+        catch (HypotheticalEnding he)
+        {
+            hypotheticalAnswer.ending = he.ending;
+        }
+    });
+}
+
+/*
+ *   Imagine the actions back at branch point bp (from the reversion
+ *   extension): what would have happened if they had been done then. The
+ *   story visits bp, imagines there, and comes back; imagined has the
+ *   outcome, with the score measured from bp. Returns whether it ran: not
+ *   if bp has not been taken, or inside a test.
+ */
+imagineBackAt(bp, specs, turns = 0, freshDice = nil)
+{
+    imagined.clear();
+    if (libGlobal.hypotheticalDepth > 0)
+        return nil;
+    bp.visit({: imagine(specs, turns, freshDice) });
+    return imagined.ran;
+}
+
+/*
+ *   Called at the end of every imagining, in the imagined world: record()
+ *   writes what it finds into a transient object of the game's.
+ */
+class ImaginedOutcome: object
+    record() { }
+;
+
+/* What the last imagining found. */
+transient imagined: object
+    ran = nil
+    ended = nil
+    ending = nil
+    scoreChange = 0
+    location = nil
+    turns = 0
+    carried = []
+    output = ''
+
+    wasCarried(obj) { return carried.indexOf(obj) != nil; }
+    outputIncludes(str)
+    {
+        return output.toLower().find(str.toLower()) != nil;
+    }
+
+    clear()
+    {
+        ran = nil;
+        ended = nil;
+        ending = nil;
+        scoreChange = 0;
+        location = nil;
+        turns = 0;
+        carried = [];
+        output = '';
+    }
+;
 
 modify VerifyResult
     /*
@@ -179,11 +323,6 @@ modify VerifyResult
      *   done already? That is the result illogicalAlready gives.
      */
     meansAlreadyDone = (!allowAction && resultRank == 45)
-;
-
-modify libGlobal
-    /* Whether a hypothetical test is running, and how many are. */
-    hypotheticalDepth = 0
 ;
 
 modify now
@@ -197,6 +336,9 @@ modify now
 /* A trial's answer, kept out of what undo takes back. */
 transient hypotheticalAnswer: object
     val = nil
+
+    /* How the trial ended the game, or nil. */
+    ending = nil
 ;
 
 /* The machinery of the tests. */
@@ -261,7 +403,7 @@ hypothetical: object
      *   actor, action, and objects), and undo back to the savepoint, with
      *   nothing shown.
      */
-    trial(specs, func)
+    trial(specs, func, freshDice?)
     {
         if (specs.length > 0 && typeOf(specs[1]) != TypeList)
             specs = [specs];
@@ -270,12 +412,20 @@ hypothetical: object
          *   function sets is kept in an object, which undo would restore.
          */
         local outer = hypotheticalAnswer.val;
+        local outerEnding = hypotheticalAnswer.ending;
         hypotheticalAnswer.val = nil;
+        hypotheticalAnswer.ending = nil;
+
+        /* The dice are put back afterwards, as everything else is. */
+        local dice = randomize(nil);
+        local txt;
         savepoint();
         try
         {
             libGlobal.hypotheticalDepth++;
-            now.outputStream.captureOutputIgnoreExit(
+            if (freshDice)
+                randomize();
+            txt = now.outputStream.captureOutputIgnoreExit(
                 {: hypotheticalAnswer.val = func(specs) });
         }
         finally
@@ -284,10 +434,83 @@ hypothetical: object
                 throw new Exception('A hypothetical action could not be '
                                     + 'undone: the record of changes is '
                                     + 'full.');
+            randomize(dice);
         }
+        lastOutput = (typeOf(txt) == TypeString ? txt : '');
         local res = hypotheticalAnswer.val;
         hypotheticalAnswer.val = outer;
+        hypotheticalAnswer.ending = outerEnding;
         return res;
+    }
+
+    /* What the last trial printed. */
+    lastOutput = ''
+
+    /*
+     *   An imagining: run func, then turns more turns, and record the
+     *   outcome in imagined, in the imagined world, before it is undone.
+     */
+    imagining(turns, freshDice, func)
+    {
+        imagined.clear();
+        if (libGlobal.hypotheticalDepth > 0)
+            return nil;
+        local score = currentScore();
+        trial([], new function(steps)
+        {
+            func();
+            local done = passTurns(turns);
+            imagined.ran = true;
+            imagined.ended = (hypotheticalAnswer.ending != nil);
+            imagined.ending = hypotheticalAnswer.ending;
+            imagined.scoreChange = currentScore() - score;
+            imagined.location = now.player.getOutermostRoom();
+            imagined.turns = done;
+            imagined.carried = now.player.allContents();
+            forEachInstance(ImaginedOutcome, {o: o.record()});
+            return true;
+        }, freshDice);
+        imagined.output = lastOutput;
+        return imagined.ran;
+    }
+
+    /*
+     *   The end of this turn, and then turns - 1 more turns of the player
+     *   waiting, unless the game ends first: how many turns went by.
+     */
+    passTurns(turns)
+    {
+        local done = 0;
+        for (local n = 1; n <= turns; n++)
+        {
+            if (hypotheticalAnswer.ending != nil)
+                break;
+            if (n > 1)
+            {
+                carryOut([now.player, Wait]);
+                if (hypotheticalAnswer.ending != nil)
+                    break;
+            }
+            local seq = Wait.createInstance();
+            try
+            {
+                seq.turnSequence();
+                seq.advanceTime();
+            }
+            catch (HypotheticalEnding he)
+            {
+                hypotheticalAnswer.ending = he.ending;
+                break;
+            }
+            done++;
+        }
+        return done;
+    }
+
+    /* The score, or 0 in a game without one. */
+    currentScore()
+    {
+        return libGlobal.scoreObj != nil ? libGlobal.scoreObj.totalScore : 0;
     }
 
     /*
@@ -314,6 +537,12 @@ hypothetical: object
         catch (ExitSignal ex) { }
         catch (ExitActionSignal ex) { }
         catch (AbortActionSignal ex) { }
+        catch (HypotheticalEnding he)
+        {
+            /* The game ended: the action did what it set out to. */
+            hypotheticalAnswer.ending = he.ending;
+            return true;
+        }
         return ok == true && !act.actionFailed;
     }
 ;

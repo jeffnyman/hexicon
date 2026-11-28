@@ -656,6 +656,12 @@ libGlobal: object
      */
     scoreObj = nil
 
+    /*
+     *   How many hypothetical tests are running (see the hypothetical
+     *   extension): while any is, an ending ends the test.
+     */
+    hypotheticalDepth = 0
+
     /* 
      *   The global Footnote class object.  We use a global for this,
      *   rather than referencing Footnote directly, to allow the footnote
@@ -1235,6 +1241,14 @@ finishGameMsg(msg, extra)
 {
     local lst;
 
+    /*
+     *   An ending reached while an action is only being tried (by the
+     *   hypothetical extension) ends the trial, not the game: nothing is
+     *   shown or asked, and the trial notes how it ended.
+     */
+    if (libGlobal.hypotheticalDepth > 0)
+        throw new HypotheticalEnding(msg);
+
     
     /*
      *   Explicitly run any final score notification now.  This will ensure
@@ -1287,6 +1301,15 @@ finishGameMsg(msg, extra)
     /* process the options */
     processOptions(lst);
 }
+
+/*
+ *   Thrown by finishGameMsg when the game ends during a hypothetical test,
+ *   for the test to catch: msg is the ending, as finishGameMsg was given it.
+ */
+class HypotheticalEnding: Exception
+    construct(msg) { ending = msg; }
+    ending = nil
+;
 
 /* finish the game, offering the given extra options but no message */
 finishGame(extra)

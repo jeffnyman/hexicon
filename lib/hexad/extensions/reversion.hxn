@@ -99,9 +99,6 @@ import hexad;
  *   it. A saved game is larger by the size of its branch points.
  */
 
-/* Defined by the hypothetical extension, if the game has it. */
-property hypotheticalDepth;
-
 /*
  *   What outlasts reversions, restores, and UNDO: transient, so that none
  *   of them changes it. Its maps and byte arrays are transient too.
@@ -155,8 +152,7 @@ reversion: object
     isBlocked()
     {
         return reversionMemory.visiting
-            || (libGlobal.hypotheticalDepth != nil
-                && libGlobal.hypotheticalDepth > 0);
+            || libGlobal.hypotheticalDepth > 0;
     }
 
     /* Before each prompt: take a branch point that was marked. */
@@ -325,10 +321,11 @@ class BranchPoint: object
     looksAround = true
 
     /*
-     *   Go to this branch point, call whenVisited() there, and come back:
-     *   true if the visit was made, nil if it couldn't be.
+     *   Go to this branch point, call whenVisited() there (or func, if it
+     *   is given), and come back: true if the visit was made, nil if it
+     *   couldn't be.
      */
-    visit()
+    visit(func?)
     {
         local bytes = reversionMemory.snapshots[self];
         if(bytes == nil || reversion.isBlocked())
@@ -343,7 +340,10 @@ class BranchPoint: object
                 return nil;
             try
             {
-                whenVisited();
+                if(func != nil)
+                    func();
+                else
+                    whenVisited();
             }
             finally
             {
