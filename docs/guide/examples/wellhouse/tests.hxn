@@ -1,0 +1,61 @@
+// The Well House's scenarios: hexicon test plays them.
+
+import hexad;
+
+#ifdef __DEBUG
+
+// The way through, in two parts.
+getIn: Scenario 'getting in'
+    'The well house is locked, and the key is in the apple tree.'
+;
++ Step 'look in nest' 'The nest is where the key is.'
+    mentions = 'iron key'
+;
++ Step 'take key' 'Seen, it can be taken.'
+    expect = (ironKey.isIn(me))
+;
++ Step 'unlock door with key' 'Getting in is the first point.'
+    expect = (!wellDoor.isLocked && gotIn.achieved)
+;
++ Step 'n' 'The door opens on the way in.'
+    expect = (me.isIn(wellHouse))
+;
+
+ringBell: Scenario 'ringing the bell'
+    'The bell is down in the dark cellar, and it brings the farmer.'
+    after = getIn
+;
++ Step 'take lamp. light lamp' 'The cellar is dark.'
+    expect = (lamp.isLit)
+;
++ Step 'd' 'The cellar is under the trapdoor.'
+    expect = (me.isIn(cellar))
+    avoids = 'pitch black'
+;
++ Step 'pull rope' 'The rope rings the bell.'
+    expect = (rangBell.achieved)
+    mentions = 'the bell clangs'
+;
++ Await 'The farmer comes running.'
+    until = (scenarioMemory.ending == ftVictory)
+    within = 2
+;
+++ Check 'the bell, then the end'
+    test = (happenedBefore('the bell rings', ftVictory))
+;
+
+wayThrough: Walkthrough 'the way through'
+    'From the garden to the farmer, at a run.'
+    [getIn, ringBell]
+;
+
+// A rule, alone.
+darkCellar: Scenario 'the cellar without the lamp'
+    'Without a light the cellar is too dark to find the rope.'
+    startAt = wellHouse
+;
++ Step 'd' 'The trapdoor opens on the way down.'
+    expect = (me.isIn(cellar) && !cellar.isIlluminated)
+;
+
+#endif // __DEBUG

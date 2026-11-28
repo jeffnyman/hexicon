@@ -1,0 +1,8 @@
+IFID: 0B36193B-0F9A-4789-98B2-C9E08F24D5A3
+Name: The Well House
+Byline: by the Hexicon guide
+Version: 1
+ReleaseDate: 2000-01-01
+LicenseType: Freeware
+CopyingRules: Nominal cost only; compilations allowed
+PresentationProfile: Default

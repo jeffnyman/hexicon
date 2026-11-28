@@ -1,0 +1,8 @@
+[game]
+name = "The Well House"
+libraries = ["system", { name = "hexad", include = ["extensions/scenarios"] }]
+sources = ["start", "tests"]
+image = "wellhouse.hxg"
+
+[defines]
+LANGUAGE = "english"

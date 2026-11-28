@@ -1,0 +1,12 @@
+<eventscript>
+<line>x tree
+<line>look in nest
+<line>take key
+<line>unlock door with key
+<line>n
+<line>take lamp
+<line>light lamp
+<line>d
+<line>pull rope
+<line>z
+<line>z

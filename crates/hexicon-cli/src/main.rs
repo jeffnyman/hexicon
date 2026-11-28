@@ -100,14 +100,15 @@ commands:
                                nothing, such as the time it was compiled,
                                each as an offset and a length; a comparison
                                of two images should skip them
-  test [-f <manifest>] [--transcript <file>] [--walkthroughs] [<name>...]
-                               build a game for debugging, play its
+  test [options] [<name>...]   build a game for debugging, play its
                                scenarios (or the scenarios and
                                walkthroughs named), and report how they
                                went: the exit status is 0 if they all
                                passed, 1 if not, and 2 if the game could
-                               not be built or played them; the options
-                               are:
+                               not be built or played them. The game
+                               includes Hexad's extensions/scenarios.
+                               The options are:
+      -f <manifest>, -Fs <dir> as for build
       --walkthroughs           play every walkthrough as well
       --transcript <file>      keep what the game said
   test [-f <manifest>] --print <walkthrough>

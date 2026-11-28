@@ -1,0 +1,812 @@
+#charset "us-ascii"
+import hexad;
+
+/*
+ *   Scenarios: tests of a story, played. A game names this extension with
+ *   Hexad in its manifest, writes its scenarios in a source of their own,
+ *   inside #ifdef __DEBUG, and plays them with `hexicon test`. The guide's
+ *   page, Testing a Story, says how; Hexicon's docs/story-testing.md says
+ *   why it is made as it is.
+ *
+ *   A Scenario is a name, what it is for, and its steps, the objects inside
+ *   it (+), played in order. It starts at the start of the game, or where
+ *   the scenario named by its `after` ends; then its given conditions are
+ *   set (`holding`, `startAt`, and `given()`), and its steps are played.
+ *
+ *   A Step is a command, as a player types it, why it is there, and what
+ *   must hold after it: `expect`, an expression; `mentions` and `avoids`,
+ *   text (or lists of text) its output must and must not contain, ignoring
+ *   case and markup; and Checks inside it (++), each an expression with a
+ *   name of its own. An Await waits a turn at a time until `until` holds,
+ *   and fails if `within` turns pass first.
+ *
+ *   A Walkthrough is scenarios in order, played from the start of the
+ *   game, each straight on from the last, without their given conditions:
+ *   the way a player goes. A scenario in one whose `after` is not the one
+ *   before it is noted. A walkthrough that passes can be printed, as a
+ *   commented walkthrough: each scenario a section, each command with why.
+ *
+ *   SCENARIO <name> plays a scenario, with those it starts after, or a
+ *   walkthrough; SCENARIOS plays every scenario, and WALKTHROUGHS every
+ *   walkthrough, in the order they are written. Each sums up, and puts
+ *   the game back as it was.
+ *
+ *   `hexicon test` plays them from outside: it starts the game with the
+ *   argument -hexicon-test=<file>, -scenario=<name> for each scenario or
+ *   walkthrough it wants, if not every scenario, -walkthroughs for every
+ *   walkthrough too, and -hexicon-print=<file> for the walkthroughs that
+ *   pass, printed. They are played at the first prompt, what happened is
+ *   written to the file, a line at a time, and the game quits. A failure
+ *   names the line its check is written on.
+ *
+ *   An ending, during a scenario, is recorded and not shown:
+ *   scenarioMemory.ending is the FinishType (ftVictory, ftDeath, ...), for
+ *   a step to check.
+ *
+ *   The story so far: while scenarios play, the moments of the story are
+ *   kept in order, for checks to ask about. Hexad keeps the rooms the
+ *   player travels to (the room), the achievements awarded (the
+ *   Achievement, or the text a score was given with), the fuses that
+ *   fire (the property they call), and the ending (the FinishType); a
+ *   game marks its own with storyEvent('the bell rings'), which does
+ *   nothing outside a scenario, nor in a build for release.
+ *   happened(x), happenedTimes(x), and happenedBefore(a, b) ask about
+ *   them. The story runs from the start of the game: a scenario after
+ *   another goes on from that one's story, a walkthrough's from its
+ *   first scenario, and given conditions are not part of it.
+ *
+ *   The templates are in hexad.h:
+ *
+ *.  Scenario 'scenarioName' 'purpose'?;
+ *.  Step 'command' 'why'?;
+ *.  Await 'why'?;
+ *.  Check 'checkName';
+ *.  Walkthrough 'walkthroughName' 'purpose'? [scenarios];
+ */
+
+/* Mark a moment in the story, for scenarios to check that it happened. */
+storyEvent(what)
+{
+#ifdef __DEBUG
+    scenarioMemory.record(what);
+#endif
+}
+
+#ifdef __DEBUG
+
+/* Has something happened in the story so far, and how many times? */
+happened(what) { return happenedTimes(what) > 0; }
+
+happenedTimes(what)
+{
+    local events = scenarioMemory.events;
+    return events == nil ? 0 : events.countWhich({e: e[1] == what});
+}
+
+/* Did one thing first happen before another first did? */
+happenedBefore(first, second)
+{
+    local events = scenarioMemory.events;
+    if (events == nil)
+        return nil;
+    local a = events.indexWhich({e: e[1] == first});
+    local b = events.indexWhich({e: e[1] == second});
+    return a != nil && b != nil && a < b;
+}
+
+/* The moments Hexicon keeps of itself. */
+modify addToScore(points, desc)
+{
+    storyEvent(desc);
+    return replaced(points, desc);
+}
+
+modify Fuse
+    executeEvent()
+    {
+        storyEvent(prop_);
+        inherited();
+    }
+;
+
+modify Room
+    notifyDeparture(traveler, dest)
+    {
+        if (traveler == now.player)
+            storyEvent(dest);
+        inherited(traveler, dest);
+    }
+;
+
+class Scenario: object
+    scenarioName = ''
+    purpose = ''
+
+    /* The scenario this one starts where it ends, or nil for the start. */
+    after = nil
+
+    /* Given conditions: what the player holds, and where they are. */
+    holding = []
+    startAt = nil
+
+    /* And any others, set after those. */
+    given() { }
+
+    /* The steps, in the order they are written. */
+    steps() { return scenarioMemory.inside(self, ScenarioStep); }
+;
+
+class Walkthrough: object
+    walkthroughName = ''
+    purpose = ''
+
+    /* The scenarios, in the order they are played. */
+    scenarios = []
+;
+
+class ScenarioStep: object
+    why = ''
+;
+
+class Step: ScenarioStep
+    command = ''
+    expect = true
+    mentions = nil
+    avoids = nil
+
+    /* The Checks inside this step, in the order they are written. */
+    checks() { return scenarioMemory.inside(self, Check); }
+;
+
+class Await: ScenarioStep
+    until = true
+    within = 1
+;
+
+class Check: object
+    checkName = ''
+    test = true
+;
+
+/* An ending reached during a scenario, thrown by finishGameMsg. */
+class ScenarioEnding: Exception
+    construct(msg) { ending = msg; }
+    ending = nil
+;
+
+modify finishGameMsg(msg, extra)
+{
+    if (scenarioMemory.playing)
+        throw new ScenarioEnding(msg);
+    return replaced(msg, extra);
+}
+
+/*
+ *   What outlasts the restores that start each scenario: the start, and,
+ *   for each scenario or walkthrough played, how it went.
+ */
+transient scenarioMemory: OutputFilter
+    /* The game at its start, and the random numbers then. */
+    start = nil
+    dice = nil
+
+    /*
+     *   Each scenario's end, for those that start after it; and, for each
+     *   scenario or walkthrough, its outcome ('passed', 'failed', or 'not
+     *   run'), the steps it played, its failure, if it failed ([step,
+     *   command, why, what failed, where that is written, what the game
+     *   said]), and its notes.
+     */
+    ends = nil
+    outcomes = nil
+    stepsPlayed = nil
+    failures = nil
+    notes = nil
+
+    /* How many turns each Await waited, the last time it was played. */
+    waited = nil
+
+    /*
+     *   The story so far, while a scenario or walkthrough plays: each
+     *   moment as [what, the turn], in order. nil at other times.
+     */
+    events = nil
+
+    record(what)
+    {
+        if (events != nil)
+            events.append([what, libGlobal.totalTurns]);
+    }
+
+    /* Begin the story again, from a story so far (a list), or none. */
+    beginStory(sofar?)
+    {
+        events = new transient Vector(50);
+        foreach (local e in sofar ?? [])
+            events.append(e);
+    }
+
+    /* Where the check that failed is written, if it is a method. */
+    failedAt = nil
+
+    /* Is a scenario playing, and how did the game end in it, if it did? */
+    playing = nil
+    ending = nil
+
+    /* What the command being played has printed. */
+    recording = nil
+    said = ''
+
+    filterText(ostr, txt)
+    {
+        if (recording && txt != nil)
+            said += txt;
+        return txt;
+    }
+
+    /* Forget what was played before. */
+    reset()
+    {
+        ends = new transient Map();
+        outcomes = new transient Map();
+        stepsPlayed = new transient Map();
+        failures = new transient Map();
+        notes = new transient Map();
+        waited = new transient Map();
+    }
+
+    /* The objects of a class inside an object, in the order written. */
+    inside(obj, cls)
+    {
+        return everyOf(cls).subset({o: o.location == obj});
+    }
+
+    /* Every instance of a class, in the order written. */
+    everyOf(cls)
+    {
+        local v = new Vector(20);
+        for (local o = firstObj(cls); o != nil; o = nextObj(o, cls))
+            v.append(o);
+        return v.toList().sort(SortAsc,
+            {a, b: a.sourceTextOrder - b.sourceTextOrder});
+    }
+
+    /* Every scenario, and every walkthrough, in the order written. */
+    all() { return everyOf(Scenario); }
+    walkthroughs() { return everyOf(Walkthrough); }
+
+    /* A scenario's or a walkthrough's name. */
+    nameOf(item)
+    {
+        return item.ofKind(Walkthrough) ? item.walkthroughName : item.scenarioName;
+    }
+
+    /* The scenario or walkthrough of a name, in any case, or nil. */
+    find(name)
+    {
+        name = name.toLower();
+        return (all() + walkthroughs()).valWhich({x: nameOf(x).toLower() == name});
+    }
+
+    /*
+     *   Text, plain: no markup, and one space between words; and, unless
+     *   it is to be shown, in lower case, to be matched.
+     */
+    plain(txt, toShow?)
+    {
+        /*
+         *   The markup first, Hexad's paragraph breaks among it, so that
+         *   what it separates stays separate, and its quotations as
+         *   quotation marks; then the entities.
+         */
+        txt = regexReplace('</?q>', txt ?? '', '"', ReplaceAll);
+        txt = regexReplace('<[^>]*>', txt, ' ', ReplaceAll).specialsToText();
+        txt = regexReplace('[ \t\n\r]+', txt, ' ', ReplaceAll).trim();
+        return toShow ? txt : txt.toLower();
+    }
+
+    /* A string or a list of strings, as a list. */
+    asList(val)
+    {
+        if (val == nil)
+            return [];
+        return typeOf(val) == TypeList ? val : [val];
+    }
+;
+
+/* Take the start just before the first prompt, once the game has begun. */
+scenarioStart: InitObject
+    execute()
+    {
+        mainOutputStream.addOutputFilter(scenarioMemory);
+        new OneTimePromptDaemon(self, &takeStart);
+    }
+
+    takeStart()
+    {
+        /*
+         *   The start, once taken, is kept: restoring it comes back here,
+         *   before this daemon has gone, and it must not be taken again.
+         */
+        if (scenarioMemory.start == nil)
+        {
+            scenarioMemory.dice = randomize(nil);
+            scenarioMemory.start = snapshotGame(true);
+            scenarioRunner.testFromOutside();
+        }
+    }
+;
+
+scenarioRunner: object
+    /*
+     *   Play some scenarios and walkthroughs, sum up, and put the game back
+     *   as it was. Returns the number that failed or were not run.
+     */
+    playAll(lst)
+    {
+        local before = snapshotGame(true);
+        local beforeDice = randomize(nil);
+        scenarioMemory.reset();
+
+        foreach (local item in lst)
+            play(item);
+
+        local passed = 0, failed = 0, notRun = 0;
+        "<.p>==== Summary ====\n";
+        foreach (local item in lst)
+        {
+            local outcome = scenarioMemory.outcomes[item];
+            if (outcome == 'passed')
+                ++passed;
+            else if (outcome == 'not run')
+                ++notRun;
+            else
+                ++failed;
+            "<<outcome == 'passed' ? 'passed\ \ \ ' : outcome == 'not run'
+              ? 'not run\ \ ' : 'FAILED\ \ \ '>><<item.ofKind(Walkthrough)
+              ? 'walkthrough: ' : ''>><<scenarioMemory.nameOf(item)>>\n";
+        }
+        "<<passed>> passed, <<failed>> failed, <<notRun>> not run\n";
+
+        scenarioMemory.events = nil;
+        putBack(before, beforeDice);
+        return failed + notRun;
+    }
+
+    /* Play a scenario or a walkthrough, if it has not been. */
+    play(item)
+    {
+        if (scenarioMemory.outcomes[item] == nil)
+        {
+            if (item.ofKind(Walkthrough))
+                playWalkthrough(item);
+            else
+                playScenario(item);
+        }
+    }
+
+    /* Play a scenario, after those it starts after. */
+    playScenario(sc)
+    {
+        /* Where it starts. */
+        local from = scenarioMemory.start, dice = scenarioMemory.dice;
+        if (sc.after != nil)
+        {
+            play(sc.after);
+            if (scenarioMemory.outcomes[sc.after] != 'passed')
+            {
+                "<.p>==== Scenario: <<sc.scenarioName>>: not run, since
+                <q><<sc.after.scenarioName>></q> did not pass ====\n";
+                scenarioMemory.outcomes[sc] = 'not run';
+                return;
+            }
+            from = scenarioMemory.ends[sc.after][1];
+            dice = scenarioMemory.ends[sc.after][2];
+        }
+        putBack(from, dice);
+        scenarioMemory.beginStory(sc.after != nil ? scenarioMemory.ends[sc.after][3] : nil);
+
+        "<.p>==== Scenario: <<sc.scenarioName>> ====\n";
+        if (sc.purpose != '')
+            "<<sc.purpose>>\n";
+
+        /* The given conditions. */
+        foreach (local obj in sc.holding)
+            obj.moveInto(now.player);
+        if (sc.startAt != nil)
+            now.player.moveInto(sc.startAt);
+        sc.given();
+
+        scenarioMemory.ending = nil;
+        local failure = playSteps(sc, 0);
+        if (failure != nil)
+        {
+            scenarioMemory.outcomes[sc] = 'failed';
+            scenarioMemory.failures[sc] = failure;
+            scenarioMemory.stepsPlayed[sc] = failure[1];
+            return;
+        }
+        local n = sc.steps().length();
+        "<.p>[passed: <<n>> step<<n == 1 ? '' : 's'>>]\n";
+        scenarioMemory.outcomes[sc] = 'passed';
+        scenarioMemory.stepsPlayed[sc] = n;
+        scenarioMemory.ends[sc] = [snapshotGame(true), randomize(nil),
+            scenarioMemory.events.toList()];
+    }
+
+    /*
+     *   Play a walkthrough: its scenarios from the start of the game, each
+     *   where the last ended, without their given conditions.
+     */
+    playWalkthrough(w)
+    {
+        putBack(scenarioMemory.start, scenarioMemory.dice);
+        scenarioMemory.beginStory();
+        "<.p>==== Walkthrough: <<w.walkthroughName>> ====\n";
+        if (w.purpose != '')
+            "<<w.purpose>>\n";
+
+        local notes = [], prev = nil, played = 0;
+        scenarioMemory.ending = nil;
+        foreach (local sc in w.scenarios)
+        {
+            if (sc.after != prev)
+            {
+                local note = '<<sc.scenarioName>> starts after '
+                    + (sc.after == nil ? 'nothing (the start of the game)'
+                       : sc.after.scenarioName)
+                    + ', but follows ' + (prev == nil ? 'nothing' : prev.scenarioName)
+                    + ' here';
+                "<.p>[note: <<note>>]\n";
+                notes += note;
+            }
+            if (sc.holding.length() > 0 || sc.startAt != nil
+                || sc.hasProp(&given, PropDefDirectly))
+            {
+                local note = '<<sc.scenarioName>> has given conditions, which
+                    a walkthrough leaves out';
+                "<.p>[note: <<note>>]\n";
+                notes += note;
+            }
+
+            "<.p>---- <<sc.scenarioName>>\n";
+            local failure = playSteps(sc, played);
+            if (failure != nil)
+            {
+                failure[1] = '<<failure[1] - played>> of <q><<sc.scenarioName>></q>';
+                scenarioMemory.outcomes[w] = 'failed';
+                scenarioMemory.failures[w] = failure;
+                scenarioMemory.stepsPlayed[w] = played;
+                scenarioMemory.notes[w] = notes;
+                return;
+            }
+            played += sc.steps().length();
+            prev = sc;
+        }
+        "<.p>[passed: <<w.scenarios.length()>> scenarios, <<played>> steps]\n";
+        scenarioMemory.outcomes[w] = 'passed';
+        scenarioMemory.stepsPlayed[w] = played;
+        scenarioMemory.notes[w] = notes;
+    }
+
+    /*
+     *   Play a scenario's steps where the game is: nil, or, at the first
+     *   to fail, [its number (counted on from `before`), its command, why,
+     *   what failed, where that is written, what the game said].
+     */
+    playSteps(sc, before)
+    {
+        local n = before;
+        foreach (local step in sc.steps())
+        {
+            ++n;
+            scenarioMemory.failedAt = nil;
+            local failure;
+            if (scenarioMemory.ending != nil)
+                failure = 'the game had ended before it';
+            else if (step.ofKind(Await))
+                failure = await(step);
+            else
+                failure = playStep(step);
+
+            if (failure != nil)
+            {
+                local said = scenarioMemory.plain(scenarioMemory.said, true);
+                if (said.length() > 200)
+                    said = said.substr(1, 200) + '...';
+                "<.p>[FAILED at step <<n>><<step.ofKind(Step)
+                  ? ', <q>' + step.command + '</q>' : ''>>]\n";
+                if (step.why != '')
+                    "\ \ why: <<step.why>>\n";
+                "\ \ failed: <<failure>>\n";
+                "\ \ the game said: <<said>>\n";
+                if (scenarioMemory.failedAt != nil)
+                    "\ \ the check is at <<scenarioMemory.failedAt>>\n";
+                return [n, step.ofKind(Step) ? step.command : '', step.why,
+                    failure, scenarioMemory.failedAt ?? '', said];
+            }
+        }
+        return nil;
+    }
+
+    /* Play a step's command, and check it: nil, or what failed. */
+    playStep(step)
+    {
+        command(step.command);
+
+        local said = scenarioMemory.plain(scenarioMemory.said);
+        foreach (local txt in scenarioMemory.asList(step.mentions))
+        {
+            if (said.find(scenarioMemory.plain(txt)) == nil)
+                return 'it does not mention <q><<txt>></q>';
+        }
+        foreach (local txt in scenarioMemory.asList(step.avoids))
+        {
+            if (said.find(scenarioMemory.plain(txt)) != nil)
+                return 'it mentions <q><<txt>></q>';
+        }
+        local res = holds({: step.expect });
+        if (res != true)
+        {
+            scenarioMemory.failedAt = definitionPlace(step, &expect);
+            return res == nil ? 'expect is not true' : res;
+        }
+        foreach (local c in step.checks())
+        {
+            res = holds({: c.test });
+            if (res != true)
+            {
+                scenarioMemory.failedAt = definitionPlace(c, &test);
+                return res == nil ? 'check <q><<c.checkName>></q> is not true' : res;
+            }
+        }
+        return nil;
+    }
+
+    /* Wait until the step's condition holds, within its turns. */
+    await(step)
+    {
+        for (local turns = 0 ; ; ++turns)
+        {
+            local res = holds({: step.until });
+            if (res == true)
+            {
+                "<.p>[it came after <<turns>> turn<<turns == 1 ? '' : 's'>>]\n";
+                scenarioMemory.waited[step] = turns;
+                return nil;
+            }
+            scenarioMemory.failedAt = definitionPlace(step, &until);
+            if (res != nil)
+                return res;
+            if (turns >= step.within)
+                return 'it had not come after <<step.within>>
+                    turn<<step.within == 1 ? '' : 's'>>';
+            command('wait');
+        }
+    }
+
+    /* Whether a condition holds: true, nil, or what went wrong. */
+    holds(cond)
+    {
+        try
+        {
+            return cond() ? true : nil;
+        }
+        catch (Exception e)
+        {
+            local why = e.hasProp(&exceptionMessage)
+                ? e.exceptionMessage : nil;
+            return 'an error, checking it' + (why ? ': ' + why : '');
+        }
+    }
+
+    /* Play a command, as a player's, recording what it prints. */
+    command(txt)
+    {
+        "<.p>&gt;<<txt>>\n";
+        scenarioMemory.said = '';
+        scenarioMemory.recording = true;
+        scenarioMemory.playing = true;
+        try
+        {
+            local t = StringPreParser.runAll(txt, Parser.rmcType());
+            if (t != nil)
+                Parser.parse(t);
+        }
+        catch (ScenarioEnding se)
+        {
+            scenarioMemory.ending = se.ending;
+            storyEvent(se.ending);
+        }
+        catch (TerminateCommandException tce)
+        {
+        }
+        finally
+        {
+            scenarioMemory.recording = nil;
+            scenarioMemory.playing = nil;
+        }
+    }
+
+    /*
+     *   A walkthrough, as a commented walkthrough in Markdown: the game's
+     *   name and the walkthrough's, each scenario a section with what it is
+     *   for, and each command with why it is there.
+     */
+    printed(w)
+    {
+        local game = firstObj(GameID);
+        local txt = '# ' + (game != nil ? game.name + ': ' : '')
+            + w.walkthroughName + '\n';
+        if (w.purpose != '')
+            txt += '\n' + scenarioMemory.plain(w.purpose, true) + '\n';
+        foreach (local sc in w.scenarios)
+        {
+            txt += '\n## ' + sc.scenarioName.substr(1, 1).toUpper()
+                + sc.scenarioName.substr(2) + '\n';
+            if (sc.purpose != '')
+                txt += '\n' + scenarioMemory.plain(sc.purpose, true) + '\n';
+            txt += '\n';
+            foreach (local step in sc.steps())
+            {
+                local why = scenarioMemory.plain(step.why, true);
+                if (step.ofKind(Await))
+                {
+                    local turns = scenarioMemory.waited[step] ?? step.within;
+                    txt += '- **WAIT**' + (turns == 1 ? '' : ', <<turns>> times')
+                        + (why != '' ? ': ' + why : '') + '\n';
+                }
+                else
+                    txt += '- **' + step.command.toUpper() + '**'
+                        + (why != '' ? ': ' + why : '') + '\n';
+            }
+        }
+        return txt;
+    }
+
+    /*
+     *   Asked to by `hexicon test` (-hexicon-test=<file>): play the
+     *   scenarios, all or those named, and the walkthroughs asked for,
+     *   write what happened to the file, print the walkthroughs that
+     *   passed if asked to, and quit.
+     */
+    testFromOutside()
+    {
+        local file = nil, printTo = nil, names = [], walkthroughs = nil;
+        foreach (local arg in libGlobal.commandLineArgs)
+        {
+            if (arg.startsWith('-hexicon-test='))
+                file = arg.substr(15);
+            else if (arg.startsWith('-hexicon-print='))
+                printTo = arg.substr(16);
+            else if (arg.startsWith('-scenario='))
+                names += arg.substr(11);
+            else if (arg == '-walkthroughs')
+                walkthroughs = true;
+        }
+        if (file == nil)
+            return;
+
+        local lst = [], unknown = [];
+        if (names.length() == 0)
+            lst = scenarioMemory.all();
+        foreach (local n in names)
+        {
+            local found = scenarioMemory.find(n);
+            if (found == nil)
+                unknown += n;
+            else if (lst.indexOf(found) == nil)
+                lst += found;
+        }
+        if (walkthroughs)
+            lst += scenarioMemory.walkthroughs().subset({w: lst.indexOf(w) == nil});
+
+        playAll(lst);
+
+        local out = File.openTextFile(file, FileAccessWrite, 'utf-8');
+        local passed = 0, failed = 0, notRun = 0;
+        foreach (local item in lst)
+        {
+            local outcome = scenarioMemory.outcomes[item];
+            local name = scenarioMemory.nameOf(item);
+            if (outcome == 'passed')
+                ++passed;
+            else if (outcome == 'not run')
+                ++notRun;
+            else
+                ++failed;
+            out.writeFile(fields([item.ofKind(Walkthrough) ? 'walkthrough' : 'scenario',
+                name, outcome, toString(scenarioMemory.stepsPlayed[item] ?? 0),
+                item.ofKind(Scenario) && item.after != nil
+                ? item.after.scenarioName : '']));
+            foreach (local note in scenarioMemory.notes[item] ?? [])
+                out.writeFile(fields(['note', name, note]));
+            local f = scenarioMemory.failures[item];
+            if (f != nil)
+                out.writeFile(fields(['failure', name,
+                    toString(f[1]), f[2], f[3], f[4], f[5], f[6]]));
+        }
+        foreach (local n in unknown)
+        {
+            ++failed;
+            out.writeFile(fields(['scenario', n, 'failed', '0', '']));
+            out.writeFile(fields(['failure', n, '0', '', '',
+                'there is no scenario or walkthrough of that name', '', '']));
+        }
+        out.writeFile(fields(['done', toString(passed), toString(failed),
+            toString(notRun)]));
+        out.closeFile();
+
+        if (printTo != nil)
+        {
+            local doc = File.openTextFile(printTo, FileAccessWrite, 'utf-8');
+            foreach (local item in lst)
+            {
+                if (item.ofKind(Walkthrough)
+                    && scenarioMemory.outcomes[item] == 'passed')
+                    doc.writeFile(printed(item));
+            }
+            doc.closeFile();
+        }
+        throw new QuittingException;
+    }
+
+    /* A line of the results: fields, between tabs, with none in them. */
+    fields(lst)
+    {
+        return lst.mapAll({x: regexReplace('[\t\r\n]+',
+            scenarioMemory.plain(x, true), ' ', ReplaceAll)}).join('\t') + '\n';
+    }
+
+    /* Put the game back to a snapshot, with the random numbers then. */
+    putBack(bytes, dice)
+    {
+        restoreSnapshot(bytes);
+        randomize(dice);
+        PostRestoreObject.restoreCode = 3;
+        PostRestoreObject.classExec();
+        Again.clearForAgain();
+    }
+;
+
+action RunScenario: SystemAction
+    exec(cmd)
+    {
+        local item = scenarioMemory.find(cmd.dobj.name);
+        if (item == nil)
+            "There is no scenario or walkthrough called <q><<cmd.dobj.name>></q>. ";
+        else
+            scenarioRunner.playAll([item]);
+    }
+    afterAction() { }
+    turnSequence() { }
+    includeInUndo = nil
+    isRepeatable = nil
+;
+
+action RunScenarios: SystemAction
+    exec(cmd)
+    {
+        local lst = cmd.verbProd.walkthroughs_ != nil
+            ? scenarioMemory.walkthroughs() : scenarioMemory.all();
+        if (lst.length() == 0)
+            "There are none. ";
+        else
+            scenarioRunner.playAll(lst);
+    }
+    afterAction() { }
+    turnSequence() { }
+    includeInUndo = nil
+    isRepeatable = nil
+;
+
+verb RunScenario ('scenario' | 'walkthrough') literalDobj:
+    verbPhrase = 'play/playing scenario (what)'
+    missingQ = 'which scenario do you want to play'
+;
+
+verb RunScenarios ('scenarios' | 'walkthroughs' -> walkthroughs_):
+    verbPhrase = 'play/playing scenarios'
+;
+
+#endif // __DEBUG

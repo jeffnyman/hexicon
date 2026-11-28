@@ -8,7 +8,7 @@
 //! play (`-scenario=<name>` for each named, `-walkthroughs` for every
 //! walkthrough) and where to write what happened (`-hexicon-test=<file>`)
 //! and the walkthroughs that pass, printed (`-hexicon-print=<file>`). The
-//! scenario runner (Hexad's scenarios, as tried in the playground) does so
+//! scenario runner (Hexad's extension, extensions/scenarios) does so
 //! at the first prompt, a line for each scenario or walkthrough, its notes
 //! and its failure, and a last line, and quits:
 //!
@@ -50,12 +50,17 @@ struct Asked<'a> {
 pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
     let mut manifest: Option<&str> = None;
     let mut transcript: Option<&str> = None;
+    let mut library_dirs: Vec<&str> = Vec::new();
     let mut asked = Asked::default();
     let mut rest = args;
     while let Some((first, tail)) = rest.split_first() {
         match (*first, tail) {
             ("-f", [path, tail @ ..]) => {
                 manifest = Some(path);
+                rest = tail;
+            }
+            ("-Fs", [dir, tail @ ..]) => {
+                library_dirs.push(dir);
                 rest = tail;
             }
             ("--transcript", [path, tail @ ..]) => {
@@ -111,6 +116,10 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
         project_args.push("-f".to_owned());
         project_args.push(path.to_owned());
     }
+    for dir in &library_dirs {
+        project_args.push("-Fs".to_owned());
+        project_args.push((*dir).to_owned());
+    }
     let built =
         crate::build::build_project(&project_args, usage, None, Some(&image.to_string_lossy()));
     if built != ExitCode::SUCCESS {
@@ -139,8 +148,9 @@ pub(crate) fn run(args: &[&str], usage: &str) -> ExitCode {
 
     let Some((text, status)) = report(&lines, transcript.is_some()) else {
         eprintln!(
-            "hexicon test: the game did not play its scenarios: are Hexad's \
-             scenarios among its sources? What it printed ends:"
+            "hexicon test: the game did not play its scenarios: does its \
+             manifest include Hexad's extensions/scenarios? What it printed \
+             ends:"
         );
         let tail: Vec<&str> = said.lines().rev().take(12).collect();
         for line in tail.iter().rev() {

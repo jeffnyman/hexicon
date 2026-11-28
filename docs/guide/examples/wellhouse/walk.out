@@ -1,0 +1,70 @@
+The farm is empty, the farmer is out in the far fields, and the well house is
+on fire.  Only the cellar bell will bring him back.
+
+Garden
+An overgrown garden, with an apple tree in the middle of it.  The well house is
+to the north.
+
+In the nest you see an iron key.
+
+>x tree
+An old apple tree.  A bird’s nest sits in its lowest branches.  In the nest you
+see an iron key.
+
+>look in nest
+In the nest you see an iron key.
+
+>take key
+Taken.
+
+>unlock door with key
+You unlock the door with the iron key.
+
+(Your score has just increased by one point.)
+
+If you’d prefer not to be notified about score changes in the future, type
+NOTIFY OFF.
+
+>n
+(first opening the door)
+
+Well House
+Smoke curls along the rafters.  A trapdoor in the floor leads down to the
+cellar, and the door back out is to the south.
+
+You can see an oil lamp here.
+
+>take lamp
+Taken.
+
+>light lamp
+Done.
+
+>d
+(first opening the trapdoor)
+
+Cellar
+A low cellar, cut into the rock.  A bell rope hangs from a hole in the ceiling.
+A ladder leads up.
+
+>pull rope
+Far above, the bell clangs out over the fields.
+
+(Your score has just increased by one point.)
+
+>z
+Time passes.
+
+>z
+Time passes.
+
+Boots pound across the yard: the farmer has come at a run, and the buckets are
+already flying.
+
+*** YOU HAVE WON ***
+
+
+Would you like to RESTART the story, UNDO the last move, RESTORE a saved
+position, or QUIT?
+
+>

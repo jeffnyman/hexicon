@@ -1,0 +1,121 @@
+// The Well House: the example game of Testing a Story.
+
+import hexad;
+
+versionInfo: GameID
+    IFID = '0B36193B-0F9A-4789-98B2-C9E08F24D5A3'
+    name = 'The Well House'
+    byline = 'by the Hexicon guide'
+    version = '1'
+;
+
+gameMain: GameMainDef
+    initialPlayerChar = me
+    maxScore = 2
+
+    showIntro()
+    {
+        "The farm is empty, the farmer is out in the far fields, and the
+        well house is on fire. Only the cellar bell will bring him back.\b";
+    }
+;
+
+gotIn: Achievement +1 "getting into the well house";
+rangBell: Achievement +1 "ringing the cellar bell";
+
+garden: Room 'Garden'
+    "An overgrown garden, with an apple tree in the middle of it. The well
+    house is to the north. "
+
+    north = wellDoor
+;
+
++ me: Player 'you'
+;
+
++ appleTree: Fixture 'apple tree; old; tree branches'
+    "An old apple tree. A bird's nest sits in its lowest branches. "
+;
+
+++ nest: Container, Fixture 'nest; bird\'s; bird'
+    "A bird's nest of twigs and moss. "
+;
+
++++ ironKey: Key 'iron key; small'
+    "A small iron key. "
+;
+
++ wellDoor: Door 'door; well house'
+    "The well house door, swollen in its frame. "
+    otherSide = insideDoor
+    keyList = [ironKey]
+
+    makeLocked(stat)
+    {
+        inherited(stat);
+        if (!stat)
+            gotIn.awardPointsOnce();
+    }
+;
+
+wellHouse: Room 'Well House'
+    "Smoke curls along the rafters. A trapdoor in the floor leads down to
+    the cellar, and the door back out is to the south. "
+
+    south = insideDoor
+    down = trapdoor
+;
+
++ insideDoor: Door 'door'
+    "The door to the garden. "
+    otherSide = wellDoor
+;
+
++ trapdoor: Door 'trapdoor; trap; door'
+    "A trapdoor in the floor. "
+    otherSide = trapdoorBelow
+;
+
++ lamp: Thing 'oil lamp; old; lamp'
+    "An old oil lamp. "
+    isLightable = true
+;
+
+cellar: Room 'Cellar'
+    "A low cellar, cut into the rock. A bell rope hangs from a hole in the
+    ceiling. A ladder leads up. "
+
+    up = trapdoorBelow
+    isLit = nil
+;
+
++ trapdoorBelow: Door 'trapdoor; trap; door'
+    "The underside of the trapdoor. "
+    otherSide = trapdoor
+;
+
++ bellRope: Fixture 'bell rope; rope'
+    "A rope, frayed where hands have pulled it. "
+
+    dobj Pull
+    {
+        verify() { }
+        action()
+        {
+            "Far above, the bell clangs out over the fields. ";
+            rangBell.awardPointsOnce();
+            // A moment the scenarios can ask about.
+            storyEvent('the bell rings');
+            new Fuse(farmer, &arrive, 2);
+        }
+    }
+;
+
+farmer: object
+    arrive()
+    {
+        "Boots pound across the yard: the farmer has come at a run, and the
+        buckets are already flying. ";
+        finishGameMsg(ftVictory, [finishOptionUndo]);
+    }
+;

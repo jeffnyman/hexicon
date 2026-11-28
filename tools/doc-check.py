@@ -16,6 +16,11 @@ marked `transcript` part of an example's transcript.
 An example with a walk.doc is played a second time with --rich, as on a
 rich display, and the document its markup makes, checked, has to be
 walk.doc; a block marked `document` has to be part of one.
+
+An example with scenarios (a source that defines one, `name: Scenario`)
+has them and its walkthroughs played by `hexicon test`, and they have to
+pass; a block marked `report` has to be part of what that reports, and
+one marked `walkthrough` part of a walkthrough it prints (--print).
 So the guide shows only code that builds and output that a game gives.
 
 Exit status: 0 if all is as it should be, 1 otherwise.
@@ -44,6 +49,54 @@ def image_of(folder):
     manifest = text(os.path.join(folder, "hexicon.toml"))
     found = re.search(r'^image\s*=\s*"([^"]+)"', manifest, re.MULTILINE)
     return found.group(1) if found else None
+
+
+# What the examples' scenarios reported, and their walkthroughs, printed.
+REPORTS, PRINTED = [], []
+
+
+def has_scenarios(folder):
+    """Whether an example defines scenarios, for `hexicon test` to play."""
+    pattern = re.compile(r"^\s*\w+\s*:\s*Scenario\b", re.MULTILINE)
+    return any(
+        pattern.search(text(os.path.join(folder, file)))
+        for file in os.listdir(folder)
+        if file.endswith(".hxn")
+    )
+
+
+def check_scenarios(name, work, hexicon, problems):
+    """Play an example's scenarios and walkthroughs, which have to pass,
+    and print its walkthroughs."""
+    lib = os.path.join(ROOT, "lib")
+
+    def test(*args):
+        done = subprocess.run(
+            [hexicon, "test", "-Fs", lib, *args],
+            cwd=work,
+            capture_output=True,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+        out = done.stdout.decode("utf-8", "replace").replace("\r\n", "\n")
+        err = done.stderr.decode("utf-8", "replace").replace("\r\n", "\n")
+        return done.returncode, out, err
+
+    status, report, err = test("--walkthroughs")
+    if status != 0:
+        problems.append(f"{name}: its scenarios did not all pass:\n{report}{err}")
+        return
+    REPORTS.append(report)
+    walkthroughs = re.findall(
+        r"^passed   walkthrough: (.+) \(\d+ steps?\)$", report, re.MULTILINE
+    )
+    for walkthrough in walkthroughs:
+        status, printed, err = test("--print", walkthrough)
+        if status != 0:
+            problems.append(f"{name}: {walkthrough} did not print:\n{err}")
+            return
+        PRINTED.append(printed)
+    print(f"SAME {name}/scenarios ({report.count('passed   ')} passed)")
 
 
 def check_example(name, hexicon, accept, problems):
@@ -87,6 +140,9 @@ def check_example(name, hexicon, accept, problems):
         problems.append(f"{name}: the transcript is not walk.out; see {work}")
         return
     print(f"SAME {name} ({transcript.count(chr(10))} lines)")
+
+    if has_scenarios(work):
+        check_scenarios(name, work, hexicon, problems)
 
     # On a rich display, where the example has a document recorded.
     recorded = os.path.join(source, "walk.doc")
@@ -148,6 +204,8 @@ def check_pages(problems):
                 "css": sources,
                 "transcript": transcripts,
                 "document": documents,
+                "report": REPORTS,
+                "walkthrough": PRINTED,
             }.get(kind)
             if where is not None:
                 blocks += 1

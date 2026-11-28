@@ -143,7 +143,7 @@ In source files of their own, listed in the manifest as tests, which a build for
 2. **`hexicon test`**: the runner, the report, the exit status, snapshots for `after`, and source lines for failures. game-check could then play a game's scenarios as well as its transcripts. Done, 2026-11-28 (below).
 3. **Walkthroughs**, and printing them. Done, 2026-11-28 (below).
 4. **The order of events**: `storyEvent`, `happened`, and `happenedBefore`. (`Await` came sooner, in the trial.) Done, 2026-11-28 (below).
-5. **Into Hexad**, from the playground, with a page in the guide, if the trial says so.
+5. **Into Hexad**, from the playground, with a page in the guide, if the trial says so. Done, 2026-11-28 (below).
 
 ## The trial (2026-11-28)
 
@@ -223,10 +223,19 @@ While scenarios play, the story so far is kept: each moment, in order, with its 
 - **The Tide Mill's,** five checks more: knocking is when Ada says where the key is, and that comes before the key's point; the way in is the yard before the kitchen; the flour's fuse fires after the stones start, and once; the dark pit is reached by the yard and the stone floor; and at the end, the seven points came in the order of the story, then the ending, each once. Broken two ways, and put back: without its mark, "into the cottage" failed at the knock, though the game's words were the same, and with the fuse firing twice, "grinding the flour" failed at the turn after it.
 - **Found on the way:** a report showed Hexad's quotations without their marks (`<q>`); what the game said is now shown with them.
 
+## Step 5: into Hexad (2026-11-28)
+
+- **`lib/hexad/extensions/scenarios.hxn`**, which a game names with Hexad in its manifest (`include = ["extensions/scenarios"]`); its templates are in `hexad.h`, as the relations extension's are. The names are as tried, the user agreed (2026-11-28).
+- **The Tide Mill** names it, where it had the trial's files of its own, and plays as before: 13 passed.
+- **`hexicon test`** takes `-Fs`, as `build` does, and says, of a game that did not play its scenarios, that its manifest may not include the extension.
+- **The guide's page, [Testing a Story](guide/testing.md)**, with *The Well House*, an example game of a garden, a locked well house, and a bell in a dark cellar that brings the farmer: four scenarios and a walkthrough. doc-check plays an example's scenarios, which have to pass, and checks a block marked `report` against what `hexicon test` reports and one marked `walkthrough` against a walkthrough it prints. Its first scenario, as first written, expected LOOK IN NEST to take the key, and failed, which the page shows.
+
+- **A name every game has:** templates in `hexad.h` give their property names to every game, with scenarios or without, and a name is one thing in a program, so the `Check` template's `label` failed a game with an object of that name (Hexad Fixes' paper label, found by game-check). It is `checkName`, a name no game would give an object.
+
 ## Questions for the user
 
-- **Is this worth it**, now the trial has run (above)? Recommended: yes, on to step 2, the runner.
-- **The names:** `Scenario`, `Step`, `Await` (`Wait` is Hexad's action), `Check`, `Walkthrough`, `after`, `given`, `expect`, `mentions`, `avoids`; `storyEvent`, `happened`, `happenedTimes` (`timesHappened` is a property of Hexad's `Scene`), `happenedBefore`; and the command, `hexicon test`.
+- ~~**Is this worth it?**~~ Yes (the user, 2026-11-28): it was built.
+- ~~**The names**~~ (kept as they are, the user, 2026-11-28): `Scenario`, `Step`, `Await` (`Wait` is Hexad's action), `Check`, `Walkthrough`, `after`, `given`, `expect`, `mentions`, `avoids`; `storyEvent`, `happened`, `happenedTimes` (`timesHappened` is a property of Hexad's `Scene`), `happenedBefore`; and the command, `hexicon test`.
 - **Hexad's `Test` and its assertion commands:** kept as they are, as the quick tool for replaying commands while writing; or, once scenarios are in, retired, with the assertions folded into scenarios.
 - **Test files in the manifest** (`tests = [...]`), or `#ifdef __DEBUG` for now.
 - **A printed walkthrough** (made in step 3, above): how much it should look like one written for players, and whether a scenario may say something to players apart from why it is there for the author.

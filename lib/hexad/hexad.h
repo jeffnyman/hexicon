@@ -874,6 +874,13 @@ RemapCmd template 'cmd' @where? 'remappedCmd'?;
 Test template 'testName' [testList] @location? [testHolding]?;
 Test template 'testName' [testList] [testHolding]? @location?;
 
+/* templates for the scenarios extension: tests of a story, played */
+Scenario template 'scenarioName' 'purpose'?;
+Step template 'command' 'why'?;
+Await template 'why'?;
+Check template 'checkName';
+Walkthrough template 'walkthroughName' 'purpose'? [scenarios];
+
 /* Define some convenient abbreviations for ConvNode related objects */
 #define NEC NodeEndCheck
 #define NCT NodeContinuationTopic
