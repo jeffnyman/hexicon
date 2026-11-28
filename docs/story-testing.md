@@ -1,6 +1,6 @@
 # Story Testing (a design note)
 
-Proposed, 2026-11-28. Nothing here is decided: what follows is recommended, and the questions at the end are the user's.
+Proposed, 2026-11-28, and tried on The Tide Mill (below). Nothing here is decided: what follows is recommended, and the questions at the end are the user's.
 
 ## The problem
 
@@ -72,7 +72,7 @@ ghostScenario: Scenario 'the ghost appears'
         musicBox.hasPlayed = true;
     }
 ;
-+ Wait 'The ghost is on a fuse the music box sets.'
++ Await 'The ghost is on a fuse the music box sets.'
     until = (ghost.isIn(nursery))
     within = 3
 ;
@@ -90,7 +90,7 @@ Walkthrough 'the whole game'
 - **`Step`**: the command, as a player types it (several, with periods, as the parser takes them), and why.
   - `expect`: an expression that must be true after the command. A step can have several checks with names of their own, objects inside it (`++ Check 'the lamp lights it' test = (cellar.isIlluminated)`), when one is not enough to say what failed.
   - `mentions`: text the command's output must contain; `avoids`: text it must not. Both ignore case, markup, and line breaks, so restyling or rewrapping does not fail them.
-- **`Wait`**: a step for what happens on its own: it waits a turn at a time until `until` is true, and fails if `within` turns pass first. Fuses, daemons, and characters' agendas are tested this way.
+- **`Await`** (`Wait` in the first draft, but that is Hexad's action): a step for what happens on its own: it waits a turn at a time until `until` is true, and fails if `within` turns pass first. Fuses, daemons, and characters' agendas are tested this way.
 - **`Walkthrough`**: scenarios in order, played from the start of the game, each where the last ended. Their given conditions are left out, since a walkthrough proves the real path; a scenario whose `after` is not the one before it in the walkthrough is reported.
 
 ### The order of events
@@ -142,14 +142,36 @@ In source files of their own, listed in the manifest as tests, which a build for
 1. **A trial, in the playground.** The parts above (`Scenario`, `Step`, `expect`, `mentions`, `given`, `after`, the in-game `scenario` command) as a Hexad extension, used on one game there, with a few scenarios written for it, including one that is made to fail. The question it answers: does a game's suite read well and catch what breaks?
 2. **`hexicon test`**: the runner, the report, the exit status, snapshots for `after`, and source lines for failures. game-check could then play a game's scenarios as well as its transcripts.
 3. **Walkthroughs**, and printing them.
-4. **The order of events**: `storyEvent`, `happened`, `happenedBefore`, and `Wait`.
+4. **The order of events**: `storyEvent`, `happened`, and `happenedBefore`. (`Await` came sooner, in the trial.)
 5. **Into Hexad**, from the playground, with a page in the guide, if the trial says so.
+
+## The trial (2026-11-28)
+
+Step 1, on The Tide Mill, in the playground (`game-tests/tidemill`): `scenarios.hxn`, the parts (about 400 lines), `scenarios.h`, their templates, and `tests.hxn`, the game's scenarios (190 lines), all in debug builds only.
+
+- **What was tried:** `Scenario` with `after`, `holding`, `startAt`, and `given()`; `Step` with `expect`, `mentions`, `avoids`, and `Check`s inside it; `Await`, with `until` and `within`; an ending caught and checked (`scenarioMemory.ending == ftVictory`); and `SCENARIO <name>` and `SCENARIOS`, which report in the transcript and sum up, and put the game back as it was. Each scenario starts from a snapshot of the start, taken before the first prompt, or of the end of its `after`, with the random numbers as they were then.
+- **The suite:** twelve scenarios, of 31 steps and checks. Seven are the way through, each starting where the last ends, to the ending, won, with every point. Five test the puzzles' rules alone, from given conditions: the wheel pit without a light, the stones with no grain, the lever with the wheel still, the rusted windlass, and the flour coming three turns after the stones start, and not sooner.
+- **What it caught,** with Tidemill changed three ways and changed back, against game-check's transcript of the walkthrough:
+
+  | Change | Scenarios | The transcript |
+  |---|---|---|
+  | The yard's description reworded | all pass | 30 lines differ |
+  | The flour after two turns, not three | "the flour, in time" fails at "z. z": *Two turns on, it has not come yet* | 4 lines differ |
+  | The hopper never set full | "filling the hopper" fails at "put sack in hopper"; the three after it are not run | 26 lines differ |
+
+  The last is the case the proposal is for: the game still said the grain went hissing into the hopper, so its words said the puzzle worked while its state said otherwise. The scenario named the step and why it is there; the transcript showed that the text had changed further on.
+- **Found in the game:** the debug build warned that Ada's vocabulary had a pronoun among her nouns (`'Ada; old; aunt woman her'`, one semicolon short), now put right; the walkthrough's transcripts are unchanged.
+- **Learned:**
+  - `Wait` and `WaitFor` are Hexad's actions, so the timed step is `Await` in the trial.
+  - Hexad's typography makes `--` a dash and folds spaces together, so a report written into the transcript uses `====` and quoted spaces.
+  - A step may be several commands (`'n. n. d'`), checked after the last: what the game said, in a failure, is all of them.
+  - The start has to be taken once the game is running, at the first prompt, and kept when restoring it comes back to the code that took it.
+- **Not in the trial:** `hexicon test` and its report and exit status, the source line of a failed check, walkthroughs and printing them, and the record of the story's events. A failure's report names the step, its reason, and what failed (`expect`, or a `Check`'s label).
 
 ## Questions for the user
 
-- **Is this worth it**, after the trial? The trial is small enough to answer that before most of the cost.
-- **The names:** `Scenario`, `Step`, `Wait`, `Walkthrough`, `given`, `expect`, `mentions`, `avoids`; and the command, `hexicon test`.
+- **Is this worth it**, now the trial has run (above)? Recommended: yes, on to step 2, the runner.
+- **The names:** `Scenario`, `Step`, `Await` (`Wait` is Hexad's action), `Check`, `Walkthrough`, `after`, `given`, `expect`, `mentions`, `avoids`; and the command, `hexicon test`.
 - **Hexad's `Test` and its assertion commands:** kept as they are, as the quick tool for replaying commands while writing; or, once scenarios are in, retired, with the assertions folded into scenarios.
 - **Test files in the manifest** (`tests = [...]`), or `#ifdef __DEBUG` for now.
 - **A printed walkthrough**: wanted, and how much it should look like one written for players.
-- **Which game to try it on.** A playground game with a few paths and a timed event would show the most: Tidemill, or The Golden Skull.
