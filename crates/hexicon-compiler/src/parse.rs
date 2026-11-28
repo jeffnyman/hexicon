@@ -7161,7 +7161,8 @@ impl Parser<'_, '_> {
     /// phrase of the production `name` can be made up, and defines the
     /// class of the object made when the phrase is matched.
     /// `grammar name;` only declares the production.
-    fn parse_grammar(&mut self, redef: Redef) -> Parsed<()> {
+    fn parse_grammar(&mut self, mut redef: Redef) -> Parsed<()> {
+        let place = self.tok.cur_token().clone();
         let mut prod_name = b"?".to_vec();
         let mut prod = None;
         if self.next() == Tok::Sym {
@@ -7190,6 +7191,15 @@ impl Parser<'_, '_> {
                 );
             }
             is_named = true;
+            // A verb rule written as the grammar it stands for, as adv3Lite's
+            // VerbRule macro writes it, takes the place of the library's as
+            // one written with `verb` does.
+            if redef == Redef::No
+                && prod_name == b"predicate"
+                && self.replaces_library(&place, &sub_tag, &name_tag, "verb rule")
+            {
+                redef = Redef::Replace;
+            }
             let mut is_class = true;
             match self.find_or_def_obj(&name_tag, &mut is_class, redef, true) {
                 FoundObj::Obj(sym, found_modify) => {

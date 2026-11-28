@@ -2752,6 +2752,64 @@ verb Buy ('buy' | 'purchase') singleDobj:
     missingQ = 'what do you want to buy'
 ;
 
+verb BuyVague for Buy 'pay' 'for' singleDobj:
+    verbPhrase = 'buy/buying (what)'
+    missingQ = 'what do you want to buy'
+;
+
+verb Pay 'pay' singleDobj:
+    verbPhrase = 'pay/paying (whom)'
+    missingQ = 'whom do you want to pay'
+;
+
+verb PayFor 'pay' singleDobj 'for' singleIobj:
+    verbPhrase = 'pay/paying (whom) (for what)'
+    missingQ = 'whom do you want to pay;what do you want to pay for'
+;
+
+verb BuyFrom for PayFor ('buy' | 'purchase') singleIobj 'from' singleDobj:
+    verbPhrase = 'pay/paying (whom) (for what)'
+    missingQ = 'whom do you want to pay;what do you want to buy'
+    dobjReply = fromSingleNoun
+;
+
+verb Scratch 'scratch' singleDobj:
+    verbPhrase = 'scratch/scratching (what)'
+    missingQ = 'what do you want to scratch'
+;
+
+verb Test ('test' | 'probe') singleDobj:
+    verbPhrase = 'test/testing (what)'
+    missingQ = 'what do you want to test'
+;
+
+verb TestWith ('test' | 'probe') singleDobj 'with' singleIobj:
+    verbPhrase = 'test/testing (what) (with what)'
+    missingQ = 'what do you want to test;what do you want to test it with'
+    iobjReply = withSingleNoun
+;
+
+verb HangOn 'hang' ('up' | ) multiDobj ('on' | 'onto' | 'from' | 'upon') singleIobj:
+    verbPhrase = 'hang/hanging (what) (on what)'
+    missingQ = 'what do you want to hang;what do you want to hang it on'
+    iobjReply = onSingleNoun
+;
+
+verb HangOnWhat for HangOn 'hang' ('up' | ) multiDobj:
+    verbPhrase = 'hang/hanging (what) (on what)'
+    missingQ = 'what do you want to hang;what do you want to hang it on'
+    iobjReply = onSingleNoun
+    missingRole = IndirectObject
+;
+
+verb Hold
+    ('hold' | 'grip' | 'clutch') ('on' 'to' | 'onto' | 'on' | ) singleDobj
+    | ('take' | 'catch' | 'grab') 'hold' 'of' singleDobj
+    | 'grab' ('on' 'to' | 'onto') singleDobj:
+    verbPhrase = 'hold/holding (what)'
+    missingQ = 'what do you want to hold'
+;
+
 verb Consult 'consult' singleDobj:
     verbPhrase = 'consult/consulting (what)'
     missingQ = 'what do you want to consult'
@@ -2777,6 +2835,31 @@ verb Grab for Take ('grab' | 'snatch') multiDobj:
 verb Slide for Push ('slide' | 'roll') multiDobj:
     verbPhrase = 'push/pushing (what)'
     missingQ = 'what do you want to push'
+;
+
+verb PushDownOn for Push ('push' | 'press') ('down' ('on' | 'upon') | 'on' | 'upon') multiDobj:
+    verbPhrase = 'push/pushing (what)'
+    missingQ = 'what do you want to push'
+;
+
+verb ThrowInto for ThrowAt ('throw' | 'toss') multiDobj ('in' | 'into' | 'in' 'to') singleIobj:
+    verbPhrase = 'throw/throwing (what) (at what)'
+    missingQ = 'what do you want to throw;what do you want to throw it at'
+    iobjReply = inSingleNoun
+;
+
+verb ClimbThrough for GoThrough ('climb' | 'crawl') ('through' | 'thru') singleDobj:
+    verbPhrase = 'go/going (through what)'
+    missingQ = 'what do you want to go through'
+    dobjReply = throughSingleNoun
+;
+
+verb SlideTravelThrough for PushTravelThrough
+    ('slide' | 'roll') singleDobj ('through' | 'thru') singleIobj:
+    verbPhrase = 'push/pushing (what) (through what)'
+    missingQ = 'what do you want to push;what do you want to push it through'
+    dobjReply = singleNoun
+    iobjReply = throughSingleNoun
 ;
 
 verb SlideTravelDir for PushTravelDir ('slide' | 'roll') singleDobj singleDir:
@@ -2855,11 +2938,8 @@ verb ClimbUp ('climb' | 'go' | 'walk') 'up' singleDobj:
     dobjReply = singleNoun
 ;
 
-verb ClimbUpWhat for ClimbUp 'climb' 'up':
-    verbPhrase = 'climb/climbing (up what)'
-    missingQ = 'what do you want to climb up'
-    dobjReply = singleNoun
-    missingRole = DirectObject
+verb ClimbUpVague 'climb' 'up':
+    verbPhrase = 'climb/climbing up'
 ;
 
 verb ClimbDown ('climb' | 'go' | 'walk') 'down' singleDobj:
@@ -2868,7 +2948,11 @@ verb ClimbDown ('climb' | 'go' | 'walk') 'down' singleDobj:
     dobjReply = singleNoun
 ;
 
-verb ClimbDownWhat for ClimbDown ('climb' | 'go' | 'walk') 'down':
+verb ClimbDownVague 'climb' 'down':
+    verbPhrase = 'climb/climbing down'
+;
+
+verb ClimbDownWhat for ClimbDown ('go' | 'walk') 'down':
     verbPhrase = 'climb/climbing (down what)'
     missingQ = 'what do you want to climb down'
     dobjReply = singleNoun

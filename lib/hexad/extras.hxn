@@ -304,6 +304,38 @@ class Wearable: Thing
     isWearable = true
 ;
 
+/*
+ *   A Wearable worn from the start by whoever it is in, and left out of
+ *   commands to ALL while it is worn, since it is as good as part of them:
+ *   a character's clothes.
+ */
+class InitiallyWorn: Wearable
+    hideFromAll(action) { return wornBy != nil || inherited(action); }
+;
+
+/*
+ *   An InitiallyWorn that cannot be taken off: the player's own clothes,
+ *   which the game has no reason to let them remove.
+ */
+class AlwaysWorn: InitiallyWorn
+    isDoffable = nil
+    cannotDoffMsg = msgText(cannot doff always worn, '{I} {have} no reason to
+        take off {the dobj}. ')
+;
+
+/* Put each InitiallyWorn on whoever it is in. */
+initiallyWornPreinit: PreinitObject
+    execBeforeMe = [libObjectInitializer]
+    execute()
+    {
+        forEachInstance(InitiallyWorn, new function(o) {
+            if(o.wornBy == nil && o.location != nil
+               && o.location.ofKind(Actor))
+                o.wornBy = o.location;
+        });
+    }
+;
+
 /*  A Food is a Thing that can be eaten */
 class Food: Thing
     isEdible = true

@@ -201,6 +201,8 @@ A `Food` can be eaten, and a `Wearable` worn:
 
 They are `Thing`s with `isEdible` or `isWearable` set, which any thing can be given. The player need not pick them up first: Hexad does that for them.
 
+Clothes a character wears from the start are `InitiallyWorn`: put in the character, they are worn when the game begins, and are left out of TAKE ALL and DROP ALL while they are. `AlwaysWorn` is the same, and cannot be taken off: the player's own clothes, which the game has no reason to let them remove.
+
 ```transcript
 >eat apple
 (first taking the apple)

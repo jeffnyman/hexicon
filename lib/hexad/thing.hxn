@@ -6854,7 +6854,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
   
-    cannotDoffMsg = (cannotWearMsg)
+    cannotDoffMsg = msgText(cannot doff, '{The subj dobj} {can\'t} be taken off. ')
     
     notWornMsg = msgText(not worn, '{I}{\'m} not wearing {the dobj}. ')
     
@@ -9108,6 +9108,115 @@ class Thing:  ReplaceRedirector, Mentionable
     }
 
     cannotBuyMsg = msgText(cannot buy, '{The subj dobj} {is}n\'t for sale. ')
+
+    /* PAY: nobody needs paying, unless the game says so. */
+    dobj Pay
+    {
+        verify() { illogical(cannotPayMsg); }
+    }
+
+    cannotPayMsg = msgText(cannot pay, 'There{dummy}{\'s} no need to pay {the
+        dobj}. ')
+
+    /*
+     *   PAY ... FOR, and BUY ... FROM: the dobj is who is paid, the iobj
+     *   what is bought. What is for sale is the game's to say, on both.
+     */
+    dobj PayFor
+    {
+        verify() { illogical(cannotPayMsg); }
+    }
+
+    iobj PayFor
+    {
+        verify() { illogical(cannotBuyThatMsg); }
+    }
+
+    cannotBuyThatMsg = msgText(cannot buy that, '{The subj iobj} {is}n\'t for
+        sale. ')
+
+    /* SCRATCH makes sense for anything, and does nothing by itself. */
+    dobj Scratch
+    {
+        preCond = [touchObj]
+        verify() { logicalRank(80); }
+        report() { say(scratchMsg); }
+    }
+
+    scratchMsg = msgText(scratch, '{I} scratch{es/ed} {the dobj}, but nothing
+        happens. ')
+
+    /*
+     *   TEST, or PROBE: a game says what can be tested; TEST ... WITH, what
+     *   can test, on the thing tested with.
+     */
+    dobj Test
+    {
+        preCond = [touchObj]
+        verify() { illogical(cannotTestMsg); }
+    }
+
+    cannotTestMsg = msgText(cannot test, '{I} {have} no way to test {the
+        dobj}. ')
+
+    dobj TestWith
+    {
+        preCond = [touchObj]
+        verify() { }
+    }
+
+    iobj TestWith
+    {
+        preCond = [objHeld]
+        verify() { illogical(cannotTestWithMsg); }
+    }
+
+    cannotTestWithMsg = msgText(cannot test with, '{I} {can\'t} test anything
+        with {the iobj}. ')
+
+    /*
+     *   HANG ... ON: on a thing with canHangOnMe, such as a hook or a peg,
+     *   it is PUT ... ON; anything else has nothing to hang things on.
+     */
+    canHangOnMe = nil
+
+    dobj HangOn
+    {
+        preCond = [objHeld]
+        verify() { }
+        action() { replaceAction(PutOn, self, now.iobj); }
+    }
+
+    iobj HangOn
+    {
+        verify()
+        {
+            if(!canHangOnMe)
+                illogical(cannotHangOnMsg);
+        }
+    }
+
+    cannotHangOnMsg = msgText(cannot hang on, 'There{dummy}{\'s} no way to
+        hang anything on {the iobj}. ')
+
+    /*
+     *   HOLD, HOLD ON TO, GRIP: a thing that can be taken is taken; anything
+     *   else cannot be held, unless the game says what holding it does.
+     */
+    dobj Hold
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            if(isTakeable)
+                verifyDobjTake();
+            else
+                illogical(cannotHoldMsg);
+        }
+        action() { replaceAction(Take, self); }
+    }
+
+    cannotHoldMsg = msgText(cannot hold, '{I} {can\'t} hold {the dobj}. ')
 
     /*
      *   CONSULT on its own asks what about, always: there is no topic it

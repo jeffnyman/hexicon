@@ -59,6 +59,26 @@ spellingCorrector: object
      *   benefit of the revised context information for correcting each
      *   additional word.  
      */
+    /*
+     *   Is typed a slip for word: the same length and first letter, with
+     *   one letter wrong or two neighbors swapped?
+     */
+    slipOfTyping(typed, word)
+    {
+        local a = typed.toLower(), b = word.toLower();
+        if (a.length() != b.length() || a.substr(1, 1) != b.substr(1, 1))
+            return nil;
+        local diffs = [];
+        for (local i = 2; i <= a.length(); i++)
+            if (a.substr(i, 1) != b.substr(i, 1))
+                diffs += i;
+        if (diffs.length() == 1)
+            return true;
+        return diffs.length() == 2 && diffs[2] == diffs[1] + 1
+            && a.substr(diffs[1], 1) == b.substr(diffs[2], 1)
+            && a.substr(diffs[2], 1) == b.substr(diffs[1], 1);
+    }
+
     correct(toks, idx, err)
     {
         /*
@@ -102,15 +122,16 @@ spellingCorrector: object
             if (w[1].length() < 2)
                 continue;
 
-            /* 
+            /*
              *   A command's first word is its verb. A word there that the
              *   game does not know is more often a verb it lacks than one
-             *   misspelled, and the first letter is the one least often
-             *   mistyped, so a correction there keeps it: WIND does not
-             *   become FIND, nor HOOK LOOK.
+             *   misspelled, so it is corrected only for the slips of typing
+             *   that cannot be another word: two letters swapped, or one
+             *   wrong, but never the first, which is the one least often
+             *   mistyped. TKAE is TAKE, and EXMAINE EXAMINE; but WIND does
+             *   not become FIND, nor PAY PLAY, nor SCRATCH SNATCH.
              */
-            if (firstOfCommand
-                && w[1].substr(1, 1).toLower() != aw.substr(1, 1).toLower())
+            if (firstOfCommand && !slipOfTyping(aw, w[1]))
                 continue;
 
             /*

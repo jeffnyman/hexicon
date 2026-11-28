@@ -160,6 +160,8 @@ CLANG.  Not the note the bell was cast for.
 
 A `check()` that refuses until the hammer is held would make the player pick it up by hand; the condition does it for them, and says so.
 
+Hexad has more conditions of this kind. `objClosed`, `objUnlocked`, `objSwitchedOn`, and `objSwitchedOff` close, unlock, or switch the thing first, as `objHeld` takes it; `objNotWorn` takes it off. `handsEmpty` asks the player to put everything down, since where to put things is theirs to choose; a game can let some things stay in hand by giving it a `mustPutDown(obj)` of its own. And for layers of clothing, a `NotWearing` names, in its `objList`, things that must come off first: an object of the class, `coatOff: NotWearing objList = [coat];`, goes in a handler's `preCond` like any other condition.
+
 ### Using what Hexad already does
 
 Many actions come with properties that set up their usual cases, so that a handler is not needed at all. CLEAN uses `needsCleaning`, `mustBeCleanedWith`, and `isClean`, and calls `makeCleaned()` to do the cleaning:

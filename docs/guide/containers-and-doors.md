@@ -35,6 +35,8 @@ How a thing holds others depends on its class:
 
 A `Booth` or `Platform` that is somewhere to hide, a wardrobe or a locker, says `isHidingPlace = true`: HIDE on its own then gets in it, as HIDE IN THE WARDROBE does anywhere.
 
+A surface for hanging things on, such as a hook or a peg, says `canHangOnMe = true`, and HANG COAT ON HOOK is then PUT COAT ON HOOK; HANG COAT on its own asks on what. Anything else has nothing to hang things on.
+
 A room's exit can lead into one: with `in = wardrobe`, IN is GET IN THE WARDROBE. A connector's `destination` can be one too, in another room, and the traveler arrives in it.
 
 Each of these can be taken, like any `Thing`. One that cannot is given `Fixture` as well, as its second class:
@@ -225,6 +227,8 @@ A door is opened and closed, and locked with a `keyList` or a `lockability` of i
 Hall
 A cold hall, with a brass hook on the wall.  The study is to the south.
 ```
+
+A door also answers to the name of the room it leads to: THE DOOR TO THE HALL, or the HALL DOOR, which tells it from another in the same room. A door that should not give away where it leads says `namedByDestination = nil`.
 
 ## Things attached to things
 

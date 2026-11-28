@@ -2225,6 +2225,55 @@ action Play(dobj): TAction
 action Buy(dobj): TAction
 ;
 
+action Pay(dobj): TAction
+;
+
+/* PAY CLERK FOR BOOK, or BUY BOOK FROM CLERK: the dobj is who is paid. */
+action PayFor(dobj, iobj): TIAction
+;
+
+action Scratch(dobj): TAction
+;
+
+action Test(dobj): TAction
+;
+
+action TestWith(dobj, iobj): TIAction
+;
+
+action HangOn(dobj, iobj): TIAction
+    resolveIobjFirst = nil
+;
+
+/* HOLD: TAKE for a thing that can be taken. */
+action Hold(dobj): TAction
+;
+
+/*
+ *   CLIMB UP or CLIMB DOWN on its own: the way up or down, if there is one
+ *   here, or else what to climb.
+ */
+action ClimbUpVague: IAction
+    execAction(cmd) { climbOrGo(upDir, ClimbUp); }
+;
+
+action ClimbDownVague: IAction
+    execAction(cmd) { climbOrGo(downDir, ClimbDown); }
+;
+
+/*
+ *   Go the way dir if the actor's room has an exit that way, or else ask
+ *   what to climb with the action climb.
+ */
+climbOrGo(dir, climb)
+{
+    local room = now.actor.getOutermostRoom();
+    if(room != nil && room.propType(dir.dirProp) != TypeNil)
+        now.action.doInstead(Go, dir);
+    else
+        askForDobj(climb);
+}
+
 action Consult(dobj): TAction
 ;
 

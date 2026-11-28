@@ -1166,3 +1166,135 @@ canTalkToObj: PreCondition
 ;
     
     
+
+
+/*
+ *   A PreCondition requiring the actor's hands to be empty: nothing held
+ *   but what is worn, or fixed in the actor (a body part). Nothing is put
+ *   down for the player, since where to put things is the player's choice;
+ *   a game can override mustPutDown(obj) to let some things stay in hand.
+ */
+handsEmpty: PreCondition
+    checkPreCondition(obj, allowImplicit)
+    {
+        if(now.actor.contents.indexWhich({o: mustPutDown(o)}) == nil)
+            return true;
+
+        showMsg(hands not empty, '{I} need{s/ed} to put everything down
+            first. ');
+        return nil;
+    }
+
+    /* Does obj, in the actor, have to be put down first? */
+    mustPutDown(obj)
+    {
+        return obj.isDirectlyIn(now.actor) && obj.wornBy != now.actor
+            && !obj.isFixed;
+    }
+;
+
+/*
+ *   A PreCondition requiring obj to be switched on, which switches it on
+ *   if it can.
+ */
+objSwitchedOn: PreCondition
+    verifyPreCondition(obj)
+    {
+        if(!obj.isOn)
+            logicalRank(90);
+    }
+
+    checkPreCondition(obj, allowImplicit)
+    {
+        if(obj == nil || obj.isOn)
+            return true;
+
+        if(allowImplicit)
+        {
+            local tried = tryImplicitAction(SwitchOn, obj);
+            if(obj.isOn)
+                return true;
+            if(tried)
+                return nil;
+        }
+
+        messageParams(obj);
+        showMsg(obj needs to be on, '{The subj obj} need{s/ed} to be switched on
+            first. ');
+        return nil;
+    }
+;
+
+/*
+ *   A PreCondition requiring obj to be switched off, which switches it off
+ *   if it can.
+ */
+objSwitchedOff: PreCondition
+    verifyPreCondition(obj)
+    {
+        if(obj.isOn)
+            logicalRank(90);
+    }
+
+    checkPreCondition(obj, allowImplicit)
+    {
+        if(obj == nil || !obj.isOn)
+            return true;
+
+        if(allowImplicit)
+        {
+            local tried = tryImplicitAction(SwitchOff, obj);
+            if(!obj.isOn)
+                return true;
+            if(tried)
+                return nil;
+        }
+
+        messageParams(obj);
+        showMsg(obj needs to be off, '{The subj obj} need{s/ed} to be switched
+            off first. ');
+        return nil;
+    }
+;
+
+/*
+ *   A PreCondition requiring the actor not to be wearing any of the things
+ *   in objList, which it takes off if it can: for layers of clothing, such
+ *   as a coat that must come off before the jumper under it.
+ *
+ *       coatOff: NotWearing
+ *           objList = [coat]
+ *       ;
+ *
+ *       jumper: Wearable 'jumper'
+ *           dobj Doff { preCond = [coatOff] }
+ *       ;
+ */
+class NotWearing: PreCondition
+    /* The things that must not be worn. */
+    objList = []
+
+    checkPreCondition(obj, allowImplicit)
+    {
+        foreach(local w in objList)
+        {
+            if(w.wornBy != now.actor)
+                continue;
+
+            if(allowImplicit)
+            {
+                local tried = tryImplicitAction(Doff, w);
+                if(w.wornBy != now.actor)
+                    continue;
+                if(tried)
+                    return nil;
+            }
+
+            messageParams(w);
+            showMsg(must take off first, '{I} need{s/ed} to take off {the w}
+                first. ');
+            return nil;
+        }
+        return true;
+    }
+;

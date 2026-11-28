@@ -6705,3 +6705,102 @@ modify MessageCtx
      */
     subjEffectivelyPlural = subj.plural || (pronounUsed && subj.pronoun.plural)
 ;
+
+
+/*
+ *   A door answers to the name of the room it leads to, as the STUDY DOOR,
+ *   and, by the preparser below, as THE DOOR TO THE STUDY. The room's words
+ *   pick the door out from others, but do not name it on their own. A door
+ *   that should not be named by where it leads sets namedByDestination to
+ *   nil.
+ */
+modify Door
+    namedByDestination = true
+
+    addDestinationVocab()
+    {
+        local dest = destination;
+        if(!namedByDestination || dest == nil || !dest.ofKind(Room))
+            return;
+        local title = dest.roomTitle;
+        if(typeOf(title) != TypeString)
+            return;
+        local words = title.toLower().split(' ').subset(
+            {w: w != '' && !(w is in ('a', 'an', 'the', 'some'))
+                && regexMatch(prepWordPat, w) == nil});
+        foreach(local w in words)
+        {
+            addVocabWord(w, MatchWeak);
+            doorToPreParser.roomWords[w] = true;
+        }
+    }
+;
+
+doorDestinationVocab: PreinitObject
+    execBeforeMe = [libObjectInitializer]
+    execute() { forEachInstance(Door, {d: d.addDestinationVocab()}); }
+;
+
+/*
+ *   THE DOOR TO THE STUDY is read as THE STUDY DOOR, when STUDY is a word
+ *   of a room a door leads to. "To" is not made a word of the door's: a
+ *   word that names things changes how other commands with it are read
+ *   (SHOW FOOT TO GENERAL), so the phrase is turned round instead.
+ */
+doorToPreParser: StringPreParser
+    /* The words of the rooms that doors lead to. */
+    roomWords = static new Map()
+
+    /* The words that name a door, before TO. */
+    doorWords = ['door', 'doors', 'doorway', 'gate', 'gates']
+
+    doParsing(str, which)
+    {
+        if(roomWords.entryCount() == 0)
+            return str;
+        local words = str.split(' ');
+        for(local i = 1; i + 2 <= words.length(); i++)
+        {
+            /* DOOR TO, with nothing after either word */
+            if(doorWords.indexOf(words[i].toLower()) == nil
+               || words[i + 1].toLower() != 'to')
+                continue;
+
+            /* then THE, perhaps, and the room's words */
+            local j = i + 2;
+            if(words[j].toLower() == 'the')
+                j++;
+            local k = j;
+            local tail = '';
+            while(k <= words.length() && roomWords[bare(words[k])] != nil)
+            {
+                local w = bare(words[k]);
+                k++;
+
+                /* punctuation after a word ends the phrase, and follows it */
+                if(words[k - 1].toLower() != w)
+                {
+                    tail = words[k - 1].substr(w.length() + 1);
+                    words[k - 1] = words[k - 1].substr(1, w.length());
+                    break;
+                }
+            }
+            if(k == j)
+                continue;
+
+            /* THE STUDY DOOR */
+            words = words.sublist(1, i - 1) + words.sublist(j, k - j)
+                + (words[i] + tail) + words.sublist(k);
+        }
+        return words.join(' ');
+    }
+
+    /* A word as it is in the dictionary: lower case, without punctuation. */
+    bare(w)
+    {
+        w = w.toLower();
+        while(w.length() > 0 && '.,;:!?'.find(w.substr(w.length(), 1)) != nil)
+            w = w.substr(1, w.length() - 1);
+        return w;
+    }
+;

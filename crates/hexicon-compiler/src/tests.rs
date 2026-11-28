@@ -3972,6 +3972,30 @@ mod checked_names {
     }
 
     #[test]
+    fn a_games_own_verb_rule_takes_the_place_of_the_librarys_however_written() {
+        let library = "class IAction: object;\n\
+                       class VerbProduction: object;\n\
+                       action Jump: IAction;\n\
+                       verb Jump 'jump': ;\n\
+                       _main(args) { }\n";
+        let said = "game.hxn(1): the verb rule \"Jump\" takes the place of the built-in \
+                    library's";
+        assert_eq!(
+            messages_with(library, "game.hxn", "verb Jump 'leap': ;\n"),
+            [said]
+        );
+        // As adv3Lite's VerbRule macro writes it, too.
+        assert_eq!(
+            messages_with(
+                library,
+                "game.hxn",
+                "grammar predicate(Jump): 'leap' : VerbProduction action = Jump;\n"
+            ),
+            [said]
+        );
+    }
+
+    #[test]
     fn the_name_meant_is_in_the_note() {
         let mut files = Files::default()
             .with("lib.hxn", LIBRARY)
