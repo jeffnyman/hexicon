@@ -276,6 +276,9 @@ struct Module {
     /// the names of the libraries it is in (`en_us/en_us/en_us`).
     url: String,
     excluded: bool,
+    /// A test (`-test`, a manifest's `tests`): built only for
+    /// debugging.
+    test: bool,
 }
 
 struct Reader<'f, 'a> {
@@ -495,6 +498,7 @@ impl Reader<'_, '_> {
             origin,
             url,
             excluded: false,
+            test: false,
         });
     }
 
@@ -524,7 +528,7 @@ impl Reader<'_, '_> {
             |arg: &str| ProjectError::Usage(format!("option \"{arg}\" is not supported yet"));
         while at < args.len() && args[at].starts_with('-') {
             let arg = args[at].clone();
-            if matches!(arg.as_str(), "-source" | "-lib" | "-res") {
+            if matches!(arg.as_str(), "-source" | "-test" | "-lib" | "-res") {
                 break;
             }
             let bytes = arg.as_bytes();
@@ -593,10 +597,14 @@ impl Reader<'_, '_> {
         // The modules: sources and libraries.
         while at < args.len() {
             let arg = args[at].clone();
-            let (mut is_source, mut is_lib) = (false, false);
+            let (mut is_source, mut is_lib, mut is_test) = (false, false, false);
             let name = if arg.starts_with('-') {
                 match arg.as_str() {
                     "-source" => is_source = true,
+                    "-test" => {
+                        is_source = true;
+                        is_test = true;
+                    }
                     "-lib" => is_lib = true,
                     "-res" => {
                         // The rest are resources.
@@ -629,8 +637,8 @@ impl Reader<'_, '_> {
             let path = self.relative(&name);
             if !is_lib {
                 // The first source names the image, if nothing else
-                // has.
-                if self.image.is_none() {
+                // has: not a test, which a build may leave out.
+                if self.image.is_none() && !is_test {
                     self.image = Some(format!("{}.hxg", rem_ext(&path)));
                 }
                 // Named, as a library's sources are, without the
@@ -638,6 +646,9 @@ impl Reader<'_, '_> {
                 let file = manifest::source_name(&path);
                 let search = manifest::source_name(&name);
                 self.add_module(&file, rem_ext(&name), search, Origin::Normal, String::new());
+                if let Some(module) = self.modules.last_mut() {
+                    module.test = is_test;
+                }
             } else {
                 let found = self.find_library(&path, &name);
                 let first_lib_module = self.modules.len();
@@ -864,6 +875,7 @@ impl Reader<'_, '_> {
                     origin: Origin::SysLib,
                     url: String::new(),
                     excluded: false,
+                    test: false,
                 },
             );
         }
@@ -914,7 +926,8 @@ impl Reader<'_, '_> {
         let mut module_names = Vec::new();
         let mut from_library = Vec::new();
         for (index, module) in modules.iter().enumerate() {
-            if module.excluded {
+            // A test is built only for debugging.
+            if module.excluded || (module.test && !self.debug) {
                 continue;
             }
             let path = self.find_source(&module.source, &module.search);

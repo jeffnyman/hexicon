@@ -1,8 +1,7 @@
-// The Well House's scenarios: hexicon test plays them.
+// The Well House's scenarios, the tests its manifest names: a build for
+// debugging has them, and hexicon test plays them.
 
 import hexad;
-
-#ifdef __DEBUG
 
 // The way through, in two parts.
 getIn: Scenario 'getting in'
@@ -57,5 +56,3 @@ darkCellar: Scenario 'the cellar without the lamp'
 + Step 'd' 'The trapdoor opens on the way down.'
     expect = (me.isIn(cellar) && !cellar.isIlluminated)
 ;
-
-#endif // __DEBUG

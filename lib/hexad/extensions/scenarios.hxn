@@ -4,9 +4,11 @@ import hexad;
 /*
  *   Scenarios: tests of a story, played. A game names this extension with
  *   Hexad in its manifest, writes its scenarios in a source of their own,
- *   inside #ifdef __DEBUG, and plays them with `hexicon test`. The guide's
- *   page, Testing a Story, says how; Hexicon's docs/story-testing.md says
- *   why it is made as it is.
+ *   which its manifest names among its tests (tests = ["scenarios"]), so
+ *   that a build for debugging has them and one for release does not, and
+ *   plays them with `hexicon test`. The guide's page, Testing a Story,
+ *   says how; Hexicon's docs/story-testing.md says why it is made as it
+ *   is.
  *
  *   A Scenario is a name, what it is for, and its steps, the objects inside
  *   it (+), played in order. It starts at the start of the game, or where

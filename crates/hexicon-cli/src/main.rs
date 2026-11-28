@@ -64,6 +64,9 @@ commands:
                                hexicon.toml, if nothing else is given);
                                a .toml file among the modules is the same
       -source <file>           a source file, whatever its name
+      -test <file>             a source built only for debugging (-d),
+                               such as a game's scenarios; a manifest's
+                               tests are these
       -lib <file>              a library, whatever its name; -x <name>
                                after it leaves out one of its sources, and
                                -with <path> adds a source from its folder,

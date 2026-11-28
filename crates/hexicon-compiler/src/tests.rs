@@ -3614,6 +3614,40 @@ fn a_game_can_add_a_librarys_extensions() {
 }
 
 #[test]
+fn a_games_tests_are_built_for_debugging_alone() {
+    let mut files = Files::default()
+        .with(
+            "game/hexicon.toml",
+            "[game]\nsources = [\"start\"]\ntests = [\"scenarios\"]\n\n[build]\nsystem-main = false\n",
+        )
+        .with("game/start.hxn", "")
+        .with("game/scenarios.hxn", "");
+    let start = sys_path(&["game", "start.hxn"]);
+    let scenarios = sys_path(&["game", "scenarios.hxn"]);
+    // For release, the tests are left out; for debugging, they come
+    // after the sources, wherever -d is given.
+    let project = read(&mut files, &["-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
+    assert_eq!(project.sources, std::slice::from_ref(&start));
+    let project = read(&mut files, &["-d", "-f", "game"]).unwrap_or_else(|e| panic!("{e:?}"));
+    assert_eq!(project.sources, [start, scenarios]);
+    // On the command line, -test; and the image is named after the
+    // game, not its tests.
+    let project = read(
+        &mut files,
+        &["-nodef", "-test", "game/scenarios", "-source", "game/start"],
+    )
+    .unwrap_or_else(|e| panic!("{e:?}"));
+    let slashed = |paths: &[String]| -> Vec<String> {
+        paths.iter().map(|path| path.replace('\\', "/")).collect()
+    };
+    assert_eq!(slashed(&project.sources), ["game/start.hxn"]);
+    assert_eq!(
+        project.image.map(|image| image.replace('\\', "/")),
+        Some("game/start.hxg".to_owned())
+    );
+}
+
+#[test]
 fn a_manifest_found_by_itself_or_named_among_the_modules() {
     let mut files = Files::default()
         .with("hexicon.toml", "[game]\nsources = [\"main\"]\n")

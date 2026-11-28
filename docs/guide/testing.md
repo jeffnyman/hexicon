@@ -10,10 +10,11 @@ The scenarios are an extension of Hexad's, which a game names in its manifest:
 
 ```toml
 libraries = ["system", { name = "hexad", include = ["extensions/scenarios"] }]
-sources = ["start", "tests"]
+sources = ["start"]
+tests = ["tests"]
 ```
 
-A game's scenarios go in a source file of their own, inside `#ifdef __DEBUG`, so that a build for debugging has them and a build for release, which players get, does not: a scenario says how to win, and why.
+A game's scenarios go in a source file of their own, which its manifest names among its `tests`: a build for debugging has its tests, and `hexicon test` builds one, and a build for release, which players get, leaves them out. A scenario says how to win, and why.
 
 A scenario is a name, what it is for, and its steps, the objects inside it, played in order. A step is a command, as a player would type it, and why it is there:
 

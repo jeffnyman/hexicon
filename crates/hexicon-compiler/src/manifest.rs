@@ -10,6 +10,7 @@
 //! [game]
 //! sources = ["start.hxn", "plane.hxn"]
 //! libraries = ["system", { name = "hexad", include = ["extensions/fueled"] }]
+//! tests = ["scenarios"]
 //!
 //! [defines]
 //! LANGUAGE = "english"
@@ -233,6 +234,7 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
         "sources",
         "libraries",
         "modules",
+        "tests",
         "image",
         "resources",
         "stylesheets",
@@ -334,6 +336,12 @@ pub(crate) fn game_args(text: &[u8]) -> Result<Vec<String>, String> {
                 }
             }
         }
+    }
+
+    // Its tests, such as its scenarios, after everything else: sources
+    // that a build for debugging takes in and one for release leaves out.
+    for test in game.strings("tests")? {
+        push(&["-test", &test]);
     }
 
     // A game's style sheets are resources too: a rich display applies
