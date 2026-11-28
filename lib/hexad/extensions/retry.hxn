@@ -127,37 +127,13 @@ safePoint: object
          *   hold it, and each safe point every one before it.
          */
         data = nil;
-        local saved = saveData();
+        local saved = snapshotGame();
         data = saved;
 
         if(saved == nil)
             announce(&notesSaveFailed);
         else if(notify)
             announce(replacing ? &notesReplaced : &notesBegan);
-    }
-
-    /* The game, saved, as a ByteArray; or nil if it could not be saved. */
-    saveData()
-    {
-        local tmp = new TemporaryFile();
-        try
-        {
-            PreSaveObject.classExec();
-            saveGame(tmp);
-            local f = File.openRawFile(tmp, FileAccessRead);
-            local bytes = new ByteArray(f.getFileSize());
-            f.readBytes(bytes);
-            f.closeFile();
-            return bytes;
-        }
-        catch(RuntimeError err)
-        {
-            return nil;
-        }
-        finally
-        {
-            tmp.deleteFile();
-        }
     }
 
     /*
@@ -206,23 +182,11 @@ safePoint: object
 
         /* The player's choices about the notes outlast the restore. */
         local shown = notesShown, told = toldHowToHide;
-        local tmp = new TemporaryFile();
-        try
-        {
-            local f = File.openRawFile(tmp, FileAccessWrite);
-            f.writeBytes(bytes);
-            f.closeFile();
-            restoreGame(tmp);
-        }
-        catch(RuntimeError err)
+        if(!restoreSnapshot(bytes))
         {
             showMsg(retry failed, '<.parser>Failed: the safe point could not be
                 restored.<./parser> ');
             return nil;
-        }
-        finally
-        {
-            tmp.deleteFile();
         }
 
         data = bytes;

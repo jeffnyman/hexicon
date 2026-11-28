@@ -1,0 +1,87 @@
+#charset "us-ascii"
+import hexad;
+
+/*
+ *   Snapshots: the game as it stands, kept as the bytes of a saved game, to
+ *   be put back later. They are what the retry extension's safe points and
+ *   the reversion extension's branch points are made of.
+ *
+ *   A snapshot is written through a TemporaryFile, which every host has
+ *   (the page keeps it in memory), and read back into a ByteArray. Putting
+ *   one back is a restore: everything returns to how it was when the
+ *   snapshot was taken, except transient objects, and the code that put it
+ *   back carries on, with its local variables, from just after the call.
+ *   A restore leaves nothing for UNDO to go back to.
+ */
+
+/*
+ *   Take a snapshot: a ByteArray, transient if asked, or nil if the game
+ *   could not be saved. The PreSaveObjects are told, as for SAVE, but
+ *   libGlobal.takingSnapshot is true while they are, for any that should
+ *   do something only for a real save.
+ */
+snapshotGame(transientBytes?)
+{
+    local tmp = new TemporaryFile();
+    try
+    {
+        libGlobal.takingSnapshot = true;
+        try
+        {
+            PreSaveObject.classExec();
+        }
+        finally
+        {
+            libGlobal.takingSnapshot = nil;
+        }
+        saveGame(tmp);
+        local f = File.openRawFile(tmp, FileAccessRead);
+        local size = f.getFileSize();
+        local bytes = transientBytes ? new transient ByteArray(size)
+                                     : new ByteArray(size);
+        f.readBytes(bytes);
+        f.closeFile();
+        return bytes;
+    }
+    catch(RuntimeError err)
+    {
+        return nil;
+    }
+    finally
+    {
+        tmp.deleteFile();
+    }
+}
+
+/*
+ *   Put a snapshot back: true if it was, or nil if it could not be (the
+ *   game is then as it was). The PostRestoreObjects are not told: that is
+ *   for the caller, which knows why it restored.
+ */
+restoreSnapshot(bytes)
+{
+    if(bytes == nil)
+        return nil;
+    local tmp = new TemporaryFile();
+    try
+    {
+        local f = File.openRawFile(tmp, FileAccessWrite);
+        f.writeBytes(bytes);
+        f.closeFile();
+        restoreGame(tmp);
+        return true;
+    }
+    catch(RuntimeError err)
+    {
+        return nil;
+    }
+    finally
+    {
+        tmp.deleteFile();
+    }
+}
+
+modify libGlobal
+    /* Is a snapshot being taken (rather than a game saved by SAVE)? */
+    takingSnapshot = nil
+;

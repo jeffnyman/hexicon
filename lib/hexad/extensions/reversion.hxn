@@ -1,0 +1,412 @@
+#charset "us-ascii"
+import hexad;
+
+/*
+ *   Reversion: time turned back as part of the story, with the player
+ *   character remembering what happened; and UNDO limited or refused.
+ *
+ *   This is for stories where turning time back is part of the fiction (a
+ *   rewinding watch, a day that repeats, a loop), not for the player's
+ *   UNDO, which is a matter of the interface; and for the safe points a
+ *   player can go back to, see the retry extension.
+ *
+ *   BRANCH POINTS. Declare one for each moment time can be turned back to:
+ *
+ *       dawn: BranchPoint;
+ *
+ *   Mark it where the story reaches that moment, and later revert to it:
+ *
+ *       dawn.mark();
+ *       ...
+ *       dawn.revert();
+ *
+ *   A branch point is taken at the end of the turn it is marked in, just
+ *   before the prompt, so reverting returns to a prompt, as UNDO does.
+ *   Everything is then as it was, except what the player character
+ *   remembers (recollections, below) and the counts kept here. Marking a
+ *   branch point again replaces it; dawn.isTaken says whether it has been
+ *   taken. Reverting to one that has not, or during a hypothetical test,
+ *   does nothing and returns nil.
+ *
+ *   ARRIVING BACK. After a reversion, the branch point's reversionDesc()
+ *   says what happened ("The night falls away, and it is dawn again."),
+ *   and then the player is shown where they are, unless the branch point
+ *   says looksAround = nil. Override arrive() to do something else
+ *   entirely. These can be asked at any time:
+ *
+ *       reversion.count              how many reversions there have been
+ *       dawn.reversions              how many to dawn
+ *       reversion.hasHappened        whether there has been one
+ *       dawn.isLastRevertedTo        whether dawn was the last
+ *
+ *   VISITING. A story can go to a branch point and come straight back, to
+ *   find something out there:
+ *
+ *       dawn.visit();
+ *
+ *   The story goes to dawn, calls dawn.whenVisited() there, and comes back
+ *   to the present, carrying on just after visit(). Nothing done at dawn
+ *   lasts, except what whenVisited() writes into a transient object (one
+ *   declared "transient", which neither a restore nor UNDO changes). A
+ *   visit isn't a reversion: it isn't counted, and arrive() isn't called.
+ *   whenVisited() should print nothing, and must not revert, restart, or
+ *   end the story. While it runs, reversion.isVisiting is true. A visit
+ *   costs the player their UNDO, as a RESTORE does: the turns before it
+ *   can no longer be undone.
+ *
+ *   RECOLLECTIONS. What the player character carries back:
+ *
+ *       vaultCode: Recollection;
+ *
+ *       vaultCode.remember();   vaultCode.forget();   vaultCode.isRemembered
+ *
+ *   Recollections survive reversions, RESTART, RESTORE, and UNDO: UNDO
+ *   doesn't make the character forget. Anything else the story wants
+ *   carried back can go in a transient object of its own.
+ *
+ *   UNDO AND REVERSIONS. A reversion, like a RESTORE, leaves nothing for
+ *   UNDO before it, so the player can't undo back into the timeline that
+ *   was abandoned; UNDO there says so ("You can't undo past the moment
+ *   time turned back.").
+ *
+ *   LIMITING UNDO. A game can refuse UNDO, saying why, with
+ *   gameMain.undoPermitted(), and limit how many the player may use with
+ *   gameMain.undoAllowance:
+ *
+ *       gameMain: GameMainDef
+ *           undoAllowance = 3
+ *           undoPermitted()
+ *           {
+ *               if(me.isIn(burningRoom))
+ *               {
+ *                   "There's no taking this back. ";
+ *                   return nil;
+ *               }
+ *               return true;
+ *           }
+ *       ;
+ *
+ *   reversion.undosUsed counts them, across UNDO itself.
+ *
+ *   SAVED GAMES. The memory kept here (branch points, recollections, and
+ *   counts) is not part of the game's state, so it is copied into each
+ *   saved game. When one is restored, the copy is taken if this session
+ *   remembers nothing yet, or if the saved game came from another session
+ *   and nothing has been restored, restarted, or reverted in this one;
+ *   otherwise what this session remembers is kept. So loading an earlier
+ *   save in the same session keeps what the character has learned since,
+ *   and the first game restored in a new session brings its memories with
+ *   it. A saved game is larger by the size of its branch points.
+ */
+
+/* Defined by the hypothetical extension, if the game has it. */
+property hypotheticalDepth;
+
+/*
+ *   What outlasts reversions, restores, and UNDO: transient, so that none
+ *   of them changes it. Its maps and byte arrays are transient too.
+ */
+transient reversionMemory: object
+    /* Each branch point's snapshot, and how many reversions to it. */
+    snapshots = static new transient Map()
+    counts = static new transient Map()
+
+    /* The recollections remembered. */
+    recalled = static new transient Map()
+
+    /* Reversions in all, the last branch point reverted to, UNDOs used. */
+    reversions = 0
+    lastRevertedTo = nil
+    undosUsed = 0
+
+    /* Has time turned back since the last RESTORE or RESTART? */
+    undoStoppedHere = nil
+
+    /* Is a branch point being visited? */
+    visiting = nil
+
+    /*
+     *   This session: a number to tell it from others, and whether nothing
+     *   has been restored, restarted, or reverted in it yet.
+     */
+    session = nil
+    fresh = true
+
+    /* Does this session remember nothing yet? */
+    isBlank()
+    {
+        return snapshots.entryCount() == 0 && recalled.entryCount() == 0
+            && reversions == 0 && undosUsed == 0;
+    }
+;
+
+/* The parts of the story's memory kept in the game, and its saved copy. */
+reversion: object
+    /* A branch point to take before the next prompt. */
+    pending = nil
+
+    /* The questions a story can ask. */
+    count = (reversionMemory.reversions)
+    hasHappened = (reversionMemory.reversions > 0)
+    isVisiting = (reversionMemory.visiting)
+    undosUsed = (reversionMemory.undosUsed)
+
+    /* Time can't be turned back during a hypothetical test, or a visit. */
+    isBlocked()
+    {
+        return reversionMemory.visiting
+            || (libGlobal.hypotheticalDepth != nil
+                && libGlobal.hypotheticalDepth > 0);
+    }
+
+    /* Before each prompt: take a branch point that was marked. */
+    atPrompt()
+    {
+        /* The copy made for SAVE goes, so that no snapshot holds it. */
+        saved = nil;
+        if(pending == nil || isBlocked())
+            return;
+        local bp = pending;
+        pending = nil;
+        local bytes = snapshotGame(true);
+        if(bytes != nil)
+            reversionMemory.snapshots[bp] = bytes;
+    }
+
+    /*
+     *   The copy of the memory written into a saved game: nil, or a list of
+     *   [session, snapshots, counts, recalled, reversions, lastRevertedTo,
+     *   undosUsed], with the maps and byte arrays copied so that they are
+     *   part of the game.
+     */
+    saved = nil
+
+    makeCopy()
+    {
+        local m = reversionMemory;
+        local snaps = new Map();
+        m.snapshots.forEachAssoc(new function(bp, bytes) {
+            local b = new ByteArray(bytes.length());
+            b.copyFrom(bytes, 1, 1, bytes.length());
+            snaps[bp] = b;
+        });
+        local counts = new Map();
+        m.counts.forEachAssoc({bp, n: counts[bp] = n});
+        local recalled = new Map();
+        m.recalled.forEachAssoc({r, v: recalled[r] = v});
+        saved = [m.session, snaps, counts, recalled, m.reversions,
+                 m.lastRevertedTo, m.undosUsed];
+    }
+
+    /* Take the saved copy as what this session remembers. */
+    adoptCopy()
+    {
+        local m = reversionMemory;
+        m.snapshots = new transient Map();
+        saved[2].forEachAssoc(new function(bp, bytes) {
+            local b = new transient ByteArray(bytes.length());
+            b.copyFrom(bytes, 1, 1, bytes.length());
+            m.snapshots[bp] = b;
+        });
+        m.counts = new transient Map();
+        saved[3].forEachAssoc({bp, n: m.counts[bp] = n});
+        m.recalled = new transient Map();
+        saved[4].forEachAssoc({r, v: m.recalled[r] = v});
+        m.reversions = saved[5];
+        m.lastRevertedTo = saved[6];
+        m.undosUsed = saved[7];
+    }
+;
+
+/* Before a SAVE (not a snapshot), copy the memory into the game. */
+reversionSaving: PreSaveObject
+    execute()
+    {
+        if(!libGlobal.takingSnapshot)
+            reversion.makeCopy();
+    }
+;
+
+/*
+ *   After a RESTORE, or a game restored as the interpreter starts, choose
+ *   between what this session remembers and what the saved game does.
+ */
+reversionRestoring: PostRestoreObject
+    execute()
+    {
+        local m = reversionMemory;
+        if(restoreCode is in (1, 2))
+        {
+            local copy = reversion.saved;
+            if(copy != nil && (m.isBlank() || (copy[1] != m.session && m.fresh)))
+                reversion.adoptCopy();
+            m.fresh = nil;
+            m.undoStoppedHere = nil;
+        }
+        reversion.saved = nil;
+    }
+;
+
+reversionRestarting: PreRestartObject
+    execute()
+    {
+        reversionMemory.fresh = nil;
+        reversionMemory.undoStoppedHere = nil;
+    }
+;
+
+reversionInit: InitObject
+    execute()
+    {
+        if(reversionMemory.session == nil)
+            reversionMemory.session = rand(1000000000);
+        new PromptDaemon(reversion, &atPrompt);
+    }
+;
+
+/* A moment in the story that time can be turned back to. */
+class BranchPoint: object
+    /* Take this branch point at the end of the turn. */
+    mark() { reversion.pending = self; }
+
+    /* Has it been taken? */
+    isTaken = (reversionMemory.snapshots[self] != nil)
+
+    /* Forget it: it can't be reverted to until it is taken again. */
+    discard() { reversionMemory.snapshots.removeElement(self); }
+
+    /* How many reversions to it there have been, and was it the last? */
+    reversions = (reversionMemory.counts[self] ?? 0)
+    isLastRevertedTo = (reversionMemory.reversions > 0
+                        && reversionMemory.lastRevertedTo == self)
+
+    /*
+     *   Turn time back to this branch point. Returns nil if it can't be;
+     *   otherwise the command ends here, and the story carries on at the
+     *   branch point, from the prompt.
+     */
+    revert()
+    {
+        local bytes = reversionMemory.snapshots[self];
+        if(bytes == nil || reversion.isBlocked())
+            return nil;
+        if(!restoreSnapshot(bytes))
+            return nil;
+
+        local m = reversionMemory;
+        m.reversions++;
+        m.counts[self] = reversions + 1;
+        m.lastRevertedTo = self;
+        m.fresh = nil;
+        m.undoStoppedHere = true;
+
+        PostRestoreObject.restoreCode = 4;
+        PostRestoreObject.classExec();
+        Again.clearForAgain();
+        arrive();
+        throw new TerminateCommandException();
+    }
+
+    /* What happens on arriving back: say so, and look around. */
+    arrive()
+    {
+        reversionDesc();
+        if(looksAround)
+        {
+            "\b";
+            now.player.outermostVisibleParent().lookAroundWithin();
+        }
+    }
+
+    /* What the player is told as time turns back. */
+    reversionDesc() { }
+
+    /* Is the player shown where they are after a reversion? */
+    looksAround = true
+
+    /*
+     *   Go to this branch point, call whenVisited() there, and come back:
+     *   true if the visit was made, nil if it couldn't be.
+     */
+    visit()
+    {
+        local bytes = reversionMemory.snapshots[self];
+        if(bytes == nil || reversion.isBlocked())
+            return nil;
+        local present = snapshotGame(true);
+        if(present == nil)
+            return nil;
+        reversionMemory.visiting = true;
+        try
+        {
+            if(!restoreSnapshot(bytes))
+                return nil;
+            try
+            {
+                whenVisited();
+            }
+            finally
+            {
+                restoreSnapshot(present);
+            }
+        }
+        finally
+        {
+            reversionMemory.visiting = nil;
+        }
+        return true;
+    }
+
+    /* What to find out at this branch point when it is visited. */
+    whenVisited() { }
+;
+
+/* Something the player character remembers, through time turned back. */
+class Recollection: object
+    remember() { reversionMemory.recalled[self] = true; }
+    forget() { reversionMemory.recalled.removeElement(self); }
+    isRemembered = (reversionMemory.recalled[self] != nil)
+;
+
+modify GameMainDef
+    /* How many UNDOs the player may use, or nil for no limit. */
+    undoAllowance = nil
+
+    /*
+     *   May the player UNDO now? Return true, or say why not and return
+     *   nil.
+     */
+    undoPermitted() { return true; }
+;
+
+/*
+ *   UNDO, asking the game first, counting what is used, and saying why it
+ *   can go no further back after time has turned back.
+ */
+modify Undo
+    execAction(cmd)
+    {
+        if(!gameMain.undoPermitted())
+            return nil;
+        if(gameMain.undoAllowance != nil
+           && reversionMemory.undosUsed >= gameMain.undoAllowance)
+        {
+            showMsg(no more undo, '<.parser>You have no more UNDOs.<./parser> ');
+            return nil;
+        }
+        if(undo())
+        {
+            reversionMemory.undosUsed++;
+            showMsg(undo okay, 'One turn undone: {1}',
+                    libGlobal.lastCommandForUndo);
+            PostUndoObject.classExec();
+            return true;
+        }
+        if(reversionMemory.undoStoppedHere)
+            showMsg(undo past reversion, '<.parser>You can\'t undo past the
+                moment time turned back.<./parser> ');
+        else
+            showMsg(undo failed, 'Undo failed. ');
+        return nil;
+    }
+;

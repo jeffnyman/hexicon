@@ -22,6 +22,7 @@ sources = [
     "main",
     "messages",
     "misc",
+    "snapshot",
     "modid",
     "output",
     "parser",
