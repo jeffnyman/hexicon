@@ -1,0 +1,331 @@
+#charset "us-ascii"
+import hexad;
+
+/*
+ *   Safe points and RETRY: a way back to the last point the game knows can
+ *   still be won.
+ *
+ *   A game that can be lost, or left unwinnable, in a dangerous stretch (a
+ *   chase, a fight, a collapsing cave) can mark where the danger begins:
+ *
+ *       safePoint.dangerBegins();
+ *
+ *   in the action, event, or daemon that starts it. At the end of that
+ *   turn, before the next prompt, Hexad saves the game as it stands, as the
+ *   safe point. Until the game says the danger is over,
+ *
+ *       safePoint.dangerEnds();
+ *
+ *   the player can type RETRY to go back to the safe point, and, if the
+ *   game ends, is offered RETRY among the options at the end
+ *   (finishOptionRetry, which the game lists with the others it offers; it
+ *   is shown only when there is a safe point to go back to).
+ *
+ *   SAVE and UNDO still work as always. A safe point is not a choice the
+ *   player makes, but the game's word that the position can be won, which
+ *   a player stuck in a dangerous stretch has no other way to know. It is
+ *   part of the game's state, so a saved game keeps its safe point, and
+ *   UNDO before the danger began takes it away again.
+ *
+ *   The danger must begin where the game can still be won: the turn's
+ *   last action brought the player there safely, and what they do next
+ *   might not. A new danger can begin while one is running, and its safe
+ *   point replaces the old one.
+ *
+ *   After a RETRY, the player is shown where they are, as after UNDO.
+ *   dangerBegins() can say more: dangerBegins('The rope is fraying. ')
+ *   shows the text after the room, and a function, dangerBegins({: ... }),
+ *   is called instead of showing the room.
+ *
+ *   Each change is announced ("RETRY now returns you here, if things go
+ *   wrong"), and the first time, how to turn the notes off: RETRY HIDE, and
+ *   RETRY SHOW to turn them on again. dangerBegins(recap, nil) and
+ *   dangerEnds(nil) say nothing, whatever the player chose; the game says
+ *   what it likes instead. A game whose first turn is already dangerous
+ *   sets gameMain.startsInDanger, and is saved, silently, before the first
+ *   prompt.
+ */
+
+modify GameMainDef
+    /* Is the game dangerous from its first turn? */
+    startsInDanger = nil
+
+    /* Are changes of danger announced, until the player says otherwise? */
+    retryNotesInitiallyShown = true
+;
+
+safePoint: object
+    /*
+     *   Danger begins: at the end of this turn, save the game as the safe
+     *   point that RETRY returns to. recap is what the player is shown
+     *   after a RETRY besides the room: true for nothing more, a string to
+     *   show after the room, or a function to call instead. notify is
+     *   whether to announce it.
+     */
+    dangerBegins(recap = true, notify = true)
+    {
+        scheduled = true;
+        scheduledRecap = recap;
+        scheduledNotify = notify;
+    }
+
+    /* The danger is over: there is nothing to RETRY until the next. */
+    dangerEnds(notify = true)
+    {
+        scheduled = nil;
+        if(!inDanger)
+            return;
+        inDanger = nil;
+        data = nil;
+        endedNotify = notify;
+    }
+
+    /* An end of danger to announce at the prompt. */
+    endedNotify = nil
+
+    /* Is the player in a dangerous stretch, with a safe point behind them? */
+    inDanger = nil
+
+    /* The safe point, saved, as the bytes of a saved game. */
+    data = nil
+
+    /* The turn it was saved after. */
+    savedAtTurn = 0
+
+    /* What to show after a RETRY. */
+    recap = true
+
+    /* A danger to begin at the end of this turn, and how. */
+    scheduled = nil
+    scheduledRecap = true
+    scheduledNotify = true
+
+    /* Does the player want to be told of changes? Have they been told how not to? */
+    notesShown = true
+    toldHowToHide = nil
+
+    /* Before each prompt: save a safe point that was asked for. */
+    atPrompt()
+    {
+        if(endedNotify)
+        {
+            endedNotify = nil;
+            if(!scheduled)
+                announce(&notesEnded);
+        }
+        if(!scheduled)
+            return;
+        local replacing = inDanger;
+        local notify = scheduledNotify;
+        scheduled = nil;
+        inDanger = true;
+        recap = scheduledRecap;
+        savedAtTurn = libGlobal.totalTurns;
+
+        /*
+         *   The old safe point is let go before saving, or the new one would
+         *   hold it, and each safe point every one before it.
+         */
+        data = nil;
+        local saved = saveData();
+        data = saved;
+
+        if(saved == nil)
+            announce(&notesSaveFailed);
+        else if(notify)
+            announce(replacing ? &notesReplaced : &notesBegan);
+    }
+
+    /* The game, saved, as a ByteArray; or nil if it could not be saved. */
+    saveData()
+    {
+        local tmp = new TemporaryFile();
+        try
+        {
+            PreSaveObject.classExec();
+            saveGame(tmp);
+            local f = File.openRawFile(tmp, FileAccessRead);
+            local bytes = new ByteArray(f.getFileSize());
+            f.readBytes(bytes);
+            f.closeFile();
+            return bytes;
+        }
+        catch(RuntimeError err)
+        {
+            return nil;
+        }
+        finally
+        {
+            tmp.deleteFile();
+        }
+    }
+
+    /*
+     *   Go back to the safe point. Returns nil, having said why, if it
+     *   cannot; on success, ends the command (and the end-of-game options)
+     *   by throwing TerminateCommandException. confirm is whether to ask
+     *   first; atEnd, whether the game has ended, when the turn that ended
+     *   it has not yet been counted, so even a turn just after the safe
+     *   point is one to go back from.
+     */
+    retry(confirm, atEnd?)
+    {
+        if(!inDanger || data == nil)
+        {
+            if(inDanger)
+                showMsg(retry not saved, '<.parser>The safe point could not be
+                    saved, so there is nothing to retry.<./parser> ');
+            else
+                showMsg(retry not in danger, '<.parser>There is nothing to retry:
+                    you are not in any danger.<./parser> ');
+            return nil;
+        }
+        if(!atEnd && libGlobal.totalTurns <= savedAtTurn)
+        {
+            showMsg(retry just saved, '<.parser>You are at the safe point
+                already: there is nothing to retry yet.<./parser> ');
+            return nil;
+        }
+        if(confirm)
+        {
+            showMsg(retry confirm, '<.parser>Go back to the last safe point?
+                Everything since will be lost. (Y/N)<./parser> ');
+            if(!yesOrNo())
+            {
+                showMsg(retry cancelled, '<.parser>Canceled.<./parser> ');
+                return nil;
+            }
+        }
+
+        /*
+         *   The bytes are kept in a local, which the restore leaves alone,
+         *   since the restored game has the safe point it had when it was
+         *   saved: none.
+         */
+        local bytes = data;
+
+        /* The player's choices about the notes outlast the restore. */
+        local shown = notesShown, told = toldHowToHide;
+        local tmp = new TemporaryFile();
+        try
+        {
+            local f = File.openRawFile(tmp, FileAccessWrite);
+            f.writeBytes(bytes);
+            f.closeFile();
+            restoreGame(tmp);
+        }
+        catch(RuntimeError err)
+        {
+            showMsg(retry failed, '<.parser>Failed: the safe point could not be
+                restored.<./parser> ');
+            return nil;
+        }
+        finally
+        {
+            tmp.deleteFile();
+        }
+
+        data = bytes;
+        notesShown = shown;
+        toldHowToHide = told;
+        PostRestoreObject.restoreCode = 3;
+        PostRestoreObject.classExec();
+        Again.clearForAgain();
+
+        showMsg(retry okay, '<.parser>Back at the last safe point.<./parser> ');
+        "\b";
+        if(typeOf(recap) == TypeFunction)
+            recap();
+        else
+        {
+            now.player.outermostVisibleParent().lookAroundWithin();
+            if(typeOf(recap) == TypeString)
+                say(recap);
+        }
+        throw new TerminateCommandException();
+    }
+
+    /* Announce a change of danger, if the player wants to be told. */
+    announce(prop)
+    {
+        if(!notesShown)
+            return;
+        "<.p>";
+        self.(prop)();
+        if(!toldHowToHide)
+        {
+            toldHowToHide = true;
+            showMsg(retry how to hide, ' <.parser>(RETRY HIDE turns these notes
+                off.)<./parser>');
+        }
+        "<.p>";
+    }
+
+    notesBegan() { showMsg(retry began, '<.parser>This is a dangerous moment.
+        If things go wrong, RETRY returns you here.<./parser>'); }
+    notesReplaced() { showMsg(retry replaced, '<.parser>A new danger: RETRY
+        now returns you here.<./parser>'); }
+    notesEnded() { showMsg(retry ended, '<.parser>You are out of danger, and
+        there is nothing to RETRY now.<./parser>'); }
+    notesSaveFailed() { showMsg(retry save failed, '<.parser>This is a
+        dangerous moment, but it could not be saved, so RETRY cannot return
+        here.<./parser>'); }
+
+    /* RETRY SHOW and RETRY HIDE. */
+    showNotes(stat)
+    {
+        notesShown = stat;
+        toldHowToHide = true;
+        showMsg(retry notes, '<.parser>Notes on when RETRY can be used are now
+            {1}.<./parser> ', stat ? 'on' : 'off');
+    }
+;
+
+safePointInit: InitObject
+    execute()
+    {
+        safePoint.notesShown = gameMain.retryNotesInitiallyShown;
+        if(gameMain.startsInDanger)
+            safePoint.dangerBegins(gameMain.startsInDanger, nil);
+        new PromptDaemon(safePoint, &atPrompt);
+    }
+;
+
+action Retry: SystemAction
+    execAction(cmd)
+    {
+        safePoint.retry(true);
+        throw new TerminateCommandException();
+    }
+    includeInUndo = nil
+    isRepeatable = nil
+;
+
+action RetryNotes: SystemAction
+    execAction(cmd) { safePoint.showNotes(cmd.verbProd.show_ != nil); }
+    isRepeatable = nil
+;
+
+verb Retry 'retry':
+    verbPhrase = 'retry/retrying'
+;
+
+verb RetryNotes 'retry' ('show'->show_ | 'hide'->hide_):
+    verbPhrase = 'show/showing retry notes'
+;
+
+/* RETRY among the options when the game ends, if there is a safe point. */
+finishOptionRetry: FinishOption
+    desc = '''<<aHrefAlt('retry', 'RETRY', 'RETRY',
+            'Go back to the last safe point')>> from the last safe point'''
+    responseKeyword = 'retry'
+    listed = (safePoint.inDanger && safePoint.data != nil)
+    responseMatches(response) { return listed && inherited(response); }
+    doOption()
+    {
+        /* On success, this ends the options; on failure, ask again. */
+        safePoint.retry(nil, true);
+        return true;
+    }
+    listOrder = 20
+;
